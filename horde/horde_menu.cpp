@@ -1,129 +1,155 @@
 // --- START OF FILE horde_menu.cpp ---
 
-#include "../g_local.h"  // Includes edict_t, gclient_t, gi, level, etc.
-#include "../shared.h"  // For MAX_ITEMS, etc.
+#include "../g_local.h"		   // Includes edict_t, gclient_t, gi, level, etc.
+#include "../shared.h"		   // For MAX_ITEMS, etc.
 #include "../memory_safety.h"  // For safe memory operations
 #include "../ctf/p_ctf_menu.h" // Menu system definitions and functions
-#include "../ctf/g_ctf.h"      // For CTF functions like CTFObserver, CTFJoinTeam, CTFBeginElection, etc.
-#include "g_horde.h"    // For GetMapSize
+#include "../ctf/g_ctf.h"	   // For CTF functions like CTFObserver, CTFJoinTeam, CTFBeginElection, etc.
+#include "g_horde.h"		   // For GetMapSize
 #include "g_horde_benefits.h"
 #include "g_laser.h"
-#include "p_flyer_morph.h"  // For IsMorphed, RestoreMorphed, Cmd_PlayerToFlyer_f
-#include "p_brain_morph.h"  // For Cmd_PlayerToBrain_f
+#include "p_flyer_morph.h" // For IsMorphed, RestoreMorphed, Cmd_PlayerToFlyer_f
+#include "p_brain_morph.h" // For Cmd_PlayerToBrain_f
 
 // Declaration for P_GetLobbyUserNum (defined in p_client.cpp)
-extern unsigned int P_GetLobbyUserNum(const edict_t* player);
+extern unsigned int P_GetLobbyUserNum(const edict_t *player);
 
 // Declaration for Cmd_Help_f (defined in p_hud.cpp)
-extern void Cmd_Help_f(edict_t* ent);
+extern void Cmd_Help_f(edict_t *ent);
 
 // Forward Declarations from this file
-void OpenVoteMenu(edict_t* ent);
-void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p);
+void OpenVoteMenu(edict_t *ent);
+void VoteMenuHandler(edict_t *ent, pmenuhnd_t *p);
 void UpdateVoteMenu();
-void ShowInventory(edict_t* ent);
-void OpenHordeMenu(edict_t* ent) noexcept;
-void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p);
-pmenuhnd_t* CreateHordeMenu(edict_t* ent);
-void OpenTechMenu(edict_t* ent);
-void TechMenuHandler(edict_t* ent, pmenuhnd_t* p);
-void OpenHUDMenu(edict_t* ent);
-void UpdateHUDMenu(edict_t* ent, pmenuhnd_t* p);
-void HUDMenuHandler(edict_t* ent, pmenuhnd_t* p);
+void ShowInventory(edict_t *ent);
+void OpenHordeMenu(edict_t *ent) noexcept;
+void HordeMenuHandler(edict_t *ent, pmenuhnd_t *p);
+pmenuhnd_t *CreateHordeMenu(edict_t *ent);
+void OpenTechMenu(edict_t *ent);
+void TechMenuHandler(edict_t *ent, pmenuhnd_t *p);
+void OpenHUDMenu(edict_t *ent);
+void UpdateHUDMenu(edict_t *ent, pmenuhnd_t *p);
+void HUDMenuHandler(edict_t *ent, pmenuhnd_t *p);
 void CheckAndUpdateMenus();
-void OpenMapCategoryMenu(edict_t* ent);
-void MapCategoryHandler(edict_t* ent, pmenuhnd_t* p);
+void OpenMapCategoryMenu(edict_t *ent);
+void MapCategoryHandler(edict_t *ent, pmenuhnd_t *p);
 void CategorizeMapList();
-pmenuhnd_t* CreateHUDMenu(edict_t* ent);
-void OpenMiscMenu(edict_t* ent, int cursor_position = -1); // Forward declare Misc menu functions
-void MiscMenuHandler(edict_t* ent, pmenuhnd_t* p);
-void OpenRespawnWeaponMenu(edict_t* ent); // Forward declare Respawn Weapon menu
-void RespawnWeaponMenuHandler(edict_t* ent, pmenuhnd_t* p);
-void OpenAdminMenu(edict_t* ent); // Forward declare Admin menu functions
-void AdminMenuHandler(edict_t* ent, pmenuhnd_t* p);
+pmenuhnd_t *CreateHUDMenu(edict_t *ent);
+void OpenMiscMenu(edict_t *ent, int cursor_position = -1); // Forward declare Misc menu functions
+void MiscMenuHandler(edict_t *ent, pmenuhnd_t *p);
+void OpenRespawnWeaponMenu(edict_t *ent); // Forward declare Respawn Weapon menu
+void RespawnWeaponMenuHandler(edict_t *ent, pmenuhnd_t *p);
+void OpenAdminMenu(edict_t *ent); // Forward declare Admin menu functions
+void AdminMenuHandler(edict_t *ent, pmenuhnd_t *p);
 
 // Upgrade menu functions
-void OpenUpgradeMenu(edict_t* ent);
-void UpgradeMenuHandler(edict_t* ent, pmenuhnd_t* p);
-pmenuhnd_t* CreateUpgradeMenu(edict_t* ent);
+void OpenUpgradeMenu(edict_t *ent);
+void UpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p);
+pmenuhnd_t *CreateUpgradeMenu(edict_t *ent);
 
 // Benefits menu functions
-void OpenAbilitiesMenu(edict_t* ent);
-void AbilitiesMenuHandler(edict_t* ent, pmenuhnd_t* p);
-void OpenWeaponsMenu(edict_t* ent);
-void WeaponsMenuHandler(edict_t* ent, pmenuhnd_t* p);
-pmenuhnd_t* CreateAbilitiesMenu(edict_t* ent);
-pmenuhnd_t* CreateWeaponsMenu(edict_t* ent);
+void OpenAbilitiesMenu(edict_t *ent);
+void AbilitiesMenuHandler(edict_t *ent, pmenuhnd_t *p);
+void OpenWeaponsMenu(edict_t *ent);
+void WeaponsMenuHandler(edict_t *ent, pmenuhnd_t *p);
+pmenuhnd_t *CreateAbilitiesMenu(edict_t *ent);
+pmenuhnd_t *CreateWeaponsMenu(edict_t *ent);
 
 // Helper to get sentry type name
-static const char* GetSentryTypeName(sentrytype_t type) {
-	switch (type) {
-	case SENTRY_HEATBEAM:    return "Beam/Phalanx";
-	case SENTRY_MACHINEGUN:  return "Mg/Rocket";
-	case SENTRY_FLECHETTE:   return "Flech/Grenade";
-	case SENTRY_RANDOM:      // fallthrough
-	default:                 return "Random";
+static const char *GetSentryTypeName(sentrytype_t type)
+{
+	switch (type)
+	{
+	case SENTRY_HEATBEAM:
+		return "Beam/Phalanx";
+	case SENTRY_MACHINEGUN:
+		return "Mg/Rocket";
+	case SENTRY_FLECHETTE:
+		return "Flech/Grenade";
+	case SENTRY_RANDOM: // fallthrough
+	default:
+		return "Random";
 	}
 }
 
 // Helper to get BFG mode name
-static const char* GetBFGModeName(BFGMode mode) {
-	switch (mode) {
-	case BFGMode::NORMAL:     return "Normal";
-	case BFGMode::SLIDE:      return "Slide";
-	case BFGMode::GRAV_PULL:  return "Slide+Pull";
-	default:                  return "Normal";
+static const char *GetBFGModeName(BFGMode mode)
+{
+	switch (mode)
+	{
+	case BFGMode::NORMAL:
+		return "Normal";
+	case BFGMode::SLIDE:
+		return "Slide";
+	case BFGMode::GRAV_PULL:
+		return "Slide+Pull";
+	default:
+		return "Normal";
 	}
 }
 
-static const char* GetSpecialWaveName(int type) {
-	switch (type) {
-	case SPECIAL_WAVE_BARRELS:           return "Barrel";
-	case SPECIAL_WAVE_HOOK:              return "Hook";
-	case SPECIAL_WAVE_BOMBSPELL_FORWARD: return "Bombspell";
-	case SPECIAL_WAVE_BOMBSPELL_AREA:    return "Bombspell Area";
-	case SPECIAL_WAVE_TELEPORT_FWD:      return "Teleport Fwd";
-	case SPECIAL_WAVE_FIREBALL:          return "Fireball";
-	default:                             return "None";
+static const char *GetSpecialWaveName(int type)
+{
+	switch (type)
+	{
+	case SPECIAL_WAVE_BARRELS:
+		return "Barrel";
+	case SPECIAL_WAVE_HOOK:
+		return "Hook";
+	case SPECIAL_WAVE_BOMBSPELL_FORWARD:
+		return "Bombspell";
+	case SPECIAL_WAVE_BOMBSPELL_AREA:
+		return "Bombspell Area";
+	case SPECIAL_WAVE_TELEPORT_FWD:
+		return "Teleport Fwd";
+	case SPECIAL_WAVE_FIREBALL:
+		return "Fireball";
+	default:
+		return "None";
 	}
 }
 
-static const char* GetMorphTypeName(int type) {
-	switch (type) {
-	case 0: return "Brain";
-	case 1: return "Flyer";
-	default: return "Brain";
+static const char *GetMorphTypeName(int type)
+{
+	switch (type)
+	{
+	case 0:
+		return "Brain";
+	case 1:
+		return "Flyer";
+	default:
+		return "Brain";
 	}
 }
 
 //--------------------------------
-static void SetGameName(pmenu_t* p);
-static void SetLevelName(pmenu_t* p);
+static void SetGameName(pmenu_t *p);
+static void SetLevelName(pmenu_t *p);
 
-void HordeJoinTeam(edict_t* ent, pmenuhnd_t* p); // Handler for Join Horde
-void GoChaseCam(edict_t* ent, pmenuhnd_t* p);  // Handler for Chase Cam/Spectator
-void OpenAdminFromJoinMenu(edict_t* ent, pmenuhnd_t* p); // Handler for Admin Menu from Join Menu
+void HordeJoinTeam(edict_t *ent, pmenuhnd_t *p);		 // Handler for Join Horde
+void GoChaseCam(edict_t *ent, pmenuhnd_t *p);			 // Handler for Chase Cam/Spectator
+void OpenAdminFromJoinMenu(edict_t *ent, pmenuhnd_t *p); // Handler for Admin Menu from Join Menu
 
 // Simplified joinmenu with reduced spacing
 const pmenu_t joinmenu[] = {
-    { "*PLACEHOLDER*", PMENU_ALIGN_CENTER, nullptr, "" },        // 0: Title (Set by SetGameName)
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 1: Blank Separator
-    { "*PLACEHOLDER*", PMENU_ALIGN_CENTER, nullptr, "" },        // 2: Level Name (Set by SetLevelName)
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 3: Blank Separator
-    { "Join and Fight the HORDE!", PMENU_ALIGN_LEFT, HordeJoinTeam, "" }, // 4: Join Horde
-    { "", PMENU_ALIGN_LEFT, nullptr, "" },                      // 5: Player Count
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 6: Blank Separator
-    { "Go Spectator", PMENU_ALIGN_LEFT, GoChaseCam, "" },     // 7: Go Spectator
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 8: Blank Separator
-    { "[HOST] Admin Menu", PMENU_ALIGN_LEFT, nullptr, "" },    // 9: Host Admin Menu (visibility controlled in update)
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 10: Blank Separator
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 11: More spacing
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 12: More spacing
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 13: More spacing
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 14: More spacing
-    { "Discord: Enemy0416", PMENU_ALIGN_LEFT, nullptr, "" },    // 15: Discord Info
-    { "Original Mod by Paril", PMENU_ALIGN_LEFT, nullptr, "" }, // 16: Original Mod Credit
-    { "Modified by Enemy", PMENU_ALIGN_LEFT, nullptr, "" }     // 17: Modified Credit
+	{"*PLACEHOLDER*", PMENU_ALIGN_CENTER, nullptr, ""},					// 0: Title (Set by SetGameName)
+	{"", PMENU_ALIGN_CENTER, nullptr, ""},								// 1: Blank Separator
+	{"*PLACEHOLDER*", PMENU_ALIGN_CENTER, nullptr, ""},					// 2: Level Name (Set by SetLevelName)
+	{"", PMENU_ALIGN_CENTER, nullptr, ""},								// 3: Blank Separator
+	{"Join and Fight the HORDE!", PMENU_ALIGN_LEFT, HordeJoinTeam, ""}, // 4: Join Horde
+	{"", PMENU_ALIGN_LEFT, nullptr, ""},								// 5: Player Count
+	{"", PMENU_ALIGN_CENTER, nullptr, ""},								// 6: Blank Separator
+	{"Go Spectator", PMENU_ALIGN_LEFT, GoChaseCam, ""},					// 7: Go Spectator
+	{"", PMENU_ALIGN_CENTER, nullptr, ""},								// 8: Blank Separator
+	{"[HOST] Admin Menu", PMENU_ALIGN_LEFT, nullptr, ""},				// 9: Host Admin Menu (visibility controlled in update)
+	{"", PMENU_ALIGN_CENTER, nullptr, ""},								// 10: Blank Separator
+	{"", PMENU_ALIGN_CENTER, nullptr, ""},								// 11: More spacing
+	{"", PMENU_ALIGN_CENTER, nullptr, ""},								// 12: More spacing
+	{"", PMENU_ALIGN_CENTER, nullptr, ""},								// 13: More spacing
+	{"", PMENU_ALIGN_CENTER, nullptr, ""},								// 14: More spacing
+	{"Discord: Enemy0416", PMENU_ALIGN_LEFT, nullptr, ""},				// 15: Discord Info
+	{"Original Mod by Paril", PMENU_ALIGN_LEFT, nullptr, ""},			// 16: Original Mod Credit
+	{"Modified by Enemy", PMENU_ALIGN_LEFT, nullptr, ""}				// 17: Modified Credit
 
 };
 
@@ -133,11 +159,11 @@ constexpr size_t JOINMENU_SIZE = sizeof(joinmenu) / sizeof(pmenu_t); // Should b
 // Update indices based on the simplified joinmenu structure
 constexpr size_t JOINMENU_TITLE_IDX = 0;
 constexpr size_t JOINMENU_LEVELNAME_IDX = 2;
-constexpr size_t JOINMENU_JOIN_HORDE_IDX = 4; // Updated index
+constexpr size_t JOINMENU_JOIN_HORDE_IDX = 4;		// Updated index
 constexpr size_t JOINMENU_JOIN_HORDE_COUNT_IDX = 5; // Updated index
-constexpr size_t JOINMENU_CHASECAM_IDX = 7; // Updated index
-constexpr size_t JOINMENU_ADMIN_IDX = 9; // Host Admin Menu
-constexpr size_t JOINMENU_DISCORD_IDX = 15; // Discord at bottom
+constexpr size_t JOINMENU_CHASECAM_IDX = 7;			// Updated index
+constexpr size_t JOINMENU_ADMIN_IDX = 9;			// Host Admin Menu
+constexpr size_t JOINMENU_DISCORD_IDX = 15;			// Discord at bottom
 constexpr size_t JOINMENU_ORIGINAL_CREDIT_IDX = 16; // Original Mod Credit
 constexpr size_t JOINMENU_MODIFIED_CREDIT_IDX = 17; // Modified Credit
 
@@ -148,7 +174,7 @@ static_assert(JOINMENU_DISCORD_IDX < JOINMENU_SIZE, "JOINMENU_DISCORD_IDX is out
 static_assert(JOINMENU_CHASECAM_IDX < JOINMENU_SIZE, "JOINMENU_CHASECAM_IDX is out of bounds for joinmenu");
 static_assert(JOINMENU_JOIN_HORDE_COUNT_IDX < JOINMENU_SIZE, "JOINMENU_JOIN_HORDE_COUNT_IDX is out of bounds for joinmenu");
 
-void HordeOpenJoinMenu(edict_t* ent)
+void HordeOpenJoinMenu(edict_t *ent)
 {
 	uint32_t num1 = 0, num2 = 0;
 	for (uint32_t i = 0; i < game.maxclients; i++)
@@ -170,7 +196,8 @@ void HordeOpenJoinMenu(edict_t* ent)
 	team = brandom() ? CTF_TEAM1 : CTF_TEAM2;
 
 	// Cerrar cualquier menú abierto antes de abrir uno nuevo
-	if (ent->client->menu) {
+	if (ent->client->menu)
+	{
 		PMenu_Close(ent);
 	}
 
@@ -181,8 +208,7 @@ void HordeOpenJoinMenu(edict_t* ent)
 	PMenu_Open(ent, joinmenu, team, sizeof(joinmenu) / sizeof(pmenu_t), nullptr, HordeUpdateJoinMenu);
 }
 
-
-void HordeUpdateJoinMenu(edict_t* ent)
+void HordeUpdateJoinMenu(edict_t *ent)
 {
 	// --- Safety Checks ---
 	if (!ent || !ent->client || !ent->client->menu || !ent->client->menu->entries)
@@ -191,25 +217,26 @@ void HordeUpdateJoinMenu(edict_t* ent)
 		return;
 	}
 	// Check if the menu size matches what we expect
-	if (ent->client->menu->num != JOINMENU_SIZE) {
-		 gi.Com_PrintFmt("Warning: HordeUpdateJoinMenu - menu size mismatch (expected {}, got {}).", JOINMENU_SIZE, ent->client->menu->num);
+	if (ent->client->menu->num != JOINMENU_SIZE)
+	{
+		gi.Com_PrintFmt("Warning: HordeUpdateJoinMenu - menu size mismatch (expected {}, got {}).", JOINMENU_SIZE, ent->client->menu->num);
 		return;
 	}
 
-	pmenu_t* entries = ent->client->menu->entries;
+	pmenu_t *entries = ent->client->menu->entries;
 
 	// --- Update Static/Common Entries ---
-	SetGameName(&entries[JOINMENU_TITLE_IDX]);       // Update Game Title
-	SetLevelName(&entries[JOINMENU_LEVELNAME_IDX]);  // Update Level Name
+	SetGameName(&entries[JOINMENU_TITLE_IDX]);		// Update Game Title
+	SetLevelName(&entries[JOINMENU_LEVELNAME_IDX]); // Update Level Name
 
 	// --- Horde/Coop/PvM Specific Logic ---
-	if (g_horde->integer || g_pvm->integer || G_IsCooperative() || coop->integer || !deathmatch->integer) // Check if Horde mode, PvM, Coop, or single player is active
+	if (g_horde->integer || pvm->integer || G_IsCooperative() || coop->integer || !deathmatch->integer) // Check if Horde mode, PvM, Coop, or single player is active
 	{
 		// Set appropriate join text based on mode
-		const char* join_text;
+		const char *join_text;
 		if (g_horde->integer)
 			join_text = "Join and Fight the HORDE!";
-		else if (g_pvm->integer)
+		else if (pvm->integer)
 			join_text = "Join PvM (Player vs Monster)";
 		else if (G_IsCooperative() || coop->integer)
 			join_text = "Join Cooperative Game";
@@ -233,8 +260,10 @@ void HordeUpdateJoinMenu(edict_t* ent)
 
 		// --- Update Player Count () ---
 		uint32_t horde_player_count = 0;
-		for (const auto* player_ent : active_players()) {
-			if (player_ent->client->resp.ctf_team == CTF_TEAM1) {
+		for (const auto *player_ent : active_players())
+		{
+			if (player_ent->client->resp.ctf_team == CTF_TEAM1)
+			{
 				horde_player_count++;
 			}
 		}
@@ -263,19 +292,20 @@ void HordeUpdateJoinMenu(edict_t* ent)
 	}
 
 	// --- Update Chase Cam / Spectator Option ---
-	const char* chase_text = ent->client->chase_target ?
-		"$g_pc_leave_chase_camera" :
-		"Go Spectator";
+	const char *chase_text = ent->client->chase_target ? "$g_pc_leave_chase_camera" : "Go Spectator";
 	Q_strlcpy(entries[JOINMENU_CHASECAM_IDX].text, chase_text, sizeof(entries[JOINMENU_CHASECAM_IDX].text));
 	entries[JOINMENU_CHASECAM_IDX].SelectFunc = GoChaseCam;
 
 	// --- Update Admin Menu Option (Host Only) ---
 	unsigned int playerNum = P_GetLobbyUserNum(ent);
-	if (playerNum == 0) {
+	if (playerNum == 0)
+	{
 		// Player is the host - show admin menu option
 		Q_strlcpy(entries[JOINMENU_ADMIN_IDX].text, "[HOST] Admin Menu", sizeof(entries[JOINMENU_ADMIN_IDX].text));
 		entries[JOINMENU_ADMIN_IDX].SelectFunc = OpenAdminFromJoinMenu;
-	} else {
+	}
+	else
+	{
 		// Player is not the host - hide admin menu option
 		entries[JOINMENU_ADMIN_IDX].text[0] = '\0';
 		entries[JOINMENU_ADMIN_IDX].SelectFunc = nullptr;
@@ -283,15 +313,17 @@ void HordeUpdateJoinMenu(edict_t* ent)
 }
 
 // Handler for opening Admin Menu from Join Menu
-void OpenAdminFromJoinMenu(edict_t* ent, pmenuhnd_t* p)
+void OpenAdminFromJoinMenu(edict_t *ent, pmenuhnd_t *p)
 {
-	if (!ent || !ent->client) {
+	if (!ent || !ent->client)
+	{
 		return;
 	}
 
 	// Check if player is the host
 	unsigned int playerNum = P_GetLobbyUserNum(ent);
-	if (playerNum != 0) {
+	if (playerNum != 0)
+	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "Only the host can access the admin menu.\n");
 		return;
 	}
@@ -303,28 +335,29 @@ void OpenAdminFromJoinMenu(edict_t* ent, pmenuhnd_t* p)
 
 // Keep the SetGameName and SetLevelName definitions as they were in the previous correct version.
 // Definition of SetGameName
-static void SetGameName(pmenu_t* p)
+static void SetGameName(pmenu_t *p)
 {
 	// Safety check
-	if (!p) return;
+	if (!p)
+		return;
 
-	if (ctf->integer) // Check if CTF mode is active
+	if (ctf->integer)										// Check if CTF mode is active
 		Q_strlcpy(p->text, "$g_pc_3wctf", sizeof(p->text)); // Use localized CTF name
-	else // Assume Horde or other modes
+	else													// Assume Horde or other modes
 		// Use the constexpr string defined in g_horde.h
 		Q_strlcpy(p->text, HORDE_MOD_VERSION_STRING, sizeof(p->text));
 }
 
-
 // Definition of SetLevelName
-static void SetLevelName(pmenu_t* p)
+static void SetLevelName(pmenu_t *p)
 {
 	// Safety check
-	if (!p) return;
+	if (!p)
+		return;
 
 	static char levelname[sizeof(pmenu_t::text)]; // Use size of destination buffer
 
-	levelname[0] = '*'; // Prefix with '*' for centered title look
+	levelname[0] = '*';								 // Prefix with '*' for centered title look
 	if (g_edicts[0].message && *g_edicts[0].message) // Check if worldspawn has a message (level title)
 		Q_strlcpy(levelname + 1, g_edicts[0].message, sizeof(levelname) - 1);
 	else if (level.mapname && *level.mapname) // Fallback to map filename
@@ -343,32 +376,32 @@ constexpr size_t VOTE_MENU_SIZE = MAX_MAPS_PER_PAGE + 6; // Title, blank, N maps
 
 // vote_menu is dynamically updated by UpdateVoteMenu
 static pmenu_t vote_menu[VOTE_MENU_SIZE] = {
-    { "*Map Voting Menu", PMENU_ALIGN_CENTER, nullptr, "" },
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },
-    { "", PMENU_ALIGN_LEFT, VoteMenuHandler, "" },
-    { "", PMENU_ALIGN_LEFT, VoteMenuHandler, "" },
-    { "", PMENU_ALIGN_LEFT, VoteMenuHandler, "" },
-    { "", PMENU_ALIGN_LEFT, VoteMenuHandler, "" },
-    { "", PMENU_ALIGN_LEFT, VoteMenuHandler, "" },
-    { "", PMENU_ALIGN_LEFT, VoteMenuHandler, "" },
-    { "", PMENU_ALIGN_LEFT, VoteMenuHandler, "" },
-    { "", PMENU_ALIGN_LEFT, VoteMenuHandler, "" },
-    { "", PMENU_ALIGN_LEFT, VoteMenuHandler, "" },
-    { "", PMENU_ALIGN_LEFT, VoteMenuHandler, "" },
-    { "", PMENU_ALIGN_LEFT, VoteMenuHandler, "" },
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },
-    { "Next", PMENU_ALIGN_LEFT, VoteMenuHandler, "" },
-    { "Back", PMENU_ALIGN_LEFT, VoteMenuHandler, "" },
-    { "Close", PMENU_ALIGN_LEFT, VoteMenuHandler, "" }
-};
+	{"*Map Voting Menu", PMENU_ALIGN_CENTER, nullptr, ""},
+	{"", PMENU_ALIGN_CENTER, nullptr, ""},
+	{"", PMENU_ALIGN_LEFT, VoteMenuHandler, ""},
+	{"", PMENU_ALIGN_LEFT, VoteMenuHandler, ""},
+	{"", PMENU_ALIGN_LEFT, VoteMenuHandler, ""},
+	{"", PMENU_ALIGN_LEFT, VoteMenuHandler, ""},
+	{"", PMENU_ALIGN_LEFT, VoteMenuHandler, ""},
+	{"", PMENU_ALIGN_LEFT, VoteMenuHandler, ""},
+	{"", PMENU_ALIGN_LEFT, VoteMenuHandler, ""},
+	{"", PMENU_ALIGN_LEFT, VoteMenuHandler, ""},
+	{"", PMENU_ALIGN_LEFT, VoteMenuHandler, ""},
+	{"", PMENU_ALIGN_LEFT, VoteMenuHandler, ""},
+	{"", PMENU_ALIGN_LEFT, VoteMenuHandler, ""},
+	{"", PMENU_ALIGN_CENTER, nullptr, ""},
+	{"Next", PMENU_ALIGN_LEFT, VoteMenuHandler, ""},
+	{"Back", PMENU_ALIGN_LEFT, VoteMenuHandler, ""},
+	{"Close", PMENU_ALIGN_LEFT, VoteMenuHandler, ""}};
 // --- Map List Categorization ---
 
-struct map_lists_t {
+struct map_lists_t
+{
 	std::vector<std::string> big_maps;
 	std::vector<std::string> medium_maps;
 	std::vector<std::string> small_maps;
 	size_t current_page = 0;
-	horde::MapSize current_category = { false, true, false }; // Default to medium
+	horde::MapSize current_category = {false, true, false}; // Default to medium
 };
 
 static map_lists_t categorized_maps;
@@ -378,46 +411,55 @@ constexpr size_t RESPAWN_WEAPON_MENU_SIZE = 14;
 static pmenu_t respawn_weapon_menu[RESPAWN_WEAPON_MENU_SIZE];
 
 // Function to categorize the maps based on g_map_list cvar
-void CategorizeMapList() {
+void CategorizeMapList()
+{
 	categorized_maps.big_maps.clear();
 	categorized_maps.medium_maps.clear();
 	categorized_maps.small_maps.clear();
 
-	const char* mlist = g_map_list->string;
-	if (!mlist) return; // Safety check
+	const char *mlist = g_map_list->string;
+	if (!mlist)
+		return; // Safety check
 
-	char* token;
+	char *token;
 	// Use a local copy to avoid modifying the cvar string directly
 	std::string mlist_copy = mlist;
-	const char* mlist_ptr = mlist_copy.c_str();
+	const char *mlist_ptr = mlist_copy.c_str();
 
-	while (*(token = COM_Parse(&mlist_ptr)) != '\0') {
+	while (*(token = COM_Parse(&mlist_ptr)) != '\0')
+	{
 		// Check if token is empty, can happen with consecutive spaces
-		if (token[0] == '\0') continue;
+		if (token[0] == '\0')
+			continue;
 
-		const char* map_name = token;
+		const char *map_name = token;
 
 		// Categorize based on map size only
 		horde::MapSize const mapSize = GetMapSize(map_name);
 
-		if (mapSize.isBigMap) {
-			if (!safe_push_back(categorized_maps.big_maps, std::string(map_name), MAX_SAFE_CONTAINER_SIZE)) {
+		if (mapSize.isBigMap)
+		{
+			if (!safe_push_back(categorized_maps.big_maps, std::string(map_name), MAX_SAFE_CONTAINER_SIZE))
+			{
 				gi.Com_Print("WARNING: Too many big maps\n");
 			}
 		}
-		else if (mapSize.isSmallMap) {
-			if (!safe_push_back(categorized_maps.small_maps, std::string(map_name), MAX_SAFE_CONTAINER_SIZE)) {
+		else if (mapSize.isSmallMap)
+		{
+			if (!safe_push_back(categorized_maps.small_maps, std::string(map_name), MAX_SAFE_CONTAINER_SIZE))
+			{
 				gi.Com_Print("WARNING: Too many small maps\n");
 			}
 		}
-		else { // isMediumMap or unknown defaults to medium
-			if (!safe_push_back(categorized_maps.medium_maps, std::string(map_name), MAX_SAFE_CONTAINER_SIZE)) {
+		else
+		{ // isMediumMap or unknown defaults to medium
+			if (!safe_push_back(categorized_maps.medium_maps, std::string(map_name), MAX_SAFE_CONTAINER_SIZE))
+			{
 				gi.Com_Print("WARNING: Too many medium maps\n");
 			}
 		}
 	}
 }
-
 
 // --- Map Category Selection Menu ---
 
@@ -426,18 +468,21 @@ static pmenu_t map_category_menu[12]; // Dynamic menu, will be filled in OpenMap
 // Menu indices are now dynamic, determined by the text content in MapCategoryHandler
 
 // Forward declaration for cooperative campaign menu
-void OpenCooperativeCampaignMenu(edict_t* ent);
-void CooperativeCampaignHandler(edict_t* ent, pmenuhnd_t* p);
+void OpenCooperativeCampaignMenu(edict_t *ent);
+void CooperativeCampaignHandler(edict_t *ent, pmenuhnd_t *p);
 
 // Cooperative campaign selection menu
 static pmenu_t coop_campaign_menu[10];
 
-void OpenCooperativeCampaignMenu(edict_t* ent) {
-	if (!ent || !ent->client) {
+void OpenCooperativeCampaignMenu(edict_t *ent)
+{
+	if (!ent || !ent->client)
+	{
 		return;
 	}
 
-	if (ent->client->menu) {
+	if (ent->client->menu)
+	{
 		PMenu_Close(ent);
 	}
 
@@ -502,52 +547,63 @@ void OpenCooperativeCampaignMenu(edict_t* ent) {
 	PMenu_Open(ent, coop_campaign_menu, -1, idx, nullptr, nullptr);
 }
 
-void CooperativeCampaignHandler(edict_t* ent, pmenuhnd_t* p) {
-	if (!ent || !ent->client || !p) {
+void CooperativeCampaignHandler(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client || !p)
+	{
 		return;
 	}
 
-	const char* selected_text = p->entries[p->cur].text;
+	const char *selected_text = p->entries[p->cur].text;
 
 	PMenu_Close(ent);
 
-	if (strcmp(selected_text, "Quake 2") == 0) {
+	if (strcmp(selected_text, "Quake 2") == 0)
+	{
 		Q_strlcpy(ctfgame.elevel, "coop_quake2", sizeof(ctfgame.elevel));
 		CTFBeginElection(ent, ELECT_COOP, "Switch to Cooperative: Quake 2?");
 	}
-	else if (strcmp(selected_text, "Call of the Machine") == 0) {
+	else if (strcmp(selected_text, "Call of the Machine") == 0)
+	{
 		Q_strlcpy(ctfgame.elevel, "coop_mg2", sizeof(ctfgame.elevel));
 		CTFBeginElection(ent, ELECT_COOP, "Switch to Cooperative: Call of the Machine?");
 	}
-	else if (strcmp(selected_text, "The Reckoning") == 0) {
+	else if (strcmp(selected_text, "The Reckoning") == 0)
+	{
 		Q_strlcpy(ctfgame.elevel, "coop_xatrix", sizeof(ctfgame.elevel));
 		CTFBeginElection(ent, ELECT_COOP, "Switch to Cooperative: The Reckoning?");
 	}
-	else if (strcmp(selected_text, "Ground Zero") == 0) {
+	else if (strcmp(selected_text, "Ground Zero") == 0)
+	{
 		Q_strlcpy(ctfgame.elevel, "coop_rogue", sizeof(ctfgame.elevel));
 		CTFBeginElection(ent, ELECT_COOP, "Switch to Cooperative: Ground Zero?");
 	}
-	else if (strcmp(selected_text, "Quake 2 N64") == 0) {
+	else if (strcmp(selected_text, "Quake 2 N64") == 0)
+	{
 		Q_strlcpy(ctfgame.elevel, "coop_n64", sizeof(ctfgame.elevel));
 		CTFBeginElection(ent, ELECT_COOP, "Switch to Cooperative: Quake 2 N64?");
 	}
-	else if (strcmp(selected_text, "Back") == 0) {
+	else if (strcmp(selected_text, "Back") == 0)
+	{
 		OpenMapCategoryMenu(ent);
 	}
 }
 
 // Handler for the map category selection menu
-void MapCategoryHandler(edict_t* ent, pmenuhnd_t* p) {
-	if (!ent || !ent->client || !p) {
+void MapCategoryHandler(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client || !p)
+	{
 		return;
 	}
 
-	const char* selected_text = p->entries[p->cur].text;
+	const char *selected_text = p->entries[p->cur].text;
 
 	PMenu_Close(ent); // Close the category menu first
 
-	if (strcmp(selected_text, "Small Maps") == 0) {
-		categorized_maps.current_category = horde::MapSize{ true, false, false };
+	if (strcmp(selected_text, "Small Maps") == 0)
+	{
+		categorized_maps.current_category = horde::MapSize{true, false, false};
 		categorized_maps.current_page = 0;
 		UpdateVoteMenu();
 		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr);
@@ -555,8 +611,9 @@ void MapCategoryHandler(edict_t* ent, pmenuhnd_t* p) {
 		ent->client->menu_protected = true;
 		ent->client->menu_protection_start = level.time;
 	}
-	else if (strcmp(selected_text, "Medium Maps") == 0) {
-		categorized_maps.current_category = horde::MapSize{ false, false, true };
+	else if (strcmp(selected_text, "Medium Maps") == 0)
+	{
+		categorized_maps.current_category = horde::MapSize{false, false, true};
 		categorized_maps.current_page = 0;
 		UpdateVoteMenu();
 		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr);
@@ -564,8 +621,9 @@ void MapCategoryHandler(edict_t* ent, pmenuhnd_t* p) {
 		ent->client->menu_protected = true;
 		ent->client->menu_protection_start = level.time;
 	}
-	else if (strcmp(selected_text, "Big Maps") == 0) {
-		categorized_maps.current_category = horde::MapSize{ false, true, false };
+	else if (strcmp(selected_text, "Big Maps") == 0)
+	{
+		categorized_maps.current_category = horde::MapSize{false, true, false};
 		categorized_maps.current_page = 0;
 		UpdateVoteMenu();
 		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr);
@@ -573,32 +631,39 @@ void MapCategoryHandler(edict_t* ent, pmenuhnd_t* p) {
 		ent->client->menu_protected = true;
 		ent->client->menu_protection_start = level.time;
 	}
-	else if (strcmp(selected_text, "Vote Cooperative Mode (Beta)") == 0) {
+	else if (strcmp(selected_text, "Vote Cooperative Mode (Beta)") == 0)
+	{
 		// Open the cooperative campaign selection menu
 		OpenCooperativeCampaignMenu(ent);
 	}
-	else if (strcmp(selected_text, "Vote Horde Mode") == 0) {
+	else if (strcmp(selected_text, "Vote Horde Mode") == 0)
+	{
 		// Start vote to switch to horde mode
 		Q_strlcpy(ctfgame.elevel, "horde_mode", sizeof(ctfgame.elevel));
 		CTFBeginElection(ent, ELECT_COOP, "Switch to Horde Mode?");
 	}
-	else if (strcmp(selected_text, "Extend Time") == 0) {
+	else if (strcmp(selected_text, "Extend Time") == 0)
+	{
 		// Start manual vote to extend map time
 		ctfgame.automatic_vote = false; // Mark as manual vote
 		CTFBeginElection(ent, ELECT_TIME, "Extend map time by 30 minutes?");
 	}
-	else if (strcmp(selected_text, "Back to Horde Menu") == 0) {
+	else if (strcmp(selected_text, "Back to Horde Menu") == 0)
+	{
 		OpenHordeMenu(ent);
 	}
 	// else Close or unrecognized - just close (already done)
-}// Opens the map category selection menu
-void OpenMapCategoryMenu(edict_t* ent) {
-	if (!ent || !ent->client) {
+} // Opens the map category selection menu
+void OpenMapCategoryMenu(edict_t *ent)
+{
+	if (!ent || !ent->client)
+	{
 		return;
 	}
 
 	// Close any existing menu first
-	if (ent->client->menu) {
+	if (ent->client->menu)
+	{
 		PMenu_Close(ent);
 	}
 
@@ -623,9 +688,12 @@ void OpenMapCategoryMenu(edict_t* ent) {
 	idx++;
 
 	// Current map
-	if (level.mapname && *level.mapname) {
+	if (level.mapname && *level.mapname)
+	{
 		G_FmtTo(map_category_menu[idx].text, "Current: {}", level.mapname);
-	} else {
+	}
+	else
+	{
 		Q_strlcpy(map_category_menu[idx].text, "Current: Unknown", sizeof(map_category_menu[idx].text));
 	}
 	map_category_menu[idx].align = PMENU_ALIGN_CENTER;
@@ -639,7 +707,8 @@ void OpenMapCategoryMenu(edict_t* ent) {
 	idx++;
 
 	// Map categories or mode vote options
-	if (g_horde->integer || g_pvm->integer) {
+	if (g_horde->integer || pvm->integer)
+	{
 		// In horde/PvM mode - show map categories and cooperative vote
 		Q_strlcpy(map_category_menu[idx].text, "Small Maps", sizeof(map_category_menu[idx].text));
 		map_category_menu[idx].align = PMENU_ALIGN_LEFT;
@@ -666,7 +735,9 @@ void OpenMapCategoryMenu(edict_t* ent) {
 		map_category_menu[idx].align = PMENU_ALIGN_LEFT;
 		map_category_menu[idx].SelectFunc = MapCategoryHandler;
 		idx++;
-	} else if (G_IsCooperative() || coop->integer) {
+	}
+	else if (G_IsCooperative() || coop->integer)
+	{
 		// In cooperative mode - show option to vote for horde mode
 		Q_strlcpy(map_category_menu[idx].text, "Vote Horde Mode", sizeof(map_category_menu[idx].text));
 		map_category_menu[idx].align = PMENU_ALIGN_LEFT;
@@ -698,38 +769,47 @@ void OpenMapCategoryMenu(edict_t* ent) {
 // --- Map Voting Logic ---
 
 // Opens the initial map category selection menu
-void OpenVoteMenu(edict_t* ent) {
-	if (!ent || !ent->client) {
+void OpenVoteMenu(edict_t *ent)
+{
+	if (!ent || !ent->client)
+	{
 		return;
 	}
-	CategorizeMapList(); // Ensure maps are categorized before opening the menu
+	CategorizeMapList();	  // Ensure maps are categorized before opening the menu
 	OpenMapCategoryMenu(ent); // Start with category selection - this sets menu protection
 }
 
 // Handler for map selection and navigation within the vote menu
-void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p) {
+void VoteMenuHandler(edict_t *ent, pmenuhnd_t *p)
+{
 	// Input validation
-	if (!ent || !ent->client || !p || p->cur < 0) {
-		if (ent && ent->client && ent->client->menu) PMenu_Close(ent);
+	if (!ent || !ent->client || !p || p->cur < 0)
+	{
+		if (ent && ent->client && ent->client->menu)
+			PMenu_Close(ent);
 		return;
 	}
 
 	const size_t option = p->cur;
-	std::vector<std::string>* current_map_list = nullptr;
+	std::vector<std::string> *current_map_list = nullptr;
 
 	// Get current map list based on category
-	if (categorized_maps.current_category.isBigMap) {
+	if (categorized_maps.current_category.isBigMap)
+	{
 		current_map_list = &categorized_maps.big_maps;
 	}
-	else if (categorized_maps.current_category.isSmallMap) {
+	else if (categorized_maps.current_category.isSmallMap)
+	{
 		current_map_list = &categorized_maps.small_maps;
 	}
-	else { // Medium or default
+	else
+	{ // Medium or default
 		current_map_list = &categorized_maps.medium_maps;
 	}
 
 	// Validate map list
-	if (!current_map_list || current_map_list->empty()) {
+	if (!current_map_list || current_map_list->empty())
+	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "No maps available in this category.\n");
 		PMenu_Close(ent);
 		OpenMapCategoryMenu(ent); // Go back to category selection
@@ -743,21 +823,24 @@ void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	const size_t close_button_index = map_section_end + 3;
 
 	// Handle map selection (options within the map list part of the menu)
-	if (option >= map_section_start && option < map_section_end) {
+	if (option >= map_section_start && option < map_section_end)
+	{
 		// Calculate map index based on current page and selection
 		const size_t page_offset = categorized_maps.current_page * MAX_MAPS_PER_PAGE;
 		const size_t map_index = page_offset + (option - map_section_start);
 
 		// Validate map index and menu entry text
-		if (map_index >= current_map_list->size() || vote_menu[option].text[0] == '\0') {
+		if (map_index >= current_map_list->size() || vote_menu[option].text[0] == '\0')
+		{
 			// Invalid selection (out of bounds or empty slot), do nothing or maybe close menu?
 			return;
 		}
 
-		const std::string& map_name = (*current_map_list)[map_index];
+		const std::string &map_name = (*current_map_list)[map_index];
 
 		// Check if it's the current map
-		if (level.mapname && Q_strcasecmp(map_name.c_str(), level.mapname) == 0) {
+		if (level.mapname && Q_strcasecmp(map_name.c_str(), level.mapname) == 0)
+		{
 			gi.LocClient_Print(ent, PRINT_HIGH, "Can't vote for the current map.\n");
 			return; // Stay in the menu
 		}
@@ -769,7 +852,8 @@ void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 		snprintf(vote_msg, sizeof(vote_msg), "Change map to %s?", map_name.c_str());
 
 		// Close menu *before* starting election if successful
-		if (CTFBeginElection(ent, ELECT_MAP, vote_msg)) {
+		if (CTFBeginElection(ent, ELECT_MAP, vote_msg))
+		{
 			PMenu_Close(ent);
 		}
 		// If election failed (e.g., already in progress), menu remains open
@@ -779,17 +863,20 @@ void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	// Handle navigation buttons
 	PMenu_Close(ent); // Close current menu before navigating
 
-	if (option == next_button_index) { // Next Page
+	if (option == next_button_index)
+	{ // Next Page
 		// Check if there is a next page
-		if ((categorized_maps.current_page + 1) * MAX_MAPS_PER_PAGE < current_map_list->size()) {
+		if ((categorized_maps.current_page + 1) * MAX_MAPS_PER_PAGE < current_map_list->size())
+		{
 			categorized_maps.current_page++;
-			UpdateVoteMenu(); // Update the menu data
+			UpdateVoteMenu();												  // Update the menu data
 			PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr); // Reopen the updated vote menu
 			// Maintain menu protection
 			ent->client->menu_protected = true;
 			ent->client->menu_protection_start = level.time;
 		}
-		else {
+		else
+		{
 			// No next page, maybe reopen the current one? Or handle differently?
 			// For now, just re-open the current (last) page
 			UpdateVoteMenu();
@@ -799,39 +886,47 @@ void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 			ent->client->menu_protection_start = level.time;
 		}
 	}
-	else if (option == back_button_index) { // Back to Categories
+	else if (option == back_button_index)
+	{							  // Back to Categories
 		OpenMapCategoryMenu(ent); // Go back to category selection - this already sets protection
 	}
-	else if (option == close_button_index) { // Close
+	else if (option == close_button_index)
+	{	// Close
 		// Menu already closed
 	}
-	else {
+	else
+	{
 		// Invalid option outside map list and nav buttons
 		// Menu already closed
 	}
 }
 
 // Updates the contents of the static vote_menu array based on the current category and page
-void UpdateVoteMenu() {
-	std::vector<std::string>* current_map_list = nullptr;
+void UpdateVoteMenu()
+{
+	std::vector<std::string> *current_map_list = nullptr;
 
 	// Determine current map list and category name
-	const char* category_name;
-	if (categorized_maps.current_category.isBigMap) {
+	const char *category_name;
+	if (categorized_maps.current_category.isBigMap)
+	{
 		current_map_list = &categorized_maps.big_maps;
 		category_name = "Big Maps";
 	}
-	else if (categorized_maps.current_category.isSmallMap) {
+	else if (categorized_maps.current_category.isSmallMap)
+	{
 		current_map_list = &categorized_maps.small_maps;
 		category_name = "Small Maps";
 	}
-	else { // Medium or default
+	else
+	{ // Medium or default
 		current_map_list = &categorized_maps.medium_maps;
 		category_name = "Medium Maps";
 	}
 
 	// Safety check for empty list
-	if (!current_map_list) return;
+	if (!current_map_list)
+		return;
 
 	// Update category title (index 0) using G_FmtTo
 	G_FmtTo(vote_menu[0].text, "{}", category_name);
@@ -841,11 +936,13 @@ void UpdateVoteMenu() {
 	size_t start_index = categorized_maps.current_page * MAX_MAPS_PER_PAGE;
 
 	// Handle potential invalid page (e.g., if map list changed)
-	if (start_index >= num_maps && num_maps > 0) {
+	if (start_index >= num_maps && num_maps > 0)
+	{
 		categorized_maps.current_page = (num_maps - 1) / MAX_MAPS_PER_PAGE;
 		start_index = categorized_maps.current_page * MAX_MAPS_PER_PAGE;
 	}
-	else if (num_maps == 0) {
+	else if (num_maps == 0)
+	{
 		start_index = 0; // No maps, start index is 0
 	}
 
@@ -853,16 +950,19 @@ void UpdateVoteMenu() {
 
 	// --- Clear/Fill map entries (indices 2 to 2 + MAX_MAPS_PER_PAGE - 1) ---
 	size_t const map_section_start = 2;
-	for (size_t i = 0; i < MAX_MAPS_PER_PAGE; ++i) {
+	for (size_t i = 0; i < MAX_MAPS_PER_PAGE; ++i)
+	{
 		size_t const current_map_idx = start_index + i;
 		size_t const menu_idx = map_section_start + i;
 
-		if (current_map_idx < end_index) {
+		if (current_map_idx < end_index)
+		{
 			// Fill entry
 			Q_strlcpy(vote_menu[menu_idx].text, (*current_map_list)[current_map_idx].c_str(), sizeof(vote_menu[menu_idx].text));
 			vote_menu[menu_idx].SelectFunc = VoteMenuHandler;
 		}
-		else {
+		else
+		{
 			// Clear entry
 			vote_menu[menu_idx].text[0] = '\0';
 			vote_menu[menu_idx].SelectFunc = nullptr;
@@ -874,11 +974,13 @@ void UpdateVoteMenu() {
 
 	// "Next" button (index nav_button_start_index)
 	bool const has_next_page = (start_index + MAX_MAPS_PER_PAGE) < num_maps;
-	if (has_next_page) {
+	if (has_next_page)
+	{
 		Q_strlcpy(vote_menu[nav_button_start_index].text, "Next", sizeof(vote_menu[nav_button_start_index].text));
 		vote_menu[nav_button_start_index].SelectFunc = VoteMenuHandler;
 	}
-	else {
+	else
+	{
 		vote_menu[nav_button_start_index].text[0] = '\0'; // Disable "Next"
 		vote_menu[nav_button_start_index].SelectFunc = nullptr;
 	}
@@ -894,21 +996,24 @@ void UpdateVoteMenu() {
 
 // === Inventory Display ===
 
-void ShowInventory(edict_t* ent) {
+void ShowInventory(edict_t *ent)
+{
 	// Basic validation
 	if (!ent || !ent->client || (ent->svflags & SVF_BOT))
 		return;
 
-	gclient_t* cl = ent->client;
+	gclient_t *cl = ent->client;
 	cl->showinventory = true;
 
 	gi.WriteByte(svc_inventory);
 
 	// --- FIX 1: Use size_t for the loop to match container size type ---
 	// Write current inventory counts up to IT_TOTAL
-	for (size_t i = 0; i < IT_TOTAL; i++) {
+	for (size_t i = 0; i < IT_TOTAL; i++)
+	{
 		// Ensure index is valid for pers.inventory. The i < 0 check is no longer needed with size_t.
-		if (i >= std::size(cl->pers.inventory)) {
+		if (i >= std::size(cl->pers.inventory))
+		{
 			gi.WriteShort(0); // Write 0 for out-of-bounds indices
 			continue;
 		}
@@ -917,7 +1022,8 @@ void ShowInventory(edict_t* ent) {
 
 	// --- FIX 2: Use size_t for the loop to match MAX_ITEMS type ---
 	// Pad the rest up to MAX_ITEMS with zeros
-	for (size_t i = IT_TOTAL; i < MAX_ITEMS; i++) {
+	for (size_t i = IT_TOTAL; i < MAX_ITEMS; i++)
+	{
 		gi.WriteShort(0);
 	}
 
@@ -927,58 +1033,58 @@ void ShowInventory(edict_t* ent) {
 // === Tech Menu ===
 
 // Define the TECHS available
-static const char* tech_names[] = {
+static const char *tech_names[] = {
 	"Strength",
 	"Haste",
 	"Regeneration",
-	"Resistance"
-};
+	"Resistance"};
 constexpr size_t NUM_TECHS = sizeof(tech_names) / sizeof(tech_names[0]);
 
 // Menu definition for when player is already in a team
 static pmenu_t tech_menu[] = {
-    { "*Tech Selection", PMENU_ALIGN_CENTER, nullptr, "" },
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },
-    { "Strength", PMENU_ALIGN_LEFT, TechMenuHandler, "" },
-    { "Haste", PMENU_ALIGN_LEFT, TechMenuHandler, "" },
-    { "Regeneration", PMENU_ALIGN_LEFT, TechMenuHandler, "" },
-    { "Resistance", PMENU_ALIGN_LEFT, TechMenuHandler, "" },
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },
-    { "Back", PMENU_ALIGN_LEFT, TechMenuHandler, "" }
-};
+	{"*Tech Selection", PMENU_ALIGN_CENTER, nullptr, ""},
+	{"", PMENU_ALIGN_CENTER, nullptr, ""},
+	{"Strength", PMENU_ALIGN_LEFT, TechMenuHandler, ""},
+	{"Haste", PMENU_ALIGN_LEFT, TechMenuHandler, ""},
+	{"Regeneration", PMENU_ALIGN_LEFT, TechMenuHandler, ""},
+	{"Resistance", PMENU_ALIGN_LEFT, TechMenuHandler, ""},
+	{"", PMENU_ALIGN_CENTER, nullptr, ""},
+	{"Back", PMENU_ALIGN_LEFT, TechMenuHandler, ""}};
 constexpr size_t TECH_MENU_SIZE = sizeof(tech_menu) / sizeof(pmenu_t);
 
 // Menu definition for when player is joining (CTF_NOTEAM)
 static pmenu_t tech_menustart[] = {
-    { "*Tech Selection", PMENU_ALIGN_CENTER, nullptr, "" },
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },
-    { "Select a TECH:", PMENU_ALIGN_LEFT, nullptr, "" },
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },
-    { "Strength", PMENU_ALIGN_LEFT, TechMenuHandler, "" },
-    { "Haste", PMENU_ALIGN_LEFT, TechMenuHandler, "" },
-    { "Regeneration", PMENU_ALIGN_LEFT, TechMenuHandler, "" },
-    { "Resistance", PMENU_ALIGN_LEFT, TechMenuHandler, "" },
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },
-    { "You can change it later", PMENU_ALIGN_LEFT, nullptr, "" },
-    { "On Horde Menu", PMENU_ALIGN_CENTER, nullptr, "" },
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },
-    { "Back", PMENU_ALIGN_LEFT, TechMenuHandler, "" }
-};
+	{"*Tech Selection", PMENU_ALIGN_CENTER, nullptr, ""},
+	{"", PMENU_ALIGN_CENTER, nullptr, ""},
+	{"Select a TECH:", PMENU_ALIGN_LEFT, nullptr, ""},
+	{"", PMENU_ALIGN_CENTER, nullptr, ""},
+	{"Strength", PMENU_ALIGN_LEFT, TechMenuHandler, ""},
+	{"Haste", PMENU_ALIGN_LEFT, TechMenuHandler, ""},
+	{"Regeneration", PMENU_ALIGN_LEFT, TechMenuHandler, ""},
+	{"Resistance", PMENU_ALIGN_LEFT, TechMenuHandler, ""},
+	{"", PMENU_ALIGN_CENTER, nullptr, ""},
+	{"", PMENU_ALIGN_CENTER, nullptr, ""},
+	{"", PMENU_ALIGN_CENTER, nullptr, ""},
+	{"", PMENU_ALIGN_CENTER, nullptr, ""},
+	{"", PMENU_ALIGN_CENTER, nullptr, ""},
+	{"", PMENU_ALIGN_CENTER, nullptr, ""},
+	{"You can change it later", PMENU_ALIGN_LEFT, nullptr, ""},
+	{"On Horde Menu", PMENU_ALIGN_CENTER, nullptr, ""},
+	{"", PMENU_ALIGN_CENTER, nullptr, ""},
+	{"Back", PMENU_ALIGN_LEFT, TechMenuHandler, ""}};
 constexpr size_t TECH_MENU_START_SIZE = sizeof(tech_menustart) / sizeof(pmenu_t);
 
 // Opens the appropriate tech menu
-void OpenTechMenu(edict_t* ent) {
-	if (!ent || !ent->client) {
+void OpenTechMenu(edict_t *ent)
+{
+	if (!ent || !ent->client)
+	{
 		return;
 	}
 
 	// Always close existing menu first
-	if (ent->client->menu) {
+	if (ent->client->menu)
+	{
 		PMenu_Close(ent);
 	}
 
@@ -988,21 +1094,24 @@ void OpenTechMenu(edict_t* ent) {
 
 	// Select menu based on team status
 	const bool is_joining = (ent->client->resp.ctf_team == CTF_NOTEAM);
-	const pmenu_t* menu_to_open = is_joining ? tech_menustart : tech_menu;
+	const pmenu_t *menu_to_open = is_joining ? tech_menustart : tech_menu;
 	const size_t menu_size = is_joining ? TECH_MENU_START_SIZE : TECH_MENU_SIZE;
 
 	PMenu_Open(ent, menu_to_open, -1, menu_size, nullptr, nullptr);
 }
 
 // Handles selection in the tech menus
-void TechMenuHandler(edict_t* ent, pmenuhnd_t* p) {
-	if (!ent || !ent->client || !p) {
+void TechMenuHandler(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client || !p)
+	{
 		return;
 	}
 
 	// Check if "Back" was selected
-	const char* selected_text = p->entries[p->cur].text;
-	if (strcmp(selected_text, "Back") == 0) {
+	const char *selected_text = p->entries[p->cur].text;
+	if (strcmp(selected_text, "Back") == 0)
+	{
 		PMenu_Close(ent);
 		OpenHordeMenu(ent); // Return to main menu with protection
 		return;
@@ -1013,44 +1122,60 @@ void TechMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	const int option = p->cur - tech_option_offset;
 
 	// Validate selected option index
-	if (option >= 0 && option < static_cast<int>(NUM_TECHS)) {
+	if (option >= 0 && option < static_cast<int>(NUM_TECHS))
+	{
 		// Remove existing TECHS
 		RemoveTech(ent); // Assuming RemoveTech handles removing *all* techs
 
 		// Map the selected option text to the correct internal item ID
 		int tech_index = -1;
-		const char* selected_tech_name = tech_names[option];
+		const char *selected_tech_name = tech_names[option];
 
-		if (strcmp(selected_tech_name, "Strength") == 0) {
+		if (strcmp(selected_tech_name, "Strength") == 0)
+		{
 			tech_index = IT_TECH_STRENGTH;
 		}
-		else if (strcmp(selected_tech_name, "Haste") == 0) {
+		else if (strcmp(selected_tech_name, "Haste") == 0)
+		{
 			tech_index = IT_TECH_HASTE;
 		}
-		else if (strcmp(selected_tech_name, "Regeneration") == 0) {
+		else if (strcmp(selected_tech_name, "Regeneration") == 0)
+		{
 			tech_index = IT_TECH_REGENERATION;
 		}
-		else if (strcmp(selected_tech_name, "Resistance") == 0) {
+		else if (strcmp(selected_tech_name, "Resistance") == 0)
+		{
 			tech_index = IT_TECH_RESISTANCE;
 		}
 
 		// If a valid tech was selected
-		if (tech_index != -1) {
+		if (tech_index != -1)
+		{
 			// Give the player the tech
 			ent->client->pers.inventory[tech_index] = 1;
 			gi.LocCenter_Print(ent, "\n\n\n\nSelected Tech: {}\n", selected_tech_name);
 
 			// Join team if player was joining, and apply tech effect/sound
-			if (is_joining) {
+			if (is_joining)
+			{
 				CTFJoinTeam(ent, CTF_TEAM1); // Automatically join team 1
 			}
 
 			// Apply sound/effect based on the tech chosen
-			switch (tech_index) {
-			case IT_TECH_HASTE:       CTFApplyHasteSound(ent); break;
-			case IT_TECH_STRENGTH:    CTFApplyStrengthSound(ent); break;
-			case IT_TECH_REGENERATION: CTFApplyRegeneration(ent); break;
-			case IT_TECH_RESISTANCE:  CTFApplyResistance(ent, 0); break; // ApplyResistance might need a value? Assuming 0 is base.
+			switch (tech_index)
+			{
+			case IT_TECH_HASTE:
+				CTFApplyHasteSound(ent);
+				break;
+			case IT_TECH_STRENGTH:
+				CTFApplyStrengthSound(ent);
+				break;
+			case IT_TECH_REGENERATION:
+				CTFApplyRegeneration(ent);
+				break;
+			case IT_TECH_RESISTANCE:
+				CTFApplyResistance(ent, 0);
+				break; // ApplyResistance might need a value? Assuming 0 is base.
 			}
 		}
 	}
@@ -1058,12 +1183,13 @@ void TechMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	PMenu_Close(ent); // Close the tech menu after selection
 }
 
-
 // === Misc Options Menu ===
 
 // Handler for cycling Sentry Gun choice
-void HordeMenu_SentryChoice(edict_t* ent, pmenuhnd_t* p) {
-	if (!ent || !ent->client) {
+void HordeMenu_SentryChoice(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client)
+	{
 		return;
 	}
 
@@ -1082,8 +1208,10 @@ void HordeMenu_SentryChoice(edict_t* ent, pmenuhnd_t* p) {
 }
 
 // Handler for cycling BFG mode
-void HordeMenu_BFGMode(edict_t* ent, pmenuhnd_t* p) {
-	if (!ent || !ent->client) {
+void HordeMenu_BFGMode(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client)
+	{
 		return;
 	}
 
@@ -1092,7 +1220,8 @@ void HordeMenu_BFGMode(edict_t* ent, pmenuhnd_t* p) {
 	bool has_pull = PlayerHasBenefit(ent, BenefitID::BFG_GRAV_PULL);
 
 	// If no upgrades, can't change mode
-	if (!has_slide && !has_pull) {
+	if (!has_slide && !has_pull)
+	{
 		gi.LocCenter_Print(ent, "\n\n\nNo BFG upgrades available!\n");
 		return;
 	}
@@ -1101,19 +1230,30 @@ void HordeMenu_BFGMode(edict_t* ent, pmenuhnd_t* p) {
 	BFGMode current_mode = ent->client->pers.bfg_mode;
 	BFGMode new_mode = BFGMode::NORMAL;
 
-	if (current_mode == BFGMode::NORMAL) {
-		if (has_slide) {
+	if (current_mode == BFGMode::NORMAL)
+	{
+		if (has_slide)
+		{
 			new_mode = BFGMode::SLIDE;
-		} else if (has_pull) {
+		}
+		else if (has_pull)
+		{
 			new_mode = BFGMode::GRAV_PULL;
 		}
-	} else if (current_mode == BFGMode::SLIDE) {
-		if (has_pull) {
+	}
+	else if (current_mode == BFGMode::SLIDE)
+	{
+		if (has_pull)
+		{
 			new_mode = BFGMode::GRAV_PULL;
-		} else {
+		}
+		else
+		{
 			new_mode = BFGMode::NORMAL;
 		}
-	} else { // GRAV_PULL
+	}
+	else
+	{ // GRAV_PULL
 		new_mode = BFGMode::NORMAL;
 	}
 
@@ -1122,8 +1262,10 @@ void HordeMenu_BFGMode(edict_t* ent, pmenuhnd_t* p) {
 	OpenMiscMenu(ent, p->cur); // Reopen to show updated mode with cursor preserved
 }
 
-void HordeMenu_SpecialWave(edict_t* ent, pmenuhnd_t* p) {
-	if (!ent || !ent->client) {
+void HordeMenu_SpecialWave(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client)
+	{
 		return;
 	}
 
@@ -1138,8 +1280,10 @@ void HordeMenu_SpecialWave(edict_t* ent, pmenuhnd_t* p) {
 	OpenMiscMenu(ent, p->cur); // Reopen to show updated choice with cursor preserved
 }
 
-void HordeMenu_StroggPreference(edict_t* ent, pmenuhnd_t* p) {
-	if (!ent || !ent->client) {
+void HordeMenu_StroggPreference(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client)
+	{
 		return;
 	}
 
@@ -1150,13 +1294,16 @@ void HordeMenu_StroggPreference(edict_t* ent, pmenuhnd_t* p) {
 	OpenMiscMenu(ent, p->cur); // Reopen to show updated choice with cursor preserved
 }
 
-void HordeMenu_StroggificationCommand(edict_t* ent, pmenuhnd_t* p) {
-	if (!ent || !ent->client) {
+void HordeMenu_StroggificationCommand(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client)
+	{
 		return;
 	}
 
 	// Check if player is morphed
-	if (IsMorphed(ent)) {
+	if (IsMorphed(ent))
+	{
 		// Unmorph back to human
 		RestoreMorphed(ent);
 		gi.LocCenter_Print(ent, "\n\n\nTransformed back to human form!\n");
@@ -1165,9 +1312,12 @@ void HordeMenu_StroggificationCommand(edict_t* ent, pmenuhnd_t* p) {
 	}
 
 	// Transform based on preference (0=Brain, 1=Flyer)
-	if (ent->client->pers.morph_preference == 0) {
+	if (ent->client->pers.morph_preference == 0)
+	{
 		Cmd_PlayerToBrain_f(ent);
-	} else {
+	}
+	else
+	{
 		Cmd_PlayerToFlyer_f(ent);
 	}
 
@@ -1175,104 +1325,125 @@ void HordeMenu_StroggificationCommand(edict_t* ent, pmenuhnd_t* p) {
 }
 
 // Handler for the Misc submenu
-void MiscMenuHandler(edict_t* ent, pmenuhnd_t* p) {
-	if (!ent || !ent->client || !p || p->cur < 0 || p->cur >= p->num) {
-		if (ent && ent->client && ent->client->menu) PMenu_Close(ent);
+void MiscMenuHandler(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client || !p || p->cur < 0 || p->cur >= p->num)
+	{
+		if (ent && ent->client && ent->client->menu)
+			PMenu_Close(ent);
 		return;
 	}
 
-	const pmenu_t* selected_entry = &p->entries[p->cur];
-	const char* selected_text = selected_entry->text;
+	const pmenu_t *selected_entry = &p->entries[p->cur];
+	const char *selected_text = selected_entry->text;
 	bool shouldCloseMenu = true; // Default to closing the menu
 
 	// Use strncmp for options that might have counts appended or dynamic text
-	if (strncmp(selected_text, "Remove Stroggs", strlen("Remove Stroggs")) == 0) {
+	if (strncmp(selected_text, "Remove Stroggs", strlen("Remove Stroggs")) == 0)
+	{
 		// Remove Strogg summoner bases (which will also kill their spawned monsters)
 		Cmd_RemoveStrogg_f(ent);
 		// Message handled internally, menu should close.
 	}
-	else if (strncmp(selected_text, "Remove Lasers", strlen("Remove Lasers")) == 0) {
+	else if (strncmp(selected_text, "Remove Lasers", strlen("Remove Lasers")) == 0)
+	{
 		Cmd_RemoveLaser_f(ent);
 		// Message handled internally, menu should close.
 	}
-	else if (strncmp(selected_text, "Remove Sentry Gun", strlen("Remove Sentry Gun")) == 0) {
+	else if (strncmp(selected_text, "Remove Sentry Gun", strlen("Remove Sentry Gun")) == 0)
+	{
 		Cmd_RemoveSentry_f(ent);
 		// Message handled internally, menu should close.
 	}
-	else if (strncmp(selected_text, "Remove Barrels", strlen("Remove Barrels")) == 0) {
+	else if (strncmp(selected_text, "Remove Barrels", strlen("Remove Barrels")) == 0)
+	{
 		Cmd_RemoveBarrel_f(ent);
 		// Message handled internally, menu should close.
 	}
 	// **** Check Special Wave selection ****
-	else if (strncmp(selected_text, "Special key [L]", strlen("Special key [L]")) == 0) {
+	else if (strncmp(selected_text, "Special key [L]", strlen("Special key [L]")) == 0)
+	{
 		HordeMenu_SpecialWave(ent, p); // Call the dedicated handler
-		shouldCloseMenu = false; // Don't close, HordeMenu_SpecialWave will reopen Misc Menu
+		shouldCloseMenu = false;	   // Don't close, HordeMenu_SpecialWave will reopen Misc Menu
 	}
 	// **** Check Sentry Type selection ****
-	else if (strncmp(selected_text, "Sentry Type:", strlen("Sentry Type:")) == 0) {
+	else if (strncmp(selected_text, "Sentry Type:", strlen("Sentry Type:")) == 0)
+	{
 		HordeMenu_SentryChoice(ent, p); // Call the dedicated handler
-		shouldCloseMenu = false; // Don't close, HordeMenu_SentryChoice will reopen Misc Menu
+		shouldCloseMenu = false;		// Don't close, HordeMenu_SentryChoice will reopen Misc Menu
 	}
 	// **** Check BFG Mode selection ****
-	else if (strncmp(selected_text, "BFG Mode:", strlen("BFG Mode:")) == 0) {
+	else if (strncmp(selected_text, "BFG Mode:", strlen("BFG Mode:")) == 0)
+	{
 		HordeMenu_BFGMode(ent, p); // Call the dedicated handler
-		shouldCloseMenu = false; // Don't close, HordeMenu_BFGMode will reopen Misc Menu
+		shouldCloseMenu = false;   // Don't close, HordeMenu_BFGMode will reopen Misc Menu
 	}
 	// **** Check Beta: Strogg preference selection ****
-	else if (strncmp(selected_text, "[Beta] Strogg", strlen("[Beta] Strogg")) == 0) {
+	else if (strncmp(selected_text, "[Beta] Strogg", strlen("[Beta] Strogg")) == 0)
+	{
 		HordeMenu_StroggPreference(ent, p); // Call the preference handler
-		shouldCloseMenu = false; // Don't close, will reopen Misc Menu
+		shouldCloseMenu = false;			// Don't close, will reopen Misc Menu
 	}
 	// **** Check Stroggification command (morph/unmorph) ****
 	else if (strcmp(selected_text, "Stroggificate me!") == 0 ||
-	         strcmp(selected_text, "I hate stroggs!") == 0) {
+			 strcmp(selected_text, "I hate stroggs!") == 0)
+	{
 		HordeMenu_StroggificationCommand(ent, p); // Call the morph command handler
-		shouldCloseMenu = false; // Don't close, will reopen Misc Menu
+		shouldCloseMenu = false;				  // Don't close, will reopen Misc Menu
 	}
 	// **** END Check ****
-	else if (strcmp(selected_text, "Back") == 0) {
+	else if (strcmp(selected_text, "Back") == 0)
+	{
 		PMenu_Close(ent);
-		OpenHordeMenu(ent); // Go back to the main menu
+		OpenHordeMenu(ent);		 // Go back to the main menu
 		shouldCloseMenu = false; // Already handled closing/opening
 	}
-	else if (strcmp(selected_text, "Close") == 0) {
+	else if (strcmp(selected_text, "Close") == 0)
+	{
 		// No specific action, default close behavior is fine.
 	}
-	else {
+	else
+	{
 		// Clicked on title or separator - don't close
 		shouldCloseMenu = false;
 	}
 
 	// Close the menu if required and if it still exists
-	if (shouldCloseMenu && ent->client && ent->client->menu) {
+	if (shouldCloseMenu && ent->client && ent->client->menu)
+	{
 		PMenu_Close(ent);
 	}
 }
 
 // Handler for respawn weapon selection menu
-void RespawnWeaponMenuHandler(edict_t* ent, pmenuhnd_t* p) {
-	if (!ent || !ent->client || !p || p->cur < 0) {
+void RespawnWeaponMenuHandler(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client || !p || p->cur < 0)
+	{
 		if (ent && ent->client && ent->client->menu)
 			PMenu_Close(ent);
 		return;
 	}
 
 	const size_t option = p->cur;
-	const char* selected_text = respawn_weapon_menu[option].text;
+	const char *selected_text = respawn_weapon_menu[option].text;
 
-	if (!selected_text || !selected_text[0]) {
+	if (!selected_text || !selected_text[0])
+	{
 		return;
 	}
 
 	// Handle "Back to Main Menu"
-	if (strcmp(selected_text, "Back to Main Menu") == 0) {
+	if (strcmp(selected_text, "Back to Main Menu") == 0)
+	{
 		PMenu_Close(ent);
 		OpenHordeMenu(ent);
 		return;
 	}
 
 	// Handle "Current:" line (skip)
-	if (strncmp(selected_text, "Current:", 8) == 0) {
+	if (strncmp(selected_text, "Current:", 8) == 0)
+	{
 		return;
 	}
 
@@ -1286,12 +1457,15 @@ void RespawnWeaponMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 }
 
 // Creates and opens the respawn weapon selection menu
-void OpenRespawnWeaponMenu(edict_t* ent) {
-	if (!ent || !ent->client) {
+void OpenRespawnWeaponMenu(edict_t *ent)
+{
+	if (!ent || !ent->client)
+	{
 		return;
 	}
 
-	if (ent->client->menu) {
+	if (ent->client->menu)
+	{
 		PMenu_Close(ent);
 	}
 
@@ -1303,8 +1477,10 @@ void OpenRespawnWeaponMenu(edict_t* ent) {
 	memset(respawn_weapon_menu, 0, sizeof(respawn_weapon_menu));
 	int count = 0;
 
-	auto add_entry = [&](const char* text, int align, SelectFunc_t func = nullptr) {
-		if (count < RESPAWN_WEAPON_MENU_SIZE) {
+	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr)
+	{
+		if (count < RESPAWN_WEAPON_MENU_SIZE)
+		{
 			Q_strlcpy(respawn_weapon_menu[count].text, text, sizeof(respawn_weapon_menu[count].text));
 			respawn_weapon_menu[count].align = align;
 			respawn_weapon_menu[count].SelectFunc = func;
@@ -1318,7 +1494,7 @@ void OpenRespawnWeaponMenu(edict_t* ent) {
 
 	// Display current respawn weapon
 	char current_weapon_display[64];
-	const char* current_weapon = Character_GetRespawnWeapon(ent);
+	const char *current_weapon = Character_GetRespawnWeapon(ent);
 	snprintf(current_weapon_display, sizeof(current_weapon_display), "Current: %s", current_weapon);
 	add_entry(current_weapon_display, PMENU_ALIGN_LEFT);
 	add_entry("", PMENU_ALIGN_CENTER);
@@ -1343,12 +1519,15 @@ void OpenRespawnWeaponMenu(edict_t* ent) {
 }
 
 // Creates and opens the Misc submenu
-void OpenMiscMenu(edict_t* ent, int cursor_position) {
-	if (!ent || !ent->client) {
+void OpenMiscMenu(edict_t *ent, int cursor_position)
+{
+	if (!ent || !ent->client)
+	{
 		return;
 	}
 
-	if (ent->client->menu) {
+	if (ent->client->menu)
+	{
 		PMenu_Close(ent);
 	}
 
@@ -1356,17 +1535,21 @@ void OpenMiscMenu(edict_t* ent, int cursor_position) {
 	ent->client->menu_protected = true;
 	ent->client->menu_protection_start = level.time;
 
-	static pmenu_t entries[15];  // Increased from 14 to 15 for extra strogg option
+	static pmenu_t entries[15]; // Increased from 14 to 15 for extra strogg option
 	memset(entries, 0, sizeof(entries));
 	int count = 0;
 
-	auto add_entry = [&](const char* text, int align, SelectFunc_t func = nullptr) {
-		if (count < static_cast<int>(std::size(entries))) {
+	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr)
+	{
+		if (count < static_cast<int>(std::size(entries)))
+		{
 			Q_strlcpy(entries[count].text, text, sizeof(entries[count].text));
 			entries[count].align = align;
 			entries[count].SelectFunc = func;
 			count++;
-		} else {
+		}
+		else
+		{
 			gi.Com_Print("Warning: OpenMiscMenu exceeded static entry buffer size.\n");
 		}
 	};
@@ -1382,7 +1565,8 @@ void OpenMiscMenu(edict_t* ent, int cursor_position) {
 
 	// --- BFG Mode Selection (only if player has BFG upgrades) ---
 	bool has_bfg_upgrades = PlayerHasBenefit(ent, BenefitID::BFG_SLIDE) || PlayerHasBenefit(ent, BenefitID::BFG_GRAV_PULL);
-	if (has_bfg_upgrades) {
+	if (has_bfg_upgrades)
+	{
 		add_entry(G_Fmt("BFG Mode: [{}]", GetBFGModeName(ent->client->pers.bfg_mode)).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
 	}
 
@@ -1393,39 +1577,46 @@ void OpenMiscMenu(edict_t* ent, int cursor_position) {
 	int strogg_count = 0;
 
 	// Count all summoned entities (excluding lasers, barrels, and strogg bases)
-	for (int i = 1; i < static_cast<int>(globals.num_edicts); i++) {
-		edict_t* check = &g_edicts[i];
-		if (check && check->inuse && check->teammaster == ent && check->chain) {
+	for (int i = 1; i < static_cast<int>(globals.num_edicts); i++)
+	{
+		edict_t *check = &g_edicts[i];
+		if (check && check->inuse && check->teammaster == ent && check->chain)
+		{
 			// Exclude bases, lasers, and barrels from this count using the special type system
 			if (!horde::IsSpecialType(check, horde::SpecialEntityTypeID::STROGG_SUMMONER) &&
-			    !horde::IsSpecialType(check, horde::SpecialEntityTypeID::LASER_EMITTER) &&
-			    !horde::IsSpecialType(check, horde::SpecialEntityTypeID::LASER_BEAM) &&
-			    !horde::IsSpecialType(check, horde::SpecialEntityTypeID::BARREL)) {
+				!horde::IsSpecialType(check, horde::SpecialEntityTypeID::LASER_EMITTER) &&
+				!horde::IsSpecialType(check, horde::SpecialEntityTypeID::LASER_BEAM) &&
+				!horde::IsSpecialType(check, horde::SpecialEntityTypeID::BARREL))
+			{
 				strogg_count++;
 			}
 		}
 	}
 
-	if (strogg_count > 0) {
+	if (strogg_count > 0)
+	{
 		add_entry(G_Fmt("Remove Stroggs ({})", strogg_count).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
 	}
 
-    // Get the laser count directly from the client's respawn data.
-    int laser_count = ent->client->resp.num_lasers;
-	if (laser_count > 0) {
+	// Get the laser count directly from the client's respawn data.
+	int laser_count = ent->client->resp.num_lasers;
+	if (laser_count > 0)
+	{
 		// Use G_Fmt to format the menu entry with the current count.
 		add_entry(G_Fmt("Remove Lasers ({})", laser_count).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
 	}
 
 	// --- Sentry Gun Removal (Unchanged) ---
 	int sentry_count = ent->client->resp.num_sentries;
-	if (sentry_count > 0) {
+	if (sentry_count > 0)
+	{
 		add_entry(G_Fmt("Remove Sentry Gun ({})", sentry_count).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
 	}
 
 	// --- Barrel Removal ---
 	int barrel_count = ent->client->resp.num_barrels;
-	if (barrel_count > 0) {
+	if (barrel_count > 0)
+	{
 		add_entry(G_Fmt("Remove Barrels ({}/{})", barrel_count, BarrelConstants::MAX_BARRELS_PER_PLAYER()).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
 	}
 
@@ -1436,9 +1627,12 @@ void OpenMiscMenu(edict_t* ent, int cursor_position) {
 	add_entry(G_Fmt("[Beta] Strogg [{}]", GetMorphTypeName(ent->client->pers.morph_preference)).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
 
 	// --- Stroggification Command (morph/unmorph) ---
-	if (IsMorphed(ent)) {
+	if (IsMorphed(ent))
+	{
 		add_entry("I hate stroggs!", PMENU_ALIGN_LEFT, MiscMenuHandler);
-	} else {
+	}
+	else
+	{
 		add_entry("Stroggificate me!", PMENU_ALIGN_LEFT, MiscMenuHandler);
 	}
 
@@ -1455,13 +1649,16 @@ constexpr size_t HUD_MENU_MAX_ENTRIES = 8;
 constexpr size_t HUD_TEXT_BUFFER_SIZE = 64;
 
 // Opens the HUD options menu
-void OpenHUDMenu(edict_t* ent) {
-	if (!ent || !ent->client) {
+void OpenHUDMenu(edict_t *ent)
+{
+	if (!ent || !ent->client)
+	{
 		return;
 	}
 
 	// Close any existing menu first
-	if (ent->client->menu) {
+	if (ent->client->menu)
+	{
 		PMenu_Close(ent);
 	}
 
@@ -1474,54 +1671,62 @@ void OpenHUDMenu(edict_t* ent) {
 }
 
 // Creates and returns the HUD menu handle (used by OpenHUDMenu and HUDMenuHandler)
-pmenuhnd_t* CreateHUDMenu(edict_t* ent) {
+pmenuhnd_t *CreateHUDMenu(edict_t *ent)
+{
 	static pmenu_t entries[HUD_MENU_MAX_ENTRIES];
 	memset(entries, 0, sizeof(entries));
 
 	size_t count = 0;
 
 	// Title and spacing
-	if (count < HUD_MENU_MAX_ENTRIES) {
+	if (count < HUD_MENU_MAX_ENTRIES)
+	{
 		Q_strlcpy(entries[count].text, "*HUD Options", sizeof(entries[count].text));
 		entries[count].align = PMENU_ALIGN_CENTER;
 		entries[count++].SelectFunc = nullptr;
 	}
-	if (count < HUD_MENU_MAX_ENTRIES) {
+	if (count < HUD_MENU_MAX_ENTRIES)
+	{
 		entries[count].text[0] = '\0'; // Blank separator
 		entries[count].align = PMENU_ALIGN_CENTER;
 		entries[count++].SelectFunc = nullptr;
 	}
 
 	// ID Toggle using G_FmtTo
-	if (count < HUD_MENU_MAX_ENTRIES) {
+	if (count < HUD_MENU_MAX_ENTRIES)
+	{
 		G_FmtTo(entries[count].text, "Enable/Disable ID [{}]", ent->client->pers.id_state ? "ON" : "OFF");
 		entries[count].align = PMENU_ALIGN_LEFT;
 		entries[count++].SelectFunc = HUDMenuHandler;
 	}
 
 	// ID-DMG Toggle using G_FmtTo
-	if (count < HUD_MENU_MAX_ENTRIES) {
+	if (count < HUD_MENU_MAX_ENTRIES)
+	{
 		G_FmtTo(entries[count].text, "Enable/Disable ID-DMG [{}]", ent->client->pers.iddmg_state ? "ON" : "OFF");
 		entries[count].align = PMENU_ALIGN_LEFT;
 		entries[count++].SelectFunc = HUDMenuHandler;
 	}
 
 	// Spacing
-	if (count < HUD_MENU_MAX_ENTRIES) {
+	if (count < HUD_MENU_MAX_ENTRIES)
+	{
 		entries[count].text[0] = '\0';
 		entries[count].align = PMENU_ALIGN_CENTER;
 		entries[count++].SelectFunc = nullptr;
 	}
 
 	// Back to Horde Menu
-	if (count < HUD_MENU_MAX_ENTRIES) {
+	if (count < HUD_MENU_MAX_ENTRIES)
+	{
 		Q_strlcpy(entries[count].text, "Back to Horde Menu", sizeof(entries[count].text));
 		entries[count].align = PMENU_ALIGN_LEFT;
 		entries[count++].SelectFunc = HUDMenuHandler;
 	}
 
 	// Close
-	if (count < HUD_MENU_MAX_ENTRIES) {
+	if (count < HUD_MENU_MAX_ENTRIES)
+	{
 		Q_strlcpy(entries[count].text, "Close", sizeof(entries[count].text));
 		entries[count].align = PMENU_ALIGN_LEFT;
 		entries[count++].SelectFunc = HUDMenuHandler;
@@ -1531,8 +1736,10 @@ pmenuhnd_t* CreateHUDMenu(edict_t* ent) {
 }
 
 // Updates the dynamic text in the HUD menu (ON/OFF status)
-void UpdateHUDMenu(edict_t* ent, pmenuhnd_t* p) {
-	if (!ent || !ent->client || !p || !p->entries || p->num < 4) {
+void UpdateHUDMenu(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client || !p || !p->entries || p->num < 4)
+	{
 		return;
 	}
 
@@ -1544,9 +1751,12 @@ void UpdateHUDMenu(edict_t* ent, pmenuhnd_t* p) {
 }
 
 // Handles selections in the HUD options menu
-void HUDMenuHandler(edict_t* ent, pmenuhnd_t* p) {
-	if (!ent || !ent->client || !p || p->cur < 0) {
-		if (ent && ent->client && ent->client->menu) PMenu_Close(ent);
+void HUDMenuHandler(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client || !p || p->cur < 0)
+	{
+		if (ent && ent->client && ent->client->menu)
+			PMenu_Close(ent);
 		return;
 	}
 
@@ -1557,25 +1767,27 @@ void HUDMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 
 	const int option = p->cur;
 
-	switch (option) {
+	switch (option)
+	{
 	case ID_TOGGLE_OPTION:
-	case IDDMG_TOGGLE_OPTION: {
-		bool& state_to_toggle = (option == ID_TOGGLE_OPTION) ?
-			ent->client->pers.id_state :
-			ent->client->pers.iddmg_state;
+	case IDDMG_TOGGLE_OPTION:
+	{
+		bool &state_to_toggle = (option == ID_TOGGLE_OPTION) ? ent->client->pers.id_state : ent->client->pers.iddmg_state;
 		state_to_toggle = !state_to_toggle;
 
 		// Use G_Fmt for the message
 		gi.LocCenter_Print(ent, G_Fmt("\n\n\n{} state toggled to {}\n",
-			(option == ID_TOGGLE_OPTION) ? "ID" : "ID-DMG",
-			state_to_toggle ? "ON" : "OFF").data());
+									  (option == ID_TOGGLE_OPTION) ? "ID" : "ID-DMG",
+									  state_to_toggle ? "ON" : "OFF")
+									.data());
 
 		UpdateHUDMenu(ent, p);
 		break;
 	}
 	case BACK_OPTION:
 		PMenu_Close(ent);
-		if (ent->inuse) {
+		if (ent->inuse)
+		{
 			OpenHordeMenu(ent);
 		}
 		break;
@@ -1589,39 +1801,46 @@ void HUDMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 }
 
 // Periodically checks if players have the HUD menu open and updates it
-void CheckAndUpdateMenus() {
-	for (auto const* player : active_players()) { // Use range-based for loop
+void CheckAndUpdateMenus()
+{
+	for (auto const *player : active_players())
+	{ // Use range-based for loop
 		// Basic validation
-		if (!player || !player->client || !player->client->menu || !player->client->menu->entries) {
+		if (!player || !player->client || !player->client->menu || !player->client->menu->entries)
+		{
 			continue;
 		}
 
 		// Check if the player is in the HUD menu by comparing the title text
 		// Using strcmp for C-style string comparison
-		if (strcmp(player->client->menu->entries[0].text, "*HUD Options") == 0) {
-			UpdateHUDMenu(const_cast<edict_t*>(player), player->client->menu); // Pass non-const edict_t
-			// gi.unicast(const_cast<edict_t*>(player), true); // Update might already handle this
+		if (strcmp(player->client->menu->entries[0].text, "*HUD Options") == 0)
+		{
+			UpdateHUDMenu(const_cast<edict_t *>(player), player->client->menu); // Pass non-const edict_t
+																				// gi.unicast(const_cast<edict_t*>(player), true); // Update might already handle this
 		}
 		// Add checks for other dynamic menus if needed
 	}
 }
 
-
 // === Admin Menu ===
 
-void OpenAdminMenu(edict_t* ent) {
-	if (!ent || !ent->client) {
+void OpenAdminMenu(edict_t *ent)
+{
+	if (!ent || !ent->client)
+	{
 		return;
 	}
 
 	// Check if player is the host (player 0)
 	unsigned int playerNum = P_GetLobbyUserNum(ent);
-	if (playerNum != 0) {
+	if (playerNum != 0)
+	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "Only the host can access the admin menu.\n");
 		return;
 	}
 
-	if (ent->client->menu) {
+	if (ent->client->menu)
+	{
 		PMenu_Close(ent);
 	}
 
@@ -1633,8 +1852,10 @@ void OpenAdminMenu(edict_t* ent) {
 	memset(admin_menu, 0, sizeof(admin_menu));
 	int count = 0;
 
-	auto add_entry = [&](const char* text, int align, SelectFunc_t func = nullptr) {
-		if (count < static_cast<int>(std::size(admin_menu))) {
+	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr)
+	{
+		if (count < static_cast<int>(std::size(admin_menu)))
+		{
 			Q_strlcpy(admin_menu[count].text, text, sizeof(admin_menu[count].text));
 			admin_menu[count].align = align;
 			admin_menu[count].SelectFunc = func;
@@ -1650,7 +1871,7 @@ void OpenAdminMenu(edict_t* ent) {
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("Give All Weapons", PMENU_ALIGN_LEFT, AdminMenuHandler);
 	// God mode commented out - can break game balance
-	//add_entry("Give God Mode (All)", PMENU_ALIGN_LEFT, AdminMenuHandler);
+	// add_entry("Give God Mode (All)", PMENU_ALIGN_LEFT, AdminMenuHandler);
 	add_entry("Heal All Players", PMENU_ALIGN_LEFT, AdminMenuHandler);
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("Skip to Next Wave", PMENU_ALIGN_LEFT, AdminMenuHandler);
@@ -1661,29 +1882,36 @@ void OpenAdminMenu(edict_t* ent) {
 	PMenu_Open(ent, admin_menu, -1, count, nullptr, nullptr);
 }
 
-void AdminMenuHandler(edict_t* ent, pmenuhnd_t* p) {
-	if (!ent || !ent->client || !p || p->cur < 0) {
-		if (ent && ent->client && ent->client->menu) PMenu_Close(ent);
+void AdminMenuHandler(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client || !p || p->cur < 0)
+	{
+		if (ent && ent->client && ent->client->menu)
+			PMenu_Close(ent);
 		return;
 	}
 
 	// Verify still the host
 	unsigned int playerNum = P_GetLobbyUserNum(ent);
-	if (playerNum != 0) {
+	if (playerNum != 0)
+	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "Admin privileges lost.\n");
 		PMenu_Close(ent);
 		return;
 	}
 
-	const pmenu_t* selected = &p->entries[p->cur];
-	const char* text = selected->text;
-	bool shouldClose = false;  // Keep menu open by default
+	const pmenu_t *selected = &p->entries[p->cur];
+	const char *text = selected->text;
+	bool shouldClose = false; // Keep menu open by default
 
-	if (strcmp(text, "Add 5 Ability Points (All)") == 0) {
-		const char* adminName = GetPlayerName(ent);
-		for (auto player : active_players()) {
+	if (strcmp(text, "Add 5 Ability Points (All)") == 0)
+	{
+		const char *adminName = GetPlayerName(ent);
+		for (auto player : active_players())
+		{
 			if (player->client && (player->client->resp.ctf_team == CTF_TEAM1 ||
-			    G_IsCooperative() || coop->integer || !deathmatch->integer)) {
+								   G_IsCooperative() || coop->integer || !deathmatch->integer))
+			{
 				player->client->pers.ability_points += 5;
 				player->client->pers.admin_bonus_ability_points += 5; // Track admin-given points
 				gi.LocClient_Print(player, PRINT_HIGH, "{} granted you 5 ability points!\n", adminName);
@@ -1691,11 +1919,14 @@ void AdminMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 		}
 		gi.LocClient_Print(ent, PRINT_HIGH, "Gave 5 ability points to all players.\n");
 	}
-	else if (strcmp(text, "Add 5 Weapon Points (All)") == 0) {
-		const char* adminName = GetPlayerName(ent);
-		for (auto player : active_players()) {
+	else if (strcmp(text, "Add 5 Weapon Points (All)") == 0)
+	{
+		const char *adminName = GetPlayerName(ent);
+		for (auto player : active_players())
+		{
 			if (player->client && (player->client->resp.ctf_team == CTF_TEAM1 ||
-			    G_IsCooperative() || coop->integer || !deathmatch->integer)) {
+								   G_IsCooperative() || coop->integer || !deathmatch->integer))
+			{
 				player->client->pers.weapon_points += 5;
 				player->client->pers.admin_bonus_weapon_points += 5; // Track admin-given points
 				gi.LocClient_Print(player, PRINT_HIGH, "{} granted you 5 weapon points!\n", adminName);
@@ -1703,27 +1934,34 @@ void AdminMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 		}
 		gi.LocClient_Print(ent, PRINT_HIGH, "Gave 5 weapon points to all players.\n");
 	}
-	else if (strcmp(text, "Add 10 Points (All)") == 0) {
-		const char* adminName = GetPlayerName(ent);
-		for (auto player : active_players()) {
+	else if (strcmp(text, "Add 10 Points (All)") == 0)
+	{
+		const char *adminName = GetPlayerName(ent);
+		for (auto player : active_players())
+		{
 			if (player->client && (player->client->resp.ctf_team == CTF_TEAM1 ||
-			    G_IsCooperative() || coop->integer || !deathmatch->integer)) {
+								   G_IsCooperative() || coop->integer || !deathmatch->integer))
+			{
 				player->client->pers.ability_points += 10;
 				player->client->pers.weapon_points += 10;
 				player->client->pers.admin_bonus_ability_points += 10; // Track admin-given points
-				player->client->pers.admin_bonus_weapon_points += 10; // Track admin-given points
+				player->client->pers.admin_bonus_weapon_points += 10;  // Track admin-given points
 				gi.LocClient_Print(player, PRINT_HIGH, "{} granted you 10 ability and weapon points!\n", adminName);
 			}
 		}
 		gi.LocClient_Print(ent, PRINT_HIGH, "Gave 10 points of each type to all players.\n");
 	}
-	else if (strcmp(text, "Give All Weapons") == 0) {
-		const char* adminName = GetPlayerName(ent);
-		for (auto player : active_players()) {
+	else if (strcmp(text, "Give All Weapons") == 0)
+	{
+		const char *adminName = GetPlayerName(ent);
+		for (auto player : active_players())
+		{
 			if (player->client && (player->client->resp.ctf_team == CTF_TEAM1 ||
-			    G_IsCooperative() || coop->integer || !deathmatch->integer)) {
+								   G_IsCooperative() || coop->integer || !deathmatch->integer))
+			{
 				// Give all weapons
-				for (size_t i = IT_WEAPON_SHOTGUN; i <= IT_WEAPON_BFG; i++) {
+				for (size_t i = IT_WEAPON_SHOTGUN; i <= IT_WEAPON_BFG; i++)
+				{
 					player->client->pers.inventory[i] = 1;
 				}
 				// Give ammo
@@ -1749,11 +1987,14 @@ void AdminMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 		}
 		gi.LocClient_Print(ent, PRINT_HIGH, "Enabled god mode for all players.\n");
 	}*/
-	else if (strcmp(text, "Heal All Players") == 0) {
-		const char* adminName = GetPlayerName(ent);
-		for (auto player : active_players()) {
+	else if (strcmp(text, "Heal All Players") == 0)
+	{
+		const char *adminName = GetPlayerName(ent);
+		for (auto player : active_players())
+		{
 			if (player->client && (player->client->resp.ctf_team == CTF_TEAM1 ||
-			    G_IsCooperative() || coop->integer || !deathmatch->integer)) {
+								   G_IsCooperative() || coop->integer || !deathmatch->integer))
+			{
 				player->health = player->max_health;
 				player->client->pers.inventory[IT_ARMOR_BODY] = 200;
 				gi.LocClient_Print(player, PRINT_HIGH, "{} healed you!\n", adminName);
@@ -1761,26 +2002,33 @@ void AdminMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 		}
 		gi.LocClient_Print(ent, PRINT_HIGH, "Healed all players.\n");
 	}
-	else if (strcmp(text, "Skip to Next Wave") == 0) {
-		if (g_horde->integer || g_pvm->integer) {
+	else if (strcmp(text, "Skip to Next Wave") == 0)
+	{
+		if (g_horde->integer || pvm->integer)
+		{
 			// Kill all AI to trigger next wave
-			extern void Cmd_Kill_AI_f(edict_t* ent);
+			extern void Cmd_Kill_AI_f(edict_t * ent);
 			Cmd_Kill_AI_f(ent);
 			gi.LocClient_Print(ent, PRINT_HIGH, "Killed all AI - advancing to next wave.\n");
-		} else {
+		}
+		else
+		{
 			gi.LocClient_Print(ent, PRINT_HIGH, "This only works in Horde/PvM mode.\n");
 		}
 	}
-	else if (strcmp(text, "Back") == 0) {
+	else if (strcmp(text, "Back") == 0)
+	{
 		PMenu_Close(ent);
 		OpenHordeMenu(ent);
 		shouldClose = false;
 	}
-	else if (strcmp(text, "Close") == 0) {
-		shouldClose = true;  // Actually close on Close option
+	else if (strcmp(text, "Close") == 0)
+	{
+		shouldClose = true; // Actually close on Close option
 	}
 
-	if (shouldClose && ent->client && ent->client->menu) {
+	if (shouldClose && ent->client && ent->client->menu)
+	{
 		PMenu_Close(ent);
 	}
 }
@@ -1788,109 +2036,128 @@ void AdminMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 // === Main Horde Menu ===
 
 // Handles selections in the main Horde menu
-void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
-	if (!ent || !ent->client || !p || !p->entries || p->cur < 0 || p->cur >= p->num) return; // Added bounds check for p->cur
+void HordeMenuHandler(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client || !p || !p->entries || p->cur < 0 || p->cur >= p->num)
+		return; // Added bounds check for p->cur
 
-	const int option = p->cur; // Keep option index if needed elsewhere, but don't rely on it for branching here
-	const pmenu_t* selected_entry = &p->entries[option]; // Get the selected entry struct
+	const int option = p->cur;							 // Keep option index if needed elsewhere, but don't rely on it for branching here
+	const pmenu_t *selected_entry = &p->entries[option]; // Get the selected entry struct
 	bool shouldCloseMenu = true;
 
 	// Use text comparison for actions where index might vary
-	const char* selected_text = selected_entry->text;
+	const char *selected_text = selected_entry->text;
 
 	// --- Action Handling based on Text ---
 
 	// Check for Show Objectives (coop only)
-	if (strcmp(selected_text, "Show Objectives") == 0) {
+	if (strcmp(selected_text, "Show Objectives") == 0)
+	{
 		PMenu_Close(ent); // Close menu first
-		Cmd_Help_f(ent); // Show objectives screen
-		return; // Exit early since we already closed the menu
+		Cmd_Help_f(ent);  // Show objectives screen
+		return;			  // Exit early since we already closed the menu
 	}
 	// Check for Admin Menu (host only)
-	if (strcmp(selected_text, "[HOST] Admin Menu") == 0) {
+	if (strcmp(selected_text, "[HOST] Admin Menu") == 0)
+	{
 		OpenAdminMenu(ent);
 		shouldCloseMenu = false;
 	}
 	// Check for "Go Spectator/AFK"
-	if (strcmp(selected_text, "Go Spectator/AFK") == 0) {
+	if (strcmp(selected_text, "Go Spectator/AFK") == 0)
+	{
 		CTFObserver(ent);
 		shouldCloseMenu = false; // CTFObserver might handle closing
 	}
 	// Check for "Upgrade Menu"
-	else if (strncmp(selected_text, "Upgrade Menu", 12) == 0) {
+	else if (strncmp(selected_text, "Upgrade Menu", 12) == 0)
+	{
 		shouldCloseMenu = true; // Close main menu first
-		PMenu_Close(ent); // Close now before opening upgrade menu
-		OpenUpgradeMenu(ent); // This will set protection and open new menu
-		return; // Exit early since we already closed
+		PMenu_Close(ent);		// Close now before opening upgrade menu
+		OpenUpgradeMenu(ent);	// This will set protection and open new menu
+		return;					// Exit early since we already closed
 	}
 	// Check for "Misc Options"
-	else if (strcmp(selected_text, "Misc Options") == 0) {
+	else if (strcmp(selected_text, "Misc Options") == 0)
+	{
 		OpenMiscMenu(ent);
 		shouldCloseMenu = false;
 	}
 	// Vote Map
-	else if (ctfgame.election == ELECT_NONE && strcmp(selected_text, "Vote Map") == 0) {
+	else if (ctfgame.election == ELECT_NONE && strcmp(selected_text, "Vote Map") == 0)
+	{
 		OpenVoteMenu(ent);
 		shouldCloseMenu = false;
 	}
 	// Vote Yes
-	else if (ctfgame.election != ELECT_NONE && strcmp(selected_text, "Vote Yes") == 0) {
+	else if (ctfgame.election != ELECT_NONE && strcmp(selected_text, "Vote Yes") == 0)
+	{
 		CTFVoteYes(ent);
 		shouldCloseMenu = false; // Keep menu open after voting
 	}
 	// Vote No
-	else if (ctfgame.election != ELECT_NONE && strcmp(selected_text, "Vote No") == 0) {
+	else if (ctfgame.election != ELECT_NONE && strcmp(selected_text, "Vote No") == 0)
+	{
 		CTFVoteNo(ent);
 		shouldCloseMenu = false; // Keep menu open after voting
 	}
 	// HUD Options
-	else if (strcmp(selected_text, "HUD Options") == 0) {
+	else if (strcmp(selected_text, "HUD Options") == 0)
+	{
 		OpenHUDMenu(ent);
 		shouldCloseMenu = false;
 	}
 	// Set Respawn Weapon
-	else if (strcmp(selected_text, "Set Respawn Weapon") == 0) {
+	else if (strcmp(selected_text, "Set Respawn Weapon") == 0)
+	{
 		OpenRespawnWeaponMenu(ent);
 		shouldCloseMenu = false;
 	}
 	// Swap Tech
-	else if (strcmp(selected_text, "Swap Tech") == 0) {
+	else if (strcmp(selected_text, "Swap Tech") == 0)
+	{
 		OpenTechMenu(ent);
 		shouldCloseMenu = false;
 	}
 	// Show Inventory
-	else if (strcmp(selected_text, "Show Inventory") == 0) {
+	else if (strcmp(selected_text, "Show Inventory") == 0)
+	{
 		PMenu_Close(ent); // Close menu first to prevent overlay
 		ShowInventory(ent);
 		return; // Exit early since we already closed the menu
 	}
 	// Close Button
-	else if (strcmp(selected_text, "Close") == 0) {
+	else if (strcmp(selected_text, "Close") == 0)
+	{
 		// No action needed, handled by shouldCloseMenu = true (default)
 	}
 	// --- Default Case (Clicked on non-actionable item like title, blank, vote question) ---
-	else {
+	else
+	{
 		shouldCloseMenu = false; // Don't close menu for non-actionable items
 	}
 
-
 	// Close the menu if required and if it still exists
-	if (shouldCloseMenu && ent->client && ent->client->menu) { // Add ent->client check
+	if (shouldCloseMenu && ent->client && ent->client->menu)
+	{ // Add ent->client check
 		PMenu_Close(ent);
 	}
 }
 
 // Creates and opens the main Horde menu
 // Forward declaration for the handler function if not already visible
-void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p);
+void HordeMenuHandler(edict_t *ent, pmenuhnd_t *p);
 
 // Creates and opens the main Horde menu
-pmenuhnd_t* CreateHordeMenu(edict_t* ent) {
-	if (!ent || !ent->client) {
+pmenuhnd_t *CreateHordeMenu(edict_t *ent)
+{
+	if (!ent || !ent->client)
+	{
 		return nullptr;
 	}
 
-	if (ent->client->menu) {
+	if (ent->client->menu)
+	{
 		PMenu_Close(ent);
 	}
 
@@ -1898,13 +2165,17 @@ pmenuhnd_t* CreateHordeMenu(edict_t* ent) {
 	memset(entries, 0, sizeof(entries));
 	int count = 0;
 
-	auto add_entry = [&](const char* text, int align, SelectFunc_t func = nullptr) {
-		if (count < static_cast<int>(std::size(entries))) {
+	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr)
+	{
+		if (count < static_cast<int>(std::size(entries)))
+		{
 			Q_strlcpy(entries[count].text, text, sizeof(entries[count].text));
 			entries[count].align = align;
 			entries[count].SelectFunc = func;
 			count++;
-		} else {
+		}
+		else
+		{
 			gi.Com_Print("Warning: CreateHordeMenu exceeded static entry buffer size.\n");
 		}
 	};
@@ -1913,21 +2184,26 @@ pmenuhnd_t* CreateHordeMenu(edict_t* ent) {
 	add_entry("", PMENU_ALIGN_CENTER);
 
 	// Add Show Objectives option if in coop mode (first option after joining)
-	if (coop->integer) {
+	if (coop->integer)
+	{
 		add_entry("Show Objectives", PMENU_ALIGN_LEFT, HordeMenuHandler);
 	}
 
 	// Add Admin Menu option if player is host
 	unsigned int playerNum = P_GetLobbyUserNum(ent);
-	if (playerNum == 0) {
+	if (playerNum == 0)
+	{
 		add_entry("[HOST] Admin Menu", PMENU_ALIGN_LEFT, HordeMenuHandler);
 	}
 
 	add_entry("Go Spectator/AFK", PMENU_ALIGN_LEFT, HordeMenuHandler);
 
-	if (ctfgame.election == ELECT_NONE) {
+	if (ctfgame.election == ELECT_NONE)
+	{
 		add_entry("Vote Map", PMENU_ALIGN_LEFT, HordeMenuHandler);
-	} else {
+	}
+	else
+	{
 		// Use G_Fmt for the vote question
 		add_entry(G_Fmt("Vote: {}", ctfgame.emsg).data(), PMENU_ALIGN_CENTER, nullptr);
 		add_entry("Vote Yes", PMENU_ALIGN_LEFT, HordeMenuHandler);
@@ -1955,8 +2231,10 @@ pmenuhnd_t* CreateHordeMenu(edict_t* ent) {
 }
 
 // Entry point to open the main Horde menu
-void OpenHordeMenu(edict_t* ent) noexcept {
-	if (!ent || !ent->client) return;
+void OpenHordeMenu(edict_t *ent) noexcept
+{
+	if (!ent || !ent->client)
+		return;
 
 	// Set menu protection
 	ent->client->menu_protected = true;
@@ -1965,14 +2243,12 @@ void OpenHordeMenu(edict_t* ent) noexcept {
 	CreateHordeMenu(ent); // Create and open the menu
 }
 
-
 /////////////////////////////////////////////
-		//////SCOREBOARD//////////
+//////SCOREBOARD//////////
 /////////////////////////////////////////////
-
 
 // Make sure we're using the correct fmt namespace for format
-//namespace fmt_game = fmt;
+// namespace fmt_game = fmt;
 
 // Constants
 
@@ -1985,55 +2261,66 @@ constexpr int LAYOUT_SAFETY_MARGIN = 50;
  *  StringBuilder
  * Helper class for efficient string concatenation
  */
-class StringBuilder {
+class StringBuilder
+{
 private:
 	std::string buffer;
 	size_t max_size;
 
 public:
-	explicit StringBuilder(size_t reserved_size = 256) {
+	explicit StringBuilder(size_t reserved_size = 256)
+	{
 		// Clamp reserved size to prevent overflow
 		reserved_size = std::min(reserved_size, MAX_STRING_BUILD_SIZE);
 		max_size = MAX_STRING_BUILD_SIZE;
-		try {
+		try
+		{
 			buffer.reserve(reserved_size);
-		} catch (const std::bad_alloc&) {
+		}
+		catch (const std::bad_alloc &)
+		{
 			gi.Com_Print("WARNING: Failed to reserve string builder memory\n");
 		}
 	}
 
-	StringBuilder& append(std::string_view text) {
+	StringBuilder &append(std::string_view text)
+	{
 		// Use safe append with size checking
-		if (!safe_string_append(buffer, text, max_size)) {
-			if (developer && developer->integer) {
+		if (!safe_string_append(buffer, text, max_size))
+		{
+			if (developer && developer->integer)
+			{
 				gi.Com_Print("WARNING: StringBuilder reached max size, truncating\n");
 			}
 		}
 		return *this;
 	}
 
-	std::string str() const {
+	std::string str() const
+	{
 		return buffer;
 	}
 
-	size_t size() const {
+	size_t size() const
+	{
 		return buffer.size();
 	}
 };
-
 
 /**
  * PlayerScore
  * Contains player score information for the scoreboard
  */
-struct PlayerScore {
+struct PlayerScore
+{
 	unsigned int index;
 	int score;
 	int ping;
 	bool is_dead;
 
 	// Sort players by score in descending order
-	bool operator>(const PlayerScore& other) const {
+	bool operator>(const PlayerScore &other) const
+	{
 		return score > other.score;
 	}
 };
@@ -2042,10 +2329,11 @@ struct PlayerScore {
  * ScoreboardLayout
  * Handles scoreboard layout generation
  */
-class ScoreboardLayout {
+class ScoreboardLayout
+{
 private:
 	StringBuilder layout_builder;
-	const edict_t* ent;
+	const edict_t *ent;
 	std::vector<PlayerScore> team_players;
 	std::vector<PlayerScore> spectators;
 	int total_score;
@@ -2055,36 +2343,45 @@ private:
 	static constexpr size_t MAX_BONUS_STRING_LENGTH = 400; // Increased to accommodate all 13 bonuses with names up to ~25 chars each
 
 public:
-	ScoreboardLayout(edict_t* player_ent, size_t reserve_size = MAX_CTF_STAT_LENGTH)
-		: layout_builder(reserve_size), ent(player_ent), total_score(0) {
+	ScoreboardLayout(edict_t *player_ent, size_t reserve_size = MAX_CTF_STAT_LENGTH)
+		: layout_builder(reserve_size), ent(player_ent), total_score(0)
+	{
 	}
 
-	void collectPlayers() {
-		for (unsigned int i = 0; i < game.maxclients; i++) {
-			const edict_t* const cl_ent = g_edicts + 1 + i;
+	void collectPlayers()
+	{
+		for (unsigned int i = 0; i < game.maxclients; i++)
+		{
+			const edict_t *const cl_ent = g_edicts + 1 + i;
 			if (!cl_ent->inuse)
 				continue;
 
-			const gclient_t* const cl = &game.clients[i];
+			const gclient_t *const cl = &game.clients[i];
 
 			// Create player score entry
 			PlayerScore player = {
 				i,
 				cl->resp.score,
 				std::clamp(cl->ping, 0, 999),
-				(cl_ent->deadflag != 0)  // Using deadflag to determine if player is dead
+				(cl_ent->deadflag != 0) // Using deadflag to determine if player is dead
 			};
 
 			// Sort into appropriate team
-			if (cl->resp.ctf_team == CTF_TEAM1) {
-				if (!safe_push_back(team_players, player, MAX_SAFE_CONTAINER_SIZE)) {
+			if (cl->resp.ctf_team == CTF_TEAM1)
+			{
+				if (!safe_push_back(team_players, player, MAX_SAFE_CONTAINER_SIZE))
+				{
 					gi.Com_Print("WARNING: Too many team players for scoreboard\n");
-				} else {
+				}
+				else
+				{
 					total_score += player.score;
 				}
 			}
-			else if (cl->resp.ctf_team == CTF_NOTEAM) {
-				if (!safe_push_back(spectators, player, MAX_SAFE_CONTAINER_SIZE)) {
+			else if (cl->resp.ctf_team == CTF_NOTEAM)
+			{
+				if (!safe_push_back(spectators, player, MAX_SAFE_CONTAINER_SIZE))
+				{
 					gi.Com_Print("WARNING: Too many spectators for scoreboard\n");
 				}
 			}
@@ -2094,37 +2391,47 @@ public:
 		std::sort(team_players.begin(), team_players.end(), std::greater<>());
 	}
 
-	void addHeader() {
+	void addHeader()
+	{
 		// Wave and enemies information
-		if (g_horde->integer || g_pvm->integer) {
+		if (g_horde->integer || pvm->integer)
+		{
 			layout_builder.append(fmt::format(
 				"if 0 xv -5 yv -10 loc_string2 1 \"Wave Number: {}          Stroggs Remaining: {}\" endif \n",
 				last_wave_number, GetStroggsNum()));
 		}
 
 		// Time limit
-		if (timelimit->value) {
+		if (timelimit->value)
+		{
 			layout_builder.append(fmt::format(
 				"if 0 xv 340 yv -33 time_limit {} endif \n",
 				gi.ServerFrame() + ((gtime_t::from_min(timelimit->value) - level.time)).milliseconds() / gi.frame_time_ms));
 		}
 	}
 
-	void addTeamScore() {
-		if (!level.intermissiontime) {
+	void addTeamScore()
+	{
+		if (!level.intermissiontime)
+		{
 			// Normal game display - dogtag moved higher (lower y value)
 			layout_builder.append("if 25 xv -90 yv -1 dogtag endif \n");
 
 			// Active bonuses (per-player) with length check
-			std::string activeBonuses = GetPlayerActiveBonusesString(const_cast<edict_t*>(ent));
-			if (!activeBonuses.empty()) {
+			std::string activeBonuses = GetPlayerActiveBonusesString(const_cast<edict_t *>(ent));
+			if (!activeBonuses.empty())
+			{
 				// Truncate if too long to prevent overflow
-				if (activeBonuses.length() > MAX_BONUS_STRING_LENGTH) {
+				if (activeBonuses.length() > MAX_BONUS_STRING_LENGTH)
+				{
 					// Safe resize with bounds check
-					try {
+					try
+					{
 						activeBonuses.resize(MAX_BONUS_STRING_LENGTH);
 						activeBonuses += "...";
-					} catch (const std::bad_alloc&) {
+					}
+					catch (const std::bad_alloc &)
+					{
 						gi.Com_Print("WARNING: Failed to resize bonus string\n");
 						activeBonuses = "Error";
 					}
@@ -2133,37 +2440,43 @@ public:
 					"if 0 xv 208 yv 8 string \"{}\" endif \n", activeBonuses));
 			}
 		}
-		else {
+		else
+		{
 			// Intermission display - dogtag also moved higher
-			layout_builder.append(fmt::format(
+			// FIX: Ensure both 'if' statements are properly terminated with 'endif'.
+			layout_builder.append(
 				"if 25 xv -90 yv -1 dogtag endif "
-				"if 25 xv 205 yv 8 pic 25 endif \n"));
+				"if 25 xv 205 yv 8 pic 25 endif \n");
 		}
 	}
 
-	void addPlayerList() {
+	void addPlayerList()
+	{
 		// Add column headers - moved down 2 pixels to align better with player names
 		int header_y = PLAYER_Y_START - 8;
 		layout_builder.append(fmt::format(
 			"if 0 xv -90 yv {} string2 \"Name\" xv 60 yv {} string2 \"Score\" xv 110 yv {} string2 \"Ping\" endif ",
 			header_y, header_y, header_y));
 
-		for (size_t i = 0; i < std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY); ++i) {
-			const auto& player = team_players[i];
-			edict_t* player_ent = g_edicts + 1 + player.index;
+		for (size_t i = 0; i < std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY); ++i)
+		{
+			const auto &player = team_players[i];
+			edict_t *player_ent = g_edicts + 1 + player.index;
 			int y = PLAYER_Y_START + i * PLAYER_Y_SPACING;
 
 			// Get proper player name using GetPlayerName
-			const char* player_name = GetPlayerName(player_ent);
+			const char *player_name = GetPlayerName(player_ent);
 
 			// Create display name (truncate if needed)
 			std::string display_name = player_name;
-			if (display_name.length() > 16) {
+			if (display_name.length() > 16)
+			{
 				display_name = display_name.substr(0, 16);
 			}
 
 			// Add death indicator prefix if dead
-			if (player.is_dead) {
+			if (player.is_dead)
+			{
 				display_name = "[D]" + display_name;
 			}
 
@@ -2178,10 +2491,12 @@ public:
 		}
 	}
 
-	void addSpectators() {
+	void addSpectators()
+	{
 		// Only add spectators if there's enough space and there are spectators
 		// Also limit the number of spectators displayed
-		if (layout_builder.size() < MAX_CTF_STAT_LENGTH - LAYOUT_SAFETY_MARGIN && !spectators.empty()) {
+		if (layout_builder.size() < MAX_CTF_STAT_LENGTH - LAYOUT_SAFETY_MARGIN && !spectators.empty())
+		{
 			// Calculate vertical position after team players
 			int y = PLAYER_Y_START + (std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY) + 2) * PLAYER_Y_SPACING;
 
@@ -2192,11 +2507,13 @@ public:
 
 			// Add each spectator (with limit)
 			size_t spectators_to_display = std::min(spectators.size(), MAX_SPECTATORS_TO_DISPLAY);
-			for (size_t i = 0; i < spectators_to_display; ++i) {
-				const auto& spec = spectators[i];
+			for (size_t i = 0; i < spectators_to_display; ++i)
+			{
+				const auto &spec = spectators[i];
 
 				// Check if we still have space before adding each spectator
-				if (layout_builder.size() >= MAX_CTF_STAT_LENGTH - LAYOUT_SAFETY_MARGIN) {
+				if (layout_builder.size() >= MAX_CTF_STAT_LENGTH - LAYOUT_SAFETY_MARGIN)
+				{
 					break;
 				}
 
@@ -2207,7 +2524,8 @@ public:
 			}
 
 			// If there are more spectators than displayed, show a count
-			if (spectators.size() > spectators_to_display) {
+			if (spectators.size() > spectators_to_display)
+			{
 				layout_builder.append(fmt::format(
 					"if 0 xv -90 yv {} string \"... and {} more\" endif \n",
 					y, spectators.size() - spectators_to_display));
@@ -2215,21 +2533,24 @@ public:
 		}
 	}
 
-	void addFooter() {
-		if (!level.intermissiontime) {
+	void addFooter()
+	{
+		if (!level.intermissiontime)
+		{
 			// Standard help text based on player's team
-			const char* help_text = (ent->client->resp.ctf_team != CTF_TEAM1)
-				? "Use Inventory <KEY> to toggle Horde Menu."
-				: "Use Horde Menu on Powerup Wheel or press Inventory <KEY> to toggle Horde Menu.";
+			const char *help_text = (ent->client->resp.ctf_team != CTF_TEAM1)
+										? "Use Inventory <KEY> to toggle Horde Menu."
+										: "Use Horde Menu on Powerup Wheel or press Inventory <KEY> to toggle Horde Menu.";
 
 			layout_builder.append(fmt::format(
 				"if 0 xv 0 yb -55 cstring2 \"{}\" endif \n", help_text));
 		}
-		else {
+		else
+		{
 			// Intermission message
-			const char* message = brandom()
-				? "MAKE THEM PAY !!!"
-				: "THEY WILL REGRET THIS !!!";
+			const char *message = brandom()
+									  ? "MAKE THEM PAY !!!"
+									  : "THEY WILL REGRET THIS !!!";
 
 			layout_builder.append(fmt::format(
 				"ifgef {} yb -48 xv 0 loc_cstring2 0 \"{}\" endif \n",
@@ -2238,7 +2559,8 @@ public:
 		}
 	}
 
-	std::string build() {
+	std::string build()
+	{
 		return layout_builder.str();
 	}
 };
@@ -2248,7 +2570,8 @@ public:
  * @param ent The player entity to display the scoreboard for
  * @param killer The entity that killed the player (if any)
  */
-void HordeScoreboardMessage(edict_t* ent, edict_t* killer) {
+void HordeScoreboardMessage(edict_t *ent, edict_t *killer)
+{
 	// Create scoreboard layout generator
 	ScoreboardLayout layout(ent);
 
@@ -2266,11 +2589,15 @@ void HordeScoreboardMessage(edict_t* ent, edict_t* killer) {
 	std::string final_layout = layout.build();
 
 	// Ensure we don't exceed layout size limits
-	if (final_layout.size() >= MAX_CTF_STAT_LENGTH) {
+	if (final_layout.size() >= MAX_CTF_STAT_LENGTH)
+	{
 		// Safe resize with exception handling
-		try {
+		try
+		{
 			final_layout.resize(MAX_CTF_STAT_LENGTH - 1);
-		} catch (const std::bad_alloc&) {
+		}
+		catch (const std::bad_alloc &)
+		{
 			gi.Com_Print("ERROR: Failed to resize scoreboard layout\n");
 			final_layout = "ERROR: Memory allocation failed";
 		}
@@ -2284,439 +2611,508 @@ void HordeScoreboardMessage(edict_t* ent, edict_t* killer) {
 // --- BENEFITS MENU SYSTEM ---
 
 // Open Abilities Menu
-void OpenAbilitiesMenu(edict_t* ent) {
-    // Set menu protection
-    if (ent && ent->client) {
-        ent->client->menu_protected = true;
-        ent->client->menu_protection_start = level.time;
-    }
-    CreateAbilitiesMenu(ent);
+void OpenAbilitiesMenu(edict_t *ent)
+{
+	// Set menu protection
+	if (ent && ent->client)
+	{
+		ent->client->menu_protected = true;
+		ent->client->menu_protection_start = level.time;
+	}
+	CreateAbilitiesMenu(ent);
 }
 
 // Abilities Menu Handler
-void AbilitiesMenuHandler(edict_t* ent, pmenuhnd_t* p) {
-    if (!ent || !ent->client || !p) return;
+void AbilitiesMenuHandler(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client || !p)
+		return;
 
-    pmenu_t* item = &p->entries[p->cur];
-    if (!item->SelectFunc) return;
+	pmenu_t *item = &p->entries[p->cur];
+	if (!item->SelectFunc)
+		return;
 
-    // Handle benefit purchase
-    if (strncmp(item->text_arg1, "ability_", 8) == 0) {
-        const char* benefit_name = item->text_arg1 + 8; // Skip "ability_" prefix
+	// Handle benefit purchase
+	if (strncmp(item->text_arg1, "ability_", 8) == 0)
+	{
+		const char *benefit_name = item->text_arg1 + 8; // Skip "ability_" prefix
 
-        // Find benefit by name
-        for (size_t i = 0; i < BenefitsDataSoA::NUM_BENEFITS; ++i) {
-            if (g_benefitsData.categories[i] != BenefitCategory::ABILITY) continue;
+		// Find benefit by name
+		for (size_t i = 0; i < BenefitsDataSoA::NUM_BENEFITS; ++i)
+		{
+			if (g_benefitsData.categories[i] != BenefitCategory::ABILITY)
+				continue;
 
-            if (strcmp(g_benefitsData.names[i], benefit_name) == 0) {
-                BenefitID benefit_id = static_cast<BenefitID>(i);
-                int32_t cost = 1; // Default cost
+			if (strcmp(g_benefitsData.names[i], benefit_name) == 0)
+			{
+				BenefitID benefit_id = static_cast<BenefitID>(i);
+				int32_t cost = 1; // Default cost
 
-                if (PlayerPurchaseBenefit(ent, benefit_id, cost)) {
-                    // Refresh menu to show updated state
-                    PMenu_Close(ent);
-                    OpenAbilitiesMenu(ent);
-                }
-                return;
-            }
-        }
-    }
+				if (PlayerPurchaseBenefit(ent, benefit_id, cost))
+				{
+					// Refresh menu to show updated state
+					PMenu_Close(ent);
+					OpenAbilitiesMenu(ent);
+				}
+				return;
+			}
+		}
+	}
 
-    // Handle special menu actions
-    if (strcmp(item->text_arg1, "back_to_main") == 0) {
-        PMenu_Close(ent);
-        OpenUpgradeMenu(ent);
-    }
+	// Handle special menu actions
+	if (strcmp(item->text_arg1, "back_to_main") == 0)
+	{
+		PMenu_Close(ent);
+		OpenUpgradeMenu(ent);
+	}
 }
 
 // Create Abilities Menu
-pmenuhnd_t* CreateAbilitiesMenu(edict_t* ent) {
-    if (!ent || !ent->client) return nullptr;
+pmenuhnd_t *CreateAbilitiesMenu(edict_t *ent)
+{
+	if (!ent || !ent->client)
+		return nullptr;
 
-    static pmenu_t abilities_menu[32];
-    memset(abilities_menu, 0, sizeof(abilities_menu));
-    int menu_index = 0;
+	static pmenu_t abilities_menu[32];
+	memset(abilities_menu, 0, sizeof(abilities_menu));
+	int menu_index = 0;
 
-    // Header
-    Q_strlcpy(abilities_menu[menu_index].text, "=== ABILITIES SHOP ===", sizeof(abilities_menu[menu_index].text));
-    abilities_menu[menu_index].align = PMENU_ALIGN_CENTER;
-    abilities_menu[menu_index].SelectFunc = nullptr;
-    menu_index++;
+	// Header
+	Q_strlcpy(abilities_menu[menu_index].text, "=== ABILITIES SHOP ===", sizeof(abilities_menu[menu_index].text));
+	abilities_menu[menu_index].align = PMENU_ALIGN_CENTER;
+	abilities_menu[menu_index].SelectFunc = nullptr;
+	menu_index++;
 
-    // Points display
-    G_FmtTo(abilities_menu[menu_index].text, "Points Available: {}", ent->client->pers.ability_points);
-    abilities_menu[menu_index].align = PMENU_ALIGN_CENTER;
-    abilities_menu[menu_index].SelectFunc = nullptr;
-    menu_index++;
+	// Points display
+	G_FmtTo(abilities_menu[menu_index].text, "Points Available: {}", ent->client->pers.ability_points);
+	abilities_menu[menu_index].align = PMENU_ALIGN_CENTER;
+	abilities_menu[menu_index].SelectFunc = nullptr;
+	menu_index++;
 
-    // Separator
-    Q_strlcpy(abilities_menu[menu_index].text, "---", sizeof(abilities_menu[menu_index].text));
-    abilities_menu[menu_index].align = PMENU_ALIGN_CENTER;
-    abilities_menu[menu_index].SelectFunc = nullptr;
-    menu_index++;
+	// Separator
+	Q_strlcpy(abilities_menu[menu_index].text, "---", sizeof(abilities_menu[menu_index].text));
+	abilities_menu[menu_index].align = PMENU_ALIGN_CENTER;
+	abilities_menu[menu_index].SelectFunc = nullptr;
+	menu_index++;
 
-    // List ability benefits (only show available ones)
-    bool has_available = false;
-    for (size_t i = 0; i < BenefitsDataSoA::NUM_BENEFITS && menu_index < 25; ++i) {
-        if (g_benefitsData.categories[i] != BenefitCategory::ABILITY) continue;
+	// List ability benefits (only show available ones)
+	bool has_available = false;
+	for (size_t i = 0; i < BenefitsDataSoA::NUM_BENEFITS && menu_index < 25; ++i)
+	{
+		if (g_benefitsData.categories[i] != BenefitCategory::ABILITY)
+			continue;
 
-        BenefitID benefit_id = static_cast<BenefitID>(i);
-        bool owned = PlayerHasBenefit(ent, benefit_id);
+		BenefitID benefit_id = static_cast<BenefitID>(i);
+		bool owned = PlayerHasBenefit(ent, benefit_id);
 
-        // Skip if already owned - cleaner menu
-        if (owned) {
-            continue;
-        }
+		// Skip if already owned - cleaner menu
+		if (owned)
+		{
+			continue;
+		}
 
-        // Check prerequisites
-        auto prereq = g_benefitsData.prerequisites[i];
-        bool prereq_met = (prereq == BenefitID::NONE) || PlayerHasBenefit(ent, prereq);
+		// Check prerequisites
+		auto prereq = g_benefitsData.prerequisites[i];
+		bool prereq_met = (prereq == BenefitID::NONE) || PlayerHasBenefit(ent, prereq);
 
-        // Don't show if prerequisite not met - cleaner menu
-        if (!prereq_met) {
-            continue;
-        }
+		// Don't show if prerequisite not met - cleaner menu
+		if (!prereq_met)
+		{
+			continue;
+		}
 
-        bool can_afford = ent->client->pers.ability_points >= 1;
+		bool can_afford = ent->client->pers.ability_points >= 1;
 
-        // Available to purchase
-        G_FmtTo(abilities_menu[menu_index].text,
-                 "{} {} (1 pt)", can_afford ? ">" : " ", g_benefitsData.names[i]);
-        abilities_menu[menu_index].align = PMENU_ALIGN_LEFT;
-        if (can_afford) {
-            abilities_menu[menu_index].SelectFunc = AbilitiesMenuHandler;
-            snprintf(abilities_menu[menu_index].text_arg1, sizeof(abilities_menu[menu_index].text_arg1),
-                     "ability_%s", g_benefitsData.names[i]);
-        } else {
-            abilities_menu[menu_index].SelectFunc = nullptr;
-        }
-        menu_index++;
-        has_available = true;
-    }
+		// Available to purchase
+		G_FmtTo(abilities_menu[menu_index].text,
+				"{} {} (1 pt)", can_afford ? ">" : " ", g_benefitsData.names[i]);
+		abilities_menu[menu_index].align = PMENU_ALIGN_LEFT;
+		if (can_afford)
+		{
+			abilities_menu[menu_index].SelectFunc = AbilitiesMenuHandler;
+			snprintf(abilities_menu[menu_index].text_arg1, sizeof(abilities_menu[menu_index].text_arg1),
+					 "ability_%s", g_benefitsData.names[i]);
+		}
+		else
+		{
+			abilities_menu[menu_index].SelectFunc = nullptr;
+		}
+		menu_index++;
+		has_available = true;
+	}
 
-    if (!has_available) {
-        Q_strlcpy(abilities_menu[menu_index].text, "All abilities purchased!", sizeof(abilities_menu[menu_index].text));
-        abilities_menu[menu_index].align = PMENU_ALIGN_CENTER;
-        abilities_menu[menu_index].SelectFunc = nullptr;
-        menu_index++;
-    }
+	if (!has_available)
+	{
+		Q_strlcpy(abilities_menu[menu_index].text, "All abilities purchased!", sizeof(abilities_menu[menu_index].text));
+		abilities_menu[menu_index].align = PMENU_ALIGN_CENTER;
+		abilities_menu[menu_index].SelectFunc = nullptr;
+		menu_index++;
+	}
 
-    // Separator before back option
-    Q_strlcpy(abilities_menu[menu_index].text, "---", sizeof(abilities_menu[menu_index].text));
-    abilities_menu[menu_index].align = PMENU_ALIGN_CENTER;
-    abilities_menu[menu_index].SelectFunc = nullptr;
-    menu_index++;
+	// Separator before back option
+	Q_strlcpy(abilities_menu[menu_index].text, "---", sizeof(abilities_menu[menu_index].text));
+	abilities_menu[menu_index].align = PMENU_ALIGN_CENTER;
+	abilities_menu[menu_index].SelectFunc = nullptr;
+	menu_index++;
 
-    // Back to main menu
-    Q_strlcpy(abilities_menu[menu_index].text, "< Back", sizeof(abilities_menu[menu_index].text));
-    abilities_menu[menu_index].align = PMENU_ALIGN_LEFT;
-    abilities_menu[menu_index].SelectFunc = AbilitiesMenuHandler;
-    Q_strlcpy(abilities_menu[menu_index].text_arg1, "back_to_main", sizeof(abilities_menu[menu_index].text_arg1));
-    menu_index++;
+	// Back to main menu
+	Q_strlcpy(abilities_menu[menu_index].text, "< Back", sizeof(abilities_menu[menu_index].text));
+	abilities_menu[menu_index].align = PMENU_ALIGN_LEFT;
+	abilities_menu[menu_index].SelectFunc = AbilitiesMenuHandler;
+	Q_strlcpy(abilities_menu[menu_index].text_arg1, "back_to_main", sizeof(abilities_menu[menu_index].text_arg1));
+	menu_index++;
 
-    return PMenu_Open(ent, abilities_menu, 0, menu_index, nullptr, nullptr);
+	return PMenu_Open(ent, abilities_menu, 0, menu_index, nullptr, nullptr);
 }
 
 // Open Weapons Menu
-void OpenWeaponsMenu(edict_t* ent) {
-    // Set menu protection
-    if (ent && ent->client) {
-        ent->client->menu_protected = true;
-        ent->client->menu_protection_start = level.time;
-    }
-    CreateWeaponsMenu(ent);
+void OpenWeaponsMenu(edict_t *ent)
+{
+	// Set menu protection
+	if (ent && ent->client)
+	{
+		ent->client->menu_protected = true;
+		ent->client->menu_protection_start = level.time;
+	}
+	CreateWeaponsMenu(ent);
 }
 
 // Weapons Menu Handler
-void WeaponsMenuHandler(edict_t* ent, pmenuhnd_t* p) {
-    if (!ent || !ent->client || !p) return;
+void WeaponsMenuHandler(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client || !p)
+		return;
 
-    pmenu_t* item = &p->entries[p->cur];
-    if (!item->SelectFunc) return;
+	pmenu_t *item = &p->entries[p->cur];
+	if (!item->SelectFunc)
+		return;
 
-    // Handle benefit purchase
-    if (strncmp(item->text_arg1, "weapon_", 7) == 0) {
-        const char* benefit_name = item->text_arg1 + 7; // Skip "weapon_" prefix
+	// Handle benefit purchase
+	if (strncmp(item->text_arg1, "weapon_", 7) == 0)
+	{
+		const char *benefit_name = item->text_arg1 + 7; // Skip "weapon_" prefix
 
-        // Find benefit by name
-        for (size_t i = 0; i < BenefitsDataSoA::NUM_BENEFITS; ++i) {
-            if (g_benefitsData.categories[i] != BenefitCategory::WEAPON) continue;
+		// Find benefit by name
+		for (size_t i = 0; i < BenefitsDataSoA::NUM_BENEFITS; ++i)
+		{
+			if (g_benefitsData.categories[i] != BenefitCategory::WEAPON)
+				continue;
 
-            if (strcmp(g_benefitsData.names[i], benefit_name) == 0) {
-                BenefitID benefit_id = static_cast<BenefitID>(i);
+			if (strcmp(g_benefitsData.names[i], benefit_name) == 0)
+			{
+				BenefitID benefit_id = static_cast<BenefitID>(i);
 
-                // Set costs based on benefit type
-                int32_t cost = 1; // Default cost
-                if (benefit_id == BenefitID::BFG_GRAV_PULL || benefit_id == BenefitID::CLUSTER_PROX) {
-                    cost = 3;
-                }
+				// Set costs based on benefit type
+				int32_t cost = 1; // Default cost
+				if (benefit_id == BenefitID::BFG_GRAV_PULL || benefit_id == BenefitID::CLUSTER_PROX)
+				{
+					cost = 3;
+				}
 
-                if (PlayerPurchaseBenefit(ent, benefit_id, cost)) {
-                    // Refresh menu to show updated state
-                    PMenu_Close(ent);
-                    OpenWeaponsMenu(ent);
-                }
-                return;
-            }
-        }
-    }
+				if (PlayerPurchaseBenefit(ent, benefit_id, cost))
+				{
+					// Refresh menu to show updated state
+					PMenu_Close(ent);
+					OpenWeaponsMenu(ent);
+				}
+				return;
+			}
+		}
+	}
 
-    // Handle special menu actions
-    if (strcmp(item->text_arg1, "back_to_main") == 0) {
-        PMenu_Close(ent);
-        OpenUpgradeMenu(ent);
-    }
+	// Handle special menu actions
+	if (strcmp(item->text_arg1, "back_to_main") == 0)
+	{
+		PMenu_Close(ent);
+		OpenUpgradeMenu(ent);
+	}
 }
 
 // Create Weapons Menu
-pmenuhnd_t* CreateWeaponsMenu(edict_t* ent) {
-    if (!ent || !ent->client) return nullptr;
+pmenuhnd_t *CreateWeaponsMenu(edict_t *ent)
+{
+	if (!ent || !ent->client)
+		return nullptr;
 
-    static pmenu_t weapons_menu[32];
-    memset(weapons_menu, 0, sizeof(weapons_menu));
-    int menu_index = 0;
+	static pmenu_t weapons_menu[32];
+	memset(weapons_menu, 0, sizeof(weapons_menu));
+	int menu_index = 0;
 
-    // Header
-    Q_strlcpy(weapons_menu[menu_index].text, "=== WEAPON UPGRADES ===", sizeof(weapons_menu[menu_index].text));
-    weapons_menu[menu_index].align = PMENU_ALIGN_CENTER;
-    weapons_menu[menu_index].SelectFunc = nullptr;
-    menu_index++;
+	// Header
+	Q_strlcpy(weapons_menu[menu_index].text, "=== WEAPON UPGRADES ===", sizeof(weapons_menu[menu_index].text));
+	weapons_menu[menu_index].align = PMENU_ALIGN_CENTER;
+	weapons_menu[menu_index].SelectFunc = nullptr;
+	menu_index++;
 
-    // Points display
-    G_FmtTo(weapons_menu[menu_index].text, "Points Available: {}", ent->client->pers.weapon_points);
-    weapons_menu[menu_index].align = PMENU_ALIGN_CENTER;
-    weapons_menu[menu_index].SelectFunc = nullptr;
-    menu_index++;
+	// Points display
+	G_FmtTo(weapons_menu[menu_index].text, "Points Available: {}", ent->client->pers.weapon_points);
+	weapons_menu[menu_index].align = PMENU_ALIGN_CENTER;
+	weapons_menu[menu_index].SelectFunc = nullptr;
+	menu_index++;
 
-    // Separator
-    Q_strlcpy(weapons_menu[menu_index].text, "---", sizeof(weapons_menu[menu_index].text));
-    weapons_menu[menu_index].align = PMENU_ALIGN_CENTER;
-    weapons_menu[menu_index].SelectFunc = nullptr;
-    menu_index++;
+	// Separator
+	Q_strlcpy(weapons_menu[menu_index].text, "---", sizeof(weapons_menu[menu_index].text));
+	weapons_menu[menu_index].align = PMENU_ALIGN_CENTER;
+	weapons_menu[menu_index].SelectFunc = nullptr;
+	menu_index++;
 
-    // List weapon benefits (only show available ones)
-    bool has_available = false;
-    for (size_t i = 0; i < BenefitsDataSoA::NUM_BENEFITS && menu_index < 25; ++i) {
-        if (g_benefitsData.categories[i] != BenefitCategory::WEAPON) continue;
+	// List weapon benefits (only show available ones)
+	bool has_available = false;
+	for (size_t i = 0; i < BenefitsDataSoA::NUM_BENEFITS && menu_index < 25; ++i)
+	{
+		if (g_benefitsData.categories[i] != BenefitCategory::WEAPON)
+			continue;
 
-        BenefitID benefit_id = static_cast<BenefitID>(i);
-        bool owned = PlayerHasBenefit(ent, benefit_id);
+		BenefitID benefit_id = static_cast<BenefitID>(i);
+		bool owned = PlayerHasBenefit(ent, benefit_id);
 
-        // Skip if already owned - cleaner menu
-        if (owned) {
-            continue;
-        }
+		// Skip if already owned - cleaner menu
+		if (owned)
+		{
+			continue;
+		}
 
-        // Set costs based on benefit type
-        int32_t cost = 1; // Default cost
-        if (benefit_id == BenefitID::BFG_GRAV_PULL || benefit_id == BenefitID::CLUSTER_PROX) {
-            cost = 3;
-        }
+		// Set costs based on benefit type
+		int32_t cost = 1; // Default cost
+		if (benefit_id == BenefitID::BFG_GRAV_PULL || benefit_id == BenefitID::CLUSTER_PROX)
+		{
+			cost = 3;
+		}
 
-        // Check prerequisites
-        auto prereq = g_benefitsData.prerequisites[i];
-        bool prereq_met = (prereq == BenefitID::NONE) || PlayerHasBenefit(ent, prereq);
+		// Check prerequisites
+		auto prereq = g_benefitsData.prerequisites[i];
+		bool prereq_met = (prereq == BenefitID::NONE) || PlayerHasBenefit(ent, prereq);
 
-        // Don't show if prerequisite not met - cleaner menu
-        if (!prereq_met) {
-            continue;
-        }
+		// Don't show if prerequisite not met - cleaner menu
+		if (!prereq_met)
+		{
+			continue;
+		}
 
-        bool can_afford = ent->client->pers.weapon_points >= cost;
+		bool can_afford = ent->client->pers.weapon_points >= cost;
 
-        // Available to purchase
-        G_FmtTo(weapons_menu[menu_index].text,
-                 "{} {} ({} pt{})", can_afford ? ">" : " ", g_benefitsData.names[i], cost, cost > 1 ? "s" : "");
-        weapons_menu[menu_index].align = PMENU_ALIGN_LEFT;
-        if (can_afford) {
-            weapons_menu[menu_index].SelectFunc = WeaponsMenuHandler;
-            snprintf(weapons_menu[menu_index].text_arg1, sizeof(weapons_menu[menu_index].text_arg1),
-                     "weapon_%s", g_benefitsData.names[i]);
-        } else {
-            weapons_menu[menu_index].SelectFunc = nullptr;
-        }
-        menu_index++;
-        has_available = true;
-    }
+		// Available to purchase
+		G_FmtTo(weapons_menu[menu_index].text,
+				"{} {} ({} pt{})", can_afford ? ">" : " ", g_benefitsData.names[i], cost, cost > 1 ? "s" : "");
+		weapons_menu[menu_index].align = PMENU_ALIGN_LEFT;
+		if (can_afford)
+		{
+			weapons_menu[menu_index].SelectFunc = WeaponsMenuHandler;
+			snprintf(weapons_menu[menu_index].text_arg1, sizeof(weapons_menu[menu_index].text_arg1),
+					 "weapon_%s", g_benefitsData.names[i]);
+		}
+		else
+		{
+			weapons_menu[menu_index].SelectFunc = nullptr;
+		}
+		menu_index++;
+		has_available = true;
+	}
 
-    if (!has_available) {
-        Q_strlcpy(weapons_menu[menu_index].text, "All weapons purchased!", sizeof(weapons_menu[menu_index].text));
-        weapons_menu[menu_index].align = PMENU_ALIGN_CENTER;
-        weapons_menu[menu_index].SelectFunc = nullptr;
-        menu_index++;
-    }
+	if (!has_available)
+	{
+		Q_strlcpy(weapons_menu[menu_index].text, "All weapons purchased!", sizeof(weapons_menu[menu_index].text));
+		weapons_menu[menu_index].align = PMENU_ALIGN_CENTER;
+		weapons_menu[menu_index].SelectFunc = nullptr;
+		menu_index++;
+	}
 
-    // Separator before back option
-    Q_strlcpy(weapons_menu[menu_index].text, "---", sizeof(weapons_menu[menu_index].text));
-    weapons_menu[menu_index].align = PMENU_ALIGN_CENTER;
-    weapons_menu[menu_index].SelectFunc = nullptr;
-    menu_index++;
+	// Separator before back option
+	Q_strlcpy(weapons_menu[menu_index].text, "---", sizeof(weapons_menu[menu_index].text));
+	weapons_menu[menu_index].align = PMENU_ALIGN_CENTER;
+	weapons_menu[menu_index].SelectFunc = nullptr;
+	menu_index++;
 
-    // Back to main menu
-    Q_strlcpy(weapons_menu[menu_index].text, "< Back", sizeof(weapons_menu[menu_index].text));
-    weapons_menu[menu_index].align = PMENU_ALIGN_LEFT;
-    weapons_menu[menu_index].SelectFunc = WeaponsMenuHandler;
-    Q_strlcpy(weapons_menu[menu_index].text_arg1, "back_to_main", sizeof(weapons_menu[menu_index].text_arg1));
-    menu_index++;
+	// Back to main menu
+	Q_strlcpy(weapons_menu[menu_index].text, "< Back", sizeof(weapons_menu[menu_index].text));
+	weapons_menu[menu_index].align = PMENU_ALIGN_LEFT;
+	weapons_menu[menu_index].SelectFunc = WeaponsMenuHandler;
+	Q_strlcpy(weapons_menu[menu_index].text_arg1, "back_to_main", sizeof(weapons_menu[menu_index].text_arg1));
+	menu_index++;
 
-    return PMenu_Open(ent, weapons_menu, 0, menu_index, nullptr, nullptr);
+	return PMenu_Open(ent, weapons_menu, 0, menu_index, nullptr, nullptr);
 }
 
 // =================
 // Upgrade Menu System
 // =================
 
-void OpenUpgradeMenu(edict_t* ent) {
-    // Set menu protection for upgrade menu
-    if (ent && ent->client) {
-        ent->client->menu_protected = true;
-        ent->client->menu_protection_start = level.time;
-    }
-    CreateUpgradeMenu(ent);
+void OpenUpgradeMenu(edict_t *ent)
+{
+	// Set menu protection for upgrade menu
+	if (ent && ent->client)
+	{
+		ent->client->menu_protected = true;
+		ent->client->menu_protection_start = level.time;
+	}
+	CreateUpgradeMenu(ent);
 }
 
-void UpgradeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
-    if (!ent || !ent->client || !p) return;
+void UpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client || !p)
+		return;
 
-    pmenu_t* item = &p->entries[p->cur];
-    if (!item->SelectFunc) return;
+	pmenu_t *item = &p->entries[p->cur];
+	if (!item->SelectFunc)
+		return;
 
-    // Handle menu navigation
-    if (strcmp(item->text_arg1, "abilities_shop") == 0) {
-        PMenu_Close(ent);
-        OpenAbilitiesMenu(ent); // This already sets protection
-    } else if (strcmp(item->text_arg1, "weapon_upgrades") == 0) {
-        PMenu_Close(ent);
-        OpenWeaponsMenu(ent); // This already sets protection
-    } else if (strcmp(item->text_arg1, "restore_points") == 0) {
-        // Preserve admin-given bonus points
-        int32_t admin_bonus_ability = ent->client->pers.admin_bonus_ability_points;
-        int32_t admin_bonus_weapon = ent->client->pers.admin_bonus_weapon_points;
+	// Handle menu navigation
+	if (strcmp(item->text_arg1, "abilities_shop") == 0)
+	{
+		PMenu_Close(ent);
+		OpenAbilitiesMenu(ent); // This already sets protection
+	}
+	else if (strcmp(item->text_arg1, "weapon_upgrades") == 0)
+	{
+		PMenu_Close(ent);
+		OpenWeaponsMenu(ent); // This already sets protection
+	}
+	else if (strcmp(item->text_arg1, "restore_points") == 0)
+	{
+		// Preserve admin-given bonus points
+		int32_t admin_bonus_ability = ent->client->pers.admin_bonus_ability_points;
+		int32_t admin_bonus_weapon = ent->client->pers.admin_bonus_weapon_points;
 
-        PlayerRestoreAllPoints(ent);
+		PlayerRestoreAllPoints(ent);
 
-        // Re-add admin bonus points after restore
-        ent->client->pers.ability_points += admin_bonus_ability;
-        ent->client->pers.weapon_points += admin_bonus_weapon;
+		// Re-add admin bonus points after restore
+		ent->client->pers.ability_points += admin_bonus_ability;
+		ent->client->pers.weapon_points += admin_bonus_weapon;
 
-        if (admin_bonus_ability > 0 || admin_bonus_weapon > 0) {
-            gi.LocClient_Print(ent, PRINT_HIGH, "Points restored (preserved {} admin ability and {} admin weapon bonus)\n",
-                              admin_bonus_ability, admin_bonus_weapon);
-        }
+		if (admin_bonus_ability > 0 || admin_bonus_weapon > 0)
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, "Points restored (preserved {} admin ability and {} admin weapon bonus)\n",
+							   admin_bonus_ability, admin_bonus_weapon);
+		}
 
-        PMenu_Close(ent);
-        OpenUpgradeMenu(ent); // This already sets protection
-    } else if (strcmp(item->text_arg1, "toggle_auto_buy_abilities") == 0) {
-        bool was_enabled = ent->client->pers.auto_buy_abilities;
-        ent->client->pers.auto_buy_abilities = !ent->client->pers.auto_buy_abilities;
+		PMenu_Close(ent);
+		OpenUpgradeMenu(ent); // This already sets protection
+	}
+	else if (strcmp(item->text_arg1, "toggle_auto_buy_abilities") == 0)
+	{
+		bool was_enabled = ent->client->pers.auto_buy_abilities;
+		ent->client->pers.auto_buy_abilities = !ent->client->pers.auto_buy_abilities;
 
-        // If disabling auto-buy for the first time, offer refund
-        if (was_enabled && !ent->client->pers.auto_buy_abilities &&
-            !ent->client->pers.has_manually_disabled_auto_buy) {
-            PlayerRefundAutoPurchasedBenefits(ent);
-        } else {
-            gi.LocClient_Print(ent, PRINT_HIGH, "Auto-buy abilities: {}\n",
-                      ent->client->pers.auto_buy_abilities ? "ON" : "OFF");
-        }
-        PMenu_Close(ent);
-        OpenUpgradeMenu(ent); // This already sets protection
-    } else if (strcmp(item->text_arg1, "toggle_auto_buy_weapons") == 0) {
-        bool was_enabled = ent->client->pers.auto_buy_weapons;
-        ent->client->pers.auto_buy_weapons = !ent->client->pers.auto_buy_weapons;
+		// If disabling auto-buy for the first time, offer refund
+		if (was_enabled && !ent->client->pers.auto_buy_abilities &&
+			!ent->client->pers.has_manually_disabled_auto_buy)
+		{
+			PlayerRefundAutoPurchasedBenefits(ent);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, "Auto-buy abilities: {}\n",
+							   ent->client->pers.auto_buy_abilities ? "ON" : "OFF");
+		}
+		PMenu_Close(ent);
+		OpenUpgradeMenu(ent); // This already sets protection
+	}
+	else if (strcmp(item->text_arg1, "toggle_auto_buy_weapons") == 0)
+	{
+		bool was_enabled = ent->client->pers.auto_buy_weapons;
+		ent->client->pers.auto_buy_weapons = !ent->client->pers.auto_buy_weapons;
 
-        // If disabling auto-buy for the first time, offer refund
-        if (was_enabled && !ent->client->pers.auto_buy_weapons &&
-            !ent->client->pers.has_manually_disabled_auto_buy) {
-            PlayerRefundAutoPurchasedBenefits(ent);
-        } else {
-            gi.LocClient_Print(ent, PRINT_HIGH, "Auto-buy weapons: {}\n",
-                      ent->client->pers.auto_buy_weapons ? "ON" : "OFF");
-        }
-        PMenu_Close(ent);
-        OpenUpgradeMenu(ent); // This already sets protection
-    } else if (strcmp(item->text_arg1, "back_to_main") == 0) {
-        PMenu_Close(ent);
-        OpenHordeMenu(ent); // This already sets protection
-    }
+		// If disabling auto-buy for the first time, offer refund
+		if (was_enabled && !ent->client->pers.auto_buy_weapons &&
+			!ent->client->pers.has_manually_disabled_auto_buy)
+		{
+			PlayerRefundAutoPurchasedBenefits(ent);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, "Auto-buy weapons: {}\n",
+							   ent->client->pers.auto_buy_weapons ? "ON" : "OFF");
+		}
+		PMenu_Close(ent);
+		OpenUpgradeMenu(ent); // This already sets protection
+	}
+	else if (strcmp(item->text_arg1, "back_to_main") == 0)
+	{
+		PMenu_Close(ent);
+		OpenHordeMenu(ent); // This already sets protection
+	}
 }
 
-pmenuhnd_t* CreateUpgradeMenu(edict_t* ent) {
-    if (!ent || !ent->client) return nullptr;
+pmenuhnd_t *CreateUpgradeMenu(edict_t *ent)
+{
+	if (!ent || !ent->client)
+		return nullptr;
 
-    static pmenu_t upgrade_menu[64];
-    memset(upgrade_menu, 0, sizeof(upgrade_menu));
-    int menu_index = 0;
+	static pmenu_t upgrade_menu[64];
+	memset(upgrade_menu, 0, sizeof(upgrade_menu));
+	int menu_index = 0;
 
-    // Title
-    Q_strlcpy(upgrade_menu[menu_index].text, "=== UPGRADE MENU ===", sizeof(upgrade_menu[menu_index].text));
-    upgrade_menu[menu_index].align = PMENU_ALIGN_CENTER;
-    upgrade_menu[menu_index].SelectFunc = nullptr;
-    menu_index++;
+	// Title
+	Q_strlcpy(upgrade_menu[menu_index].text, "=== UPGRADE MENU ===", sizeof(upgrade_menu[menu_index].text));
+	upgrade_menu[menu_index].align = PMENU_ALIGN_CENTER;
+	upgrade_menu[menu_index].SelectFunc = nullptr;
+	menu_index++;
 
-    // Points display
-    G_FmtTo(upgrade_menu[menu_index].text, "Ability Points: {}", ent->client->pers.ability_points);
-    upgrade_menu[menu_index].align = PMENU_ALIGN_CENTER;
-    upgrade_menu[menu_index].SelectFunc = nullptr;
-    menu_index++;
+	// Points display
+	G_FmtTo(upgrade_menu[menu_index].text, "Ability Points: {}", ent->client->pers.ability_points);
+	upgrade_menu[menu_index].align = PMENU_ALIGN_CENTER;
+	upgrade_menu[menu_index].SelectFunc = nullptr;
+	menu_index++;
 
-    G_FmtTo(upgrade_menu[menu_index].text, "Weapon Points: {}", ent->client->pers.weapon_points);
-    upgrade_menu[menu_index].align = PMENU_ALIGN_CENTER;
-    upgrade_menu[menu_index].SelectFunc = nullptr;
-    menu_index++;
+	G_FmtTo(upgrade_menu[menu_index].text, "Weapon Points: {}", ent->client->pers.weapon_points);
+	upgrade_menu[menu_index].align = PMENU_ALIGN_CENTER;
+	upgrade_menu[menu_index].SelectFunc = nullptr;
+	menu_index++;
 
-    // Separator
-    Q_strlcpy(upgrade_menu[menu_index].text, "---", sizeof(upgrade_menu[menu_index].text));
-    upgrade_menu[menu_index].align = PMENU_ALIGN_CENTER;
-    upgrade_menu[menu_index].SelectFunc = nullptr;
-    menu_index++;
+	// Separator
+	Q_strlcpy(upgrade_menu[menu_index].text, "---", sizeof(upgrade_menu[menu_index].text));
+	upgrade_menu[menu_index].align = PMENU_ALIGN_CENTER;
+	upgrade_menu[menu_index].SelectFunc = nullptr;
+	menu_index++;
 
-    // Menu options
-    Q_strlcpy(upgrade_menu[menu_index].text, "> Abilities Shop", sizeof(upgrade_menu[menu_index].text));
-    upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
-    upgrade_menu[menu_index].SelectFunc = UpgradeMenuHandler;
-    Q_strlcpy(upgrade_menu[menu_index].text_arg1, "abilities_shop", sizeof(upgrade_menu[menu_index].text_arg1));
-    menu_index++;
+	// Menu options
+	Q_strlcpy(upgrade_menu[menu_index].text, "> Abilities Shop", sizeof(upgrade_menu[menu_index].text));
+	upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
+	upgrade_menu[menu_index].SelectFunc = UpgradeMenuHandler;
+	Q_strlcpy(upgrade_menu[menu_index].text_arg1, "abilities_shop", sizeof(upgrade_menu[menu_index].text_arg1));
+	menu_index++;
 
-    Q_strlcpy(upgrade_menu[menu_index].text, "> Weapon Upgrades", sizeof(upgrade_menu[menu_index].text));
-    upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
-    upgrade_menu[menu_index].SelectFunc = UpgradeMenuHandler;
-    Q_strlcpy(upgrade_menu[menu_index].text_arg1, "weapon_upgrades", sizeof(upgrade_menu[menu_index].text_arg1));
-    menu_index++;
+	Q_strlcpy(upgrade_menu[menu_index].text, "> Weapon Upgrades", sizeof(upgrade_menu[menu_index].text));
+	upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
+	upgrade_menu[menu_index].SelectFunc = UpgradeMenuHandler;
+	Q_strlcpy(upgrade_menu[menu_index].text_arg1, "weapon_upgrades", sizeof(upgrade_menu[menu_index].text_arg1));
+	menu_index++;
 
-    // Always show restore option - helps late-joining players and those who need to reset
-    Q_strlcpy(upgrade_menu[menu_index].text, "> Restore All Points", sizeof(upgrade_menu[menu_index].text));
-    upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
-    upgrade_menu[menu_index].SelectFunc = UpgradeMenuHandler;
-    Q_strlcpy(upgrade_menu[menu_index].text_arg1, "restore_points", sizeof(upgrade_menu[menu_index].text_arg1));
-    menu_index++;
+	// Always show restore option - helps late-joining players and those who need to reset
+	Q_strlcpy(upgrade_menu[menu_index].text, "> Restore All Points", sizeof(upgrade_menu[menu_index].text));
+	upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
+	upgrade_menu[menu_index].SelectFunc = UpgradeMenuHandler;
+	Q_strlcpy(upgrade_menu[menu_index].text_arg1, "restore_points", sizeof(upgrade_menu[menu_index].text_arg1));
+	menu_index++;
 
-    // Auto-buy toggles
-    G_FmtTo(upgrade_menu[menu_index].text, "> Auto-buy Abilities: {}", ent->client->pers.auto_buy_abilities ? "ON" : "OFF");
-    upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
-    upgrade_menu[menu_index].SelectFunc = UpgradeMenuHandler;
-    Q_strlcpy(upgrade_menu[menu_index].text_arg1, "toggle_auto_buy_abilities", sizeof(upgrade_menu[menu_index].text_arg1));
-    menu_index++;
+	// Auto-buy toggles
+	G_FmtTo(upgrade_menu[menu_index].text, "> Auto-buy Abilities: {}", ent->client->pers.auto_buy_abilities ? "ON" : "OFF");
+	upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
+	upgrade_menu[menu_index].SelectFunc = UpgradeMenuHandler;
+	Q_strlcpy(upgrade_menu[menu_index].text_arg1, "toggle_auto_buy_abilities", sizeof(upgrade_menu[menu_index].text_arg1));
+	menu_index++;
 
-    G_FmtTo(upgrade_menu[menu_index].text, "> Auto-buy Weapons: {}", ent->client->pers.auto_buy_weapons ? "ON" : "OFF");
-    upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
-    upgrade_menu[menu_index].SelectFunc = UpgradeMenuHandler;
-    Q_strlcpy(upgrade_menu[menu_index].text_arg1, "toggle_auto_buy_weapons", sizeof(upgrade_menu[menu_index].text_arg1));
-    menu_index++;
+	G_FmtTo(upgrade_menu[menu_index].text, "> Auto-buy Weapons: {}", ent->client->pers.auto_buy_weapons ? "ON" : "OFF");
+	upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
+	upgrade_menu[menu_index].SelectFunc = UpgradeMenuHandler;
+	Q_strlcpy(upgrade_menu[menu_index].text_arg1, "toggle_auto_buy_weapons", sizeof(upgrade_menu[menu_index].text_arg1));
+	menu_index++;
 
-    // Separator
-    Q_strlcpy(upgrade_menu[menu_index].text, "---", sizeof(upgrade_menu[menu_index].text));
-    upgrade_menu[menu_index].align = PMENU_ALIGN_CENTER;
-    upgrade_menu[menu_index].SelectFunc = nullptr;
-    menu_index++;
+	// Separator
+	Q_strlcpy(upgrade_menu[menu_index].text, "---", sizeof(upgrade_menu[menu_index].text));
+	upgrade_menu[menu_index].align = PMENU_ALIGN_CENTER;
+	upgrade_menu[menu_index].SelectFunc = nullptr;
+	menu_index++;
 
-    // Back to main menu
-    Q_strlcpy(upgrade_menu[menu_index].text, "< Back", sizeof(upgrade_menu[menu_index].text));
-    upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
-    upgrade_menu[menu_index].SelectFunc = UpgradeMenuHandler;
-    Q_strlcpy(upgrade_menu[menu_index].text_arg1, "back_to_main", sizeof(upgrade_menu[menu_index].text_arg1));
-    menu_index++;
+	// Back to main menu
+	Q_strlcpy(upgrade_menu[menu_index].text, "< Back", sizeof(upgrade_menu[menu_index].text));
+	upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
+	upgrade_menu[menu_index].SelectFunc = UpgradeMenuHandler;
+	Q_strlcpy(upgrade_menu[menu_index].text_arg1, "back_to_main", sizeof(upgrade_menu[menu_index].text_arg1));
+	menu_index++;
 
-    return PMenu_Open(ent, upgrade_menu, 0, menu_index, nullptr, nullptr);
+	return PMenu_Open(ent, upgrade_menu, 0, menu_index, nullptr, nullptr);
 }
 
 // --- END OF FILE horde_menu.cpp ---

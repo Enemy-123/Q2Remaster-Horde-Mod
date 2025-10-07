@@ -7,7 +7,7 @@
 // - Respawn weapon system
 // - Character persistence integration
 //
-// Setup: Set g_pvm 1, then restart the map. Horde mode will be auto-enabled.
+// Setup: Set pvm 1, then restart the map. Horde mode will be auto-enabled.
 
 // Backpack despawn time
 constexpr gtime_t BACKPACK_DESPAWN_TIME = 60_sec;
@@ -240,8 +240,8 @@ void PVM_GiveRespawnWeapon(edict_t* player)
 // Check if PvM mode is active
 bool IsPvMMode()
 {
-    extern cvar_t* g_pvm;
-    return g_pvm && g_pvm->integer;
+    extern cvar_t* pvm;
+    return pvm && pvm->integer;
 }
 
 // Check if a monster type is valid for PvM mode

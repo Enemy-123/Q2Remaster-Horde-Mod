@@ -1997,7 +1997,7 @@ static void G_InitStatusbar()
 		sb.ifstat(STAT_TARGET_HEALTH_STRING).xv(127).yb(-80).stat_string(STAT_TARGET_HEALTH_STRING).endifstat();
 
 		// HORDE WAVE
-		if (g_horde->integer && g_pvm->integer == 0)
+		if (g_horde->integer && pvm->integer == 0)
 		sb.xl(2).yb(-23).string2("Horde MODE");
 		else
 		sb.xl(2).yb(-23).string2("PvM MODE");

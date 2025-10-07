@@ -1676,7 +1676,7 @@ bool G_IsDeathmatch() noexcept
 
 bool G_IsCooperative() noexcept
 {
-	return coop->integer && !g_horde->integer && !g_pvm->integer;
+	return coop->integer && !g_horde->integer && !pvm->integer;
 }
 
 // Structure definition (as you provided)
@@ -2726,12 +2726,12 @@ void Horde_PreInit()
 
 	g_horde = gi.cvar("horde", "0", CVAR_LATCH);
 	g_horde_grid_first = gi.cvar("g_horde_grid_first", "0", CVAR_NOFLAGS);
-	g_pvm = gi.cvar("g_pvm", "0", CVAR_LATCH);
+	pvm = gi.cvar("pvm", "0", CVAR_LATCH);
 	// gi.Com_Print("After starting a normal server type: starthorde to start a game.\n");
 
 	// PvM (Player vs Monster) mode requires horde mode to be active for spawning/gameplay
 	// Auto-enable horde mode if PvM is enabled
-	if (g_pvm->integer && !g_horde->integer)
+	if (pvm->integer && !g_horde->integer)
 	{
 		gi.Com_Print("PvM mode enabled - automatically enabling Horde mode for gameplay...\n");
 		gi.cvar_forceset("horde", "1");

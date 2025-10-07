@@ -10,7 +10,7 @@
 // - Character persistence system
 //
 // NOTE: PvM mode requires Horde mode to be active (g_horde 1) for proper
-// spawning and gameplay. When g_pvm is set to 1, Horde mode will be
+// spawning and gameplay. When pvm is set to 1, Horde mode will be
 // automatically enabled during initialization.
 
 // Check if PvM mode is active

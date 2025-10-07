@@ -156,7 +156,7 @@ potential spawning position for deathmatch games
 */
 void SP_info_player_deathmatch(edict_t* self)
 {
-	if ((!g_horde->integer && !g_pvm->integer) || !deathmatch->integer)
+	if ((!g_horde->integer && !pvm->integer) || !deathmatch->integer)
 	{
 		G_FreeEdict(self);
 		return;
@@ -170,7 +170,7 @@ potential spawning position for coop games
 */
 void SP_info_player_coop(edict_t* self)
 {
-	if (!G_IsCooperative() && !g_horde->integer && !g_pvm->integer)
+	if (!G_IsCooperative() && !g_horde->integer && !pvm->integer)
 	{
 		G_FreeEdict(self);
 		return;
@@ -207,6 +207,8 @@ void SP_info_player_intermission(edict_t* ent)
 // [Paril-KEX] whether instanced items should be used or not
 bool P_UseCoopInstancedItems() noexcept
 {
+	if (IsPvMMode())
+	return false;
 	// squad respawn forces instanced items on, since we don't
 	// want players to need to backtrack just to get their stuff.
 	return g_coop_instanced_items->integer || g_coop_squad_respawn->integer;
@@ -873,7 +875,7 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 	self->deadflag = true;
 
 	// Save character data on death (PvM & Horde)
-	if ((g_horde && g_horde->integer) || (g_pvm && g_pvm->integer))
+	if ((g_horde && g_horde->integer) || (pvm && pvm->integer))
 		Character_Save(self);
 
 	// Don't link if being crushed - prevent re-crush
@@ -890,7 +892,7 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 		gi.linkentity(self);
 
 	// Remove all entities owned by the player (only for Horde/PvM)
-	if (g_horde->integer || g_pvm->integer)
+	if (g_horde->integer || pvm->integer)
 	{
 		RemovePlayerOwnedEntities(self);
 	}
@@ -1020,7 +1022,7 @@ but is called after each death and level change in deathmatch
 // Calculate maximum health based on current wave level
 int CalculateWaveBasedMaxHealth(int base_max_health, gclient_t* client = nullptr) noexcept
 {
-	if (!g_horde->integer && !g_pvm->integer)
+	if (!g_horde->integer && !pvm->integer)
 		return max(100, base_max_health);
 
 	// Calculate health based on wave tier (optimized lookup)
@@ -1095,6 +1097,39 @@ void Horde_UpdateStartItemsForWave(int32_t wave)
 
 void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 {
+
+	const bool is_late_joiner = !client->pers.received_late_join_ammo;
+	const int wave = current_wave_level;
+
+	//
+	// LATE JOINER BENEFITS
+	//
+	if (is_late_joiner)
+	{
+		// Enable auto-buy by default
+		client->pers.auto_buy_abilities = true;
+		client->pers.auto_buy_weapons = true;
+		client->pers.has_manually_disabled_auto_buy = false;
+
+		// Calculate bonus points based on wave progress
+		client->pers.ability_points = (wave >= HordeConstants::ABILITY_POINT_WAVE_INTERVAL) 
+			? (wave / HordeConstants::ABILITY_POINT_WAVE_INTERVAL) : 0;
+		
+		client->pers.weapon_points = (wave >= HordeConstants::WEAPON_POINT_WAVE_INTERVAL)
+			? (wave / HordeConstants::WEAPON_POINT_WAVE_INTERVAL) : 0;
+
+		// Notify if points awarded
+		if (client->pers.ability_points > 0 || client->pers.weapon_points > 0)
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH,
+				"Late join bonus: {} ability points, {} weapon points awarded based on current wave!\n",
+				client->pers.ability_points, client->pers.weapon_points);
+
+			// Trigger auto-buy immediately for late joiners
+			CheckPlayerAutoBuy(ent);
+		}
+	}
+
 	// PvM Mode: Give respawn weapon only, then return
 	if (IsPvMMode())
 	{
@@ -1130,8 +1165,7 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 	}
 
 	// Cache wave level for multiple checks
-	const int wave = current_wave_level;
-	const bool is_late_joiner = !client->pers.received_late_join_ammo;
+
 	const bool is_high_wave = wave >= HordeConstants::WAVE_HIGH_AMMO_CAPS;
 
 	//
@@ -1143,34 +1177,7 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 	client->pers.health = new_max_health;
 	client->pers.adrenaline_count = saved_adrenaline;
 
-	//
-	// LATE JOINER BENEFITS
-	//
-	if (is_late_joiner)
-	{
-		// Enable auto-buy by default
-		client->pers.auto_buy_abilities = true;
-		client->pers.auto_buy_weapons = true;
-		client->pers.has_manually_disabled_auto_buy = false;
 
-		// Calculate bonus points based on wave progress
-		client->pers.ability_points = (wave >= HordeConstants::ABILITY_POINT_WAVE_INTERVAL) 
-			? (wave / HordeConstants::ABILITY_POINT_WAVE_INTERVAL) : 0;
-		
-		client->pers.weapon_points = (wave >= HordeConstants::WEAPON_POINT_WAVE_INTERVAL)
-			? (wave / HordeConstants::WEAPON_POINT_WAVE_INTERVAL) : 0;
-
-		// Notify if points awarded
-		if (client->pers.ability_points > 0 || client->pers.weapon_points > 0)
-		{
-			gi.LocClient_Print(ent, PRINT_HIGH,
-				"Late join bonus: {} ability points, {} weapon points awarded based on current wave!\n",
-				client->pers.ability_points, client->pers.weapon_points);
-
-			// Trigger auto-buy immediately for late joiners
-			CheckPlayerAutoBuy(ent);
-		}
-	}
 
 	//
 	// AMMO CAP INITIALIZATION
@@ -2118,7 +2125,7 @@ void G_PostRespawn(edict_t* self)
 
 	self->client->respawn_time = level.time;
 
-	if (g_horde->integer || g_pvm->integer)
+	if (g_horde->integer || pvm->integer)
 		self->client->invincible_time = max(level.time, self->client->invincible_time) + 2_sec;    // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MODE
 }
 
@@ -3922,7 +3929,7 @@ void CheckClientsInactivity() {
 
 void UpdateClientHealth(edict_t* ent, gclient_t* client)
 {
-	if ((!g_horde->integer && !g_pvm->integer) || client->resp.spectator || !client->pers.spawned ||
+	if ((!g_horde->integer && !pvm->integer) || client->resp.spectator || !client->pers.spawned ||
 		ent->health <= 0 || ent->deadflag)
 		return;
 
@@ -5210,7 +5217,7 @@ void ClientBeginServerFrame(edict_t* ent)
 	}
 
 	// add player trail so monsters can follow
-	if (!deathmatch->integer || g_horde->integer || g_pvm->integer || G_IsCooperative())
+	if (!deathmatch->integer || g_horde->integer || pvm->integer || G_IsCooperative())
 		PlayerTrail_Add(ent);
 
 	client->latched_buttons = BUTTON_NONE;
