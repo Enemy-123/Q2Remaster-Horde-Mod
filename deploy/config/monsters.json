@@ -183,9 +183,9 @@
     },
 
     "infantry_vanilla": {
-      "health": 100,
-      "power_armor_power": 0,
-      "power_armor_type": "shield",
+      "health": 65,
+      "armor_power": 50,
+      "armor_type": "combat",
       "damage_scale": 1.0,
       "weapon_damage": {
         "machinegun": 8,
@@ -276,8 +276,8 @@
 
     "// ========== GLADIATORS ==========": "",
     "gladiator": {
-      "health": 350,
-      "armor_power": 180,
+      "health": 110,
+      "armor_power": 120,
       "armor_type": "combat",
       "damage_scale": 2.5,
       "weapon_damage": {
@@ -287,8 +287,8 @@
     },
 
     "gladb": {
-      "health": 380,
-      "power_armor_power": 200,
+      "health": 160,
+      "power_armor_power": 55,
       "power_armor_type": "shield",
       "damage_scale": 1.2,
       "weapon_damage": {
@@ -298,8 +298,8 @@
     },
 
     "gladc": {
-      "health": 320,
-      "power_armor_power": 350,
+      "health": 190,
+      "power_armor_power": 95,
       "power_armor_type": "shield",
       "damage_scale": 1.0,
       "weapon_damage": {
