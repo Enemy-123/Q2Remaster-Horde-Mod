@@ -782,6 +782,100 @@ void BuildSpawnPointMap()
 	} else {
 		gi.Com_Print("WARNING: Spawn grid generation failed, emergency spawning will use fallback method.\n");
 	}
+
+	// FIX: If no traditional spawn points were found but the grid was generated successfully,
+	// create virtual spawn point entities from grid nodes so the spawn system can function
+	if (g_num_spawn_points == 0 && HordePhys::g_spawn_grid.IsGenerated() && HordePhys::g_spawn_grid.GetNodeCount() > 0)
+	{
+		gi.Com_PrintFmt("No traditional spawn points found, creating virtual spawn points from grid ({} nodes available)...\n",
+			HordePhys::g_spawn_grid.GetNodeCount());
+
+		// Create a reasonable number of virtual spawn points from grid nodes
+		// Use 10-20% of grid nodes as spawn points (capped at 64)
+		const int grid_node_count = HordePhys::g_spawn_grid.GetNodeCount();
+		const int target_spawn_count = std::min(std::max(grid_node_count / 10, 16), 64);
+
+		int virtual_spawns_created = 0;
+		int attempts = 0;
+		const int max_attempts = grid_node_count * 2; // Prevent infinite loops
+
+		while (virtual_spawns_created < target_spawn_count && attempts < max_attempts) {
+			attempts++;
+
+			vec3_t grid_pos;
+			if (!HordePhys::g_spawn_grid.GetRandomPosition(grid_pos)) {
+				continue;
+			}
+
+			// Check if this position is far enough from existing virtual spawn points
+			bool too_close = false;
+			constexpr float MIN_VIRTUAL_SPAWN_SPACING = 256.0f;
+			for (edict_t* existing_sp : g_spawn_point_list) {
+				if (existing_sp && existing_sp->inuse && is_valid_vector(existing_sp->s.origin)) {
+					if ((grid_pos - existing_sp->s.origin).lengthSquared() < MIN_VIRTUAL_SPAWN_SPACING * MIN_VIRTUAL_SPAWN_SPACING) {
+						too_close = true;
+						break;
+					}
+				}
+			}
+
+			if (too_close) {
+				continue;
+			}
+
+			// Create a virtual spawn point entity
+			edict_t* virtual_spawn = G_Spawn();
+			if (!virtual_spawn) {
+				gi.Com_Print("ERROR: Failed to spawn virtual spawn point entity\n");
+				break;
+			}
+
+			virtual_spawn->classname = "info_player_deathmatch";
+			virtual_spawn->s.origin = grid_pos;
+			virtual_spawn->s.angles = vec3_t{0, frandom() * 360.0f, 0}; // Random yaw
+			virtual_spawn->style = 0; // Ground spawn by default
+			virtual_spawn->inuse = true;
+			virtual_spawn->solid = SOLID_NOT;
+			virtual_spawn->movetype = MOVETYPE_NONE;
+			gi.linkentity(virtual_spawn);
+
+			// Add to spawn point list and map
+			if (g_spawn_point_list.size() >= MAX_SPAWN_POINTS) {
+				gi.Com_PrintFmt("WARNING: Hit max spawn points limit while creating virtual spawns\n");
+				break;
+			}
+
+			g_spawn_system.spawn_point_map[virtual_spawn->s.number] = static_cast<uint16_t>(g_spawn_point_list.size());
+			if (!safe_push_back(g_spawn_point_list, virtual_spawn, MAX_SPAWN_POINTS)) {
+				gi.Com_Print("WARNING: Failed to add virtual spawn point to list\n");
+				G_FreeEdict(virtual_spawn);
+				break;
+			}
+
+			// Add to spatial index
+			HordePerf::g_spawn_spatial_index.AddSpawnPoint(virtual_spawn);
+
+			virtual_spawns_created++;
+		}
+
+		// Update counts and resize structures
+		g_num_spawn_points = g_spawn_point_list.size();
+		g_spawn_point_list.shrink_to_fit();
+
+		if (g_num_spawn_points > MAX_SAFE_CONTAINER_SIZE) {
+			gi.Com_PrintFmt("ERROR: Too many spawn points ({}) exceeds maximum ({})\n",
+				g_num_spawn_points, MAX_SAFE_CONTAINER_SIZE);
+			g_num_spawn_points = MAX_SAFE_CONTAINER_SIZE;
+		}
+
+		g_spawn_system.spawn_points_data.resize(g_num_spawn_points);
+		spawn_point_cache.resize(g_num_spawn_points);
+		if (!safe_resize(g_spawn_system.spawn_validation_cache, g_num_spawn_points)) {
+			gi.Com_Print("ERROR: Failed to resize spawn validation cache for virtual spawns\n");
+		}
+
+		gi.Com_PrintFmt("Created {} virtual spawn points from grid nodes.\n", virtual_spawns_created);
+	}
 }
 
 // A dedicated struct to pass data to our unified BoxEdicts lambda.
@@ -2869,7 +2963,7 @@ void VerifyAndAdjustBots()
 		// Agregar bot extra si current_wave_level >= 20
 		//const int32_t extraBot = (current_wave_level >= 20) ? 1 : 0;
 		//const int32_t requiredBots = std::max(baseBots + spectPlayers + extraBot, baseBots);
-		const int32_t requiredBots = std::max(baseBots + spectPlayers, baseBots)
+		const int32_t requiredBots = std::max(baseBots + spectPlayers, baseBots);
 		gi.cvar_set("bot_minClients", std::to_string(requiredBots).c_str());
 	}
 }

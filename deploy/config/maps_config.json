@@ -132,10 +132,16 @@
       "map_size": "medium"
     },
     "ec/base_ec": {
+      "monster_cap": 24,
+      "enable_grid": true,
+      "enable_loadent": false,
+      "map_size": "medium"
+    },
+    "old/baseold": {
       "monster_cap": -1,
       "enable_grid": true,
-      "enable_loadent": true,
-      "map_size": "medium"
+      "enable_loadent": false,
+      "map_size": "big"
     },
     "_TEMPLATE_SECTION": {
       "_comment": "Copy maps from below to root level and remove underscore prefix to activate",

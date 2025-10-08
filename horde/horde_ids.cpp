@@ -349,7 +349,7 @@ namespace horde {
             {"ec/base_ec", MapID::EC_BASE_EC},
 
             // Old maps
-            {"old/kmdm3", MapID::OLD_KMDM3},
+            {"old/kmdm3", MapID::OLD_KMDM3},   {"old/baseold", MapID::OLD_BASEOLD},
 
             // E3 maps
             {"e3/jail_e3", MapID::E3_JAIL_E3},
@@ -465,6 +465,8 @@ namespace horde {
         s_origins[static_cast<size_t>(MapID::EC_BASE_EC)] = { true, {-112, 704, 128} };
         // OLD/KMDM3
         s_origins[static_cast<size_t>(MapID::OLD_KMDM3)] = { true, {676, 873, 171} };
+        // OLD/baseold
+        s_origins[static_cast<size_t>(MapID::OLD_BASEOLD)] = { true, {1350, -351, -396} };
         // TEST/MALS_BARRIER_TEST
         s_origins[static_cast<size_t>(MapID::TEST_MALS_BARRIER_TEST)] = { true, {24, 136, 224} };
         // TEST/SPBOX
@@ -497,7 +499,7 @@ namespace horde {
 
         // Define Big Maps using MapID
         const MapID bigMapIDs[] = {
-            MapID::Q2CTF5, MapID::OLD_KMDM3, MapID::XDM2, MapID::XDM4, MapID::XDM6, MapID::XDM3, MapID::RDM6,
+            MapID::Q2CTF5, MapID::OLD_KMDM3, MapID::OLD_BASEOLD, MapID::XDM2, MapID::XDM4, MapID::XDM6, MapID::XDM3, MapID::RDM6,
             MapID::RDM8, MapID::XDM1, MapID::WASTE2, MapID::RDM5, MapID::RDM9, MapID::RDM12, MapID::XINTELL,
             MapID::SEWER64, MapID::BASE64, MapID::CITY64, MapID::RDM1, MapID::RDM2, MapID::XDM5, MapID::RDM7,
             MapID::RDM10, MapID::RDM11

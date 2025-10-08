@@ -265,6 +265,7 @@ public:
 
         RDM11 = 57,
         RDM14 = 58,
+        OLD_BASEOLD = 59,
 
         MAX_MAPS = 64,  // Set this to a value higher than the largest ID
         UNKNOWN = 0xFFFF
