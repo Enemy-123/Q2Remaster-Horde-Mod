@@ -3221,6 +3221,13 @@ struct client_persistant_t
 
 	// Character persistence (PvM & Horde)
 	char respawn_weapon_name[64];         // Saved respawn weapon preference
+
+	// PvM Leveling System
+	int32_t pvm_level = 1;                // Current PvM level (separate from Horde)
+	int32_t pvm_xp = 0;                   // Current experience points
+	int32_t pvm_stat_points = 0;          // Unspent stat points
+	int32_t pvm_max_ammo_level = 0;       // Max Ammo stat level (0-10)
+	int32_t pvm_vitality_level = 0;       // Vitality stat level (0-10)
 };
 
 // client data that stays across deathmatch respawns

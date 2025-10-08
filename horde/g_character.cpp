@@ -79,6 +79,8 @@ void Character_CreateDefault(edict_t* player)
     Q_strlcpy(data.respawn_weapon, DEFAULT_RESPAWN_WEAPON, sizeof(data.respawn_weapon));
     data.id_display = player->client->pers.id_state;
     data.iddmg_display = player->client->pers.iddmg_state;
+    data.sentry_gun_choice = static_cast<int32_t>(player->client->pers.sentry_gun_choice);
+    data.morph_preference = player->client->pers.morph_preference;
     data.level = 1;
     data.xp = 0;
 
@@ -88,6 +90,8 @@ void Character_CreateDefault(edict_t* player)
     root["respawn_weapon"] = data.respawn_weapon;
     root["preferences"]["id_display"] = data.id_display;
     root["preferences"]["iddmg_display"] = data.iddmg_display;
+    root["preferences"]["sentry_gun_choice"] = data.sentry_gun_choice;
+    root["preferences"]["morph_preference"] = data.morph_preference;
     root["stats"]["level"] = data.level;
     root["stats"]["xp"] = data.xp;
 
@@ -167,6 +171,13 @@ bool Character_Load(edict_t* player)
             player->client->pers.id_state = prefs["id_display"].asBool();
         if (prefs.isMember("iddmg_display") && prefs["iddmg_display"].isBool())
             player->client->pers.iddmg_state = prefs["iddmg_display"].asBool();
+        if (prefs.isMember("sentry_gun_choice") && prefs["sentry_gun_choice"].isInt())
+        {
+            player->client->pers.sentry_gun_choice = static_cast<sentrytype_t>(prefs["sentry_gun_choice"].asInt());
+            player->client->resp.sentry_gun_choice = player->client->pers.sentry_gun_choice;
+        }
+        if (prefs.isMember("morph_preference") && prefs["morph_preference"].isInt())
+            player->client->pers.morph_preference = prefs["morph_preference"].asInt();
     }
 
     // Future: Load stats (level, xp, etc.)
@@ -194,6 +205,8 @@ bool Character_Save(edict_t* player)
     root["respawn_weapon"] = player->client->pers.respawn_weapon_name;
     root["preferences"]["id_display"] = player->client->pers.id_state;
     root["preferences"]["iddmg_display"] = player->client->pers.iddmg_state;
+    root["preferences"]["sentry_gun_choice"] = static_cast<int32_t>(player->client->pers.sentry_gun_choice);
+    root["preferences"]["morph_preference"] = player->client->pers.morph_preference;
 
     // Future: Save stats
     root["stats"]["level"] = 1;

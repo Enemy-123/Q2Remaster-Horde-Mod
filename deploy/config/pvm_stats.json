@@ -1,0 +1,49 @@
+{
+  "// ==================== PVM LEVELING SYSTEM ====================": "Player vs Monster character progression",
+
+  "experience": {
+    "comment": "XP required per level follows exponential growth",
+    "base_per_level": 100,
+    "growth_factor": 1.15,
+    "comment_formula": "XP for level N = base_per_level * (growth_factor ^ (N-1))"
+  },
+
+  "stat_points": {
+    "comment": "How many stat points awarded per level",
+    "points_per_level": 1
+  },
+
+  "stats": {
+    "max_ammo": {
+      "comment": "Increases maximum ammunition capacity for all weapon types",
+      "max_level": 10,
+      "bonus_per_level": {
+        "shells": 5,
+        "bullets": 10,
+        "rockets": 2,
+        "cells": 10,
+        "grenades": 3,
+        "slugs": 3,
+        "magslug": 2,
+        "prox": 1,
+        "trap": 1,
+        "tesla": 2
+      }
+    },
+    "vitality": {
+      "comment": "Increases maximum health and armor",
+      "max_level": 10,
+      "health_per_level": 10,
+      "armor_per_level": 5
+    }
+  },
+
+  "reset_cost": {
+    "comment": "Cost to reset all PvM stats (in credits or XP penalty)",
+    "enabled": true,
+    "type": "free",
+    "comment_types": "Options: 'free', 'credits', 'xp_penalty'",
+    "credit_cost": 5000,
+    "xp_penalty_percent": 10
+  }
+}

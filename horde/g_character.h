@@ -16,6 +16,10 @@ struct CharacterData
     bool id_display;
     bool iddmg_display;
 
+    // Gameplay preferences
+    int32_t sentry_gun_choice;  // Preferred sentry type (sentrytype_t)
+    int32_t morph_preference;   // Preferred morph type (0=Brain, 1=Flyer)
+
     // Future: leveling system
     int32_t level;
     int32_t xp;
@@ -24,6 +28,8 @@ struct CharacterData
         respawn_weapon{0},
         id_display(false),
         iddmg_display(false),
+        sentry_gun_choice(0),  // SENTRY_RANDOM
+        morph_preference(0),   // Brain (default)
         level(1),
         xp(0)
     {

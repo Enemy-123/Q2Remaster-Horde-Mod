@@ -10,6 +10,8 @@
 #include "g_laser.h"
 #include "p_flyer_morph.h" // For IsMorphed, RestoreMorphed, Cmd_PlayerToFlyer_f
 #include "p_brain_morph.h" // For Cmd_PlayerToBrain_f
+#include "g_pvm_menu.h"    // For PvM stats menu
+#include "g_character.h"   // For Character_Save
 
 // Declaration for P_GetLobbyUserNum (defined in p_client.cpp)
 extern unsigned int P_GetLobbyUserNum(const edict_t *player);
@@ -1200,8 +1202,10 @@ void HordeMenu_SentryChoice(edict_t *ent, pmenuhnd_t *p)
 	ent->client->pers.sentry_gun_choice = static_cast<sentrytype_t>(current_choice);
 	ent->client->resp.sentry_gun_choice = static_cast<sentrytype_t>(current_choice); // Persist choice
 
-	// Inform the player
+	// Save to character file
+	Character_Save(ent);
 
+	// Inform the player
 	gi.LocCenter_Print(ent, "\n\n\nSentrygun Type set to: {}\n", GetSentryTypeName(ent->client->pers.sentry_gun_choice));
 	// Update the menu display immediately by reopening THE MISC MENU
 	// PMenu_Close is handled by OpenMiscMenu
@@ -1290,6 +1294,9 @@ void HordeMenu_StroggPreference(edict_t *ent, pmenuhnd_t *p)
 
 	// Cycle morph preference (0=Brain, 1=Flyer)
 	ent->client->pers.morph_preference = (ent->client->pers.morph_preference + 1) % 2;
+
+	// Save to character file
+	Character_Save(ent);
 
 	gi.LocCenter_Print(ent, "\n\n\nStrogg preference set to: {}\n", GetMorphTypeName(ent->client->pers.morph_preference));
 	OpenMiscMenu(ent, p->cur); // Reopen to show updated choice with cursor preserved
@@ -2114,6 +2121,12 @@ void HordeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		OpenRespawnWeaponMenu(ent);
 		shouldCloseMenu = false;
 	}
+	// PvM Stats
+	else if (strstr(selected_text, "PvM Stats"))
+	{
+		PvM_OpenStatsMenu(ent);
+		shouldCloseMenu = false;
+	}
 	// Swap Tech
 	else if (strcmp(selected_text, "Swap Tech") == 0)
 	{
@@ -2224,6 +2237,11 @@ pmenuhnd_t *CreateHordeMenu(edict_t *ent)
 	if (pvm->integer)
 	{
 		add_entry("Set Respawn Weapon", PMENU_ALIGN_LEFT, HordeMenuHandler);
+		// Add PvM Stats menu (show level and available points)
+		auto pvm_stats_text = G_Fmt("PvM Stats (Lvl:{} Pts:{})",
+									ent->client->pers.pvm_level,
+									ent->client->pers.pvm_stat_points);
+		add_entry(pvm_stats_text.data(), PMENU_ALIGN_LEFT, HordeMenuHandler);
 	}
 
 	if (g_horde && !pvm->integer)
