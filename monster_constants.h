@@ -178,6 +178,7 @@ int GetMonsterBaseArmor(uint8_t monster_type_id);
 int GetMonsterScaledArmor(uint8_t monster_type_id, int wave_level, bool is_boss);
 int GetMonsterBasePowerArmor(uint8_t monster_type_id);
 int GetMonsterScaledPowerArmor(uint8_t monster_type_id, int wave_level, bool is_boss);
+int32_t GetMonsterArmorType(uint8_t monster_type_id);
 int32_t GetMonsterPowerArmorType(uint8_t monster_type_id);
 
 extern int16_t current_wave_level;
@@ -200,6 +201,7 @@ extern int16_t current_wave_level;
 #define M_ADDON_HEALTH(ent)             GetMonsterScaledHealth((ent)->monsterinfo.monster_type_id, current_wave_level, (ent)->monsterinfo.IS_BOSS)
 
 // Armor macros
+#define M_ARMOR_TYPE(ent)               static_cast<item_id_t>(GetMonsterArmorType((ent)->monsterinfo.monster_type_id))
 #define M_INITIAL_ARMOR(ent)            GetMonsterBaseArmor((ent)->monsterinfo.monster_type_id)
 #define M_ADDON_ARMOR(ent)              GetMonsterScaledArmor((ent)->monsterinfo.monster_type_id, current_wave_level, (ent)->monsterinfo.IS_BOSS)
 

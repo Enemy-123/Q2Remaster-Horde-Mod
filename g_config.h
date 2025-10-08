@@ -494,6 +494,7 @@ int GetMonsterBaseArmor(uint8_t monster_type_id);
 int GetMonsterScaledArmor(uint8_t monster_type_id, int wave_level, bool is_boss);
 int GetMonsterBasePowerArmor(uint8_t monster_type_id);
 int GetMonsterScaledPowerArmor(uint8_t monster_type_id, int wave_level, bool is_boss);
+int32_t GetMonsterArmorType(uint8_t monster_type_id);
 int32_t GetMonsterPowerArmorType(uint8_t monster_type_id);
 
 // Map config helper functions

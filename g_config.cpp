@@ -1202,6 +1202,12 @@ int GetMonsterScaledPowerArmor(uint8_t monster_type_id, int wave_level, bool is_
 	return GetScaledPowerArmor(base_power_armor, power_armor_scale, wave_level, is_boss);
 }
 
+int32_t GetMonsterArmorType(uint8_t monster_type_id)
+{
+	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
+	return config ? config->armor_type : static_cast<int32_t>(IT_NULL);
+}
+
 int32_t GetMonsterPowerArmorType(uint8_t monster_type_id)
 {
 	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
