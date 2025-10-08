@@ -195,7 +195,7 @@
 
     "// ========== GUNNERS ==========": "",
     "gunner": {
-      "health": 75,
+      "health": 95,
       "power_armor_power": 85,
       "power_armor_type": "shield",
       "damage_scale": 1.0,
@@ -206,9 +206,9 @@
     },
 
     "gunner_vanilla": {
-      "health": 175,
-      "power_armor_power": 65,
-      "power_armor_type": "shield",
+      "health": 75,
+      "power_armor": 85,
+      "power_armor_type": "combat",
       "damage_scale": 0.5,
       "weapon_damage": {
         "grenade": 40
