@@ -125,6 +125,9 @@
     <ClInclude Include="horde\g_pvm.h">
       <Filter>horde</Filter>
     </ClInclude>
+    <ClInclude Include="horde\g_character.h">
+      <Filter>horde</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cg_main.cpp" />
@@ -368,6 +371,9 @@
       <Filter>horde</Filter>
     </ClCompile>
     <ClCompile Include="horde\g_pvm.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\g_character.cpp">
       <Filter>horde</Filter>
     </ClCompile>
   </ItemGroup>

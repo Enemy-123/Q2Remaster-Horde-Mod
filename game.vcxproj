@@ -138,6 +138,7 @@ echo Data files deployed (only new/modified files copied)</Command>
     <ClInclude Include="g_config.h" />
     <ClInclude Include="g_local.h" />
     <ClInclude Include="g_statusbar.h" />
+    <ClInclude Include="horde\g_character.h" />
     <ClInclude Include="horde\g_entity_properties.h" />
     <ClInclude Include="horde\g_horde.h" />
     <ClInclude Include="horde\g_horde_benefits.h" />
@@ -206,6 +207,7 @@ echo Data files deployed (only new/modified files copied)</Command>
     <ClCompile Include="g_config.cpp" />
     <ClCompile Include="horde\g_barrel.cpp" />
     <ClCompile Include="horde\g_bombspell.cpp" />
+    <ClCompile Include="horde\g_character.cpp" />
     <ClCompile Include="horde\g_doppleganger.cpp" />
     <ClCompile Include="horde\g_entity_properties.cpp" />
     <ClCompile Include="horde\g_fire.cpp" />
