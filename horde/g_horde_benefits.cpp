@@ -248,8 +248,8 @@ std::string GetPlayerActiveBonusesString(edict_t* player) {
         {"vampire upgraded", "Health & Armor Vampirism", "Full Vampirism"},
         {"vampire", "Health Vampirism", "Health Vamp"},
         {"ammo regen", "Ammo Regen", "Ammo Regen"},
-        {"start armor", "Starting Armor", "Start Armor"},
-        {"H/A Pickup", "H/A Pickup", "+H/A Pickup"},
+        {"start armor", "Starting Armor", "Starting Armor"},
+        {"H/A Pickup", "H/A Pickup", "H/A Pickup"},
         {"auto haste", "Auto-Haste", "Auto Haste"},
         {"Tesla Chain Lightning", "Tesla Chain Lightning", "Chain Tesla"},
         {"Cluster Prox", "Upgraded Prox Launcher", "Cluster Prox"},
@@ -285,11 +285,11 @@ std::string GetPlayerActiveBonusesString(edict_t* player) {
     }
 
     // --- THIS IS THE NEW SAFETY LOGIC ---
-    const size_t MAX_BONUSES_TO_DISPLAY = 6; // Display a max of 6 bonuses
+    const size_t MAX_BONUSES_TO_DISPLAY = 10; // Display a max of 10 bonuses
     std::string result;
     result.reserve(256); // Reserve buffer for the list
 
-    result += "Bonuses:\n"; // Add the header
+    result += "Active Bonuses:\n"; // Add the header
 
     for (size_t i = 0; i < active_bonuses.size(); ++i) {
         if (i < MAX_BONUSES_TO_DISPLAY) {

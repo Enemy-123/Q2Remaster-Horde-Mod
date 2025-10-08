@@ -2386,20 +2386,28 @@ public:
 	}
 
 	void addHeader() {
-		if (g_horde->integer || pvm->integer) {
-			layout_builder.append(fmt::format(
-				"if 0 xv -20 yv -10 loc_string2 1 \"Wave Number: {}          Stroggs Remaining: {}\" endif \n",
-				last_wave_number, GetStroggsNum()));
-		}
+    if (g_horde->integer || pvm->integer) {
+		// string2 is better than loc_string2 here it seems
+        // Element 1: Wave Number (aligned left)
+        layout_builder.append(fmt::format(
+            "if 0 xv -90 yv -5 string2 \"Wave: {}\" endif \n",
+            last_wave_number));
 
-		if (timelimit->value) {
-			layout_builder.append(fmt::format(
-				"if 0 xv 340 yv -33 time_limit {} endif \n",
-				gi.ServerFrame() + ((gtime_t::from_min(timelimit->value) - level.time)).milliseconds() / gi.frame_time_ms));
-		}
-	}
+        // Element 2: Stroggs Remaining (aligned further to the right)
+        layout_builder.append(fmt::format(
+            "if 0 xv 200 yv -5 string2 \"Stroggs: {}\" endif \n",
+            GetStroggsNum()));
+    }
 
-    // THIS IS THE REVISED, SIMPLER FUNCTION
+    // Time limit remains the same
+    if (timelimit->value) {
+        layout_builder.append(fmt::format(
+            "if 0 xv 340 yv -33 time_limit {} endif \n",
+            gi.ServerFrame() + ((gtime_t::from_min(timelimit->value) - level.time)).milliseconds() / gi.frame_time_ms));
+    }
+}
+
+	// THIS IS THE REVISED, SIMPLER FUNCTION
 	void addTeamScore() {
 		if (!level.intermissiontime) {
 			layout_builder.append("if 25 xv -90 yv 10 dogtag endif \n");
