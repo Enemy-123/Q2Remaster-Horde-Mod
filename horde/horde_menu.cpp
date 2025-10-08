@@ -2400,75 +2400,87 @@ public:
     }
 
     // Time limit remains the same
-    if (timelimit->value) {
-        layout_builder.append(fmt::format(
-            "if 0 xv 340 yv -33 time_limit {} endif \n",
-            gi.ServerFrame() + ((gtime_t::from_min(timelimit->value) - level.time)).milliseconds() / gi.frame_time_ms));
-    }
-}
+	if (timelimit->value)
+	{
+		layout_builder.append(fmt::format(
+			"if 0 xv 340 yv -33 time_limit {} endif \n",
+			gi.ServerFrame() + ((gtime_t::from_min(timelimit->value) - level.time)).milliseconds() / gi.frame_time_ms));
+	}
+	}
 
-	// THIS IS THE REVISED, SIMPLER FUNCTION
-	void addTeamScore() {
-		if (!level.intermissiontime) {
-			layout_builder.append("if 25 xv -135 yv 3 dogtag endif \n");
+	void addTeamScore()
+	{
+		// Define the path to your custom horde dogtag
+		const char *horde_dogtag_path = "/tags/etqw_strogg.png"; // No file extension needed
+
+		if (!level.intermissiontime)
+		{
+			// Use 'picn' to draw the specific horde dogtag image
+			layout_builder.append(fmt::format(
+				"if 25 xv -135 yv 3 picn {} endif \n", horde_dogtag_path));
 
 			// Get the new, safely-limited active bonuses string
-			std::string activeBonuses = GetPlayerActiveBonusesString(const_cast<edict_t*>(ent));
-			if (!activeBonuses.empty()) {
-                // No more truncation needed here. The string is already safe.
+			std::string activeBonuses = GetPlayerActiveBonusesString(const_cast<edict_t *>(ent));
+			if (!activeBonuses.empty())
+			{
 				layout_builder.append(fmt::format(
 					"if 0 xv 208 yv 8 string \"{}\" endif \n", activeBonuses));
 			}
 		}
-		else {
+		else
+		{
+			// You can also use the custom dogtag on the intermission screen
 			layout_builder.append(fmt::format(
-				"if 25 xv -130 yv 3 dogtag endif "
+				"if 25 xv -130 yv 3 picn {} endif "
 				"if 25 xv 205 yv 8 pic 25 endif "
-				"if 0 xv 70 yv -20 num 0 {} endif \n", // Used num instead of 19 for score
+				"if 0 xv 70 yv -20 num 0 {} endif \n",
+				horde_dogtag_path,
 				total_score));
 		}
 	}
 
-void addPlayerList() {
-	// Add column headers. The X coordinates here will be the same for the data below.
-	int header_y = PLAYER_Y_START - PLAYER_Y_SPACING; // Position headers just above the first player
-	layout_builder.append(fmt::format(
-		"if 0 xv -130 yv {} string2 \"Name\" xv 70 yv {} string2 \"Score\" xv 120 yv {} string2 \"Ping\" endif \n",
-		header_y, header_y, header_y));
-
-	// Loop through players and display their info
-	for (size_t i = 0; i < std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY); ++i) {
-		const auto& player = team_players[i];
-		edict_t* player_ent = g_edicts + 1 + player.index;
-		int y = PLAYER_Y_START + i * PLAYER_Y_SPACING;
-
-		// --- [DEAD] Indicator ---
-		// Draw this separately to the left so it doesn't affect name alignment.
-		if (player.is_dead) {
-			layout_builder.append(fmt::format(
-				"if 0 xv -175 yv {} string \"[DEAD]\" endif \n", y));
-		}
-
-		// --- Player Data (Manual Placement) ---
-		// We now draw each piece of data in its correct column to match the headers.
-		const char* player_name = GetPlayerName(player_ent);
-		std::string score_str = fmt::format("{}", player.score);
-		std::string ping_str = fmt::format("{}", player.ping);
-
-		// This single command places each string at a specific coordinate.
+	void addPlayerList()
+	{
+		// Add column headers. The X coordinates here will be the same for the data below.
+		int header_y = PLAYER_Y_START - PLAYER_Y_SPACING; // Position headers just above the first player
 		layout_builder.append(fmt::format(
-			// Column 1: Name (starts at x=-90)
-			"if 0 xv -130 yv {} string \"{}\" "
-			// Column 2: Score (starts at x=70)
-			"xv 70 yv {} string \"{}\" "
-			// Column 3: Ping (starts at x=120)
-			"xv 120 yv {} string \"{}\" endif \n",
-			y, player_name,
-			y, score_str,
-			y, ping_str));
-	}
-}
+			"if 0 xv -130 yv {} string2 \"Name\" xv 70 yv {} string2 \"Score\" xv 120 yv {} string2 \"Ping\" endif \n",
+			header_y, header_y, header_y));
 
+		// Loop through players and display their info
+		for (size_t i = 0; i < std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY); ++i)
+		{
+			const auto &player = team_players[i];
+			edict_t *player_ent = g_edicts + 1 + player.index;
+			int y = PLAYER_Y_START + i * PLAYER_Y_SPACING;
+
+			// --- [DEAD] Indicator ---
+			// Draw this separately to the left so it doesn't affect name alignment.
+			if (player.is_dead)
+			{
+				layout_builder.append(fmt::format(
+					"if 0 xv -175 yv {} string \"[DEAD]\" endif \n", y));
+			}
+
+			// --- Player Data (Manual Placement) ---
+			// We now draw each piece of data in its correct column to match the headers.
+			const char *player_name = GetPlayerName(player_ent);
+			std::string score_str = fmt::format("{}", player.score);
+			std::string ping_str = fmt::format("{}", player.ping);
+
+			// This single command places each string at a specific coordinate.
+			layout_builder.append(fmt::format(
+				// Column 1: Name (starts at x=-90)
+				"if 0 xv -130 yv {} string \"{}\" "
+				// Column 2: Score (starts at x=70)
+				"xv 70 yv {} string \"{}\" "
+				// Column 3: Ping (starts at x=120)
+				"xv 120 yv {} string \"{}\" endif \n",
+				y, player_name,
+				y, score_str,
+				y, ping_str));
+		}
+	}
 
 void addSpectators()
 {
