@@ -4,6 +4,7 @@
 #include "horde/g_horde_benefits.h"
 #include "bots/bot_includes.h"
 #include "shared.h"
+#include "monster_constants.h"
 #include <algorithm>
 
 //================
@@ -1929,6 +1930,29 @@ void monster_start_go(edict_t *self)
 		self->monsterinfo.jump_height = 48;  // Standard jump height for all monsters
 	if (!self->monsterinfo.can_jump)
 		self->monsterinfo.can_jump = true;
+
+	// Auto-setup armor from config if not manually set
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+	if (!st.was_key_specified("armor_type") && self->monsterinfo.armor_type == IT_NULL) {
+		item_id_t config_armor_type = M_ARMOR_TYPE(self);
+		if (config_armor_type != IT_NULL) {
+			self->monsterinfo.armor_type = config_armor_type;
+			if (!st.was_key_specified("armor_power")) {
+				self->monsterinfo.armor_power = M_ADDON_ARMOR(self);
+			}
+		}
+	}
+
+	// Auto-setup power armor from config if not manually set
+	if (!st.was_key_specified("power_armor_type") && self->monsterinfo.power_armor_type == IT_NULL) {
+		item_id_t config_power_armor_type = M_POWER_ARMOR_TYPE(self);
+		if (config_power_armor_type != IT_NULL) {
+			self->monsterinfo.power_armor_type = config_power_armor_type;
+			if (!st.was_key_specified("power_armor_power")) {
+				self->monsterinfo.power_armor_power = M_ADDON_POWER_ARMOR(self);
+			}
+		}
+	}
 
 	// Paril: moved here so this applies to swim/fly monsters too
 	if (!(self->flags & FL_STATIONARY))
