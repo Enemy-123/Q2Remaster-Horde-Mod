@@ -2908,7 +2908,7 @@ public:
 			// string2 is better than loc_string2 here it seems
 			// Element 1: Wave Number (aligned left)
 			layout_builder.append(fmt::format(
-				"if 0 xv -130 yv -5 string2 \"Wave: {}\" endif \n",
+				"if 0 xv -140 yv -5 string2 \"Wave: {}\" endif \n",
 				last_wave_number));
 
 			// Element 2: Stroggs Remaining (aligned further to the right)
@@ -2935,7 +2935,7 @@ public:
 		{
 			// Use 'picn' to draw the specific horde dogtag image
 			layout_builder.append(fmt::format(
-				"if 25 xv -135 yv 3 picn {} endif \n", horde_dogtag_path));
+				"if 25 xv -140 yv 3 picn {} endif \n", horde_dogtag_path));
 
 			// Get the new, safely-limited active bonuses string
 			std::string activeBonuses = GetPlayerActiveBonusesString(const_cast<edict_t *>(ent));
@@ -2949,7 +2949,7 @@ public:
 		{
 			// You can also use the custom dogtag on the intermission screen
 			layout_builder.append(fmt::format(
-				"if 25 xv -130 yv 3 picn {} endif "
+				"if 25 xv -140 yv 3 picn {} endif "
 				"if 25 xv 205 yv 3 pic 25 endif "
 				"if 0 xv 70 yv -20 num 0 {} endif \n",
 				horde_dogtag_path,
@@ -2962,42 +2962,41 @@ public:
 		// Add column headers. The X coordinates here will be the same for the data below.
 		int header_y = PLAYER_Y_START - PLAYER_Y_SPACING; // Position headers just above the first player
 		layout_builder.append(fmt::format(
-			"if 0 xv -130 yv {} string2 \"Name\" xv 70 yv {} string2 \"Score\" xv 120 yv {} string2 \"Ping\" endif \n",
+			"if 0 xv -140 yv {} string2 \"Name\" xv 70 yv {} string2 \"Score\" xv 120 yv {} string2 \"Ping\" endif \n",
 			header_y, header_y, header_y));
 
 		// Loop through players and display their info
 		for (size_t i = 0; i < std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY); ++i)
 		{
+			// **FIX:** Add a safety check to prevent string overflow. 200 is a safe margin for one line.
+			if (layout_builder.size() >= MAX_CTF_STAT_LENGTH - 200)
+			{
+				break;
+			}
+
 			const auto &player = team_players[i];
 			edict_t *player_ent = g_edicts + 1 + player.index;
 			int y = PLAYER_Y_START + i * PLAYER_Y_SPACING;
 
-			// --- [DEAD] Indicator ---
+			// **FIX:** Build the content for the player row first, then wrap it in a single if...endif.
+			std::string player_line_content;
+
 			if (player.is_dead)
 			{
-				// This block is correct as it's self-contained.
-				layout_builder.append(fmt::format(
-					"if 0 xv -175 yv {} string \"[DEAD]\" endif \n", y));
+				player_line_content += fmt::format("xv -175 yv {} string \"[RIP]\" ", y);
 			}
 
 			const char *player_name = GetPlayerName(player_ent);
 			std::string score_str = fmt::format("{}", player.score);
 			std::string ping_str = fmt::format("{}", player.ping);
 
-			// --- Player Data (CORRECTED) ---
-			// Each piece of data needs its own if...endif block.
+			player_line_content += fmt::format(
+				"xv -140 yv {} string \"{}\" "
+				"xv 70 yv {} string \"{}\" "
+				"xv 120 yv {} string \"{}\"",
+				y, player_name, y, score_str, y, ping_str);
 
-			// Draw Name
-			layout_builder.append(fmt::format(
-				"if 0 xv -130 yv {} string \"{}\" endif \n", y, player_name));
-
-			// Draw Score
-			layout_builder.append(fmt::format(
-				"if 0 xv 70 yv {} string \"{}\" endif \n", y, score_str));
-
-			// Draw Ping
-			layout_builder.append(fmt::format(
-				"if 0 xv 120 yv {} string \"{}\" endif \n", y, ping_str));
+			layout_builder.append(fmt::format("if 0 {} endif \n", player_line_content));
 		}
 	}
 
@@ -3018,36 +3017,27 @@ public:
 			size_t spectators_to_display = std::min(spectators.size(), MAX_SPECTATORS_TO_DISPLAY);
 			for (size_t i = 0; i < spectators_to_display; ++i)
 			{
-				const auto &spec = spectators[i];
-				// Stop if we're about to exceed the layout string buffer to be safe.
-				if (layout_builder.size() >= MAX_CTF_STAT_LENGTH - LAYOUT_SAFETY_MARGIN)
+				// **FIX:** Use a larger, safer margin for the check.
+				if (layout_builder.size() >= MAX_CTF_STAT_LENGTH - 200)
 				{
 					break;
 				}
 
-				// Get all the necessary data for the spectator row.
+				const auto &spec = spectators[i];
 				edict_t *spec_ent = g_edicts + 1 + spec.index;
 				const char *spec_name = GetPlayerName(spec_ent);
 				std::string score_str = fmt::format("{}", spec.score);
 				std::string ping_str = fmt::format("{}", spec.ping);
 
-				// --- CORRECTED SECTION ---
-				// Each piece of data (Name, Score, Ping) is now drawn with its own
-				// self-contained "if...endif" block. This is the correct syntax.
+				// **FIX:** Consolidate all drawing commands into a single if...endif block.
+				std::string spectator_line_content = fmt::format(
+					"xv -140 yv {} string2 \"{}\" "
+					"xv 70 yv {} string2 \"{}\" "
+					"xv 120 yv {} string2 \"{}\"",
+					y, spec_name, y, score_str, y, ping_str);
 
-				// Draw Spectator Name
-				layout_builder.append(fmt::format(
-					"if 0 xv -130 yv {} string2 \"{}\" endif \n", y, spec_name));
+				layout_builder.append(fmt::format("if 0 {} endif \n", spectator_line_content));
 
-				// Draw Spectator Score
-				layout_builder.append(fmt::format(
-					"if 0 xv 70 yv {} string2 \"{}\" endif \n", y, score_str));
-
-				// Draw Spectator Ping
-				layout_builder.append(fmt::format(
-					"if 0 xv 120 yv {} string2 \"{}\" endif \n", y, ping_str));
-
-				// Move down to the next line for the next spectator.
 				y += PLAYER_Y_SPACING;
 			}
 
@@ -3055,7 +3045,7 @@ public:
 			if (spectators.size() > spectators_to_display)
 			{
 				layout_builder.append(fmt::format(
-					"if 0 xv -130 yv {} string2 \"... and {} more\" endif \n",
+					"if 0 xv -140 yv {} string2 \"... and {} more\" endif \n",
 					y, spectators.size() - spectators_to_display));
 			}
 		}
@@ -3078,8 +3068,6 @@ public:
 									  ? "MAKE THEM PAY !!!"
 									  : "THEY WILL REGRET THIS !!!";
 
-			// --- RESTORED ORIGINAL CODE ---
-			// This is now safe to use because the other functions are fixed.
 			// It will display the message after a 5-second delay.
 			layout_builder.append(fmt::format(
 				"ifgef {} yb -48 xv 0 loc_cstring2 0 \"{}\" endif \n",
