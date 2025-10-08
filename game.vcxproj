@@ -144,6 +144,7 @@ echo Data files deployed (only new/modified files copied)</Command>
     <ClInclude Include="horde\g_horde_phys.h" />
     <ClInclude Include="horde\g_horde_scaling.h" />
     <ClInclude Include="horde\g_laser.h" />
+    <ClInclude Include="horde\g_pvm.h" />
     <ClInclude Include="horde\horde_boss.h" />
     <ClInclude Include="horde\horde_constants.h" />
     <ClInclude Include="horde\horde_ids.h" />
@@ -213,6 +214,7 @@ echo Data files deployed (only new/modified files copied)</Command>
     <ClCompile Include="horde\g_horde_scaling.cpp" />
     <ClCompile Include="horde\g_idview.cpp" />
     <ClCompile Include="horde\g_laser.cpp" />
+    <ClCompile Include="horde\g_pvm.cpp" />
     <ClCompile Include="horde\g_strogg_summoner.cpp" />
     <ClCompile Include="horde\g_teleport.cpp" />
     <ClCompile Include="horde\g_tesla.cpp" />

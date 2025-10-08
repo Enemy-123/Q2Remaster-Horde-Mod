@@ -122,6 +122,9 @@
     <ClInclude Include="horde\horde_monster_data.h" />
     <ClInclude Include="horde\g_horde_scaling.h" />
     <ClInclude Include="monster_constants.h" />
+    <ClInclude Include="horde\g_pvm.h">
+      <Filter>horde</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cg_main.cpp" />
@@ -362,6 +365,9 @@
     </ClCompile>
     <ClCompile Include="horde\g_horde_scaling.cpp" />
     <ClCompile Include="horde\g_fire.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\g_pvm.cpp">
       <Filter>horde</Filter>
     </ClCompile>
   </ItemGroup>
