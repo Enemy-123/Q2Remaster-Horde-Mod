@@ -280,7 +280,7 @@
       "armor_type": "combat",
       "damage_scale": 2.7,
       "weapon_damage": {
-        "railgun": 80,
+        "railgun": 60,
         "melee": 40
       }
     },
@@ -302,7 +302,8 @@
       "power_armor_type": "shield",
       "damage_scale": 1.0,
       "weapon_damage": {
-        "melee": 40
+        "melee": 40,
+        "plasma": 28
       }
     },
 
@@ -328,7 +329,8 @@
         "blaster": 18,
         "blaster2": 30,
         "flechette": 10,
-        "heat": 60,
+        "rocket": 30,
+        "heat": 40,
         "slam": 75
       }
     },
@@ -339,8 +341,8 @@
       "damage_scale": 1.0,
       "health_scale": 1.37,
       "weapon_damage": {
-        "blaster2": 30,
-        "heat": 55
+        "blaster2": 26,
+        "heat": 45
       }
     },
 
@@ -349,10 +351,9 @@
       "power_armor_power": 0,
       "damage_scale": 1.0,
       "weapon_damage": {
-        "blaster": 25,
-        "machinegun": 5,
         "railgun": 45,
-        "heat": 55,
+        "rocket": 35,
+        "plasma": 27,
         "slam": 75
       }
     },
@@ -526,8 +527,8 @@
       "damage_scale": 1.0,
       "weapon_damage": {
         "ionripper": 25,
-        "plasma": 40,
-        "blaster_bolt": 20
+        "plasma": 28,
+        "blaster_bolt": 8
       }
     },
 
@@ -599,9 +600,9 @@
       "damage_scale": 0.9,
       "health_scale": 0.3,
       "weapon_damage": {
-        "heat": 45,
-        "rocket": 45,
-        "grenade": 40,
+        "heat": 25,
+        "rocket": 25,
+        "grenade": 30,
         "machinegun": 5,
         "railgun": 45
       }
@@ -680,7 +681,7 @@
       "damage_scale": 1.2,
       "health_scale": 1.8,
       "weapon_damage": {
-        "heat": 60
+        "railgun": 50
       }
     },
 

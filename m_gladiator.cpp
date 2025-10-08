@@ -319,9 +319,9 @@ void gladcGun(edict_t* self)
 		radius_damage /= 2;
 	}
 	float const r = frandom();
-	fire_plasma(self, start, dir, damage, 925, radius_damage, radius_damage);
+	fire_plasma(self, start, dir, damage, M_PLASMA_SPEED(self), M_PLASMA_RADIUS(self), M_PLASMA_RADIUS(self));
 	if (r < 0.5f && current_wave_level >= 18) {
-		fire_plasma(self, start, dir, damage, 1225, radius_damage, radius_damage);
+		fire_plasma(self, start, dir, damage, 1225, M_PLASMA_RADIUS(self), M_PLASMA_RADIUS(self));
 	}
 
 	// FIX: Check if the enemy is still valid before updating the aim position.

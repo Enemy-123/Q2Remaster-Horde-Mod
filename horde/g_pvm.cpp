@@ -273,6 +273,8 @@ static const std::vector<horde::MonsterTypeID> g_pvm_excluded_monsters = {
     // horde::MonsterTypeID::BERSERKERKL,        // Special fog wave boss
     // horde::MonsterTypeID::GEKKKL,             // Special fog wave boss
     // horde::MonsterTypeID::TANK_SPAWNER,       // Spawns other monsters
+    horde::MonsterTypeID::MEDIC_COMMANDER,     // way too op
+    horde::MonsterTypeID::DAEDALUS_BOMBER,     // way too op
     horde::MonsterTypeID::CARRIER_MINI, // way too op
     horde::MonsterTypeID::CARRIER, // way too op
     horde::MonsterTypeID::BOSS2_MINI, // way too op
