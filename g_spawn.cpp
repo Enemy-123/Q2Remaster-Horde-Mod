@@ -1994,20 +1994,20 @@ static void G_InitStatusbar()
 
 		// Game type
 		if (g_horde->integer && pvm->integer == 0)
-		sb.xl(2).yb(-11).string2("Horde MODE");
+		sb.xl(2).yb(-30).string2("Horde MODE");
 		else
-		sb.xl(2).yb(-11).string2("PvM MODE");
+		sb.xl(2).yb(-30).string2("PvM MODE");
 
 		// Wave timer
 		sb.ifstat(STAT_GAME_TIMER)
-			.xl(89).yb(-20).stat_string(STAT_GAME_TIMER)
-			.xl(2).yb(-20).string2("Wave Timer:")
+			.xl(89).yb(-10).stat_string(STAT_GAME_TIMER)
+			.xl(2).yb(-10).string2("Wave Timer:")
 			.endifstat();
 
 		//Wave count
 		sb.ifstat(STAT_WAVE_NUMBER)
-			.xl(90).yb(-30).stat_string(STAT_WAVE_NUMBER)
-			.xl(2).yb(-30).string2("Wave Level:")
+			.xl(90).yb(-20).stat_string(STAT_WAVE_NUMBER)
+			.xl(2).yb(-20).string2("Wave Level:")
 			.endifstat();
 
 		// MONSTERS COUNT
