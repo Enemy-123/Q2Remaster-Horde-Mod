@@ -1909,6 +1909,7 @@ struct monsterinfo_t
 	gtime_t stuck_check_time; // Initialized in InitMonsterAntiStack
 	gtime_t no_enemy_timeout_start_time;
 	gtime_t unreachable_start_time; // CATS: Track when monster lost path+visibility to all players
+	bool was_ever_visible_to_player = false; // Track if monster was ever visible to prioritize never-seen monsters for teleport
 
 	bool was_stuck = false;
 	bool isfriendlyspawn = false; // corpse cleaning management

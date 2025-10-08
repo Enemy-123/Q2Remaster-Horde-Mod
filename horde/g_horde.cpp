@@ -4333,15 +4333,23 @@ PositionValidationResult IsPositionPhysicallyValid(const vec3_t &position, const
     }
 
     // Check if spawning above sky brush (in the void) - trace far down
+    // For flying monsters, ensure there's ground within 2000 units
     {
         vec3_t down_check_start = position;
         down_check_start.z += monster_mins.z; // Start from feet
         vec3_t down_check_end = down_check_start;
-        down_check_end.z -= 2048.0f; // Check 2048 units down (far enough to detect void spawns)
+        down_check_end.z -= (is_flying ? 2000.0f : 2048.0f);
 
         trace_t down_trace = gi.trace(down_check_start, vec3_origin, vec3_origin, down_check_end, nullptr, MASK_SOLID);
+
+        // Reject if hitting sky surface
         if (down_trace.surface && (down_trace.surface->flags & SURF_SKY)) {
             return result; // Spawning above sky - reject position
+        }
+
+        // For flying monsters, ensure there's actually ground below (not in the void)
+        if (is_flying && down_trace.fraction >= 1.0f) {
+            return result; // No ground within 2000 units - reject position
         }
     }
 
@@ -4484,6 +4492,21 @@ static edict_t* FindSafeTeleportDestination(edict_t* self)
 			continue;
 		}
 
+		// For flying monsters, ensure there's ground within 2000 units below
+		if (can_monster_fly)
+		{
+			vec3_t ground_check_start = spawn_point->s.origin;
+			vec3_t ground_check_end = ground_check_start;
+			ground_check_end.z -= 2000.0f;
+
+			trace_t ground_trace = gi.traceline(ground_check_start, ground_check_end, spawn_point, MASK_SOLID);
+			// If no ground found or hit sky, skip this spawn point
+			if (ground_trace.fraction >= 1.0f || (ground_trace.surface && (ground_trace.surface->flags & SURF_SKY)))
+			{
+				continue;
+			}
+		}
+
 		// --- B. Score the Validated Spawn Point ---
 		float score = 100.0f;
 		float dist_sq = (spawn_point->s.origin - target_player->s.origin).lengthSquared();
@@ -4587,12 +4610,6 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 		needs_teleport = true;
 		reason_str = "Drowning";
 	}
-	// Critical: Out of map bounds (especially for flying monsters)
-	else if (HordePhys::g_spawn_grid.IsGenerated() && !HordePhys::g_spawn_grid.IsPositionInBounds(self->s.origin, 256.0f))
-	{
-		needs_teleport = true;
-		reason_str = "Out of Bounds";
-	}
 	// Critical: Too close to sky (unreachable position) - check ALL monsters, not just flying
 	if (!needs_teleport)
 	{
@@ -4656,6 +4673,8 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 		{
 			// Reset timer if path/visibility restored
 			self->monsterinfo.unreachable_start_time = 0_sec;
+			// Mark that this monster was visible at least once
+			self->monsterinfo.was_ever_visible_to_player = true;
 		}
 		else
 		{
@@ -4664,10 +4683,17 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 			{
 				self->monsterinfo.unreachable_start_time = level.time;
 			}
-			else if (level.time > self->monsterinfo.unreachable_start_time + 3_sec)
+			else
 			{
-				needs_teleport = true;
-				reason_str = "Unreachable (No Path/Visibility)";
+				// Use shorter timeout for monsters that were never visible (prioritize them)
+				// Use longer grace period for monsters that had visibility then lost it
+				gtime_t timeout_duration = self->monsterinfo.was_ever_visible_to_player ? 3_sec : 1_sec;
+				if (level.time > self->monsterinfo.unreachable_start_time + timeout_duration)
+				{
+					needs_teleport = true;
+					reason_str = self->monsterinfo.was_ever_visible_to_player ?
+						"Unreachable (Lost Visibility)" : "Unreachable (Never Visible)";
+				}
 			}
 		}
 	}
