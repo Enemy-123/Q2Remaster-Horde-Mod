@@ -2501,47 +2501,49 @@ public:
 		}
 	}
 
-	void addSpectators()
-	{
-		// Only add spectators if there's enough space and there are spectators
-		// Also limit the number of spectators displayed
-		if (layout_builder.size() < MAX_CTF_STAT_LENGTH - LAYOUT_SAFETY_MARGIN && !spectators.empty())
-		{
-			// Calculate vertical position after team players
-			int y = PLAYER_Y_START + (std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY) + 2) * PLAYER_Y_SPACING;
+void addSpectators()
+{
+    // Only proceed if there are spectators and enough space for at least the header and a few names.
+    if (spectators.empty() || layout_builder.size() >= MAX_CTF_STAT_LENGTH - 120) { // 120 is a safe margin
+        return;
+    }
 
-			// Add spectator header
-			layout_builder.append(fmt::format(
-				"if 0 xv -90 yv {} loc_string2 0 \"Spectators & AFK\" endif \n", y));
-			y += PLAYER_Y_SPACING;
+    // Calculate vertical position after team players
+    int y = PLAYER_Y_START + (std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY) + 2) * PLAYER_Y_SPACING;
 
-			// Add each spectator (with limit)
-			size_t spectators_to_display = std::min(spectators.size(), MAX_SPECTATORS_TO_DISPLAY);
-			for (size_t i = 0; i < spectators_to_display; ++i)
-			{
-				const auto &spec = spectators[i];
+    // Add spectator header
+    layout_builder.append(fmt::format(
+        "if 0 xv -90 yv {} loc_string2 0 \"Spectators & AFK\" endif \n", y));
+    y += PLAYER_Y_SPACING;
 
-				// Check if we still have space before adding each spectator
-				if (layout_builder.size() >= MAX_CTF_STAT_LENGTH - LAYOUT_SAFETY_MARGIN)
-				{
-					break;
-				}
+    // Use a StringBuilder to efficiently create a single, comma-separated list of names.
+    StringBuilder spec_names(128); 
+    for (size_t i = 0; i < spectators.size(); ++i) {
+        const auto& spec = spectators[i];
+        edict_t* spec_ent = g_edicts + 1 + spec.index;
+        const char* spec_name = GetPlayerName(spec_ent);
 
-				layout_builder.append(fmt::format(
-					"if 0 ctf -90 {} {} {:5} {} \"\" endif \n",
-					y, spec.index, spec.score, spec.ping));
-				y += PLAYER_Y_SPACING;
-			}
+        spec_names.append(spec_name);
 
-			// If there are more spectators than displayed, show a count
-			if (spectators.size() > spectators_to_display)
-			{
-				layout_builder.append(fmt::format(
-					"if 0 xv -90 yv {} string \"... and {} more\" endif \n",
-					y, spectators.size() - spectators_to_display));
-			}
-		}
-	}
+        // Add a comma if this is not the last spectator in the list
+        if (i < spectators.size() - 1) {
+            spec_names.append(", ");
+        }
+
+        // To be extra safe, truncate the list if it gets too long.
+        if (spec_names.size() > 90) { 
+            spec_names.append("...");
+            break;
+        }
+    }
+
+    // Add the final condensed spectator list to the layout, but only if it fits.
+    // This final check ensures we don't cause an overflow with the layout commands themselves.
+    if (layout_builder.size() < MAX_CTF_STAT_LENGTH - spec_names.size() - 40) { 
+         layout_builder.append(fmt::format(
+            "if 0 xv -90 yv {} string \"{}\" endif \n", y, spec_names.str()));
+    }
+}
 
 	void addFooter()
 	{
