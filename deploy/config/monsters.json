@@ -310,8 +310,9 @@
 
     "// ========== TANKS ==========": "",
     "tank": {
-      "health": 600,
-      "power_armor_power": 0,
+      "health": 385,
+      "armor_power": 300,
+      "armor_type": "combat",
       "damage_scale": 1.0,
       "health_scale": 1.0,
       "weapon_damage": {
@@ -322,8 +323,9 @@
     },
 
     "tank_commander": {
-      "health": 700,
-      "power_armor_power": 0,
+      "health": 440,
+      "armor_power": 450,
+      "armor_type": "combat",
       "damage_scale": 1.2,
       "health_scale": 1.0,
       "weapon_damage": {
@@ -337,8 +339,9 @@
     },
 
     "tank_64": {
-      "health": 800,
-      "power_armor_power": 0,
+      "health": 650,
+      "armor_power": 410,
+      "armor_type": "combat",
       "damage_scale": 1.0,
       "health_scale": 1.2,
       "weapon_damage": {
@@ -371,8 +374,8 @@
 },
 
   "chick_heat": {
-    "health": 250,
-      "power_armor_power": 120,
+    "health": 145,
+      "power_armor_power": 80,
       "power_armor_type": "shield",
       "damage_scale": 1.2,
       "health_scale": 1.5,
@@ -396,7 +399,7 @@
 
     "// ========== MELEE MONSTERS ==========": "",
     "parasite": {
-      "health": 90,
+      "health": 105,
       "power_armor_power": 0,
       "damage_scale": 1.0
     },
@@ -461,9 +464,9 @@
     },
 
     "hover": {
-      "health": 200,
-      "power_armor_power": 80,
-      "power_armor_type": "shield",
+      "health": 130,
+      "armor_power": 175,
+      "armor_type": "combat",
       "damage_scale": 1.0,
       "weapon_damage": {
         "rocket": 15
@@ -471,9 +474,9 @@
     },
 
     "hover_vanilla": {
-      "health": 180,
-      "power_armor_power": 70,
-      "power_armor_type": "screen",
+      "health": 70,
+      "armor_power": 210,
+      "armor_type": "combat",
       "damage_scale": 1.2,
       "weapon_damage": {
         "blaster": 11
@@ -689,7 +692,7 @@
 
     "// ========== SHAMBLERS ==========": "",
     "shambler": {
-      "health": 300,
+      "health": 375,
       "power_armor_power": 0,
       "damage_scale": 1.0,
       "health_scale": 1.0,
@@ -886,8 +889,9 @@
     },
 
     "tank_spawner": {
-      "health": 600,
-      "power_armor_power": 0,
+      "health": 275,
+      "armor_power": 305,
+      "armor_type": "combat",
       "damage_scale": 1.1,
       "weapon_damage": {
         "blaster": 20,

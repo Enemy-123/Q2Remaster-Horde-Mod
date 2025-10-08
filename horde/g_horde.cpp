@@ -5289,7 +5289,8 @@ static int SelectChampionBonusType() {
 bool ApplyHordeBonuses(edict_t* monster, const int32_t currentLevel, const float champion_chance)
 {
 	bool became_champion = false;
-	if (currentLevel >= 3 && !champion_spawned_this_wave && champion_spawn_cooldown_ends_at < level.time && !monster->monsterinfo.IS_BOSS && frandom() < champion_chance)
+	if ((!pvm->integer && currentLevel >= 3 && !champion_spawned_this_wave && champion_spawn_cooldown_ends_at < level.time && !monster->monsterinfo.IS_BOSS && frandom() < champion_chance) ||
+		(pvm->integer && currentLevel >= 10 && !champion_spawned_this_wave && champion_spawn_cooldown_ends_at < level.time && !monster->monsterinfo.IS_BOSS && frandom() < champion_chance))
 	{
 		// FIXED: Use weighted selection table
 		const int bonus_type = SelectChampionBonusType();
