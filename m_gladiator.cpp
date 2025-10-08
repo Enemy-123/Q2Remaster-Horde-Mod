@@ -163,7 +163,7 @@ void GladiatorGun(edict_t* self)
 	if (!visible(self, self->enemy))
 		return;
 
-	int damage = M_GET_DMG_OR(self, RAILGUN, 80);
+	int damage = M_RAILGUN_DMG(self);
 
 	vec3_t start;
 	vec3_t dir;
@@ -206,7 +206,7 @@ void gladbGun(edict_t* self)
 		return; // Stop immediately if the target is invalid.
 	}
 
-	int damage = M_GET_DMG_OR(self, TRACKER, 16);
+	int damage = M_TRACKER_DMG(self);
 
 	vec3_t start;
 	vec3_t dir;
@@ -238,7 +238,7 @@ void gladbGun(edict_t* self)
 		dir = target_pos - start;
 		dir.normalize();
 
-		monster_fire_tracker(self, start, dir, damage, 875, self->enemy, MZ2_GLADIATOR_RAILGUN_1);
+		monster_fire_tracker(self, start, dir, damage, M_TRACKER_SPEED(self), self->enemy, MZ2_GLADIATOR_RAILGUN_1);
 	}
 	else
 	{
@@ -246,13 +246,13 @@ void gladbGun(edict_t* self)
 		{
 			// Blindfire: aim at blind_fire_target
 			dir = (target_pos - start).normalized();
-			monster_fire_tracker(self, start, dir, damage, 900, nullptr, MZ2_GLADIATOR_RAILGUN_1);
+			monster_fire_tracker(self, start, dir, damage, M_TRACKER_SPEED(self), nullptr, MZ2_GLADIATOR_RAILGUN_1);
 		}
 		else
 		{
 			// Normal: use predictive aim
 			PredictAim(self, self->enemy, start, 980, true, 0, &dir, nullptr);
-			monster_fire_tracker(self, start, dir, damage, 900, nullptr, MZ2_GLADIATOR_RAILGUN_1);
+			monster_fire_tracker(self, start, dir, damage, M_TRACKER_SPEED(self), nullptr, MZ2_GLADIATOR_RAILGUN_1);
 		}
 	}
 }
