@@ -1968,9 +1968,9 @@ static void G_InitStatusbar()
 	if (G_IsDeathmatch()) // & Horde
 	{
 		sb.ifstat(STAT_HEALTH_BARS).yt(24).health_bars().endifstat();
-		sb.xr(-68).yt(12).num(4, STAT_FRAGS).xr(-37).yt(1).string2("Score");
+		sb.xr(-65).yt(12).num(4, STAT_FRAGS).xr(-37).yt(1).string2("Score");
 
-		sb.xr(-53).yt(68).num(3, STAT_SPREE).xr(-37).yt(53).string2("Spree");
+		sb.xr(-50).yt(68).num(3, STAT_SPREE).xr(-37).yt(53).string2("Spree");
 
 		sb.ifstat(STAT_ID_DAMAGE)
 			.xv(130).yv(150).string2("DMG-ID")
@@ -1994,9 +1994,9 @@ static void G_InitStatusbar()
 
 		// Game type
 		if (g_horde->integer && pvm->integer == 0)
-		sb.xl(2).yb(-5).string2("Horde MODE");
+		sb.xl(2).yb(-11).string2("Horde MODE");
 		else
-		sb.xl(2).yb(-5).string2("PvM MODE");
+		sb.xl(2).yb(-11).string2("PvM MODE");
 
 		// Wave timer
 		sb.ifstat(STAT_GAME_TIMER)
@@ -2006,13 +2006,13 @@ static void G_InitStatusbar()
 
 		//Wave count
 		sb.ifstat(STAT_WAVE_NUMBER)
-			.xl(83).yb(-19).num(3, STAT_WAVE_NUMBER)
-			.xl(2).yb(-13).string("Wave Level:")
+			.xl(87).yb(-19).stat_string(STAT_WAVE_NUMBER)
+			.xl(2).yb(-19).string("Wave Level:")
 			.endifstat();
 
 		// MONSTERS COUNT
-		sb.xr(-52).yb(-19).num(3, STAT_REMAINING_MONSTERS).xr(-117).yb(-13).string2(" Stroggs");
-														sb.xr(-117).yb(-5).string2(" To  Kill!");
+		sb.xr(-52).yb(-24).num(3, STAT_REMAINING_MONSTERS).xr(-117).yb(-19).string2(" Stroggs");
+														sb.xr(-117).yb(-9).string2(" To  Kill!");
 
 		// tech
 		sb.ifstat(STAT_CTF_TECH).yb(-137).xr(-26).pic(STAT_CTF_TECH).endifstat();

@@ -99,7 +99,7 @@ enum
 	CONFIG_HEALTH_BAR_NAME, // active health bar name
 	// Horde wave timer
 	HORDE_WAVE_TIMER,
-
+	WAVE_NUMBER_STRING,
 	CONFIG_STORY,
 
 	// Horde-specific configstrings (must be before CONFIG_LAST for bounds checking)

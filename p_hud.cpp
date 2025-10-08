@@ -753,8 +753,29 @@ void G_SetCoopStats(edict_t* ent) {
 	else
 		ent->client->ps.stats[STAT_LIVES] = 0;
 
-	if (G_IsDeathmatch() && !level.intermissiontime) {
-		ent->client->ps.stats[STAT_WAVE_NUMBER] = current_wave_level;
+	if (G_IsDeathmatch() && !level.intermissiontime)
+	{
+		// Check if the wave level has changed since our last update
+		if (current_wave_level != ent->client->last_wave_level_update)
+		{
+			// It has changed, so we need to update the string.
+			// First, store the new value so we don't do this again until it changes.
+			ent->client->last_wave_level_update = current_wave_level;
+
+			// Create a buffer to hold the string version of the number.
+			char wave_string[16];
+			snprintf(wave_string, sizeof(wave_string), "%d", current_wave_level);
+
+			// Update the configstring with our new formatted string.
+			gi.configstring(WAVE_NUMBER_STRING, wave_string);
+		}
+		// Always tell the client to use our dedicated configstring for this stat.
+		ent->client->ps.stats[STAT_WAVE_NUMBER] = WAVE_NUMBER_STRING;
+	}
+	else
+	{
+		// If not in a deathmatch game, clear the stat so it doesn't show.
+		ent->client->ps.stats[STAT_WAVE_NUMBER] = 0;
 	}
 
 	ent->client->ps.stats[STAT_FRAGS] = ent->client->resp.score;

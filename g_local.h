@@ -3543,7 +3543,8 @@ struct gclient_t
 
 	//int num_traps; //foodcube trap per client
 
-	int last_wave_timer_horde_update; //eaks hud timer
+	int last_wave_timer_horde_update; // hud timer
+	int last_wave_level_update; 
 	char voted_map[128];
 	bool emergency_teleport = false;
 
