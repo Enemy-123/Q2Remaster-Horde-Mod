@@ -167,8 +167,10 @@ void CheckAndApplyBenefit(const int32_t wave) {
 
 struct BonusMapping {
 	std::string_view benefit_name;
-	std::string_view display_text;
+	std::string_view display_text; // The full name for menus
+	std::string_view short_name;   // The shorter name for the scoreboard
 };
+
 
 // Definition for the function used in horde_menu.cpp
 std::string GetActiveBonusesString() {
@@ -241,21 +243,21 @@ std::string GetPlayerActiveBonusesString(edict_t* player) {
         return "";
     }
 
-    // Define mappings from internal names to display names
+    // Using the clear, short names for the scoreboard list
     static const std::array<BonusMapping, 13> bonus_mappings = { {
-        {"vampire upgraded", "Health & Armor Vampirism"},
-        {"vampire", "Health Vampirism"},
-        {"ammo regen", "Ammo Regen"},
-        {"start armor", "Starting Armor"},
-        {"H/A Pickup", "H/A Pickup"},
-        {"auto haste", "Auto-Haste"},
-        {"Tesla Chain Lightning", "Tesla Chain Lightning"},
-        {"Cluster Prox", "Upgraded Prox Launcher"},
-        {"Traced Bullets", "Traced-Energy Bullets"},
-        {"Napalm GL", "Napalm-Grenade Launcher"},
-        {"BFG Gravity Pull", "BFG Grav-Pull Lasers"},
-        {"Piercing Plasma", "Piercing Plasma-Beam"},
-        {"Energy Shells", "Energy Shells"}
+        {"vampire upgraded", "Health & Armor Vampirism", "Full Vampirism"},
+        {"vampire", "Health Vampirism", "Health Vamp"},
+        {"ammo regen", "Ammo Regen", "Ammo Regen"},
+        {"start armor", "Starting Armor", "Start Armor"},
+        {"H/A Pickup", "H/A Pickup", "+H/A Pickup"},
+        {"auto haste", "Auto-Haste", "Auto Haste"},
+        {"Tesla Chain Lightning", "Tesla Chain Lightning", "Chain Tesla"},
+        {"Cluster Prox", "Upgraded Prox Launcher", "Cluster Prox"},
+        {"Traced Bullets", "Traced-Energy Bullets", "Traced Bullets"},
+        {"Napalm GL", "Napalm-Grenade Launcher", "Napalm GL"},
+        {"BFG Gravity Pull", "BFG Grav-Pull Lasers", "BFG Gravity Pull"},
+        {"Piercing Plasma", "Piercing Plasma-Beam", "Piercing PlasmaBeam"},
+        {"Energy Shells", "Energy Shells", "Piercing Shells"}
     } };
 
     std::vector<std::string_view> active_bonuses;
@@ -266,13 +268,12 @@ std::string GetPlayerActiveBonusesString(edict_t* player) {
     for (size_t i = 0; i < BenefitsDataSoA::NUM_BENEFITS; ++i) {
         BenefitID id = static_cast<BenefitID>(i);
         if (id == BenefitID::VAMPIRE && has_vampire_upgraded) {
-            continue; // Skip base vampire if upgraded is active
+            continue;
         }
         if (PlayerHasBenefit(player, id)) {
-            // Find the corresponding display text
             for(const auto& mapping : bonus_mappings) {
                 if (strcmp(g_benefitsData.names[i], mapping.benefit_name.data()) == 0) {
-                    active_bonuses.push_back(mapping.display_text);
+                    active_bonuses.push_back(mapping.short_name);
                     break;
                 }
             }
@@ -283,17 +284,25 @@ std::string GetPlayerActiveBonusesString(edict_t* player) {
         return "";
     }
 
-    // Use std::string to format the result
+    // --- THIS IS THE NEW SAFETY LOGIC ---
+    const size_t MAX_BONUSES_TO_DISPLAY = 6; // Display a max of 6 bonuses
     std::string result;
-    result.reserve(active_bonuses.size() * 30);
+    result.reserve(256); // Reserve buffer for the list
+
+    result += "Bonuses:\n"; // Add the header
 
     for (size_t i = 0; i < active_bonuses.size(); ++i) {
-        result += "* ";
-        result += active_bonuses[i];
-        if (i < active_bonuses.size() - 1) {
+        if (i < MAX_BONUSES_TO_DISPLAY) {
+            result += "* ";
+            result += active_bonuses[i];
             result += "\n";
         }
     }
+
+    if (active_bonuses.size() > MAX_BONUSES_TO_DISPLAY) {
+        result += fmt::format("... and {} more", active_bonuses.size() - MAX_BONUSES_TO_DISPLAY);
+    }
+    // --- END OF SAFETY LOGIC ---
 
     return result;
 }
