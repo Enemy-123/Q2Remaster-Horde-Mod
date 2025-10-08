@@ -265,7 +265,7 @@ void guardian_fire_blaster(edict_t* self)
 	}
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::JANITOR2))
 	{
-		int damage = M_GET_DMG_OR(self, IONRIPPER, 25);
+		int damage = M_IONRIPPER_DMG(self);
 		int speed = M_IONRIPPER_SPEED(self);
 		// Usar Ionripper para janitor2
 		monster_fire_ionripper(self, start, forward, damage, speed > 0 ? speed : 950, id, EF_IONRIPPER);

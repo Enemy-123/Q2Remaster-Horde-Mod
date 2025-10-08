@@ -10,22 +10,22 @@
     "max_summons": 3
   },
 
-  "// ==================== WEAPONS ====================": "Player weapon configurations",
+ "// ==================== WEAPONS ====================": "Player weapon configurations",
   "weapons": {
     "blaster": {
-      "damage_min": 5,
-      "damage_max": 42,
+      "damage_min": 20,
+      "damage_max": 50,
       "speed": 700,
       "bounces": 5
     },
     "hyperblaster": {
-      "damage_min": 12,
-      "damage_max": 14,
+      "damage_min": 15,
+      "damage_max": 15,
       "speed": 900,
       "bounces": 3
     },
     "shotgun": {
-      "damage_min": 5,
+      "damage_min": 8,
       "damage_max": 8,
       "damage_energy_min": 7,
       "damage_energy_max": 11,
@@ -34,41 +34,41 @@
       "pellet_count_normal": 8
     },
     "supershotgun": {
-      "damage_min": 4,
-      "damage_max": 5,
+      "damage_min": 10,
+      "damage_max": 10,
       "damage_energy_min": 14,
       "damage_energy_max": 16,
       "kick": 17,
       "pellet_count": 17
     },
     "machinegun": {
-      "damage_min": 7,
-      "damage_max": 11,
+      "damage_min": 10,
+      "damage_max": 10,
       "kick": 2,
       "tracer_damage": 12,
       "tracer_cooldown_ms": 500
     },
     "chaingun": {
-      "damage_min": 6,
-      "damage_max": 10,
+      "damage_min": 5,
+      "damage_max": 5,
       "kick": 3,
       "tracer_damage": 8,
       "tracer_cooldown_ms": 300
     },
     "grenade": {
-      "damage": 220,
+      "damage": 200,
       "radius_offset": 100.0
     },
     "grenadelauncher": {
-      "damage_normal": 110,
+      "damage_normal": 100,
       "damage_napalm": 95,
       "radius_normal": 100.0,
       "radius_napalm": 115.0,
       "speed": 600
     },
     "rocket": {
-      "damage_min": 110,
-      "damage_max": 120,
+      "damage_min": 100,
+      "damage_max": 100,
       "speed": 1050,
       "radius": 115
     },
@@ -78,7 +78,7 @@
       "kick": 285
     },
     "cannon20mm": {
-      "damage": 35,
+      "damage": 40,
       "kick": 35,
       "range": 650,
       "recoil_force": 250
