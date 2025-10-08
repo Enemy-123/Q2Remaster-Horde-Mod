@@ -2441,33 +2441,38 @@ public:
 		}
 	}
 
-	void addSpectators() {
-		if (layout_builder.size() < MAX_CTF_STAT_LENGTH - LAYOUT_SAFETY_MARGIN && !spectators.empty()) {
-			int y = PLAYER_Y_START + (std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY) + 2) * PLAYER_Y_SPACING;
+void addSpectators() {
+    if (layout_builder.size() < MAX_CTF_STAT_LENGTH - LAYOUT_SAFETY_MARGIN && !spectators.empty()) {
+        int y = PLAYER_Y_START + (std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY) + 2) * PLAYER_Y_SPACING;
 
-			layout_builder.append(fmt::format(
-				"if 0 xv -90 yv {} loc_string2 0 \"Spectators & AFK\" endif \n", y));
-			y += PLAYER_Y_SPACING;
+        // --- OPTIMIZATION ---
+        // Switched from the complex 'loc_string2' to the simpler 'string2'.
+        // This is more direct and saves a couple of bytes.
+        layout_builder.append(fmt::format(
+            "if 0 xv -90 yv {} string2 \"Spectators & AFK\" endif \n", y));
+        y += PLAYER_Y_SPACING;
 
-			size_t spectators_to_display = std::min(spectators.size(), MAX_SPECTATORS_TO_DISPLAY);
-			for (size_t i = 0; i < spectators_to_display; ++i) {
-				const auto& spec = spectators[i];
-				if (layout_builder.size() >= MAX_CTF_STAT_LENGTH - LAYOUT_SAFETY_MARGIN) {
-					break;
-				}
-				layout_builder.append(fmt::format(
-					"if 0 ctf -90 {} {} {:5} {} \"\" endif \n",
-					y, spec.index, spec.score, spec.ping));
-				y += PLAYER_Y_SPACING;
-			}
+        size_t spectators_to_display = std::min(spectators.size(), MAX_SPECTATORS_TO_DISPLAY);
+        for (size_t i = 0; i < spectators_to_display; ++i) {
+            const auto& spec = spectators[i];
+            if (layout_builder.size() >= MAX_CTF_STAT_LENGTH - LAYOUT_SAFETY_MARGIN) {
+                break;
+            }
+            // This 'ctf' command is already highly efficient. No changes needed.
+            layout_builder.append(fmt::format(
+                "if 0 ctf -90 {} {} {:5} {} \"\" endif \n",
+                y, spec.index, spec.score, spec.ping));
+            y += PLAYER_Y_SPACING;
+        }
 
-			if (spectators.size() > spectators_to_display) {
-				layout_builder.append(fmt::format(
-					"if 0 xv -90 yv {} string \"... and {} more\" endif \n",
-					y, spectators.size() - spectators_to_display));
-			}
-		}
-	}
+        if (spectators.size() > spectators_to_display) {
+            // This 'string' command is also efficient. No changes needed.
+            layout_builder.append(fmt::format(
+                "if 0 xv -90 yv {} string \"... and {} more\" endif \n",
+                y, spectators.size() - spectators_to_display));
+        }
+    }
+}
 
 	void addFooter() {
 		if (!level.intermissiontime) {
