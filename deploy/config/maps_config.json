@@ -128,7 +128,7 @@
     "rdm14": {
       "monster_cap": -1,
       "enable_grid": true,
-      "enable_loadent": false,
+      "enable_loadent": true,
       "map_size": "medium"
     },
     "_TEMPLATE_SECTION": {
