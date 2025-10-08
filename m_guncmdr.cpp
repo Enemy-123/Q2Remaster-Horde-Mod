@@ -1868,11 +1868,19 @@ void SP_monster_guncmdr_vanilla(edict_t* self)
 	M_SetAnimation(self, &guncmdr_move_stand);
 	self->monsterinfo.scale = MODEL_SCALE;
 
-	// Armadura según especificación
-	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 180;
-	if (!st.was_key_specified("power_armor_type"))
-		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
+	// Power armor configuration
+	if (!st.was_key_specified("power_armor_type") && M_GUNCMDR_VANILLA_POWER_ARMOR_TYPE != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_GUNCMDR_VANILLA_POWER_ARMOR_TYPE);
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = M_GUNCMDR_VANILLA_ADDON_POWER_ARMOR(self);
+	}
+
+	// Regular armor configuration
+	if (!st.was_key_specified("armor_type") && M_GUNCMDR_VANILLA_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (!st.was_key_specified("armor_power"))
+			self->monsterinfo.armor_power = M_GUNCMDR_VANILLA_ADDON_ARMOR(self);
+	}
 
 	// Capacidades de movimiento
 	self->monsterinfo.can_jump = !self->spawnflags.has(SPAWNFLAG_GUNCMDR_NOJUMPING);
@@ -1891,17 +1899,49 @@ void SP_monster_guncmdr_vanilla(edict_t* self)
 // Función para mantener compatibilidad con la entidad vanilla
 void SP_monster_guncmdr(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN)
     self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GUNCMDR);
 	self->style = GUNCMDR_STYLE_GRENADIER;
 	SP_monster_guncmdr_vanilla(self);
+
+		// Power armor configuration
+	if (!st.was_key_specified("power_armor_type") && M_GUNCMDR_POWER_ARMOR_TYPE != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_GUNCMDR_POWER_ARMOR_TYPE);
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = M_GUNCMDR_ADDON_POWER_ARMOR(self);
+	}
+
+	// Regular armor configuration
+	if (!st.was_key_specified("armor_type") && M_GUNCMDR_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (!st.was_key_specified("armor_power"))
+			self->monsterinfo.armor_power = M_GUNCMDR_ADDON_ARMOR(self);
+	}
 }
 
 // Función para mantener compatibilidad con la versión jefe
 void SP_monster_guncmdrkl(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
     self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GUNCMDR_KL);
 	self->style = GUNCMDR_STYLE_BOSS;
 	self->spawnflags |= SPAWNFLAG_GUNCMDRKL;
 	SP_monster_guncmdr(self);
+
+		// Power armor configuration
+	if (!st.was_key_specified("power_armor_type") && M_GUNCMDR_KL_POWER_ARMOR_TYPE != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_GUNCMDR_KL_POWER_ARMOR_TYPE);
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = M_GUNCMDR_KL_ADDON_POWER_ARMOR(self);
+	}
+
+	// Regular armor configuration
+	if (!st.was_key_specified("armor_type") && M_GUNCMDR_KL_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (!st.was_key_specified("armor_power"))
+			self->monsterinfo.armor_power = M_GUNCMDR_KL_ADDON_ARMOR(self);
+	}
 }

@@ -981,21 +981,19 @@ void SP_monster_gunner(edict_t* self)
 	gi.modelindex("models/monsters/gunner/gibs/gun.md2");
 	gi.modelindex("models/monsters/gunner/gibs/head.md2");
 
-	// Power armor
 
-
+	// Power armor configuration
 	if (!st.was_key_specified("power_armor_type") && M_GUNNER_POWER_ARMOR_TYPE != IT_NULL) {
-
-
 		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_GUNNER_POWER_ARMOR_TYPE);
-
-
 		if (!st.was_key_specified("power_armor_power"))
-
-
 			self->monsterinfo.power_armor_power = M_GUNNER_ADDON_POWER_ARMOR(self);
+	}
 
-
+	// Regular armor configuration
+	if (!st.was_key_specified("armor_type") && M_GUNNER_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (!st.was_key_specified("armor_power"))
+			self->monsterinfo.armor_power = M_GUNNER_ADDON_ARMOR(self);
 	}
 
 

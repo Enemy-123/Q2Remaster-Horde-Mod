@@ -127,7 +127,6 @@
       "damage_scale": 0.6
     },
 
-    "// ========== SOLDIERS ==========": "",
     "soldier_light": {
       "health": 40,
       "power_armor_power": 20,
@@ -170,7 +169,6 @@
       "damage_scale": 0.25
     },
 
-    "// ========== INFANTRY ==========": "",
     "infantry": {
       "health": 120,
       "power_armor_power": 80,
@@ -193,7 +191,6 @@
       }
     },
 
-    "// ========== GUNNERS ==========": "",
     "gunner": {
       "health": 95,
       "power_armor_power": 85,
@@ -215,7 +212,6 @@
       }
     },
 
-    "// ========== MEDICS & COMMANDERS ==========": "",
     "medic": {
       "health": 110,
       "armor_power": 120,
@@ -274,7 +270,6 @@
       }
     },
 
-    "// ========== GLADIATORS ==========": "",
     "gladiator": {
       "health": 110,
       "armor_power": 120,
@@ -308,7 +303,6 @@
       }
     },
 
-    "// ========== TANKS ==========": "",
     "tank": {
       "health": 385,
       "armor_power": 300,
@@ -361,7 +355,7 @@
         "slam": 75
       }
     },
-"// ========== CHICKS ==========": "",
+
 "chick": {
   "health": 65,
   "power_armor_power": 45,
@@ -397,7 +391,6 @@
       }
     },
 
-    "// ========== MELEE MONSTERS ==========": "",
     "parasite": {
       "health": 105,
       "power_armor_power": 0,
@@ -451,7 +444,6 @@
       }
     },
 
-    "// ========== FLYERS ==========": "",
     "flyer": {
       "health": 50,
       "power_armor_power": 0,
@@ -524,7 +516,6 @@
       }
     },
 
-    "// ========== XATRIX MONSTERS ==========": "",
     "fixbot": {
       "health": 110,
       "power_armor_power": 25,
@@ -573,7 +564,6 @@
       }
     },
 
-    "// ========== ROGUE MONSTERS ==========": "",
     "stalker": {
       "health": 150,
       "power_armor_power": 0,
@@ -640,7 +630,6 @@
       }
     },
 
-    "// ========== SPIDERS & ARACHNIDS ==========": "",
     "spider": {
       "health": 180,
       "power_armor_power": 0,
@@ -690,7 +679,6 @@
       }
     },
 
-    "// ========== SHAMBLERS ==========": "",
     "shambler": {
       "health": 375,
       "power_armor_power": 0,
@@ -723,7 +711,6 @@
       }
     },
 
-    "// ========== BOSSES ==========": "",
     "boss2": {
       "health": 1800,
       "power_armor_power": 400,
@@ -863,7 +850,6 @@
       }
     },
 
-    "// ========== SPECIAL MONSTERS ==========": "",
     "janitor": {
       "health": 300,
       "power_armor_power": 400,

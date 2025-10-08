@@ -615,21 +615,18 @@ void SP_monster_hover(edict_t* self)
         self->mass = 150;
     }
 
-	// Power armor
-
-
+	// Power armor configuration
 	if (!st.was_key_specified("power_armor_type") && M_HOVER_POWER_ARMOR_TYPE != IT_NULL) {
-
-
 		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_HOVER_POWER_ARMOR_TYPE);
-
-
 		if (!st.was_key_specified("power_armor_power"))
-
-
 			self->monsterinfo.power_armor_power = M_HOVER_ADDON_POWER_ARMOR(self);
+	}
 
-
+	// Regular armor configuration
+	if (!st.was_key_specified("armor_type") && M_HOVER_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (!st.was_key_specified("armor_power"))
+			self->monsterinfo.armor_power = M_HOVER_ADDON_ARMOR(self);
 	}
 
     self->pain = hover_pain;
@@ -676,7 +673,24 @@ This is now the rocket variant.
 */
 void SP_monster_hover_vanilla(edict_t* self)
 {
-     self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::HOVER_VANILLA);    SP_monster_hover(self);
+    const spawn_temp_t& st = ED_GetSpawnTemp();
+
+    self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::HOVER_VANILLA);    SP_monster_hover(self);
+
+     	// Power armor configuration
+	if (!st.was_key_specified("power_armor_type") && M_HOVER_VANILLA_POWER_ARMOR_TYPE != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_HOVER_VANILLA_POWER_ARMOR_TYPE);
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = M_HOVER_VANILLA_ADDON_POWER_ARMOR(self);
+	}
+
+	// Regular armor configuration
+	if (!st.was_key_specified("armor_type") && M_HOVER_VANILLA_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (!st.was_key_specified("armor_power"))
+			self->monsterinfo.armor_power = M_HOVER_VANILLA_ADDON_ARMOR(self);
+	}
+    
 }
 
 // FIX: This function is for the "monster_daedalus" classname (Blaster2 Daedalus).
@@ -687,7 +701,9 @@ void SP_monster_daedalus(edict_t* self)
     const spawn_temp_t& st = ED_GetSpawnTemp();
 
 	    if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) // Check if it hasn't been set yet
-        self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::DAEDALUS);    if (!M_AllowSpawn(self)) {
+        self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::DAEDALUS); 
+
+        if (!M_AllowSpawn(self)) {
         G_FreeEdict(self);
         return;
     }
@@ -703,10 +719,20 @@ void SP_monster_daedalus(edict_t* self)
     // Set properties common to ALL Daedalus types
     self->mass = 225;
     self->yaw_speed = 23;
-    if (!st.was_key_specified("power_armor_type"))
-        self->monsterinfo.power_armor_type = M_DAEDALUS_POWER_ARMOR_TYPE != IT_NULL ? static_cast<item_id_t>(M_DAEDALUS_POWER_ARMOR_TYPE) : IT_ITEM_POWER_SCREEN;
-    if (!st.was_key_specified("power_armor_power"))
-        self->monsterinfo.power_armor_power = M_DAEDALUS_POWER_ARMOR != 0 ? M_DAEDALUS_ADDON_POWER_ARMOR(self) : 100;
+	// Power armor configuration
+	if (!st.was_key_specified("power_armor_type") && M_DAEDALUS_POWER_ARMOR_TYPE != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_DAEDALUS_POWER_ARMOR_TYPE);
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = M_DAEDALUS_ADDON_POWER_ARMOR(self);
+	}
+
+	// Regular armor configuration
+	if (!st.was_key_specified("armor_type") && M_DAEDALUS_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (!st.was_key_specified("armor_power"))
+			self->monsterinfo.armor_power = M_DAEDALUS_ADDON_ARMOR(self);
+	}
+    
     daed_sound_pain1.assign("daedalus/daedpain1.wav");
     daed_sound_pain2.assign("daedalus/daedpain2.wav");
     daed_sound_death1.assign("daedalus/daeddeth1.wav");

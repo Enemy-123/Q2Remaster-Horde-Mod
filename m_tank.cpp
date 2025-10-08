@@ -2985,6 +2985,21 @@ void SP_monster_tank(edict_t* self)
 	gi.soundindex("tank/tnkatk2e.wav");
 	gi.soundindex("tank/tnkatck3.wav");
 
+
+		// Power armor configuration
+	if (!st.was_key_specified("power_armor_type") && M_TANK_POWER_ARMOR_TYPE != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_TANK_COMMANDER_POWER_ARMOR_TYPE);
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = M_TANK_ADDON_POWER_ARMOR(self);
+	}
+
+	// Regular armor configuration
+	if (!st.was_key_specified("armor_type") && M_TANK_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (!st.was_key_specified("armor_power"))
+			self->monsterinfo.armor_power = M_TANK_ADDON_ARMOR(self);
+	}
+
 	// --- REFACTORED: Use the monster ID to determine stats and appearance ---
 	bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
 

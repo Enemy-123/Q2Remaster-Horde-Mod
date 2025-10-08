@@ -669,7 +669,14 @@ void SP_monster_gladiator(edict_t* self)
 		}
 		self->mass = 400;
 
-		// Armor
+	// Power armor configuration
+	if (!st.was_key_specified("power_armor_type") && M_GLADIATOR_POWER_ARMOR_TYPE != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_GLADIATOR_POWER_ARMOR_TYPE);
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = M_GLADIATOR_ADDON_POWER_ARMOR(self);
+	}
+
+	// Regular armor configuration
 	if (!st.was_key_specified("armor_type") && M_GLADIATOR_INITIAL_ARMOR > 0) {
 		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
 		if (!st.was_key_specified("armor_power"))
