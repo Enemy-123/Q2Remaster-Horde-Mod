@@ -2381,7 +2381,8 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 	for (auto player : active_players()) {
 		if (player->client) {
 			player->client->resp.voted = false;
-			if (!(player->svflags & SVF_BOT)) {
+			// Only count human players who are not spectators
+			if (!(player->svflags & SVF_BOT) && player->client->resp.ctf_team != CTF_NOTEAM) {
 				total_human_players++;
 				if (player->client->resp.ctf_team == CTF_TEAM1 || G_IsCooperative() || coop->integer) {
 					count++;
@@ -2822,10 +2823,10 @@ void CTFVoteNo(edict_t* ent)
 	// For time extension votes, check if majority voted no
 	if (ctfgame.election == ELECT_TIME)
 	{
-		// Count total players who can vote
+		// Count total players who can vote (exclude bots and spectators)
 		int total_voters = 0;
 		for (auto player : active_players()) {
-			if (player->client && !(player->svflags & SVF_BOT)) {
+			if (player->client && !(player->svflags & SVF_BOT) && player->client->resp.ctf_team != CTF_NOTEAM) {
 				if (player->client->resp.ctf_team == CTF_TEAM1 || G_IsCooperative() || coop->integer) {
 					total_voters++;
 				}
