@@ -195,8 +195,8 @@
 
     "// ========== GUNNERS ==========": "",
     "gunner": {
-      "health": 175,
-      "power_armor_power": 65,
+      "health": 75,
+      "power_armor_power": 85,
       "power_armor_type": "shield",
       "damage_scale": 1.0,
       "weapon_damage": {
@@ -217,8 +217,9 @@
 
     "// ========== MEDICS & COMMANDERS ==========": "",
     "medic": {
-      "health": 200,
-      "power_armor_power": 0,
+      "health": 110,
+      "armor_power": 120,
+      "armor_type": "combat",
       "damage_scale": 1.2,
       "weapon_damage": {
         "blaster2": 18,
@@ -359,8 +360,8 @@
     },
 "// ========== CHICKS ==========": "",
 "chick": {
-  "health": 165,
-  "power_armor_power": 75,
+  "health": 65,
+  "power_armor_power": 45,
   "power_armor_type": "combat",
   "damage_scale": 1.0,
   "weapon_damage": {
@@ -395,14 +396,14 @@
 
     "// ========== MELEE MONSTERS ==========": "",
     "parasite": {
-      "health": 125,
+      "health": 105,
       "power_armor_power": 0,
       "damage_scale": 1.0
     },
 
     "brain": {
-      "health": 135,
-      "power_armor_power": 200,
+      "health": 80,
+      "power_armor_power": 310,
       "power_armor_type": "screen",
       "damage_scale": 1.13,
       "weapon_damage": {
@@ -411,21 +412,22 @@
     },
 
     "mutant": {
-      "health": 240,
+      "health": 210,
       "power_armor_power": 0,
       "damage_scale": 0.67
     },
 
     "redmutant": {
-      "health": 320,
+      "health": 260,
       "power_armor_power": 0,
       "damage_scale": 1.0,
       "health_scale": 1.13
     },
 
     "berserk": {
-      "health": 295,
-      "power_armor_power": 0,
+      "health": 195,
+      "armor_power": 110,
+      "armor_type": "combat",
       "damage_scale": 1.47,
       "weapon_damage": {
         "melee": 22,
@@ -499,9 +501,9 @@
     },
 
         "floater": {
-      "health": 260,
-      "power_armor_power": 0,
-      "power_armor_type": "screen",
+      "health": 70,
+      "armor_power": 210,
+      "armor_type": "combat",
       "damage_scale": 0.4,
       "weapon_damage": {
         "blaster": 4,
@@ -637,14 +639,14 @@
 
     "// ========== SPIDERS & ARACHNIDS ==========": "",
     "spider": {
-      "health": 600,
+      "health": 210,
       "power_armor_power": 0,
       "damage_scale": 1.0,
       "health_scale": 1.1
     },
 
     "arachnid": {
-      "health": 600,
+      "health": 270,
       "power_armor_power": 125,
       "power_armor_type": "shield",
       "damage_scale": 1.0,
@@ -652,7 +654,7 @@
     },
 
     "arachnid2": {
-      "health": 650,
+      "health": 440,
       "power_armor_power": 125,
       "power_armor_type": "shield",
       "damage_scale": 1.2,
@@ -663,8 +665,8 @@
     },
 
     "gm_arachnid": {
-      "health": 680,
-      "power_armor_power": 400,
+      "health": 300,
+      "power_armor_power": 200,
       "power_armor_type": "shield",
       "damage_scale": 1.2,
       "health_scale": 1.2,
@@ -675,7 +677,7 @@
     },
 
     "psxarachnid": {
-      "health": 800,
+      "health": 450,
       "power_armor_power": 500,
       "power_armor_type": "combat",
       "damage_scale": 1.2,
@@ -687,7 +689,7 @@
 
     "// ========== SHAMBLERS ==========": "",
     "shambler": {
-      "health": 660,
+      "health": 375,
       "power_armor_power": 0,
       "damage_scale": 1.0,
       "health_scale": 1.1,

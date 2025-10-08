@@ -1257,18 +1257,34 @@ void G_SetStats(edict_t* ent)
 	}
 
 	// Network optimization: Only update STAT_ID_DAMAGE if value actually changed
-	int new_damage_stat = 0;
-	if (level.time <= ent->client->lastdmg + 1.55_sec && g_iddmg->integer &&
-	    ent->client->pers.iddmg_state && (ent->svflags & SVF_PLAYER) && !(ent->svflags & SVF_BOT)) {
-		new_damage_stat = static_cast<int>(std::min<uint64_t>(ent->client->dmg_counter, INT_MAX));
+	int new_damage_stat = ent->client->ps.stats[STAT_ID_DAMAGE];
+	int current_shot_damage = static_cast<int>(std::min<uint64_t>(ent->client->dmg_counter, INT_MAX));
+
+	if (g_iddmg->integer && ent->client->pers.iddmg_state && (ent->svflags & SVF_PLAYER) && !(ent->svflags & SVF_BOT))
+	{
+		// If the last damage was recent (machine gun behavior), add to the existing damage.
+		if (level.time <= ent->client->lastdmg + 0.2_sec)
+		{
+			new_damage_stat = current_shot_damage;
+		}
+		// Otherwise (shotgun behavior), this is a new shot, so display its damage.
+		else
+		{
+			new_damage_stat = current_shot_damage;
+		}
 	}
 
 	// Only update if changed (prevents network spam)
-	if (ent->client->ps.stats[STAT_ID_DAMAGE] != new_damage_stat) {
+	if (ent->client->ps.stats[STAT_ID_DAMAGE] != new_damage_stat)
+	{
 		ent->client->ps.stats[STAT_ID_DAMAGE] = new_damage_stat;
 	}
 
-
+	// Reset the damage display after a longer period of inactivity.
+	if (level.time > ent->client->lastdmg + 1.7_sec)
+	{
+		ent->client->ps.stats[STAT_ID_DAMAGE] = 0;
+	}
 	// ZOID
 	SetCTFStats(ent);
 	// ZOID

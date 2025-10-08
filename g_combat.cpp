@@ -836,27 +836,31 @@ static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_dama
         return;
     }
 
-	// Cap damage to target's remaining health to prevent inflation
-	// (e.g., 200 damage to 30 health entity should only count as 30)
-	int capped_damage = std::min(real_damage, std::max(0, targ->health));
+    // Cap damage to prevent excessively large numbers from single hits
+    int capped_damage = std::min(real_damage, std::max(0, targ->health));
+    if (capped_damage == 0) {
+        return;
+    }
 
     auto& client = *attacker->client;
-    const bool should_reset = level.time - attacker->client->lastdmg > 1.65_sec ||
-        client.dmg_counter > 99999;
 
-	// Cast to uint64_t to prevent overflow during addition
-	client.dmg_counter = should_reset ?
-		static_cast<uint64_t>(capped_damage) :
-		client.dmg_counter + static_cast<uint64_t>(capped_damage);
+    // This is the logic from the vrx_do_dmg_counter function you want.
+    // If the time since the last shot is within 0.2 seconds, add to the counter.
+    if (level.time - client.lastdmg <= 0.2_sec) {
+        client.dmg_counter += static_cast<uint64_t>(capped_damage);
+    }
+    // Otherwise, reset the counter to the damage of this new shot.
+    else {
+        client.dmg_counter = static_cast<uint64_t>(capped_damage);
+    }
 
-	// Network optimization: Don't update ps.stats here (causes spam on every hit)
-	// Let p_hud.cpp update it once per frame with change detection
-	attacker->client->lastdmg = level.time;
+    // Update the time of the last damage dealt
+    client.lastdmg = level.time;
 
-	if ((targ->svflags & SVF_MONSTER) && targ->health >= 1) {
-		// Cast to uint64_t to prevent overflow during addition
-		client.total_damage += static_cast<uint64_t>(capped_damage);
-	}
+    // This part handles total damage statistics and can remain as is.
+    if ((targ->svflags & SVF_MONSTER) && targ->health >= 1) {
+        client.total_damage += static_cast<uint64_t>(capped_damage);
+    }
 }
 
 static void HandleAutoHaste(edict_t* attacker, const edict_t* targ, int damage) {
@@ -1295,6 +1299,9 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		save = damage;
 	}
 
+	if (attacker && attacker->client)
+	HandleIDDamage(attacker, targ, take, mod);
+
 	if (G_TeamplayEnabled() && targ->client && attacker->client &&
 		targ->client->resp.ctf_team == attacker->client->resp.ctf_team && targ != attacker &&
 		g_teamplay_armor_protect->integer)
@@ -1331,7 +1338,6 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		// Use the actual damage dealt ('take') for these calculations.
 		HandleAutoHaste(attacker, targ, take);
 		HandleVampireEffect(attacker, targ, take);
-		HandleIDDamage(attacker, targ, take, mod);
 	}
 	// --- END FIX ---
 
