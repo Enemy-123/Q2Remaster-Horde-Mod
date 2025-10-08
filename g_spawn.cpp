@@ -1997,11 +1997,10 @@ static void G_InitStatusbar()
 		sb.ifstat(STAT_TARGET_HEALTH_STRING).xv(127).yb(-80).stat_string(STAT_TARGET_HEALTH_STRING).endifstat();
 
 		// HORDE WAVE
+		if (g_horde->integer && pvm->integer == 0)
 		sb.xl(2).yb(-23).string2("Horde MODE");
-		sb.ifstat(STAT_WAVE_NUMBER)
-			.xl(82).yb(-23).num(3, STAT_WAVE_NUMBER)
-			.xl(2).yb(-23).string(" \nWave Level:")
-			.endifstat();
+		else
+		sb.xl(2).yb(-23).string2("PvM MODE");
 
 		// MONSTERS COUNT
 		sb.xr(-52).yb(-23).num(3, STAT_REMAINING_MONSTERS).xr(-117).yb(-23).string2(" Stroggs \n To  Kill!");
