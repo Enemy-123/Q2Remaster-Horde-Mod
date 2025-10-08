@@ -2395,7 +2395,7 @@ public:
 
         // Element 2: Stroggs Remaining (aligned further to the right)
         layout_builder.append(fmt::format(
-            "if 0 xv 50 yv -5 string2 \"Stroggs: {}\" endif \n",
+            "if 0 xv -40 yv -5 string2 \"Stroggs: {}\" endif \n",
             GetStroggsNum()));
     }
 
