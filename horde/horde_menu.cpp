@@ -891,8 +891,8 @@ void VoteMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		OpenMapCategoryMenu(ent); // Go back to category selection - this already sets protection
 	}
 	else if (option == close_button_index)
-	{	// Close
-		// Menu already closed
+	{ // Close
+	  // Menu already closed
 	}
 	else
 	{
@@ -1152,7 +1152,7 @@ void TechMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		if (tech_index != -1)
 		{
 			// Give the player the tech
-		//	gi.Com_PrintFmt("PRINT: TechMenu: Giving {} tech {} via menu\n", ent->client->pers.netname, selected_tech_name);
+			//	gi.Com_PrintFmt("PRINT: TechMenu: Giving {} tech {} via menu\n", ent->client->pers.netname, selected_tech_name);
 			ent->client->pers.inventory[tech_index] = 1;
 			gi.LocCenter_Print(ent, "\n\n\n\nSelected Tech: {}\n", selected_tech_name);
 
@@ -2253,358 +2253,6 @@ void OpenHordeMenu(edict_t *ent) noexcept
 	CreateHordeMenu(ent); // Create and open the menu
 }
 
-/////////////////////////////////////////////
-//////SCOREBOARD//////////
-/////////////////////////////////////////////
-
-// Make sure we're using the correct fmt namespace for format
-// namespace fmt_game = fmt;
-
-// Constants
-
-constexpr size_t MAX_PLAYERS_TO_DISPLAY = 16;
-constexpr int PLAYER_Y_START = 42;
-constexpr int PLAYER_Y_SPACING = 8;
-constexpr int LAYOUT_SAFETY_MARGIN = 50;
-
-/**
- *  StringBuilder
- * Helper class for efficient string concatenation
- */
-class StringBuilder
-{
-private:
-	std::string buffer;
-	size_t max_size;
-
-public:
-	explicit StringBuilder(size_t reserved_size = 256)
-	{
-		// Clamp reserved size to prevent overflow
-		reserved_size = std::min(reserved_size, MAX_STRING_BUILD_SIZE);
-		max_size = MAX_STRING_BUILD_SIZE;
-		try
-		{
-			buffer.reserve(reserved_size);
-		}
-		catch (const std::bad_alloc &)
-		{
-			gi.Com_Print("WARNING: Failed to reserve string builder memory\n");
-		}
-	}
-
-	StringBuilder &append(std::string_view text)
-	{
-		// Use safe append with size checking
-		if (!safe_string_append(buffer, text, max_size))
-		{
-			if (developer && developer->integer)
-			{
-				gi.Com_Print("WARNING: StringBuilder reached max size, truncating\n");
-			}
-		}
-		return *this;
-	}
-
-	std::string str() const
-	{
-		return buffer;
-	}
-
-	size_t size() const
-	{
-		return buffer.size();
-	}
-};
-
-/**
- * PlayerScore
- * Contains player score information for the scoreboard
- */
-struct PlayerScore
-{
-	unsigned int index;
-	int score;
-	int ping;
-	bool is_dead;
-
-	// Sort players by score in descending order
-	bool operator>(const PlayerScore &other) const
-	{
-		return score > other.score;
-	}
-};
-
-/**
- * ScoreboardLayout
- * Handles scoreboard layout generation
- */
-class ScoreboardLayout {
-private:
-	StringBuilder layout_builder;
-	const edict_t* ent;
-	std::vector<PlayerScore> team_players;
-	std::vector<PlayerScore> spectators;
-	int total_score;
-
-	static constexpr size_t MAX_SPECTATORS_TO_DISPLAY = 8;
-
-public:
-	ScoreboardLayout(edict_t* player_ent, size_t reserve_size = MAX_CTF_STAT_LENGTH)
-		: layout_builder(reserve_size), ent(player_ent), total_score(0) {
-	}
-
-	void collectPlayers() {
-		for (unsigned int i = 0; i < game.maxclients; i++) {
-			const edict_t* const cl_ent = g_edicts + 1 + i;
-			if (!cl_ent->inuse)
-				continue;
-
-			const gclient_t* const cl = &game.clients[i];
-
-			PlayerScore player = {
-				i,
-				cl->resp.score,
-				std::clamp(cl->ping, 0, 999),
-				(cl_ent->deadflag != 0)
-			};
-
-			if (cl->resp.ctf_team == CTF_TEAM1) {
-				if (!safe_push_back(team_players, player, MAX_SAFE_CONTAINER_SIZE)) {
-					gi.Com_Print("WARNING: Too many team players for scoreboard\n");
-				} else {
-					total_score += player.score;
-				}
-			}
-			else if (cl->resp.ctf_team == CTF_NOTEAM) {
-				if (!safe_push_back(spectators, player, MAX_SAFE_CONTAINER_SIZE)) {
-					gi.Com_Print("WARNING: Too many spectators for scoreboard\n");
-				}
-			}
-		}
-		std::sort(team_players.begin(), team_players.end(), std::greater<>());
-	}
-
-	void addHeader() {
-    if (g_horde->integer || pvm->integer) {
-		// string2 is better than loc_string2 here it seems
-        // Element 1: Wave Number (aligned left)
-        layout_builder.append(fmt::format(
-            "if 0 xv -130 yv -5 string2 \"Wave: {}\" endif \n",
-            last_wave_number));
-
-        // Element 2: Stroggs Remaining (aligned further to the right)
-        layout_builder.append(fmt::format(
-            "if 0 xv -40 yv -5 string2 \"Stroggs: {}\" endif \n",
-            GetStroggsNum()));
-    }
-
-    // Time limit remains the same
-	if (timelimit->value)
-	{
-		layout_builder.append(fmt::format(
-			"if 0 xv 340 yv -33 time_limit {} endif \n",
-			gi.ServerFrame() + ((gtime_t::from_min(timelimit->value) - level.time)).milliseconds() / gi.frame_time_ms));
-	}
-	}
-
-	void addTeamScore()
-	{
-		// Define the path to your custom horde dogtag
-		const char *horde_dogtag_path = "/tags/etqw_strogg.png"; // No file extension needed
-
-		if (!level.intermissiontime)
-		{
-			// Use 'picn' to draw the specific horde dogtag image
-			layout_builder.append(fmt::format(
-				"if 25 xv -135 yv 3 picn {} endif \n", horde_dogtag_path));
-
-			// Get the new, safely-limited active bonuses string
-			std::string activeBonuses = GetPlayerActiveBonusesString(const_cast<edict_t *>(ent));
-			if (!activeBonuses.empty())
-			{
-				layout_builder.append(fmt::format(
-					"if 0 xv 208 yv 8 string \"{}\" endif \n", activeBonuses));
-			}
-		}
-		else
-		{
-			// You can also use the custom dogtag on the intermission screen
-			layout_builder.append(fmt::format(
-				"if 25 xv -130 yv 3 picn {} endif "
-				"if 25 xv 205 yv 3 pic 25 endif "
-				"if 0 xv 70 yv -20 num 0 {} endif \n",
-				horde_dogtag_path,
-				total_score));
-		}
-	}
-
-	void addPlayerList()
-	{
-		// Add column headers. The X coordinates here will be the same for the data below.
-		int header_y = PLAYER_Y_START - PLAYER_Y_SPACING; // Position headers just above the first player
-		layout_builder.append(fmt::format(
-			"if 0 xv -130 yv {} string2 \"Name\" xv 70 yv {} string2 \"Score\" xv 120 yv {} string2 \"Ping\" endif \n",
-			header_y, header_y, header_y));
-
-		// Loop through players and display their info
-		for (size_t i = 0; i < std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY); ++i)
-		{
-			const auto &player = team_players[i];
-			edict_t *player_ent = g_edicts + 1 + player.index;
-			int y = PLAYER_Y_START + i * PLAYER_Y_SPACING;
-
-			// --- [DEAD] Indicator ---
-			// Draw this separately to the left so it doesn't affect name alignment.
-			if (player.is_dead)
-			{
-				layout_builder.append(fmt::format(
-					"if 0 xv -175 yv {} string \"[DEAD]\" endif \n", y));
-			}
-
-			// --- Player Data (Manual Placement) ---
-			// We now draw each piece of data in its correct column to match the headers.
-			const char *player_name = GetPlayerName(player_ent);
-			std::string score_str = fmt::format("{}", player.score);
-			std::string ping_str = fmt::format("{}", player.ping);
-
-			// This single command places each string at a specific coordinate.
-			layout_builder.append(fmt::format(
-				// Column 1: Name (starts at x=-90)
-				"if 0 xv -130 yv {} string \"{}\" "
-				// Column 2: Score (starts at x=70)
-				"xv 70 yv {} string \"{}\" "
-				// Column 3: Ping (starts at x=120)
-				"xv 120 yv {} string \"{}\" endif \n",
-				y, player_name,
-				y, score_str,
-				y, ping_str));
-		}
-	}
-
-void addSpectators()
-{
-	if (layout_builder.size() < MAX_CTF_STAT_LENGTH - LAYOUT_SAFETY_MARGIN && !spectators.empty())
-	{
-		// Calculate the starting Y position for the spectator list, leaving a gap after the player list.
-		int y = PLAYER_Y_START + (std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY) + 1) * PLAYER_Y_SPACING;
-
-		// Add the "Spectators & AFK" header, aligning it with the "Name" column for consistency.
-		layout_builder.append(fmt::format(
-			"if 0 xv -90 yv {} string2 \"Spectators & AFK\" endif \n", y));
-		y += PLAYER_Y_SPACING; // Add a bit more space after the header
-
-		// Loop through the spectators to display
-		size_t spectators_to_display = std::min(spectators.size(), MAX_SPECTATORS_TO_DISPLAY);
-		for (size_t i = 0; i < spectators_to_display; ++i)
-		{
-			const auto &spec = spectators[i];
-			if (layout_builder.size() >= MAX_CTF_STAT_LENGTH - LAYOUT_SAFETY_MARGIN)
-			{
-				break; // Stop if we're about to exceed the layout string buffer
-			}
-
-			// --- Manual Placement for Spectators ---
-			// This logic now mirrors the addPlayerList function exactly.
-			edict_t *spec_ent = g_edicts + 1 + spec.index;
-			const char *spec_name = GetPlayerName(spec_ent);
-			std::string score_str = fmt::format("{}", spec.score);
-			std::string ping_str = fmt::format("{}", spec.ping);
-
-			// This single command places each string at its specific coordinate.
-			layout_builder.append(fmt::format(
-				// Column 1: Name (starts at x=-130)
-				"if 0 xv -130 yv {} string2 \"{}\" "
-				// Column 2: Score (starts at x=70)
-				"xv 70 yv {} string2 \"{}\" "
-				// Column 3: Ping (starts at x=120)
-				"xv 120 yv {} string2 \"{}\" endif \n",
-				y, spec_name,
-				y, score_str,
-				y, ping_str));
-
-			y += PLAYER_Y_SPACING;
-		}
-
-		// If there are more spectators than we can display, add the "... and X more" message.
-		if (spectators.size() > spectators_to_display)
-		{
-			layout_builder.append(fmt::format(
-				"if 0 xv -130 yv {} string2 \"... and {} more\" endif \n",
-				y, spectators.size() - spectators_to_display));
-		}
-	}
-}
-
-	void addFooter() {
-		if (!level.intermissiontime) {
-			const char* help_text = (ent->client->resp.ctf_team != CTF_TEAM1)
-				? "Use Inventory <KEY> to toggle Horde Menu."
-				: "Use Horde Menu on Powerup Wheel or press Inventory <KEY> to toggle Horde Menu.";
-			layout_builder.append(fmt::format(
-				"if 0 xv 0 yb -55 cstring2 \"{}\" endif \n", help_text));
-		}
-		else {
-			const char* message = brandom()
-				? "MAKE THEM PAY !!!"
-				: "THEY WILL REGRET THIS !!!";
-			layout_builder.append(fmt::format(
-				"ifgef {} yb -48 xv 0 loc_cstring2 0 \"{}\" endif \n",
-				level.intermission_server_frame + (5_sec).frames(),
-				message));
-		}
-	}
-
-	std::string build() {
-		return layout_builder.str();
-	}
-};
-
-/**
- * @brief Displays the CTF/Horde scoreboard for a player
- * @param ent The player entity to display the scoreboard for
- * @param killer The entity that killed the player (if any)
- */
-void HordeScoreboardMessage(edict_t *ent, edict_t *killer)
-{
-	// Create scoreboard layout generator
-	ScoreboardLayout layout(ent);
-
-	// Collect and sort players
-	layout.collectPlayers();
-
-	// Build the layout in sections
-	layout.addHeader();
-	layout.addTeamScore();
-	layout.addPlayerList();
-	layout.addSpectators();
-	layout.addFooter();
-
-	// Get final layout string
-	std::string final_layout = layout.build();
-
-	// Ensure we don't exceed layout size limits
-	if (final_layout.size() >= MAX_CTF_STAT_LENGTH)
-	{
-		// Safe resize with exception handling
-		try
-		{
-			final_layout.resize(MAX_CTF_STAT_LENGTH - 1);
-		}
-		catch (const std::bad_alloc &)
-		{
-			gi.Com_Print("ERROR: Failed to resize scoreboard layout\n");
-			final_layout = "ERROR: Memory allocation failed";
-		}
-	}
-
-//	gi.Com_PrintFmt("--- BEGIN SCOREBOARD LAYOUT ---\n{}\n--- END SCOREBOARD LAYOUT ---\n", final_layout.c_str());
-
-	// Send to client
-	gi.WriteByte(svc_layout);
-	gi.WriteString(final_layout.c_str());
-}
-
 // --- BENEFITS MENU SYSTEM ---
 
 // Open Abilities Menu
@@ -3110,6 +2758,385 @@ pmenuhnd_t *CreateUpgradeMenu(edict_t *ent)
 	menu_index++;
 
 	return PMenu_Open(ent, upgrade_menu, 0, menu_index, nullptr, nullptr);
+}
+
+/////////////////////////////////////////////
+//////SCOREBOARD//////////
+/////////////////////////////////////////////
+
+// Make sure we're using the correct fmt namespace for format
+// namespace fmt_game = fmt;
+
+// Constants
+
+constexpr size_t MAX_PLAYERS_TO_DISPLAY = 16;
+constexpr int PLAYER_Y_START = 42;
+constexpr int PLAYER_Y_SPACING = 8;
+constexpr int LAYOUT_SAFETY_MARGIN = 50;
+
+/**
+ *  StringBuilder
+ * Helper class for efficient string concatenation
+ */
+class StringBuilder
+{
+private:
+	std::string buffer;
+	size_t max_size;
+
+public:
+	explicit StringBuilder(size_t reserved_size = 256)
+	{
+		// Clamp reserved size to prevent overflow
+		reserved_size = std::min(reserved_size, MAX_STRING_BUILD_SIZE);
+		max_size = MAX_STRING_BUILD_SIZE;
+		try
+		{
+			buffer.reserve(reserved_size);
+		}
+		catch (const std::bad_alloc &)
+		{
+			gi.Com_Print("WARNING: Failed to reserve string builder memory\n");
+		}
+	}
+
+	StringBuilder &append(std::string_view text)
+	{
+		// Use safe append with size checking
+		if (!safe_string_append(buffer, text, max_size))
+		{
+			if (developer && developer->integer)
+			{
+				gi.Com_Print("WARNING: StringBuilder reached max size, truncating\n");
+			}
+		}
+		return *this;
+	}
+
+	std::string str() const
+	{
+		return buffer;
+	}
+
+	size_t size() const
+	{
+		return buffer.size();
+	}
+};
+
+/**
+ * PlayerScore
+ * Contains player score information for the scoreboard
+ */
+struct PlayerScore
+{
+	unsigned int index;
+	int score;
+	int ping;
+	bool is_dead;
+
+	// Sort players by score in descending order
+	bool operator>(const PlayerScore &other) const
+	{
+		return score > other.score;
+	}
+};
+
+/**
+ * ScoreboardLayout
+ * Handles scoreboard layout generation
+ */
+class ScoreboardLayout
+{
+private:
+	StringBuilder layout_builder;
+	const edict_t *ent;
+	std::vector<PlayerScore> team_players;
+	std::vector<PlayerScore> spectators;
+	int total_score;
+
+	static constexpr size_t MAX_SPECTATORS_TO_DISPLAY = 8;
+
+public:
+	ScoreboardLayout(edict_t *player_ent, size_t reserve_size = MAX_CTF_STAT_LENGTH)
+		: layout_builder(reserve_size), ent(player_ent), total_score(0)
+	{
+	}
+
+	void collectPlayers()
+	{
+		for (unsigned int i = 0; i < game.maxclients; i++)
+		{
+			const edict_t *const cl_ent = g_edicts + 1 + i;
+			if (!cl_ent->inuse)
+				continue;
+
+			const gclient_t *const cl = &game.clients[i];
+
+			PlayerScore player = {
+				i,
+				cl->resp.score,
+				std::clamp(cl->ping, 0, 999),
+				(cl_ent->deadflag != 0)};
+
+			if (cl->resp.ctf_team == CTF_TEAM1)
+			{
+				if (!safe_push_back(team_players, player, MAX_SAFE_CONTAINER_SIZE))
+				{
+					gi.Com_Print("WARNING: Too many team players for scoreboard\n");
+				}
+				else
+				{
+					total_score += player.score;
+				}
+			}
+			else if (cl->resp.ctf_team == CTF_NOTEAM)
+			{
+				if (!safe_push_back(spectators, player, MAX_SAFE_CONTAINER_SIZE))
+				{
+					gi.Com_Print("WARNING: Too many spectators for scoreboard\n");
+				}
+			}
+		}
+		std::sort(team_players.begin(), team_players.end(), std::greater<>());
+	}
+
+	void addHeader()
+	{
+		if (g_horde->integer || pvm->integer)
+		{
+			// string2 is better than loc_string2 here it seems
+			// Element 1: Wave Number (aligned left)
+			layout_builder.append(fmt::format(
+				"if 0 xv -130 yv -5 string2 \"Wave: {}\" endif \n",
+				last_wave_number));
+
+			// Element 2: Stroggs Remaining (aligned further to the right)
+			layout_builder.append(fmt::format(
+				"if 0 xv -40 yv -5 string2 \"Stroggs: {}\" endif \n",
+				GetStroggsNum()));
+		}
+
+		// Time limit remains the same
+		if (timelimit->value)
+		{
+			layout_builder.append(fmt::format(
+				"if 0 xv 340 yv -33 time_limit {} endif \n",
+				gi.ServerFrame() + ((gtime_t::from_min(timelimit->value) - level.time)).milliseconds() / gi.frame_time_ms));
+		}
+	}
+
+	void addTeamScore()
+	{
+		// Define the path to your custom horde dogtag
+		const char *horde_dogtag_path = "/tags/etqw_strogg.png"; // No file extension needed
+
+		if (!level.intermissiontime)
+		{
+			// Use 'picn' to draw the specific horde dogtag image
+			layout_builder.append(fmt::format(
+				"if 25 xv -135 yv 3 picn {} endif \n", horde_dogtag_path));
+
+			// Get the new, safely-limited active bonuses string
+			std::string activeBonuses = GetPlayerActiveBonusesString(const_cast<edict_t *>(ent));
+			if (!activeBonuses.empty())
+			{
+				layout_builder.append(fmt::format(
+					"if 0 xv 208 yv 8 string \"{}\" endif \n", activeBonuses));
+			}
+		}
+		else
+		{
+			// You can also use the custom dogtag on the intermission screen
+			layout_builder.append(fmt::format(
+				"if 25 xv -130 yv 3 picn {} endif "
+				"if 25 xv 205 yv 3 pic 25 endif "
+				"if 0 xv 70 yv -20 num 0 {} endif \n",
+				horde_dogtag_path,
+				total_score));
+		}
+	}
+
+	void addPlayerList()
+	{
+		// Add column headers. The X coordinates here will be the same for the data below.
+		int header_y = PLAYER_Y_START - PLAYER_Y_SPACING; // Position headers just above the first player
+		layout_builder.append(fmt::format(
+			"if 0 xv -130 yv {} string2 \"Name\" xv 70 yv {} string2 \"Score\" xv 120 yv {} string2 \"Ping\" endif \n",
+			header_y, header_y, header_y));
+
+		// Loop through players and display their info
+		for (size_t i = 0; i < std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY); ++i)
+		{
+			const auto &player = team_players[i];
+			edict_t *player_ent = g_edicts + 1 + player.index;
+			int y = PLAYER_Y_START + i * PLAYER_Y_SPACING;
+
+			// --- [DEAD] Indicator ---
+			if (player.is_dead)
+			{
+				// This block is correct as it's self-contained.
+				layout_builder.append(fmt::format(
+					"if 0 xv -175 yv {} string \"[DEAD]\" endif \n", y));
+			}
+
+			const char *player_name = GetPlayerName(player_ent);
+			std::string score_str = fmt::format("{}", player.score);
+			std::string ping_str = fmt::format("{}", player.ping);
+
+			// --- Player Data (CORRECTED) ---
+			// Each piece of data needs its own if...endif block.
+
+			// Draw Name
+			layout_builder.append(fmt::format(
+				"if 0 xv -130 yv {} string \"{}\" endif \n", y, player_name));
+
+			// Draw Score
+			layout_builder.append(fmt::format(
+				"if 0 xv 70 yv {} string \"{}\" endif \n", y, score_str));
+
+			// Draw Ping
+			layout_builder.append(fmt::format(
+				"if 0 xv 120 yv {} string \"{}\" endif \n", y, ping_str));
+		}
+	}
+
+	void addSpectators()
+	{
+		// Only add spectators if there's enough buffer space and there are spectators to show.
+		if (layout_builder.size() < MAX_CTF_STAT_LENGTH - LAYOUT_SAFETY_MARGIN && !spectators.empty())
+		{
+			// Calculate the starting Y position for the spectator list, leaving a gap after the player list.
+			int y = PLAYER_Y_START + (std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY) + 1) * PLAYER_Y_SPACING;
+
+			// Add the "Spectators & AFK" header, aligning it with the "Name" column for consistency.
+			layout_builder.append(fmt::format(
+				"if 0 xv -90 yv {} string2 \"Spectators & AFK\" endif \n", y));
+			y += PLAYER_Y_SPACING; // Add a bit more space after the header
+
+			// Loop through the spectators to display, up to the defined maximum.
+			size_t spectators_to_display = std::min(spectators.size(), MAX_SPECTATORS_TO_DISPLAY);
+			for (size_t i = 0; i < spectators_to_display; ++i)
+			{
+				const auto &spec = spectators[i];
+				// Stop if we're about to exceed the layout string buffer to be safe.
+				if (layout_builder.size() >= MAX_CTF_STAT_LENGTH - LAYOUT_SAFETY_MARGIN)
+				{
+					break;
+				}
+
+				// Get all the necessary data for the spectator row.
+				edict_t *spec_ent = g_edicts + 1 + spec.index;
+				const char *spec_name = GetPlayerName(spec_ent);
+				std::string score_str = fmt::format("{}", spec.score);
+				std::string ping_str = fmt::format("{}", spec.ping);
+
+				// --- CORRECTED SECTION ---
+				// Each piece of data (Name, Score, Ping) is now drawn with its own
+				// self-contained "if...endif" block. This is the correct syntax.
+
+				// Draw Spectator Name
+				layout_builder.append(fmt::format(
+					"if 0 xv -130 yv {} string2 \"{}\" endif \n", y, spec_name));
+
+				// Draw Spectator Score
+				layout_builder.append(fmt::format(
+					"if 0 xv 70 yv {} string2 \"{}\" endif \n", y, score_str));
+
+				// Draw Spectator Ping
+				layout_builder.append(fmt::format(
+					"if 0 xv 120 yv {} string2 \"{}\" endif \n", y, ping_str));
+
+				// Move down to the next line for the next spectator.
+				y += PLAYER_Y_SPACING;
+			}
+
+			// If there are more spectators than we can display, add the "... and X more" message.
+			if (spectators.size() > spectators_to_display)
+			{
+				layout_builder.append(fmt::format(
+					"if 0 xv -130 yv {} string2 \"... and {} more\" endif \n",
+					y, spectators.size() - spectators_to_display));
+			}
+		}
+	}
+
+	void addFooter()
+	{
+		if (!level.intermissiontime)
+		{
+			const char *help_text = (ent->client->resp.ctf_team != CTF_TEAM1)
+										? "Use Inventory <KEY> to toggle Horde Menu."
+										: "Use Horde Menu on Powerup Wheel or press Inventory <KEY> to toggle Horde Menu.";
+			layout_builder.append(fmt::format(
+				"if 0 xv 0 yb -55 cstring2 \"{}\" endif \n", help_text));
+		}
+		else
+		{
+			// This block runs during the intermission.
+			const char *message = brandom()
+									  ? "MAKE THEM PAY !!!"
+									  : "THEY WILL REGRET THIS !!!";
+
+			// --- RESTORED ORIGINAL CODE ---
+			// This is now safe to use because the other functions are fixed.
+			// It will display the message after a 5-second delay.
+			layout_builder.append(fmt::format(
+				"ifgef {} yb -48 xv 0 loc_cstring2 0 \"{}\" endif \n",
+				level.intermission_server_frame + (5_sec).frames(),
+				message));
+		}
+	}
+
+	std::string build()
+	{
+		return layout_builder.str();
+	}
+};
+
+/**
+ * @brief Displays the CTF/Horde scoreboard for a player
+ * @param ent The player entity to display the scoreboard for
+ * @param killer The entity that killed the player (if any)
+ */
+void HordeScoreboardMessage(edict_t *ent, edict_t *killer)
+{
+	// Create scoreboard layout generator
+	ScoreboardLayout layout(ent);
+
+	// Collect and sort players
+	layout.collectPlayers();
+
+	// Build the layout in sections
+	layout.addHeader();
+	layout.addTeamScore();
+	layout.addPlayerList();
+	layout.addSpectators();
+	layout.addFooter();
+
+	// Get final layout string
+	std::string final_layout = layout.build();
+
+	// Ensure we don't exceed layout size limits
+	if (final_layout.size() >= MAX_CTF_STAT_LENGTH)
+	{
+		// Safe resize with exception handling
+		try
+		{
+			final_layout.resize(MAX_CTF_STAT_LENGTH - 1);
+		}
+		catch (const std::bad_alloc &)
+		{
+			gi.Com_Print("ERROR: Failed to resize scoreboard layout\n");
+			final_layout = "ERROR: Memory allocation failed";
+		}
+	}
+
+	//	gi.Com_PrintFmt("--- BEGIN SCOREBOARD LAYOUT ---\n{}\n--- END SCOREBOARD LAYOUT ---\n", final_layout.c_str());
+
+	// Send to client
+	gi.WriteByte(svc_layout);
+	gi.WriteString(final_layout.c_str());
 }
 
 // --- END OF FILE horde_menu.cpp ---
