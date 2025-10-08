@@ -190,6 +190,25 @@ void Config_LoadMonsters(const char* basedir)
 			config.armor_scale = GetJsonFloat(monster_data, "armor_scale", 1.0f);
 			config.power_armor_scale = GetJsonFloat(monster_data, "power_armor_scale", 1.0f);
 
+			// =======================================================================
+			// ADD THIS NEW BLOCK OF CODE
+			// =======================================================================
+			// Load weapon damage overrides
+			if (monster_data.isMember("weapon_damage") && monster_data["weapon_damage"].isObject())
+			{
+				const Json::Value &overrides = monster_data["weapon_damage"];
+				for (const auto &weapon_name : overrides.getMemberNames())
+				{
+					if (overrides[weapon_name].isInt())
+					{
+						config.weapon_damage_overrides[weapon_name] = overrides[weapon_name].asInt();
+					}
+				}
+			}
+			// =======================================================================
+			// END OF NEW CODE
+			// =======================================================================
+
 			g_config.monsters.monsters[monster_id] = config;
 			loaded_count++;
 		}
@@ -862,10 +881,34 @@ int GetGlobalWeaponDamage(const char* weapon_name)
 }
 
 // Get specific weapon damage for a monster
+// In g_config.cpp
 int GetMonsterWeaponDamage(uint8_t monster_type_id, const char* weapon_name)
 {
-	// Get global base damage
-	int base_damage = GetGlobalWeaponDamage(weapon_name);
+	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
+	int base_damage = 0;
+
+	// =======================================================================
+	// START OF MODIFIED LOGIC
+	// =======================================================================
+	// Step 1: Try to find a monster-specific override first.
+	if (config)
+	{
+		auto it = config->weapon_damage_overrides.find(weapon_name);
+		if (it != config->weapon_damage_overrides.end())
+		{
+			base_damage = it->second; // Found an override! Use it.
+		}
+	}
+
+	// Step 2: If no override was found, fall back to the global weapon damage.
+	if (base_damage == 0)
+	{
+		base_damage = GetGlobalWeaponDamage(weapon_name);
+	}
+	// =======================================================================
+	// END OF MODIFIED LOGIC
+	// =======================================================================
+
 	if (base_damage == 0)
 	{
 		gi.Com_PrintFmt("WARNING: GetMonsterWeaponDamage - Unknown weapon '{}', returning 0\n", weapon_name);
@@ -873,7 +916,6 @@ int GetMonsterWeaponDamage(uint8_t monster_type_id, const char* weapon_name)
 	}
 
 	// Get monster config for damage scale
-	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
 	float damage_scale = config ? config->damage_scale : 1.0f;
 
 	// Apply monster damage scale

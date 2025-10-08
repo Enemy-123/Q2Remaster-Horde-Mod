@@ -704,7 +704,7 @@ void chickkl_grenade(edict_t* self)
 
 	// Fire grenade
 	int speed = M_GRENADE_SPEED(self);
-	monster_fire_grenade(self, start, aim, 40, speed > 0 ? speed : 600, MZ2_CHICK_ROCKET_1, 2.5f, 120);
+	monster_fire_grenade(self, start, aim, M_GRENADE_DMG(self), speed > 0 ? speed : 600, MZ2_CHICK_ROCKET_1, 2.5f, 120);
 }
 
 void ChickRocket(edict_t* self)
@@ -804,10 +804,10 @@ void ChickRocket(edict_t* self)
 			// RAFAEL
 			int damage = M_ROCKET_DMG(self);
 			if (self->s.skinnum > 1)
-				monster_fire_heat(self, start, dir, damage > 0 ? damage : 50, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.075f);
+				monster_fire_heat(self, start, dir, M_HEAT_DMG(self), rocketSpeed, MZ2_CHICK_ROCKET_1, 0.075f);
 			else
 				// RAFAEL
-				monster_fire_rocket(self, start, dir, damage > 0 ? damage : 50, rocketSpeed, MZ2_CHICK_ROCKET_1);
+				monster_fire_rocket(self, start, dir, M_ROCKET_DMG(self), rocketSpeed, MZ2_CHICK_ROCKET_1);
 		}
 		else
 		{
@@ -818,7 +818,9 @@ void ChickRocket(edict_t* self)
 			vec += (right * -10);
 			dir = vec - start;
 			dir.normalize();
-			int damage = M_GET_DMG_OR(self, ROCKET, 50);
+
+			int config_damage = (self->s.skinnum > 1) ? M_ROCKET_DMG(self) : M_ROCKET_DMG(self);
+			int damage = config_damage;
 
 			trace = gi.traceline(start, vec, self, MASK_PROJECTILE);
 			if (!(trace.startsolid || trace.allsolid || (trace.fraction < 0.5f)))
@@ -828,7 +830,7 @@ void ChickRocket(edict_t* self)
 					monster_fire_heat(self, start, dir, damage, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.095f);
 				else
 					// RAFAEL
-					monster_fire_rocket(self, start, dir, damage + 10, rocketSpeed, MZ2_CHICK_ROCKET_1);
+					monster_fire_rocket(self, start, dir, damage, rocketSpeed, MZ2_CHICK_ROCKET_1);
 			}
 			else
 			{
@@ -854,7 +856,8 @@ void ChickRocket(edict_t* self)
 	{
 		if (trace.fraction > 0.5f || trace.ent->solid != SOLID_BSP)
 		{
-			int damage = M_GET_DMG_OR(self, ROCKET, 50);
+			int config_damage = (self->s.skinnum > 1) ? M_ROCKET_DMG(self) : M_ROCKET_DMG(self);
+			int damage = config_damage;
 			// RAFAEL
 			if (self->s.skinnum > 1)
 				monster_fire_heat(self, start, dir, damage, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.15f);
@@ -924,7 +927,7 @@ void ChickRailgun(edict_t* self)
 	dir.normalize();
 
 	gi.sound(self, CHAN_WEAPON, sound_railgun, 1, ATTN_NORM, 0);
-	monster_fire_railgun(self, start, dir, 80, 100, MZ2_CHICK_ROCKET_1); // Using MZ2_CHICK_ROCKET_1 for flash
+	monster_fire_railgun(self, start, dir, M_RAILGUN_DMG(self), 100, MZ2_CHICK_ROCKET_1); // Using MZ2_CHICK_ROCKET_1 for flash
 }
 
 void Chick_PreAttack1(edict_t* self)

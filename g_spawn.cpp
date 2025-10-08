@@ -1970,12 +1970,13 @@ static void G_InitStatusbar()
 		sb.ifstat(STAT_HEALTH_BARS).yt(24).health_bars().endifstat();
 		sb.xr(-68).yt(12).num(4, STAT_FRAGS).xr(-37).yt(1).string2("Score");
 
+		sb.xr(-53).yt(68).num(3, STAT_SPREE).xr(-37).yt(53).string2("Spree");
+
 		sb.ifstat(STAT_ID_DAMAGE)
 			.xv(130).yv(150).string2("DMG-ID")
 			.xv(136).yv(159).num(5, STAT_ID_DAMAGE)
 			.endifstat();
 
-		//	sb.xr(-53).yt(68).num(3, STAT_SPREE).xr(-45).yt(53).string2("Spree");
 
 		sb.ifstat(STAT_COOP_RESPAWN).xv(0).yt(210).loc_stat_cstring2(STAT_COOP_RESPAWN).endifstat();
 

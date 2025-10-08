@@ -2598,6 +2598,8 @@ void HordeScoreboardMessage(edict_t *ent, edict_t *killer)
 		}
 	}
 
+	gi.Com_PrintFmt("--- BEGIN SCOREBOARD LAYOUT ---\n{}\n--- END SCOREBOARD LAYOUT ---\n", final_layout.c_str());
+
 	// Send to client
 	gi.WriteByte(svc_layout);
 	gi.WriteString(final_layout.c_str());

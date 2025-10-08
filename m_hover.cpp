@@ -390,7 +390,7 @@ void hover_fire_rocket(edict_t* self)
     dir.normalize();
     trace = gi.traceline(start, vec, self, MASK_PROJECTILE);
     if (trace.fraction > 0.5f || trace.ent == self->enemy || trace.ent->solid != SOLID_BSP)
-        monster_fire_rocket(self, start, dir, 22, rocketSpeed, MZ2_BOSS2_ROCKET_3);
+        monster_fire_rocket(self, start, dir, M_ROCKET_DMG(self), M_ROCKET_SPEED(self), MZ2_BOSS2_ROCKET_3);
 }
 
 void hover_fire_grenades(edict_t* self)
@@ -431,7 +431,7 @@ void hover_fire_grenades(edict_t* self)
     // pmm
 
     aim.normalize();
-    monster_fire_grenade(self, start, aim, 24, GRENADE_SPEED, flash_number,
+    monster_fire_grenade(self, start, aim, M_GRENADE_DMG(self), M_GRENADE_SPEED(self), flash_number,
         (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
 }
 

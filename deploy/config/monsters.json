@@ -243,7 +243,8 @@
       "power_armor_type": "shield",
       "damage_scale": 1.0,
       "weapon_damage": {
-        "melee": 30
+        "melee": 30,
+        "grenade": 25
       }
     },
 
@@ -254,7 +255,8 @@
       "damage_scale": 1.0,
       "weapon_damage": {
         "flechette": 12,
-        "melee": 30
+        "melee": 30,
+        "grenade": 20
       }
     },
 
@@ -266,7 +268,7 @@
       "health_scale": 1.0,
       "weapon_damage": {
         "machinegun": 9,
-        "grenade": 55,
+        "grenade": 40,
         "melee": 22
       }
     },
@@ -354,27 +356,26 @@
         "slam": 75
       }
     },
+"// ========== CHICKS ==========": "",
+"chick": {
+  "health": 165,
+  "power_armor_power": 75,
+  "power_armor_type": "combat",
+  "damage_scale": 1.0,
+  "weapon_damage": {
+    "melee": 25,
+    "rocket": 25
+  }
+},
 
-    "// ========== CHICKS ==========": "",
-    "chick": {
-      "health": 165,
-      "power_armor_power": 75,
-      "power_armor_type": "combat",
-      "damage_scale": 1.0,
-      "weapon_damage": {
-        "melee": 25
-      }
-    },
-
-    "chick_heat": {
-      "health": 430,
+  "chick_heat": {
+    "health": 430,
       "power_armor_power": 150,
       "power_armor_type": "shield",
       "damage_scale": 1.2,
       "health_scale": 3.0,
       "weapon_damage": {
         "heat": 60,
-        "rocket": 60,
         "melee": 35
       }
     },
@@ -460,7 +461,10 @@
       "health": 240,
       "power_armor_power": 100,
       "power_armor_type": "shield",
-      "damage_scale": 1.0
+      "damage_scale": 1.0,
+      "weapon_damage": {
+        "rocket": 15
+      }
     },
 
     "hover_vanilla": {
@@ -469,7 +473,7 @@
       "power_armor_type": "screen",
       "damage_scale": 1.2,
       "weapon_damage": {
-        "blaster": 12
+        "blaster": 11
       }
     },
 
@@ -479,7 +483,7 @@
       "power_armor_type": "screen",
       "damage_scale": 0.8,
       "weapon_damage": {
-        "blaster2": 12
+        "blaster2": 13
       }
     },
 
@@ -489,7 +493,7 @@
       "power_armor_type": "screen",
       "damage_scale": 1.2,
       "weapon_damage": {
-        "grenade": 60
+        "grenade": 23
       }
     },
 
@@ -551,11 +555,11 @@
     },
 
     "gekkkl": {
-      "health": 750,
-      "power_armor_power": 270,
+      "health": 550,
+      "power_armor_power": 170,
       "power_armor_type": "screen",
       "damage_scale": 1.17,
-      "health_scale": 1.1,
+      "health_scale": 1.0,
       "weapon_damage": {
         "melee": 22,
         "plasma": 10,
@@ -670,7 +674,7 @@
     },
 
     "psxarachnid": {
-      "health": 1800,
+      "health": 800,
       "power_armor_power": 500,
       "power_armor_type": "combat",
       "damage_scale": 1.2,

@@ -222,7 +222,7 @@ void boss2_firebullet_right(edict_t *self)
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_MACHINEGUN_R1], forward, right);
 	PredictAim(self, self->enemy, start, 0, true, -0.2f, &forward, nullptr);
-	monster_fire_bullet(self, start, forward, self->monsterinfo.IS_BOSS ? 6 : 5, 4, DEFAULT_BULLET_HSPREAD * 1.2, DEFAULT_BULLET_VSPREAD, MZ2_BOSS2_MACHINEGUN_R1);
+	monster_fire_bullet(self, start, forward, M_MACHINEGUN_DMG(self), 4, DEFAULT_BULLET_HSPREAD * 1.2, DEFAULT_BULLET_VSPREAD, MZ2_BOSS2_MACHINEGUN_R1);
 }
 
 void boss2_firebullet_left(edict_t *self)
@@ -236,7 +236,7 @@ void boss2_firebullet_left(edict_t *self)
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_MACHINEGUN_L1], forward, right);
 	PredictAim(self, self->enemy, start, 0, true, -0.2f, &forward, nullptr);
-	monster_fire_bullet(self, start, forward, self->monsterinfo.IS_BOSS ? 6 : 5, 4, DEFAULT_BULLET_HSPREAD * 1.2, DEFAULT_BULLET_VSPREAD, MZ2_BOSS2_MACHINEGUN_L1);
+	monster_fire_bullet(self, start, forward, M_MACHINEGUN_DMG(self), 4, DEFAULT_BULLET_HSPREAD * 1.2, DEFAULT_BULLET_VSPREAD, MZ2_BOSS2_MACHINEGUN_L1);
 }
 
 void Boss2MachineGun(edict_t *self)

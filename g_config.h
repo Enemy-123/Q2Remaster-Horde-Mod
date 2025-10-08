@@ -360,6 +360,18 @@ struct MonsterStatsConfig
 	float speed_scale = 1.0f;          // Projectile speed adjustment
 	float armor_scale = 1.0f;          // Boss: 1.5x
 	float power_armor_scale = 1.0f;    // Boss: 1.5x
+
+
+//// =======================================================================
+// ADD THIS NEW BLOCK OF CODE
+// =======================================================================
+// Load weapon damage overrides
+
+	std::unordered_map<std::string, int> weapon_damage_overrides; 
+// =======================================================================
+// END OF NEW CODE
+// =======================================================================
+
 };
 
 // Monsters configuration - maps MonsterTypeID to stats

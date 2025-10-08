@@ -785,7 +785,7 @@ void arachnid_rail(edict_t* self)
     dir = self->pos1 - start;
     dir.normalize();
 
-    monster_fire_railgun(self, start, dir, self->monsterinfo.IS_BOSS ? 40 : 35, 100, id);
+    monster_fire_railgun(self, start, dir, M_RAILGUN_DMG(self), 100, id);
 }
 
 // Attack animations
@@ -923,14 +923,14 @@ void spider_plasma(edict_t* self)
     dir = target_pos - start;
     dir.normalize();
 
-    int damage = 30;
-    int radius_damage = 60;
+    int damage = M_PLASMA_DMG(self); //30
+    int radius_damage = M_PLASMA_RADIUS(self); //60
 
     // Play proper plasma fire sound
     gi.sound(self, CHAN_WEAPON, sound_plasma, 1.f, ATTN_NORM, 0.f);
 
     // Fire plasma shot
-    fire_plasma(self, start, dir, damage, 900, radius_damage, radius_damage);
+    fire_plasma(self, start, dir, damage, M_PLASMA_SPEED(self), radius_damage, radius_damage);
 
     // Chance for enhanced shot at higher difficulties
     if (skill->integer >= 2 && frandom() < 0.35f) {
@@ -1157,7 +1157,7 @@ void arachnid2_rail(edict_t* self)
     dir = self->pos1 - start;
     dir.normalize();
 
-    monster_fire_railgun(self, start, dir, 50, 100, id);
+    monster_fire_railgun(self, start, dir, M_RAILGUN_DMG(self), 100, id);
 }
 
 // Attack animations for arachnid2
@@ -1636,7 +1636,7 @@ void arachnid_psx_rail_real(edict_t* self, monster_muzzleflash_id_t id)
         dmg = 50;
     }
 
-    bool const hit = monster_fire_railgun(self, start, dir, dmg, dmg * 2.0f, id);
+    bool const hit = monster_fire_railgun(self, start, dir, M_RAILGUN_DMG(self), dmg * 2.0f, id);
 
     if (dmg == 50)
     {
