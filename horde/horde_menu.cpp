@@ -2468,37 +2468,60 @@ void addPlayerList() {
 			y, ping_str));
 	}
 }
-void addSpectators() {
-    if (layout_builder.size() < MAX_CTF_STAT_LENGTH - LAYOUT_SAFETY_MARGIN && !spectators.empty()) {
-        int y = PLAYER_Y_START + (std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY) + 2) * PLAYER_Y_SPACING;
 
-        // --- OPTIMIZATION ---
-        // Switched from the complex 'loc_string2' to the simpler 'string2'.
-        // This is more direct and saves a couple of bytes.
-        layout_builder.append(fmt::format(
-            "if 0 xv -90 yv {} string2 \"Spectators & AFK\" endif \n", y));
-        y += PLAYER_Y_SPACING;
 
-        size_t spectators_to_display = std::min(spectators.size(), MAX_SPECTATORS_TO_DISPLAY);
-        for (size_t i = 0; i < spectators_to_display; ++i) {
-            const auto& spec = spectators[i];
-            if (layout_builder.size() >= MAX_CTF_STAT_LENGTH - LAYOUT_SAFETY_MARGIN) {
-                break;
-            }
-            // This 'ctf' command is already highly efficient. No changes needed.
-            layout_builder.append(fmt::format(
-                "if 0 ctf -90 {} {} {:5} {} \"\" endif \n",
-                y, spec.index, spec.score, spec.ping));
-            y += PLAYER_Y_SPACING;
-        }
+void addSpectators()
+{
+	if (layout_builder.size() < MAX_CTF_STAT_LENGTH - LAYOUT_SAFETY_MARGIN && !spectators.empty())
+	{
+		// Calculate the starting Y position for the spectator list, leaving a gap after the player list.
+		int y = PLAYER_Y_START + (std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY) + 1) * PLAYER_Y_SPACING;
 
-        if (spectators.size() > spectators_to_display) {
-            // This 'string' command is also efficient. No changes needed.
-            layout_builder.append(fmt::format(
-                "if 0 xv -90 yv {} string \"... and {} more\" endif \n",
-                y, spectators.size() - spectators_to_display));
-        }
-    }
+		// Add the "Spectators & AFK" header, aligning it with the "Name" column for consistency.
+		layout_builder.append(fmt::format(
+			"if 0 xv -90 yv {} string2 \"Spectators & AFK\" endif \n", y));
+		y += PLAYER_Y_SPACING; // Add a bit more space after the header
+
+		// Loop through the spectators to display
+		size_t spectators_to_display = std::min(spectators.size(), MAX_SPECTATORS_TO_DISPLAY);
+		for (size_t i = 0; i < spectators_to_display; ++i)
+		{
+			const auto &spec = spectators[i];
+			if (layout_builder.size() >= MAX_CTF_STAT_LENGTH - LAYOUT_SAFETY_MARGIN)
+			{
+				break; // Stop if we're about to exceed the layout string buffer
+			}
+
+			// --- Manual Placement for Spectators ---
+			// This logic now mirrors the addPlayerList function exactly.
+			edict_t *spec_ent = g_edicts + 1 + spec.index;
+			const char *spec_name = GetPlayerName(spec_ent);
+			std::string score_str = fmt::format("{}", spec.score);
+			std::string ping_str = fmt::format("{}", spec.ping);
+
+			// This single command places each string at its specific coordinate.
+			layout_builder.append(fmt::format(
+				// Column 1: Name (starts at x=-130)
+				"if 0 xv -130 yv {} string2 \"{}\" "
+				// Column 2: Score (starts at x=70)
+				"xv 70 yv {} string2 \"{}\" "
+				// Column 3: Ping (starts at x=120)
+				"xv 120 yv {} string2 \"{}\" endif \n",
+				y, spec_name,
+				y, score_str,
+				y, ping_str));
+
+			y += PLAYER_Y_SPACING;
+		}
+
+		// If there are more spectators than we can display, add the "... and X more" message.
+		if (spectators.size() > spectators_to_display)
+		{
+			layout_builder.append(fmt::format(
+				"if 0 xv -130 yv {} string2 \"... and {} more\" endif \n",
+				y, spectators.size() - spectators_to_display));
+		}
+	}
 }
 
 	void addFooter() {
