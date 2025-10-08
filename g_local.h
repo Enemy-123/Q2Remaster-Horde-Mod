@@ -2047,11 +2047,11 @@ extern std::mt19937 mt_rand;
 }
 
 // uniform int [min, max)
-// always returns min if min == (max - 1)
-// undefined behavior if min > (max - 1)
+// always returns min if min >= (max - 1)
+// this handles edge cases where damage_min == damage_max in configs
 [[nodiscard]] inline int32_t irandom(int32_t min_inclusive, int32_t max_exclusive)
 {
-	if (min_inclusive == max_exclusive - 1)
+	if (min_inclusive >= max_exclusive)
 		return min_inclusive;
 
 	return std::uniform_int_distribution<int32_t>(min_inclusive, max_exclusive - 1)(mt_rand);

@@ -589,10 +589,12 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 		return;
 
 	const spawn_temp_t& st = ED_GetSpawnTemp();
-	
+
+	// Use base_health for power armor calculation to avoid double-scaling issues
+	// base_health is set before any bonus multipliers are applied
 	if (monster->monsterinfo.bonus_flags != BF_NONE && (!(monster->monsterinfo.bonus_flags & BF_FRIENDLY))) {
 		if (!st.was_key_specified("power_armor_power"))
-			monster->monsterinfo.power_armor_power = static_cast<int>(round(monster->max_health * BONUS_POWER_ARMOR_RATIO));
+			monster->monsterinfo.power_armor_power = static_cast<int>(round(monster->monsterinfo.base_health * BONUS_POWER_ARMOR_RATIO));
 		if (!st.was_key_specified("power_armor_type"))
 			monster->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 	}
@@ -652,6 +654,9 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 		monster->monsterinfo.quad_time = level.time + 475_sec;
 	}
 
+	// Update max_health to match the final health value after all bonus multipliers
+	// Note: monster_start() sets max_health = health initially, but we need to update it
+	// here after ApplyMonsterBonusFlags applies health multipliers
 	monster->max_health = monster->health;
 	monster->s.renderfx |= RF_IR_VISIBLE;
 
