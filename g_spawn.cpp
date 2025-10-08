@@ -1949,7 +1949,7 @@ static void G_InitStatusbar()
 	//	sb.ifstat(STAT_CTF_ID_VIEW).xv(127).yb(-80).stat_pname(STAT_CTF_ID_VIEW).endifstat();
 		sb.ifstat(STAT_TARGET_HEALTH_STRING).xv(127).yb(-80).stat_string(STAT_TARGET_HEALTH_STRING).endifstat();
 
-		sb.xr(-55).yt(12).num(4, STAT_FRAGS).xr(-31).yt(1).string2("Frags");
+		sb.xr(-58).yt(12).num(4, STAT_FRAGS).xr(-37).yt(1).string2("Frags");
 		sb.xr(-52).yb(-23).num(3, STAT_REMAINING_MONSTERS).xr(-117).yb(-23).string2(" Stroggs \n To  Kill!");
 		sb.ifstat(STAT_COOP_RESPAWN).xv(0).yt(210).loc_stat_cstring2(STAT_COOP_RESPAWN).endifstat();
 		sb.ifstat(STAT_LIVES).xr(-26).yt(49).lives_num(STAT_LIVES).xr(-8).yt(28).loc_rstring("$g_lives").endifstat();
@@ -1973,7 +1973,7 @@ static void G_InitStatusbar()
 			.endifstat();
 
 		sb.ifstat(STAT_HEALTH_BARS).yt(24).health_bars().endifstat();
-		sb.xr(-55).yt(12).num(4, STAT_FRAGS).xr(-31).yt(1).string2("Frags");
+		sb.xr(-58).yt(12).num(4, STAT_FRAGS).xr(-37).yt(1).string2("Frags");
 
 		sb.ifstat(STAT_ID_DAMAGE)
 			.xv(130).yv(150).string2("DMG-ID")
@@ -1997,11 +1997,7 @@ static void G_InitStatusbar()
 		sb.ifstat(STAT_TARGET_HEALTH_STRING).xv(127).yb(-80).stat_string(STAT_TARGET_HEALTH_STRING).endifstat();
 
 		// HORDE WAVE
-		if (g_horde->integer && pvm->integer == 0)
 		sb.xl(2).yb(-23).string2("Horde MODE");
-		else
-		sb.xl(2).yb(-23).string2("PvM MODE");
-
 		sb.ifstat(STAT_WAVE_NUMBER)
 			.xl(82).yb(-23).num(3, STAT_WAVE_NUMBER)
 			.xl(2).yb(-23).string(" \nWave Level:")
