@@ -2432,7 +2432,7 @@ public:
 			// You can also use the custom dogtag on the intermission screen
 			layout_builder.append(fmt::format(
 				"if 25 xv -130 yv 3 picn {} endif "
-				"if 25 xv 205 yv 8 pic 25 endif "
+				"if 25 xv 205 yv 3 pic 25 endif "
 				"if 0 xv 70 yv -20 num 0 {} endif \n",
 				horde_dogtag_path,
 				total_score));
