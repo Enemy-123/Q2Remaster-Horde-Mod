@@ -2867,9 +2867,9 @@ void VerifyAndAdjustBots()
 		const int32_t baseBots = mapSize.isBigMap ? 6 : 4;
 
 		// Agregar bot extra si current_wave_level >= 20
-		const int32_t extraBot = (current_wave_level >= 20) ? 1 : 0;
-		const int32_t requiredBots = std::max(baseBots + spectPlayers + extraBot, baseBots);
-
+		//const int32_t extraBot = (current_wave_level >= 20) ? 1 : 0;
+		//const int32_t requiredBots = std::max(baseBots + spectPlayers + extraBot, baseBots);
+		const int32_t requiredBots = std::max(baseBots + spectPlayers, baseBots)
 		gi.cvar_set("bot_minClients", std::to_string(requiredBots).c_str());
 	}
 }

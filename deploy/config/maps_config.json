@@ -131,6 +131,12 @@
       "enable_loadent": true,
       "map_size": "medium"
     },
+    "ec/base_ec": {
+      "monster_cap": -1,
+      "enable_grid": true,
+      "enable_loadent": true,
+      "map_size": "medium"
+    },
     "_TEMPLATE_SECTION": {
       "_comment": "Copy maps from below to root level and remove underscore prefix to activate",
 
