@@ -998,9 +998,9 @@ void InitClientPt(const edict_t* ent, gclient_t* client)
 	client->pers.iddmg_state = saved_iddmg_state;
 	client->pers.sentry_gun_choice = saved_sentrygun_state;
 
-	// Reset health values
-	client->pers.health = 100;
-	client->pers.max_health = 100;
+	// Reset health values 
+		client->pers.health = 100;
+		client->pers.max_health = 100;
 }
 // Helper function to verify if an item is a TECH item
 bool IsTechItem(int item_id) noexcept
@@ -1026,6 +1026,10 @@ int CalculateWaveBasedMaxHealth(int base_max_health, gclient_t* client = nullptr
 {
 	if (!g_horde->integer && !pvm->integer)
 		return max(100, base_max_health);
+
+	// PvM mode: Don't apply wave-based scaling, vitality handles health instead
+	if (IsPvMMode())
+		return base_max_health;
 
 	// Calculate health based on wave tier (optimized lookup)
 	int calculated_max_health = base_max_health;
@@ -2758,7 +2762,10 @@ void PutClientInServer(edict_t* ent)
 				resp.coop_respawn.game_help1changed = client->pers.game_help1changed;
 				resp.coop_respawn.game_help2changed = client->pers.game_help2changed;
 				resp.coop_respawn.helpchanged = client->pers.helpchanged;
-				client->pers = resp.coop_respawn;
+				// PvM: Don't overwrite pers with old coop_respawn (it has pre-vitality health values)
+				// InitClientPersistant will handle health properly with vitality bonuses
+				if (!IsPvMMode())
+					client->pers = resp.coop_respawn;
 			}
 			else if (!client->pers.weapon)
 			{
@@ -3940,6 +3947,16 @@ void UpdateClientHealth(edict_t* ent, gclient_t* client)
 	if ((!g_horde->integer && !pvm->integer) || client->resp.spectator || !client->pers.spawned ||
 		ent->health <= 0 || ent->deadflag)
 		return;
+
+	// PvM mode: Skip wave-based health updates, vitality handles max health
+	if (IsPvMMode())
+	{
+		// client->resp.max_health = ent->max_health;
+		// client->pers.max_health = ent->max_health;
+		// ent->health = ent->max_health;
+
+		return;
+	}
 
 	const int new_max_health = CalculateWaveBasedMaxHealth(100, client);
 
