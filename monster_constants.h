@@ -204,7 +204,7 @@ extern int16_t current_wave_level;
 #define M_ADDON_ARMOR(ent)              GetMonsterScaledArmor((ent)->monsterinfo.monster_type_id, current_wave_level, (ent)->monsterinfo.IS_BOSS)
 
 // Power armor macros
-#define M_POWER_ARMOR_TYPE(ent)         GetMonsterPowerArmorType((ent)->monsterinfo.monster_type_id)
+#define M_POWER_ARMOR_TYPE(ent)         static_cast<item_id_t>(GetMonsterPowerArmorType((ent)->monsterinfo.monster_type_id))
 #define M_INITIAL_POWER_ARMOR(ent)      GetMonsterBasePowerArmor((ent)->monsterinfo.monster_type_id)
 #define M_ADDON_POWER_ARMOR(ent)        GetMonsterScaledPowerArmor((ent)->monsterinfo.monster_type_id, current_wave_level, (ent)->monsterinfo.IS_BOSS)
 

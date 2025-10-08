@@ -2158,13 +2158,13 @@ void SP_monster_gm_arachnid(edict_t* self)
     self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GM_ARACHNID);
     SP_monster_arachnid2(self); // Calls the base spawner
 
-    self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+    self->monsterinfo.armor_type = M_POWER_ARMOR_TYPE(self);
     self->monsterinfo.armor_power = M_GM_ARACHNID_ADDON_ARMOR(self);
     self->style = 1; // This style flag is used in arachnid2_attack, we can replace that later.
     if (g_horde && g_horde->integer && current_wave_level > 0) {
-        self->health = M_GM_ARACHNID_ADDON_HEALTH(self);
+        self->health = M_ADDON_HEALTH(self);
     } else {
-        self->health = M_GM_ARACHNID_INITIAL_HEALTH * st.health_multiplier;
+        self->health = M_INITIAL_HEALTH(self) * st.health_multiplier;
     }
     if (g_horde->integer) {
         self->s.scale = 0.85f;
