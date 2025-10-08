@@ -246,3 +246,89 @@ void PvM_OpenStatsMenu(edict_t* player)
 
     PMenu_Open(player, entries, -1, count, nullptr, nullptr);
 }
+
+// Award XP to player
+void PvM_AwardExperience(edict_t* player, int32_t xp_amount)
+{
+    if (!player || !player->client)
+        return;
+
+    // Award XP
+    player->client->pers.pvm_xp += xp_amount;
+
+    // Show XP award message
+    gi.LocClient_Print(player, PRINT_HIGH, nullptr, "+{} XP\n", xp_amount);
+
+    // Check for level-up
+    PvM_CheckLevelUp(player);
+
+    // Save character data
+    Character_Save(player);
+}
+
+// Check and process level-ups
+void PvM_CheckLevelUp(edict_t* player)
+{
+    if (!player || !player->client)
+        return;
+
+    int32_t current_level = player->client->pers.pvm_level;
+    int32_t current_xp = player->client->pers.pvm_xp;
+    int32_t xp_for_next = PvM_GetXPForLevel(current_level + 1);
+
+    // Check if player has enough XP for next level
+    while (current_xp >= xp_for_next && current_level < 99) // Max level 99
+    {
+        // Level up!
+        current_level++;
+        player->client->pers.pvm_level = current_level;
+        player->client->pers.pvm_stat_points++; // Grant 1 stat point per level
+
+        // Show level-up message
+        gi.LocCenter_Print(player, "\n\n\nLEVEL UP!\nYou are now level {}!\n+1 Stat Point\n",
+                          current_level);
+        gi.LocClient_Print(player, PRINT_HIGH, nullptr, "*** LEVEL UP! You are now level {}! ***\n",
+                          current_level);
+
+        // Update for next iteration
+        xp_for_next = PvM_GetXPForLevel(current_level + 1);
+    }
+}
+
+// Apply PvM stat bonuses to player
+void PvM_ApplyStatBonuses(edict_t* player)
+{
+    if (!player || !player->client)
+        return;
+
+    // Get stat levels
+    int32_t max_ammo_level = player->client->pers.pvm_max_ammo_level;
+    int32_t vitality_level = player->client->pers.pvm_vitality_level;
+
+    // Apply Max Ammo bonuses (from pvm_stats.json)
+    if (max_ammo_level > 0)
+    {
+        player->client->pers.max_ammo[AMMO_SHELLS] += max_ammo_level * 5;
+        player->client->pers.max_ammo[AMMO_BULLETS] += max_ammo_level * 10;
+        player->client->pers.max_ammo[AMMO_ROCKETS] += max_ammo_level * 2;
+        player->client->pers.max_ammo[AMMO_CELLS] += max_ammo_level * 10;
+        player->client->pers.max_ammo[AMMO_GRENADES] += max_ammo_level * 3;
+        player->client->pers.max_ammo[AMMO_SLUGS] += max_ammo_level * 3;
+        player->client->pers.max_ammo[AMMO_MAGSLUG] += max_ammo_level * 2;
+        player->client->pers.max_ammo[AMMO_PROX] += max_ammo_level * 1;
+        player->client->pers.max_ammo[AMMO_TRAP] += max_ammo_level * 1;
+        player->client->pers.max_ammo[AMMO_TESLA] += max_ammo_level * 2;
+    }
+
+    // Apply Vitality bonuses (from pvm_stats.json)
+    if (vitality_level > 0)
+    {
+        int health_bonus = vitality_level * 10;
+        player->client->pers.max_health += health_bonus;
+        player->client->resp.max_health += health_bonus;
+        player->max_health += health_bonus;
+        player->health = player->max_health;
+        // Note: Armor in Q2 is handled through inventory items, not a max_armor field
+        // Future enhancement: Could give armor pickups or modify armor pickup logic
+    }
+}

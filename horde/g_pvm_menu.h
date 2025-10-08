@@ -22,3 +22,12 @@ int32_t PvM_GetXPForLevel(int32_t level);
 
 // Get current XP required for player's next level
 int32_t PvM_GetXPToNextLevel(edict_t* player);
+
+// Award XP to player (called on monster kill)
+void PvM_AwardExperience(edict_t* player, int32_t xp_amount);
+
+// Check and process level-ups
+void PvM_CheckLevelUp(edict_t* player);
+
+// Apply PvM stat bonuses to player (called on spawn/respawn)
+void PvM_ApplyStatBonuses(edict_t* player);

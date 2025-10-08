@@ -2,6 +2,7 @@
 // Licensed under the GNU General Public License 2.0.
 #include "g_local.h"
 #include "horde/g_horde_benefits.h"
+#include "horde/g_pvm_menu.h"
 #include "bots/bot_includes.h"
 #include "shared.h"
 #include "monster_constants.h"
@@ -867,10 +868,25 @@ void G_MonsterKilled(edict_t* self)
     if (self->enemy && self->enemy->client)
     {
         AwardKillToPlayer(self->enemy);
+
+		// Award PvM XP if in PvM mode
+		if (pvm->integer)
+		{
+			// Base XP per monster kill (can be made configurable later)
+			constexpr int32_t BASE_MONSTER_XP = 8;
+			PvM_AwardExperience(self->enemy, BASE_MONSTER_XP);
+		}
     }
     else if (self->enemy && self->enemy->owner && self->enemy->owner->client)
     {
         AwardKillToPlayer(self->enemy->owner);
+
+		// Award PvM XP if in PvM mode
+		if (pvm->integer)
+		{
+			constexpr int32_t BASE_MONSTER_XP = 3;
+			PvM_AwardExperience(self->enemy->owner, BASE_MONSTER_XP);
+		}
     }
 	
 	// Debugging: Track monster kills if enabled

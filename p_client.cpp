@@ -10,6 +10,7 @@
 #include "horde/horde_ids.h"
 #include "horde/p_flyer_morph.h"
 #include "horde/p_brain_morph.h"
+#include "horde/g_pvm_menu.h"
 
 void SP_misc_teleporter_dest(edict_t* ent);
 
@@ -1134,10 +1135,8 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 	// PvM Mode: Give respawn weapon only, then return
 	if (IsPvMMode())
 	{
-		// Set health
-		const int new_max_health = CalculateWaveBasedMaxHealth(100, client);
-		client->pers.max_health = client->resp.max_health = ent->max_health = new_max_health;
-		client->pers.health = new_max_health;
+		// Set base health (100) - vitality bonus will be added by PvM_ApplyStatBonuses
+		client->pers.max_health = client->resp.max_health = ent->max_health = 100;
 
 		// Set max ammo values (required for weapon to work properly)
 		client->pers.max_ammo[AMMO_BULLETS] = 200;
@@ -1152,6 +1151,12 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 		client->pers.max_ammo[AMMO_PROX] = 50;
 		client->pers.max_ammo[AMMO_TESLA] = 50;
 		client->pers.max_ammo[AMMO_TRAP] = 5;
+
+		// Apply PvM stat bonuses (Max Ammo, Vitality)
+		PvM_ApplyStatBonuses(ent);
+
+		// Set health to max after stat bonuses are applied
+		client->pers.health = client->pers.max_health;
 
 		// Clear inventory (they only get respawn weapon)
 		client->pers.inventory.fill(0);

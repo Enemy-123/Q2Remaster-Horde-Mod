@@ -31,10 +31,9 @@
       }
     },
     "vitality": {
-      "comment": "Increases maximum health and armor",
+      "comment": "Increases maximum health",
       "max_level": 10,
-      "health_per_level": 10,
-      "armor_per_level": 5
+      "health_per_level": 10
     }
   },
 

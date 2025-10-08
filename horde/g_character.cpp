@@ -92,8 +92,11 @@ void Character_CreateDefault(edict_t* player)
     root["preferences"]["iddmg_display"] = data.iddmg_display;
     root["preferences"]["sentry_gun_choice"] = data.sentry_gun_choice;
     root["preferences"]["morph_preference"] = data.morph_preference;
-    root["stats"]["level"] = data.level;
-    root["stats"]["xp"] = data.xp;
+    root["stats"]["pvm_level"] = 1;
+    root["stats"]["pvm_xp"] = 0;
+    root["stats"]["pvm_stat_points"] = 0;
+    root["stats"]["pvm_max_ammo_level"] = 0;
+    root["stats"]["pvm_vitality_level"] = 0;
 
     std::string filepath = Character_GetFilePath(player);
     std::ofstream file(filepath, std::ios::out | std::ios::trunc);
@@ -180,11 +183,26 @@ bool Character_Load(edict_t* player)
             player->client->pers.morph_preference = prefs["morph_preference"].asInt();
     }
 
-    // Future: Load stats (level, xp, etc.)
+    // Load PvM stats
+    if (root.isMember("stats") && root["stats"].isObject())
+    {
+        const Json::Value& stats = root["stats"];
+        if (stats.isMember("pvm_level") && stats["pvm_level"].isInt())
+            player->client->pers.pvm_level = stats["pvm_level"].asInt();
+        if (stats.isMember("pvm_xp") && stats["pvm_xp"].isInt())
+            player->client->pers.pvm_xp = stats["pvm_xp"].asInt();
+        if (stats.isMember("pvm_stat_points") && stats["pvm_stat_points"].isInt())
+            player->client->pers.pvm_stat_points = stats["pvm_stat_points"].asInt();
+        if (stats.isMember("pvm_max_ammo_level") && stats["pvm_max_ammo_level"].isInt())
+            player->client->pers.pvm_max_ammo_level = stats["pvm_max_ammo_level"].asInt();
+        if (stats.isMember("pvm_vitality_level") && stats["pvm_vitality_level"].isInt())
+            player->client->pers.pvm_vitality_level = stats["pvm_vitality_level"].asInt();
+    }
 
-    gi.Com_PrintFmt("Character: Loaded character for {} (respawn weapon: {})\n",
+    gi.Com_PrintFmt("Character: Loaded character for {} (respawn weapon: {}, PvM level: {})\n",
                     GetPlayerName(player),
-                    player->client->pers.respawn_weapon_name);
+                    player->client->pers.respawn_weapon_name,
+                    player->client->pers.pvm_level);
 
     return true;
 }
@@ -208,9 +226,12 @@ bool Character_Save(edict_t* player)
     root["preferences"]["sentry_gun_choice"] = static_cast<int32_t>(player->client->pers.sentry_gun_choice);
     root["preferences"]["morph_preference"] = player->client->pers.morph_preference;
 
-    // Future: Save stats
-    root["stats"]["level"] = 1;
-    root["stats"]["xp"] = 0;
+    // Save PvM stats
+    root["stats"]["pvm_level"] = player->client->pers.pvm_level;
+    root["stats"]["pvm_xp"] = player->client->pers.pvm_xp;
+    root["stats"]["pvm_stat_points"] = player->client->pers.pvm_stat_points;
+    root["stats"]["pvm_max_ammo_level"] = player->client->pers.pvm_max_ammo_level;
+    root["stats"]["pvm_vitality_level"] = player->client->pers.pvm_vitality_level;
 
     // Write to file
     std::string filepath = Character_GetFilePath(player);
