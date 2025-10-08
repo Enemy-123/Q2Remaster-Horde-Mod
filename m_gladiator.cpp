@@ -181,7 +181,7 @@ void GladiatorGun(edict_t* self)
 
 void Gladiator_refire_chance(edict_t* self)
 {
-	if (M_HasValidTarget && frandom() < 0.25f) 
+	if (M_HasValidTarget(self) && frandom() < 0.25f) 
 		self->monsterinfo.nextframe = FRAME_attack1; // refire
 }
 
