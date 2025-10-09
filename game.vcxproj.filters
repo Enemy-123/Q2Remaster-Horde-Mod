@@ -128,6 +128,7 @@
     <ClInclude Include="horde\g_character.h">
       <Filter>horde</Filter>
     </ClInclude>
+    <ClInclude Include="horde\g_pvm_menu.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cg_main.cpp" />
@@ -376,6 +377,7 @@
     <ClCompile Include="horde\g_character.cpp">
       <Filter>horde</Filter>
     </ClCompile>
+    <ClCompile Include="horde\g_pvm_menu.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="bots">
