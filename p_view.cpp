@@ -1048,15 +1048,26 @@ static void HORDE_ApplyAmmoRegen(edict_t* ent) {
 		return;
 	}
 
-	// Set next regeneration time based on player's spree count
-	// Faster regeneration when on a high kill streak
-	// MOD: Reduced regen times to make ammo gain more frequent.
-	constexpr gtime_t REGEN_TIME_FAST = 2.5_sec;    // Was 3.5 seconds
-	constexpr gtime_t REGEN_TIME_NORMAL = 5_sec;    // Was 7 seconds
-	constexpr int SPREE_THRESHOLD = 15;             // Spree threshold for faster regen
+	// Determine ammo amount and regen time based on skill level
+	// Lvl 1-3: +1 ammo per 3 seconds
+	// Lvl 4-6: +2 ammo per 3 seconds
+	// Lvl 7-10: +3 ammo per 2 seconds
+	int8_t ammo_regen_level = client->pers.skills.ammo_regen;
+	int ammo_amount = 1;
+	gtime_t regen_time = 3_sec;
 
-	client->ammoregentime = level.time +
-		(client->resp.spree >= SPREE_THRESHOLD ? REGEN_TIME_FAST : REGEN_TIME_NORMAL);
+	if (ammo_regen_level <= 3) {
+		ammo_amount = 1;
+		regen_time = 3_sec;
+	} else if (ammo_regen_level <= 6) {
+		ammo_amount = 2;
+		regen_time = 3_sec;
+	} else {
+		ammo_amount = 3;
+		regen_time = 2_sec;
+	}
+
+	client->ammoregentime = level.time + regen_time;
 
 	// Define regeneration rules structure
 	typedef struct {
@@ -1065,33 +1076,23 @@ static void HORDE_ApplyAmmoRegen(edict_t* ent) {
 		int alt_weapon_id;      // Alternative weapon ID (if applicable, 0 otherwise)
 		int ammo_inventory_id;  // ID of ammo in inventory
 		int ammo_max_id;        // ID for max ammo
-		int amount;             // Amount to regenerate
 	} AmmoRegenRule;
 
-	// Calculate dynamic amounts based on player upgrades
-	// MOD: Increased base amounts for dynamic calculations.
-	const int bulletAmount = PlayerHasEnergyShells(ent) ? 150 :
-		(PlayerHasTracedBullets(ent) ? 60 : 45);       // Was 120 / 45 / 30
-	const int grenadeAmount = PlayerHasNapalmGL(ent) ? 15 : 10;    // Was 10 / 6
-	const int cellAmount = PlayerHasBFGPull(ent) ? 100 : 40;       // Was 75 / 25
-	const int proxAmount = PlayerHasClusterProx(ent) ? 20 : 10;   // Was 15 / 6
-
-	// Define the regeneration rules
-	// MOD: Increased the 'Amount' field for all ammo types.
+	// Define the regeneration rules (amount is determined by skill level)
 	const AmmoRegenRule regenRules[] = {
-		// Weapon check, Weapon ID,           Alt Weapon ID,        Ammo ID,           Max Ammo ID,      Amount
-		{1,             IT_WEAPON_SHOTGUN,    IT_WEAPON_SSHOTGUN,   IT_AMMO_SHELLS,    AMMO_SHELLS,      12},            // Was 8
-		{1,             IT_WEAPON_MACHINEGUN, IT_WEAPON_CHAINGUN,   IT_AMMO_BULLETS,   AMMO_BULLETS,     bulletAmount},
-		{0,             0,                    0,                    IT_AMMO_GRENADES,  AMMO_GRENADES,    grenadeAmount},
-		{1,             IT_WEAPON_RLAUNCHER,  0,                    IT_AMMO_ROCKETS,   AMMO_ROCKETS,     9},             // Was 6
-		{1,             IT_WEAPON_HYPERBLASTER, 0,                  IT_AMMO_CELLS,     AMMO_CELLS,       cellAmount},
-		{1,             IT_WEAPON_RAILGUN,    0,                    IT_AMMO_SLUGS,     AMMO_SLUGS,       10},            // Was 6
-		{1,             IT_WEAPON_PHALANX,    0,                    IT_AMMO_MAGSLUG,   AMMO_MAGSLUG,     15},            // Was 9
-		{1,             IT_WEAPON_ETF_RIFLE,  0,                    IT_AMMO_FLECHETTES,AMMO_FLECHETTES,  40},            // Was 25
-		{1,             IT_WEAPON_PROXLAUNCHER,    0,                    IT_AMMO_PROX,      AMMO_PROX,        proxAmount},
-		{1,             IT_WEAPON_DISRUPTOR,  0,                    IT_AMMO_ROUNDS,    AMMO_DISRUPTOR,   6},             // Was 4
-		{0,             0,                    0,                    IT_AMMO_TESLA,     AMMO_TESLA,       3},             // Was 2
-		{0,             0,                    0,                    IT_AMMO_TRAP,      AMMO_TRAP,        2}              // Was 1
+		// Weapon check, Weapon ID,           Alt Weapon ID,        Ammo ID,           Max Ammo ID
+		{1,             IT_WEAPON_SHOTGUN,    IT_WEAPON_SSHOTGUN,   IT_AMMO_SHELLS,    AMMO_SHELLS},
+		{1,             IT_WEAPON_MACHINEGUN, IT_WEAPON_CHAINGUN,   IT_AMMO_BULLETS,   AMMO_BULLETS},
+		{0,             0,                    0,                    IT_AMMO_GRENADES,  AMMO_GRENADES},
+		{1,             IT_WEAPON_RLAUNCHER,  0,                    IT_AMMO_ROCKETS,   AMMO_ROCKETS},
+		{1,             IT_WEAPON_HYPERBLASTER, 0,                  IT_AMMO_CELLS,     AMMO_CELLS},
+		{1,             IT_WEAPON_RAILGUN,    0,                    IT_AMMO_SLUGS,     AMMO_SLUGS},
+		{1,             IT_WEAPON_PHALANX,    0,                    IT_AMMO_MAGSLUG,   AMMO_MAGSLUG},
+		{1,             IT_WEAPON_ETF_RIFLE,  0,                    IT_AMMO_FLECHETTES,AMMO_FLECHETTES},
+		{1,             IT_WEAPON_PROXLAUNCHER,    0,               IT_AMMO_PROX,      AMMO_PROX},
+		{1,             IT_WEAPON_DISRUPTOR,  0,                    IT_AMMO_ROUNDS,    AMMO_DISRUPTOR},
+		{0,             0,                    0,                    IT_AMMO_TESLA,     AMMO_TESLA},
+		{0,             0,                    0,                    IT_AMMO_TRAP,      AMMO_TRAP}
 	};
 
 	// Apply all regeneration rules
@@ -1139,8 +1140,8 @@ static void HORDE_ApplyAmmoRegen(edict_t* ent) {
 			continue;
 		}
 
-		// Add ammo
-		client->pers.inventory[regenRules[i].ammo_inventory_id] += regenRules[i].amount;
+		// Add ammo based on skill level
+		client->pers.inventory[regenRules[i].ammo_inventory_id] += ammo_amount;
 
 		// Cap at maximum value
 		if (client->pers.inventory[regenRules[i].ammo_inventory_id] >

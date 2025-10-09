@@ -2303,6 +2303,7 @@ void AbilityDetailMenuHandler(edict_t *ent, pmenuhnd_t *p)
 
 		if (UpgradeSkill(ent, upgrade_id))
 		{
+			Character_Save(ent);  // Save the upgrade to disk
 			gi.LocClient_Print(ent, PRINT_HIGH, "Upgraded {}!\n",
 				FindUpgradeByID(upgrade_id)->name);
 
@@ -2521,6 +2522,7 @@ void AbilitiesMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	if (strcmp(item->text_arg1, "reset_skills") == 0)
 	{
 		ResetAllSkills(ent);
+		Character_Save(ent);  // Save the reset to disk
 		PMenu_Close(ent);
 		OpenAbilitiesMenu(ent);
 		return;

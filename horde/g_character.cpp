@@ -183,7 +183,7 @@ bool Character_Load(edict_t* player)
             player->client->pers.morph_preference = prefs["morph_preference"].asInt();
     }
 
-    // Load PvM stats
+    // Load PvM stats and skill-based upgrades
     if (root.isMember("stats") && root["stats"].isObject())
     {
         const Json::Value& stats = root["stats"];
@@ -197,9 +197,39 @@ bool Character_Load(edict_t* player)
             player->client->pers.pvm_max_ammo_level = stats["pvm_max_ammo_level"].asInt();
         if (stats.isMember("pvm_vitality_level") && stats["pvm_vitality_level"].isInt())
             player->client->pers.pvm_vitality_level = stats["pvm_vitality_level"].asInt();
+
+        // Load skill points
+        if (stats.isMember("skill_points") && stats["skill_points"].isInt())
+            player->client->pers.skill_points = stats["skill_points"].asInt();
+
+        // Load skill-based upgrades
+        if (stats.isMember("skills") && stats["skills"].isObject())
+        {
+            const Json::Value& skills = stats["skills"];
+            if (skills.isMember("vampire") && skills["vampire"].isInt())
+                player->client->pers.skills.vampire = static_cast<int8_t>(skills["vampire"].asInt());
+            if (skills.isMember("ammo_regen") && skills["ammo_regen"].isInt())
+                player->client->pers.skills.ammo_regen = static_cast<int8_t>(skills["ammo_regen"].asInt());
+            if (skills.isMember("vitality") && skills["vitality"].isInt())
+                player->client->pers.skills.vitality = static_cast<int8_t>(skills["vitality"].asInt());
+            if (skills.isMember("ha_pickup") && skills["ha_pickup"].isInt())
+                player->client->pers.skills.ha_pickup = static_cast<int8_t>(skills["ha_pickup"].asInt());
+            if (skills.isMember("start_armor") && skills["start_armor"].isInt())
+                player->client->pers.skills.start_armor = static_cast<int8_t>(skills["start_armor"].asInt());
+            if (skills.isMember("max_ammo") && skills["max_ammo"].isInt())
+                player->client->pers.skills.max_ammo = static_cast<int8_t>(skills["max_ammo"].asInt());
+            if (skills.isMember("auto_haste") && skills["auto_haste"].isBool())
+                player->client->pers.skills.auto_haste = skills["auto_haste"].asBool();
+            if (skills.isMember("armor_vampirism") && skills["armor_vampirism"].isBool())
+                player->client->pers.skills.armor_vampirism = skills["armor_vampirism"].asBool();
+            if (skills.isMember("sentry_upgrade") && skills["sentry_upgrade"].isBool())
+                player->client->pers.skills.sentry_upgrade = skills["sentry_upgrade"].asBool();
+            if (skills.isMember("tesla_chain") && skills["tesla_chain"].isBool())
+                player->client->pers.skills.tesla_chain = skills["tesla_chain"].asBool();
+        }
     }
 
-    gi.Com_PrintFmt("Character: Loaded character for {} (respawn weapon: {}, PvM level: {})\n",
+    gi.Com_PrintFmt("Character: Loaded character for {} (respawn weapon: {}, PvM level: {})\\n",
                     GetPlayerName(player),
                     player->client->pers.respawn_weapon_name,
                     player->client->pers.pvm_level);
@@ -232,6 +262,19 @@ bool Character_Save(edict_t* player)
     root["stats"]["pvm_stat_points"] = player->client->pers.pvm_stat_points;
     root["stats"]["pvm_max_ammo_level"] = player->client->pers.pvm_max_ammo_level;
     root["stats"]["pvm_vitality_level"] = player->client->pers.pvm_vitality_level;
+
+    // Save skill-based upgrades
+    root["stats"]["skill_points"] = player->client->pers.skill_points;
+    root["stats"]["skills"]["vampire"] = player->client->pers.skills.vampire;
+    root["stats"]["skills"]["ammo_regen"] = player->client->pers.skills.ammo_regen;
+    root["stats"]["skills"]["vitality"] = player->client->pers.skills.vitality;
+    root["stats"]["skills"]["ha_pickup"] = player->client->pers.skills.ha_pickup;
+    root["stats"]["skills"]["start_armor"] = player->client->pers.skills.start_armor;
+    root["stats"]["skills"]["max_ammo"] = player->client->pers.skills.max_ammo;
+    root["stats"]["skills"]["auto_haste"] = player->client->pers.skills.auto_haste;
+    root["stats"]["skills"]["armor_vampirism"] = player->client->pers.skills.armor_vampirism;
+    root["stats"]["skills"]["sentry_upgrade"] = player->client->pers.skills.sentry_upgrade;
+    root["stats"]["skills"]["tesla_chain"] = player->client->pers.skills.tesla_chain;
 
     // Write to file
     std::string filepath = Character_GetFilePath(player);

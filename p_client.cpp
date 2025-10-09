@@ -1364,12 +1364,6 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 
 		G_CheckPowerArmor(ent);
 
-		// Apply Start Armor skill - 10 armor per level
-		if (client->pers.skills.start_armor > 0)
-		{
-			client->pers.inventory[IT_ARMOR_BODY] = client->pers.skills.start_armor * 10;
-		}
-
 		// Standard items for non-deathmatch/coop
 		if (!is_deathmatch || is_coop)
 		{
@@ -1443,8 +1437,11 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	if (ent->client->pers.autoshield >= AUTO_SHIELD_AUTO)
 		client->pers.savedFlags |= FL_WANTS_POWER_ARMOR;
 
-	if (PlayerHasStartArmor(ent))
-		client->pers.inventory[IT_ARMOR_BODY] = 100;
+	// Apply Start Armor skill - 10 armor per level
+	if (client->pers.skills.start_armor > 0)
+	{
+		client->pers.inventory[IT_ARMOR_BODY] = client->pers.skills.start_armor * 10;
+	}
 
 	client->pers.connected = true;
 	client->pers.spawned = true;
