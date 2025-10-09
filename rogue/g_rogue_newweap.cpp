@@ -859,7 +859,7 @@ THINK(Nuke_Quake)(edict_t *self)->void
 static void Nuke_Explode(edict_t *ent)
 {
 
-	if (ent->teammaster->client)
+	if (ent->teammaster && ent->teammaster->client)
 		PlayerNoise(ent->teammaster, ent->s.origin, PNOISE_IMPACT);
 
 	T_RadiusNukeDamage(ent, ent->teammaster, (float)ent->dmg, ent, ent->dmg_radius, MOD_NUKE);
