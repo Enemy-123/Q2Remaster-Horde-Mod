@@ -31,6 +31,10 @@ std::string Character_SanitizeName(const char* name)
     if (!name || !name[0])
         return "unknown";
 
+    // Check for "N/A" or similar invalid names
+    if (strcmp(name, "N/A") == 0 || strcmp(name, "n/a") == 0)
+        return "unknown";
+
     std::string sanitized;
     sanitized.reserve(MAX_NETNAME);
 
@@ -125,6 +129,11 @@ bool Character_Load(edict_t* player)
     if (player->svflags & SVF_BOT)
         return false;
 
+    // Additional check: Don't load if name starts with "[BOT]"
+    const char* player_name = GetPlayerName(player);
+    if (player_name && strncmp(player_name, "[BOT]", 5) == 0)
+        return false;
+
     std::string filepath = Character_GetFilePath(player);
     std::ifstream file(filepath, std::ios::in);
 
@@ -132,7 +141,7 @@ bool Character_Load(edict_t* player)
     {
         // No character file exists, create default
         gi.Com_PrintFmt("Character: No character file found for {}, creating default\n",
-                        GetPlayerName(player));
+                        player_name);
         Character_CreateDefault(player);
         return false;
     }
@@ -145,7 +154,7 @@ bool Character_Load(edict_t* player)
     if (!Json::parseFromStream(builder, file, &root, &errs))
     {
         gi.Com_PrintFmt("Character: Failed to parse character file for {}: {}\n",
-                        GetPlayerName(player), errs);
+                        player_name, errs);
         file.close();
         return false;
     }
@@ -229,8 +238,8 @@ bool Character_Load(edict_t* player)
         }
     }
 
-    gi.Com_PrintFmt("Character: Loaded character for {} (respawn weapon: {}, PvM level: {})\\n",
-                    GetPlayerName(player),
+    gi.Com_PrintFmt("Character: Loaded character for {} (respawn weapon: {}, PvM level: {})\n",
+                    player_name,
                     player->client->pers.respawn_weapon_name,
                     player->client->pers.pvm_level);
 
@@ -247,9 +256,14 @@ bool Character_Save(edict_t* player)
     if (player->svflags & SVF_BOT)
         return false;
 
+    // Additional check: Don't save if name starts with "[BOT]"
+    const char* player_name = GetPlayerName(player);
+    if (player_name && strncmp(player_name, "[BOT]", 5) == 0)
+        return false;
+
     // Build JSON
     Json::Value root;
-    root["player_name"] = GetPlayerName(player);
+    root["player_name"] = player_name;
     root["respawn_weapon"] = player->client->pers.respawn_weapon_name;
     root["preferences"]["id_display"] = player->client->pers.id_state;
     root["preferences"]["iddmg_display"] = player->client->pers.iddmg_state;
@@ -283,7 +297,7 @@ bool Character_Save(edict_t* player)
     if (!file.is_open())
     {
         gi.Com_PrintFmt("Character: Failed to save character file for {}\n",
-                        GetPlayerName(player));
+                        player_name);
         return false;
     }
 
@@ -293,7 +307,7 @@ bool Character_Save(edict_t* player)
     writer->write(root, &file);
     file.close();
 
-    gi.Com_PrintFmt("Character: Saved character for {}\n", GetPlayerName(player));
+    gi.Com_PrintFmt("Character: Saved character for {}\n", player_name);
     return true;
 }
 

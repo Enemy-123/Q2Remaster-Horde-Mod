@@ -1157,10 +1157,13 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 		client->pers.max_ammo[AMMO_TESLA] = 50;
 		client->pers.max_ammo[AMMO_TRAP] = 5;
 
-		// Apply PvM stat bonuses (Max Ammo, Vitality)
+		// Apply PvM stat bonuses (Max Ammo, Vitality from PvM levels)
 		PvM_ApplyStatBonuses(ent);
 
-		// Set health to max after stat bonuses are applied
+		// Apply skill-based upgrades (vitality, max ammo from skill points)
+		ApplySkillBonuses(ent);
+
+		// Set health to max after all bonuses are applied
 		client->pers.health = client->pers.max_health;
 
 		// Clear inventory (they only get respawn weapon)
