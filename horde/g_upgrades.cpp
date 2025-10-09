@@ -7,7 +7,7 @@ static const UpgradeDefinition UPGRADE_DEFS[] = {
     // Phase 2: Core abilities
     {
         "ammo_regen",
-        "Ammo Regeneration",
+        "Ammo Regen",
         "Passive: Regenerate ammo over time\n"
         "Lvl 1-3: +1 ammo/3sec\n"
         "Lvl 4-6: +2 ammo/3sec\n"
@@ -16,7 +16,7 @@ static const UpgradeDefinition UPGRADE_DEFS[] = {
     },
     {
         "ha_pickup",
-        "Enhanced Pickups",
+        "H/A Pickup",
         "Passive: Pickup more health and armor\n"
         "Each level: +20% pickup amount\n"
         "Max at level 5: +100% pickups",
@@ -25,7 +25,7 @@ static const UpgradeDefinition UPGRADE_DEFS[] = {
     {
         "start_armor",
         "Starting Armor",
-        "Passive: Spawn with body armor\n"
+        "Passive: Spawn with +10 armor per level\n"
         "Each level: +10 armor on spawn\n"
         "Max at level 10: 100 armor",
         10, 1, UpgradeCategory::ABILITY, nullptr, 0
@@ -33,7 +33,7 @@ static const UpgradeDefinition UPGRADE_DEFS[] = {
     {
         "vitality",
         "Vitality",
-        "Passive: Increase max health\n"
+        "Passive: Increase max health by +10\n"
         "Each level: +10 max health\n"
         "Max at level 10: +100 health",
         10, 1, UpgradeCategory::ABILITY, nullptr, 0
