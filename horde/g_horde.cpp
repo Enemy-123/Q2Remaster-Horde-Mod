@@ -7171,10 +7171,10 @@ static void Horde_InitLevel(const int32_t lvl)
 			}
 		}
 
-		if (developer->integer)
-		{
-			gi.Com_PrintFmt("PVM: Populated eligible list with {} random monsters\n", g_eligible_monsters_for_wave.size());
-		}
+		// if (developer->integer)
+		// {
+		// 	gi.Com_PrintFmt("PVM: Populated eligible list with {} random monsters\n", g_eligible_monsters_for_wave.size());
+		// }
 	}
 	else
 	{

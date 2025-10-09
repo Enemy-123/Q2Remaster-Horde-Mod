@@ -326,8 +326,8 @@ void PVM_InitRandomMonsters()
     if (valid_monsters.size() <= PVM_RANDOM_MONSTER_COUNT)
     {
         g_pvm_random_monsters = valid_monsters;
-        gi.Com_PrintFmt("PVM: Using all {} available monsters (wave {}+)\n", 
-                       valid_monsters.size(), PVM_MIN_WAVE);
+        // gi.Com_PrintFmt("PVM: Using all {} available monsters (wave {}+)\n", 
+        //                valid_monsters.size(), PVM_MIN_WAVE);
         return;
     }
 
@@ -343,7 +343,7 @@ void PVM_InitRandomMonsters()
     // Take first 10
     g_pvm_random_monsters.assign(shuffled.begin(), shuffled.begin() + PVM_RANDOM_MONSTER_COUNT);
 
-    gi.Com_PrintFmt("PVM: Selected {} random monsters for this map\n", PVM_RANDOM_MONSTER_COUNT);
+    // gi.Com_PrintFmt("PVM: Selected {} random monsters for this map\n", PVM_RANDOM_MONSTER_COUNT);
 }
 
 // Get the list of randomly selected monsters for this map
