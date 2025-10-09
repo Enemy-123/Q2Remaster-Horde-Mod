@@ -462,7 +462,7 @@ namespace horde {
         // Q64/DM10
         s_origins[static_cast<size_t>(MapID::Q64_DM10)] = { true, {-304, 512, -92} };
         // EC/BASE_EC
-        s_origins[static_cast<size_t>(MapID::EC_BASE_EC)] = { true, {-112, 704, 128} };
+        s_origins[static_cast<size_t>(MapID::EC_BASE_EC)] = { true, {-140, 769, 214} };
         // OLD/KMDM3
         s_origins[static_cast<size_t>(MapID::OLD_KMDM3)] = { true, {676, 873, 171} };
         // OLD/baseold

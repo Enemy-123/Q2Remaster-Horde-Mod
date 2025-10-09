@@ -1332,7 +1332,7 @@ GRENADE LAUNCHER
 
 void weapon_grenadelauncher_fire(edict_t* ent)
 {
-	bool napalm = PlayerHasNapalmGL(ent);
+	bool napalm = PlayerHasNapalmGL(ent) || (ent->client && ent->client->pers.skills.gl_bouncy);
 	int	  damage = napalm ? g_config.grenadelauncher.damage_napalm : g_config.grenadelauncher.damage_normal;
 	float radius = napalm ? g_config.grenadelauncher.radius_napalm : g_config.grenadelauncher.radius_normal;
 
@@ -1377,7 +1377,7 @@ void weapon_grenadelauncher_fire(edict_t* ent)
 
 	G_RemoveAmmo(ent);
 
-	if (PlayerHasNapalmGL(ent))
+	if (PlayerHasNapalmGL(ent) || (ent->client && ent->client->pers.skills.gl_bouncy))
 		G_RemoveAmmo(ent);
 }
 
@@ -1688,19 +1688,24 @@ void Fire_TracerBullet(edict_t* ent, int damage, gtime_t cooldown_duration)
         return;
 
     // Check if player has tracer bullets from benefits or weapon upgrades
-    bool has_traced = PlayerHasTracedBullets(ent) ||
-                      ent->client->pers.skills.mg_tracers > 0 ||
-                      ent->client->pers.skills.cg_tracers > 0;
+    bool has_traced = PlayerHasTracedBullets(ent);
+
+    // Check weapon-specific tracer upgrades
+    if (ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_MACHINEGUN)
+        has_traced = has_traced || ent->client->pers.skills.mg_tracers > 0;
+    else if (ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_CHAINGUN)
+        has_traced = has_traced || ent->client->pers.skills.cg_tracers > 0;
+
     if (!has_traced || ent->client->resp.lasthbshot > level.time)
         return;
 
     // Scale tracer damage based on weapon upgrades
     int final_damage = damage;
-    if (ent->client->pers.skills.mg_tracers > 0)
+    if (ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_MACHINEGUN && ent->client->pers.skills.mg_tracers > 0)
     {
         final_damage = ent->client->pers.skills.mg_tracers * g_config.machinegun.tracer_damage_per_level;
     }
-    else if (ent->client->pers.skills.cg_tracers > 0)
+    else if (ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_CHAINGUN && ent->client->pers.skills.cg_tracers > 0)
     {
         final_damage = ent->client->pers.skills.cg_tracers * g_config.chaingun.tracer_damage_per_level;
     }

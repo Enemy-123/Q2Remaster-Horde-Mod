@@ -1179,7 +1179,7 @@ void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir,
 	grenade->classname = "grenade";
 	grenade->s.modelindex = gi.modelindex("models/objects/grenade/tris.md2");
 
-	const bool use_bouncy = (!(self->svflags & SVF_MONSTER) && self->client && PlayerHasNapalmGL(self));
+	const bool use_bouncy = (!(self->svflags & SVF_MONSTER) && self->client && (PlayerHasNapalmGL(self) || self->client->pers.skills.gl_bouncy));
 
 	if (use_bouncy) {
 		// --- NEW Cluster-Bouncy Grenade Behavior ---

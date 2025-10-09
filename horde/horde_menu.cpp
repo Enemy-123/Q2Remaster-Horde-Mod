@@ -48,6 +48,7 @@ void OpenSGUpgradeMenu(edict_t *ent);     // Forward declare SG Upgrade submenu
 void OpenSSGUpgradeMenu(edict_t *ent);    // Forward declare SSG Upgrade submenu
 void OpenGLUpgradeMenu(edict_t *ent);     // Forward declare GL Upgrade submenu
 void OpenRLUpgradeMenu(edict_t *ent);     // Forward declare RL Upgrade submenu
+void OpenProxUpgradeMenu(edict_t *ent);   // Forward declare Prox Upgrade submenu
 void RespawnWeaponMenuHandler(edict_t *ent, pmenuhnd_t *p);
 void OpenAdminMenu(edict_t *ent); // Forward declare Admin menu functions
 void AdminMenuHandler(edict_t *ent, pmenuhnd_t *p);
@@ -3059,6 +3060,7 @@ void OpenWeaponUpgradeMenu(edict_t *ent)
 	add_entry("> Rocket Launcher", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "rocket_launcher");
 	add_entry("> Grenade Launcher", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "grenade_launcher");
 	add_entry("> Hand Grenades", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "hand_grenades");
+	add_entry("> Prox Launcher", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "prox_launcher");
 	add_entry("> ETF Rifle", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "etf_rifle");
 	add_entry("> Ion Ripper", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "ion_ripper");
 	add_entry("> Railgun", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "railgun");
@@ -3139,6 +3141,11 @@ void WeaponUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		PMenu_Close(ent);
 		OpenHGUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "prox_launcher") == 0)
+	{
+		PMenu_Close(ent);
+		OpenProxUpgradeMenu(ent);
 	}
 	else if (strcmp(arg, "etf_rifle") == 0)
 	{
@@ -3370,6 +3377,10 @@ void OpenGLUpgradeMenu(edict_t *ent)
 	snprintf(status, sizeof(status), "Silent Mode: %s", silent_status);
 	add_entry(status, PMENU_ALIGN_LEFT, GLUpgradeMenuHandler, "gl_silent");
 
+	const char *bouncy_status = ent->client->pers.skills.gl_bouncy ? "ON" : "OFF";
+	snprintf(status, sizeof(status), "Bouncy Grenades: %s", bouncy_status);
+	add_entry(status, PMENU_ALIGN_LEFT, GLUpgradeMenuHandler, "gl_bouncy");
+
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("---", PMENU_ALIGN_CENTER);
 	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, GLUpgradeMenuHandler, "back_to_weapons");
@@ -3445,6 +3456,13 @@ void GLUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		ent->client->pers.skills.gl_silent = !ent->client->pers.skills.gl_silent;
 		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Grenade Launcher Silent Mode: {}\n", ent->client->pers.skills.gl_silent ? "ON" : "OFF");
+		PMenu_Close(ent);
+		OpenGLUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "gl_bouncy") == 0)
+	{
+		ent->client->pers.skills.gl_bouncy = !ent->client->pers.skills.gl_bouncy;
+		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Grenade Launcher Bouncy Grenades: {}\n", ent->client->pers.skills.gl_bouncy ? "ON" : "OFF");
 		PMenu_Close(ent);
 		OpenGLUpgradeMenu(ent);
 	}
@@ -4081,6 +4099,161 @@ void HGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		}
 		PMenu_Close(ent);
 		OpenHGUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "back_to_weapons") == 0)
+	{
+		PMenu_Close(ent);
+		OpenWeaponUpgradeMenu(ent);
+	}
+}
+
+/////////////////////////////////////////////
+// PROX LAUNCHER UPGRADE SUBMENU
+/////////////////////////////////////////////
+
+static pmenu_t prox_upgrade_menu[32];
+
+void ProxUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p);
+
+void OpenProxUpgradeMenu(edict_t *ent)
+{
+	if (!ent || !ent->client)
+		return;
+
+	if (ent->client->menu)
+		PMenu_Close(ent);
+
+	// Set menu protection
+	ent->client->menu_protected = true;
+	ent->client->menu_protection_start = level.time;
+
+	memset(prox_upgrade_menu, 0, sizeof(prox_upgrade_menu));
+	int count = 0;
+
+	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
+	{
+		if (count < 32)
+		{
+			Q_strlcpy(prox_upgrade_menu[count].text, text, sizeof(prox_upgrade_menu[count].text));
+			prox_upgrade_menu[count].align = align;
+			prox_upgrade_menu[count].SelectFunc = func;
+			if (arg)
+				Q_strlcpy(prox_upgrade_menu[count].text_arg1, arg, sizeof(prox_upgrade_menu[count].text_arg1));
+			count++;
+		}
+	};
+
+	// Title
+	add_entry("=== PROX LAUNCHER ===", PMENU_ALIGN_CENTER);
+	add_entry("", PMENU_ALIGN_CENTER);
+
+	// Display current upgrade levels
+	char status[128];
+	snprintf(status, sizeof(status), "Damage Level: %d/10", ent->client->pers.skills.pl_damage);
+	add_entry(status, PMENU_ALIGN_LEFT, ProxUpgradeMenuHandler, "pl_damage");
+
+	snprintf(status, sizeof(status), "Range Level: %d/10", ent->client->pers.skills.pl_range);
+	add_entry(status, PMENU_ALIGN_LEFT, ProxUpgradeMenuHandler, "pl_range");
+
+	snprintf(status, sizeof(status), "Radius Level: %d/10", ent->client->pers.skills.pl_radius);
+	add_entry(status, PMENU_ALIGN_LEFT, ProxUpgradeMenuHandler, "pl_radius");
+
+	const char *trails_status = ent->client->pers.skills.pl_trails ? "ON" : "OFF";
+	snprintf(status, sizeof(status), "No Trails: %s", trails_status);
+	add_entry(status, PMENU_ALIGN_LEFT, ProxUpgradeMenuHandler, "pl_trails");
+
+	const char *silent_status = ent->client->pers.skills.pl_silent ? "ON" : "OFF";
+	snprintf(status, sizeof(status), "Silent Mode: %s", silent_status);
+	add_entry(status, PMENU_ALIGN_LEFT, ProxUpgradeMenuHandler, "pl_silent");
+
+	const char *improved_status = ent->client->pers.skills.pl_improved_traps ? "ON" : "OFF";
+	snprintf(status, sizeof(status), "Improved Traps: %s", improved_status);
+	add_entry(status, PMENU_ALIGN_LEFT, ProxUpgradeMenuHandler, "pl_improved_traps");
+
+	add_entry("", PMENU_ALIGN_CENTER);
+	add_entry("---", PMENU_ALIGN_CENTER);
+	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, ProxUpgradeMenuHandler, "back_to_weapons");
+
+	PMenu_Open(ent, prox_upgrade_menu, -1, count, nullptr, nullptr);
+}
+
+void ProxUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client || !p || p->cur < 0)
+	{
+		if (ent && ent->client && ent->client->menu)
+			PMenu_Close(ent);
+		return;
+	}
+
+	pmenu_t *item = &p->entries[p->cur];
+	if (!item->SelectFunc)
+		return;
+
+	const char *arg = item->text_arg1;
+
+	if (strcmp(arg, "pl_damage") == 0)
+	{
+		if (ent->client->pers.skills.pl_damage < 10)
+		{
+			ent->client->pers.skills.pl_damage++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Prox Launcher Damage increased to level {}!\n", ent->client->pers.skills.pl_damage);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Prox Launcher Damage is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenProxUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "pl_range") == 0)
+	{
+		if (ent->client->pers.skills.pl_range < 10)
+		{
+			ent->client->pers.skills.pl_range++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Prox Launcher Range increased to level {}!\n", ent->client->pers.skills.pl_range);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Prox Launcher Range is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenProxUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "pl_radius") == 0)
+	{
+		if (ent->client->pers.skills.pl_radius < 10)
+		{
+			ent->client->pers.skills.pl_radius++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Prox Launcher Radius increased to level {}!\n", ent->client->pers.skills.pl_radius);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Prox Launcher Radius is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenProxUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "pl_trails") == 0)
+	{
+		ent->client->pers.skills.pl_trails = !ent->client->pers.skills.pl_trails;
+		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Prox Launcher Trails: {}\n", ent->client->pers.skills.pl_trails ? "DISABLED" : "ENABLED");
+		PMenu_Close(ent);
+		OpenProxUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "pl_silent") == 0)
+	{
+		ent->client->pers.skills.pl_silent = !ent->client->pers.skills.pl_silent;
+		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Prox Launcher Silent Mode: {}\n", ent->client->pers.skills.pl_silent ? "ON" : "OFF");
+		PMenu_Close(ent);
+		OpenProxUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "pl_improved_traps") == 0)
+	{
+		ent->client->pers.skills.pl_improved_traps = !ent->client->pers.skills.pl_improved_traps;
+		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Prox Launcher Improved Traps: {}\n", ent->client->pers.skills.pl_improved_traps ? "ON" : "OFF");
+		PMenu_Close(ent);
+		OpenProxUpgradeMenu(ent);
 	}
 	else if (strcmp(arg, "back_to_weapons") == 0)
 	{

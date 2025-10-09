@@ -3175,6 +3175,7 @@ struct player_skills_t {
 	int8_t gl_radius = 0;         // 0-10: Explosion radius
 	bool gl_trails = false;       // Disable grenade trail effects
 	bool gl_silent = false;       // Silent firing (no flash/noise)
+	bool gl_bouncy = false;       // Bouncy/Napalm grenades
 
 		// Weapon Upgrades - Rocket Launcher
 	int8_t rl_damage = 0;         // 0-10: Rocket damage multiplier
@@ -3256,6 +3257,14 @@ struct player_skills_t {
 	int8_t bfg_speed = 0;         // 0-10: BFG projectile speed (+35 per level)
 	int8_t bfg_duration = 0;      // 0-10: BFG effect duration (+0.05s per level)
 	bool bfg_silent = false;      // Silent firing (no flash/noise)
+
+	// Weapon Upgrades - Prox Launcher
+	int8_t pl_damage = 0;         // 0-10: Prox launcher damage
+	int8_t pl_range = 0;          // 0-10: Prox launcher range
+	int8_t pl_radius = 0;         // 0-10: Explosion radius
+	bool pl_trails = false;       // Disable prox trail effects
+	bool pl_silent = false;       // Silent firing (no flash/noise)
+	bool pl_improved_traps = false; // Cluster prox upgrade
 
 	int8_t reserved[22] = {0};
 };;
