@@ -290,7 +290,7 @@ void PvM_CheckLevelUp(edict_t* player)
 
         gi.LocClient_Print(player, PRINT_HIGH, nullptr, "*** LEVEL UP! You are now level {}! ***\n",
                            current_level);
-        gi.LocBroadcast_Print(PRINT_CHAT, "{} Has gained a level!\n", player_name);
+        gi.LocBroadcast_Print(PRINT_CHAT, "*****{} gained a level*****\n", player_name);
 
         gi.sound(player, CHAN_AUTO, gi.soundindex("misc/keyuse.wav"), 1.f, ATTN_NORM, 0.f);
 
