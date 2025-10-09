@@ -11,6 +11,7 @@
 #include "horde/p_flyer_morph.h"
 #include "horde/p_brain_morph.h"
 #include "horde/g_pvm_menu.h"
+#include "horde/g_upgrades.h"
 
 void SP_misc_teleporter_dest(edict_t* ent);
 
@@ -1230,6 +1231,9 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 	client->pers.max_ammo[AMMO_PROX] = ammo.prox;
 	client->pers.max_ammo[AMMO_TRAP] = ammo.trap;
 
+	// Apply skill bonuses (vitality, max ammo)
+	ApplySkillBonuses(ent);
+
 	//
 	// HORDE-SPECIFIC ITEMS
 	//
@@ -1278,6 +1282,19 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	client->pers.health = 100;
 	client->pers.max_health = 100;
 	ent->max_health = 100;
+
+	//
+	// SKILLS INITIALIZATION (New unified upgrade system)
+	//
+	// Initialize skills structure to zero (only on first connect)
+	// Skills persist across respawns via client->pers
+	if (client->pers.pvm_level == 0)
+	{
+		client->pers.skills = player_skills_t(); // Zero-initialize all skills
+		client->pers.skill_points = 0;
+		client->pers.pvm_level = 1; // Start at level 1
+		client->pers.pvm_xp = 0;
+	}
 
 	//
 	// BLASTER AMMO INITIALIZATION (Vortex-style)
@@ -1346,6 +1363,12 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 		}
 
 		G_CheckPowerArmor(ent);
+
+		// Apply Start Armor skill - 10 armor per level
+		if (client->pers.skills.start_armor > 0)
+		{
+			client->pers.inventory[IT_ARMOR_BODY] = client->pers.skills.start_armor * 10;
+		}
 
 		// Standard items for non-deathmatch/coop
 		if (!is_deathmatch || is_coop)

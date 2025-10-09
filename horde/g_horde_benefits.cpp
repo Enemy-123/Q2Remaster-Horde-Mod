@@ -313,6 +313,11 @@ std::string GetPlayerActiveBonusesString(edict_t* player) {
 bool PlayerHasBenefit(edict_t* player, BenefitID benefit_id) {
     if (!player || !player->client) return false;
 
+    // Disable benefits for non-bots (for testing the new skill system)
+    if (!(player->svflags & SVF_BOT)) {
+        return false;
+    }
+
     auto category = g_benefitsData.categories[static_cast<size_t>(benefit_id)];
     uint32_t mask = (category == BenefitCategory::ABILITY) ?
                     player->client->pers.active_abilities_mask :

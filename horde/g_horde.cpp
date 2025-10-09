@@ -263,6 +263,7 @@ bool Horde_AttemptToUnstickMonster(edict_t* self);
 static void Horde_InitLevel(const int32_t lvl);
 bool ApplyHordeBonuses(edict_t *monster, int32_t currentLevel, float champion_chance); // monster bonuses
 void CalculateTopDamager(PlayerStats &topDamager, float &percentage);
+void AwardKillXP(edict_t* attacker, edict_t* monster); // Award XP for kills
 
 // FIXED: Return struct instead of in-out parameter for clarity
 struct PositionValidationResult {
@@ -1212,6 +1213,35 @@ auto auto_spawned_bosses = std::unordered_set<edict_t *>{};
 horde::MapSize GetCurrentMapSize()
 {
 	return g_horde_local.current_map_size;
+}
+
+// Award XP to player for killing a monster (used by both Horde and PvM modes)
+void AwardKillXP(edict_t* attacker, edict_t* monster)
+{
+	// Early validation
+	if (!attacker || !attacker->client) return;
+	if (!g_horde->integer && !pvm->integer) return;
+	if (attacker->svflags & SVF_BOT) return; // Bots don't earn XP
+	if (!monster || !(monster->svflags & SVF_MONSTER)) return;
+
+	// Base XP from monster
+	int32_t base_xp = 10; // Default for standard monsters
+
+	// Scale by monster type/difficulty
+	if (monster->monsterinfo.IS_BOSS)
+		base_xp = 500;
+	else if (monster->monsterinfo.bonus_flags & BF_CHAMPION)
+		base_xp = 50;
+
+	// Scale by current wave level (+2 XP per level)
+	base_xp += current_wave_level * 2;
+
+	// Award XP
+	attacker->client->pers.pvm_xp += base_xp;
+
+	// Check for level up
+	extern void PvM_CheckLevelUp(edict_t* player);
+	PvM_CheckLevelUp(attacker);
 }
 
 // Función para calcular el bono de locura y caos

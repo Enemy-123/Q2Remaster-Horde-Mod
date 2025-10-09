@@ -276,23 +276,30 @@ void PvM_CheckLevelUp(edict_t* player)
     int32_t current_xp = player->client->pers.pvm_xp;
     int32_t xp_for_next = PvM_GetXPForLevel(current_level + 1);
     const char* player_name = GetPlayerName(player);
+
     // Check if player has enough XP for next level
     while (current_xp >= xp_for_next && current_level < 99) // Max level 99
     {
         // Level up!
         current_level++;
         player->client->pers.pvm_level = current_level;
-        player->client->pers.pvm_stat_points++; // Grant 1 stat point per level
+        player->client->pers.skill_points++; // Grant 1 skill point per level
 
         // Show level-up message
-        gi.LocClient_Print(player, PRINT_TYPEWRITER, nullptr, "\nLEVEL UP!\nYou are now level {}!\n+1 Stat Point\n",
+        gi.LocClient_Print(player, PRINT_TYPEWRITER, nullptr,
+                           "LEVEL UP!\\nYou are now level {}!\n+1 Skill Point\n",
                            current_level);
 
-        gi.LocClient_Print(player, PRINT_HIGH, nullptr, "*** LEVEL UP! You are now level {}! ***\n",
+        gi.LocClient_Print(player, PRINT_HIGH, nullptr,
+                           "*** LEVEL UP! You are now level {} (+1 skill point ***\n",
                            current_level);
+
         gi.LocBroadcast_Print(PRINT_CHAT, "*****{} gained a level*****\n", player_name);
 
         gi.sound(player, CHAN_AUTO, gi.soundindex("misc/keyuse.wav"), 1.f, ATTN_NORM, 0.f);
+
+        // Save character data
+        Character_Save(player);
 
         // Update for next iteration
         xp_for_next = PvM_GetXPForLevel(current_level + 1);
@@ -304,6 +311,13 @@ void PvM_ApplyStatBonuses(edict_t* player)
 {
     if (!player || !player->client)
         return;
+
+        // Apply health bonus per level
+        int32_t health_bonus_level = LEVELUP_PLAYER_ADDON_HEALTH;
+        player->client->pers.max_health += health_bonus_level;
+        player->client->resp.max_health += health_bonus_level;
+        player->max_health += health_bonus_level;
+        player->health += health_bonus_level; // Also heal
 
     // Get stat levels
     int32_t max_ammo_level = player->client->pers.pvm_max_ammo_level;

@@ -4,6 +4,7 @@
 #include "bots/bot_includes.h"
 #include "shared.h"
 #include "horde/g_horde_benefits.h"
+#include "horde/g_upgrades.h"
 
 bool Pickup_Weapon(edict_t* ent, edict_t* other);
 void Use_Weapon(edict_t* ent, gitem_t* inv);
@@ -806,9 +807,12 @@ bool Pickup_Health(edict_t* ent, edict_t* other)
 
 	int count = ent->count ? ent->count : ent->item->quantity;
 
-	// Apply H/A Pickup benefit multiplier
-	if (other->client && PlayerHasHAPickup(other)) {
-		count = (int)(count * 1.6f);
+	// Apply H/A Pickup skill multiplier
+	if (other->client) {
+		float multiplier = GetHAPickupMultiplier(other);
+		if (multiplier > 1.0f) {
+			count = (int)(count * multiplier);
+		}
 	}
 
 	// ZOID
@@ -897,18 +901,24 @@ bool Pickup_Armor(edict_t* ent, edict_t* other)
 	// [Paril-KEX] for g_start_items
 	int32_t base_count = ent->count ? ent->count : newinfo ? newinfo->base_count : 0;
 
-	// Apply H/A Pickup benefit multiplier
-	if (other->client && PlayerHasHAPickup(other)) {
-		base_count = (int)(base_count * 1.6f);
+	// Apply H/A Pickup skill multiplier
+	if (other->client) {
+		float multiplier = GetHAPickupMultiplier(other);
+		if (multiplier > 1.0f) {
+			base_count = (int)(base_count * multiplier);
+		}
 	}
 
 	// handle armor shards specially
 	if (ent->item->id == IT_ARMOR_SHARD)
 	{
 		int shard_amount = 2;
-		// Apply H/A Pickup benefit multiplier to shards
-		if (other->client && PlayerHasHAPickup(other)) {
-			shard_amount = (int)(shard_amount * 1.6f);
+		// Apply H/A Pickup skill multiplier to shards
+		if (other->client) {
+			float multiplier = GetHAPickupMultiplier(other);
+			if (multiplier > 1.0f) {
+				shard_amount = (int)(shard_amount * multiplier);
+			}
 		}
 		
 		if (!old_armor_index)

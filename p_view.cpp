@@ -1016,7 +1016,12 @@ static void G_SetClientEffects(edict_t* ent)
  */
 static void HORDE_ApplyAmmoRegen(edict_t* ent) {
 	// Safety checks
-	if (!PlayerHasAmmoRegen(ent) || !ent || !ent->client) {
+	if (!ent || !ent->client) {
+		return;
+	}
+
+	// Check if player has ammo regen skill
+	if (ent->client->pers.skills.ammo_regen == 0) {
 		return;
 	}
 

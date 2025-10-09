@@ -3148,6 +3148,31 @@ constexpr int32_t AUTO_SHIELD_MANUAL = -1;
 // if possible.
 constexpr int32_t AUTO_SHIELD_AUTO = 0;
 
+// Player leveling constants
+constexpr int32_t LEVELUP_PLAYER_ADDON_HEALTH = 3; // +3 HP per level
+
+// Player skill/upgrade tracking system
+struct player_skills_t {
+	// Passive Abilities (multi-level upgrades)
+	int8_t vampire = 0;           // 0-10: Health vampirism
+	int8_t ammo_regen = 0;        // 0-10: Ammo regeneration
+	int8_t vitality = 0;          // 0-10: Max health bonus
+	int8_t ha_pickup = 0;         // 0-5: Health/Armor pickup multiplier
+	int8_t start_armor = 0;       // 0-10: Spawn armor (10 per level)
+	int8_t max_ammo = 0;          // 0-10: Max ammo capacity
+
+	// Single-level abilities (boolean flags)
+	bool auto_haste = false;      // Quad/dual-fire extension
+
+	// Talents (advanced unlocks with prerequisites)
+	bool armor_vampirism = false; // Requires vampire >= 5
+	bool sentry_upgrade = false;  // Sentry improvements
+	bool tesla_chain = false;     // Tesla chain lightning
+
+	// Future expansion - room for 32 more abilities
+	int8_t reserved[32] = {0};
+};
+
 // client data that stays across multiple level loads
 struct client_persistant_t
 {
@@ -3225,9 +3250,13 @@ struct client_persistant_t
 	// PvM Leveling System
 	int32_t pvm_level = 1;                // Current PvM level (separate from Horde)
 	int32_t pvm_xp = 0;                   // Current experience points
-	int32_t pvm_stat_points = 0;          // Unspent stat points
-	int32_t pvm_max_ammo_level = 0;       // Max Ammo stat level (0-10)
-	int32_t pvm_vitality_level = 0;       // Vitality stat level (0-10)
+	int32_t pvm_stat_points = 0;          // Unspent stat points (legacy, deprecated)
+	int32_t pvm_max_ammo_level = 0;       // Max Ammo stat level (legacy, deprecated)
+	int32_t pvm_vitality_level = 0;       // Vitality stat level (legacy, deprecated)
+
+	// New unified skill/upgrade system (used by both Horde and PvM)
+	player_skills_t skills;               // Player's skill levels and unlocks
+	int32_t skill_points = 0;             // Unspent skill points for upgrades
 };
 
 // client data that stays across deathmatch respawns
@@ -3563,6 +3592,9 @@ struct gclient_t
 	// Vortex-style blaster ammo system
 	int blaster_ammo;           // Current blaster ammo (0-50)
 	gtime_t blaster_regen_time; // Next blaster ammo regeneration time
+
+	// Ammo regeneration skill system
+	gtime_t ammo_regen_time;    // Next general ammo regeneration time
 
 	// Menu protection system (similar to Vortex)
 	bool menu_protected;           // Player is in menu and protected from damage/inactivity

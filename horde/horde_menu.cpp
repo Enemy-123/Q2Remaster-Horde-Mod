@@ -11,6 +11,7 @@
 #include "p_flyer_morph.h" // For IsMorphed, RestoreMorphed, Cmd_PlayerToFlyer_f
 #include "p_brain_morph.h" // For Cmd_PlayerToBrain_f
 #include "g_pvm_menu.h"    // For PvM stats menu
+#include "g_upgrades.h"    // For new skill/upgrade system
 #include "g_character.h"   // For Character_Save
 
 // Declaration for P_GetLobbyUserNum (defined in p_client.cpp)
@@ -2285,6 +2286,219 @@ void OpenAbilitiesMenu(edict_t *ent)
 	CreateAbilitiesMenu(ent);
 }
 
+// Ability Detail Menu Handler
+void AbilityDetailMenuHandler(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client || !p)
+		return;
+
+	pmenu_t *item = &p->entries[p->cur];
+	if (!item->SelectFunc)
+		return;
+
+	// Handle upgrade purchase
+	if (strncmp(item->text_arg1, "upgrade_", 8) == 0)
+	{
+		const char *upgrade_id = item->text_arg1 + 8; // Skip "upgrade_" prefix
+
+		if (UpgradeSkill(ent, upgrade_id))
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, "Upgraded {}!\n",
+				FindUpgradeByID(upgrade_id)->name);
+
+			// Refresh detail menu to show updated state
+			PMenu_Close(ent);
+
+			// Re-open detail menu with same ability
+			if (ent && ent->client)
+			{
+				ent->client->menu_protected = true;
+				ent->client->menu_protection_start = level.time;
+			}
+
+			// Create detail menu for the same ability
+			static pmenu_t detail_menu[32];
+			memset(detail_menu, 0, sizeof(detail_menu));
+			int menu_index = 0;
+
+			const UpgradeDefinition* def = FindUpgradeByID(upgrade_id);
+			if (!def) return;
+
+			int8_t current_level = GetSkillLevel(ent, upgrade_id);
+			bool can_upgrade = CanUpgrade(ent, upgrade_id);
+
+			// Title
+			G_FmtTo(detail_menu[menu_index].text, "=== {} ===", def->name);
+			detail_menu[menu_index].align = PMENU_ALIGN_CENTER;
+			detail_menu[menu_index].SelectFunc = nullptr;
+			menu_index++;
+
+			// Level info
+			G_FmtTo(detail_menu[menu_index].text, "Level: {}/{}", current_level, def->max_level);
+			detail_menu[menu_index].align = PMENU_ALIGN_CENTER;
+			detail_menu[menu_index].SelectFunc = nullptr;
+			menu_index++;
+
+			// Cost
+			G_FmtTo(detail_menu[menu_index].text, "Cost: {} pts", def->cost_per_level);
+			detail_menu[menu_index].align = PMENU_ALIGN_CENTER;
+			detail_menu[menu_index].SelectFunc = nullptr;
+			menu_index++;
+
+			// Separator
+			Q_strlcpy(detail_menu[menu_index].text, "---", sizeof(detail_menu[menu_index].text));
+			detail_menu[menu_index].align = PMENU_ALIGN_CENTER;
+			detail_menu[menu_index].SelectFunc = nullptr;
+			menu_index++;
+
+			// Description (split by \n)
+			char desc_copy[512];
+			Q_strlcpy(desc_copy, def->description, sizeof(desc_copy));
+			char *line = strtok(desc_copy, "\n");
+			while (line && menu_index < 28)
+			{
+				Q_strlcpy(detail_menu[menu_index].text, line, sizeof(detail_menu[menu_index].text));
+				detail_menu[menu_index].align = PMENU_ALIGN_LEFT;
+				detail_menu[menu_index].SelectFunc = nullptr;
+				menu_index++;
+				line = strtok(nullptr, "\n");
+			}
+
+			// Separator
+			Q_strlcpy(detail_menu[menu_index].text, "---", sizeof(detail_menu[menu_index].text));
+			detail_menu[menu_index].align = PMENU_ALIGN_CENTER;
+			detail_menu[menu_index].SelectFunc = nullptr;
+			menu_index++;
+
+			// Upgrade button
+			if (can_upgrade)
+			{
+				Q_strlcpy(detail_menu[menu_index].text, "> Upgrade", sizeof(detail_menu[menu_index].text));
+				detail_menu[menu_index].align = PMENU_ALIGN_LEFT;
+				detail_menu[menu_index].SelectFunc = AbilityDetailMenuHandler;
+				snprintf(detail_menu[menu_index].text_arg1, sizeof(detail_menu[menu_index].text_arg1), "upgrade_%s", upgrade_id);
+			}
+			else
+			{
+				if (current_level >= def->max_level)
+					Q_strlcpy(detail_menu[menu_index].text, "  [MAX LEVEL]", sizeof(detail_menu[menu_index].text));
+				else
+					Q_strlcpy(detail_menu[menu_index].text, "  [INSUFFICIENT POINTS]", sizeof(detail_menu[menu_index].text));
+				detail_menu[menu_index].align = PMENU_ALIGN_LEFT;
+				detail_menu[menu_index].SelectFunc = nullptr;
+			}
+			menu_index++;
+
+			// Back button
+			Q_strlcpy(detail_menu[menu_index].text, "< Back", sizeof(detail_menu[menu_index].text));
+			detail_menu[menu_index].align = PMENU_ALIGN_LEFT;
+			detail_menu[menu_index].SelectFunc = AbilityDetailMenuHandler;
+			Q_strlcpy(detail_menu[menu_index].text_arg1, "back_to_abilities", sizeof(detail_menu[menu_index].text_arg1));
+			menu_index++;
+
+			PMenu_Open(ent, detail_menu, 0, menu_index, nullptr, nullptr);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, "Cannot upgrade this ability\n");
+		}
+	}
+	else if (strcmp(item->text_arg1, "back_to_abilities") == 0)
+	{
+		PMenu_Close(ent);
+		OpenAbilitiesMenu(ent);
+	}
+}
+
+// Create Ability Detail Menu
+pmenuhnd_t *CreateAbilityDetailMenu(edict_t *ent, const char* upgrade_id)
+{
+	if (!ent || !ent->client || !upgrade_id)
+		return nullptr;
+
+	const UpgradeDefinition* def = FindUpgradeByID(upgrade_id);
+	if (!def)
+		return nullptr;
+
+	static pmenu_t detail_menu[32];
+	memset(detail_menu, 0, sizeof(detail_menu));
+	int menu_index = 0;
+
+	int8_t current_level = GetSkillLevel(ent, upgrade_id);
+	bool can_upgrade = CanUpgrade(ent, upgrade_id);
+
+	// Title
+	G_FmtTo(detail_menu[menu_index].text, "=== {} ===", def->name);
+	detail_menu[menu_index].align = PMENU_ALIGN_CENTER;
+	detail_menu[menu_index].SelectFunc = nullptr;
+	menu_index++;
+
+	// Level info
+	G_FmtTo(detail_menu[menu_index].text, "Level: {}/{}", current_level, def->max_level);
+	detail_menu[menu_index].align = PMENU_ALIGN_CENTER;
+	detail_menu[menu_index].SelectFunc = nullptr;
+	menu_index++;
+
+	// Cost
+	G_FmtTo(detail_menu[menu_index].text, "Cost: {} pts", def->cost_per_level);
+	detail_menu[menu_index].align = PMENU_ALIGN_CENTER;
+	detail_menu[menu_index].SelectFunc = nullptr;
+	menu_index++;
+
+	// Separator
+	Q_strlcpy(detail_menu[menu_index].text, "---", sizeof(detail_menu[menu_index].text));
+	detail_menu[menu_index].align = PMENU_ALIGN_CENTER;
+	detail_menu[menu_index].SelectFunc = nullptr;
+	menu_index++;
+
+	// Description (split by \n)
+	char desc_copy[512];
+	Q_strlcpy(desc_copy, def->description, sizeof(desc_copy));
+	char *line = strtok(desc_copy, "\n");
+	while (line && menu_index < 28)
+	{
+		Q_strlcpy(detail_menu[menu_index].text, line, sizeof(detail_menu[menu_index].text));
+		detail_menu[menu_index].align = PMENU_ALIGN_LEFT;
+		detail_menu[menu_index].SelectFunc = nullptr;
+		menu_index++;
+		line = strtok(nullptr, "\n");
+	}
+
+	// Separator
+	Q_strlcpy(detail_menu[menu_index].text, "---", sizeof(detail_menu[menu_index].text));
+	detail_menu[menu_index].align = PMENU_ALIGN_CENTER;
+	detail_menu[menu_index].SelectFunc = nullptr;
+	menu_index++;
+
+	// Upgrade button
+	if (can_upgrade)
+	{
+		Q_strlcpy(detail_menu[menu_index].text, "> Upgrade", sizeof(detail_menu[menu_index].text));
+		detail_menu[menu_index].align = PMENU_ALIGN_LEFT;
+		detail_menu[menu_index].SelectFunc = AbilityDetailMenuHandler;
+		snprintf(detail_menu[menu_index].text_arg1, sizeof(detail_menu[menu_index].text_arg1), "upgrade_%s", upgrade_id);
+	}
+	else
+	{
+		if (current_level >= def->max_level)
+			Q_strlcpy(detail_menu[menu_index].text, "  [MAX LEVEL]", sizeof(detail_menu[menu_index].text));
+		else
+			Q_strlcpy(detail_menu[menu_index].text, "  [INSUFFICIENT POINTS]", sizeof(detail_menu[menu_index].text));
+		detail_menu[menu_index].align = PMENU_ALIGN_LEFT;
+		detail_menu[menu_index].SelectFunc = nullptr;
+	}
+	menu_index++;
+
+	// Back button
+	Q_strlcpy(detail_menu[menu_index].text, "< Back", sizeof(detail_menu[menu_index].text));
+	detail_menu[menu_index].align = PMENU_ALIGN_LEFT;
+	detail_menu[menu_index].SelectFunc = AbilityDetailMenuHandler;
+	Q_strlcpy(detail_menu[menu_index].text_arg1, "back_to_abilities", sizeof(detail_menu[menu_index].text_arg1));
+	menu_index++;
+
+	return PMenu_Open(ent, detail_menu, 0, menu_index, nullptr, nullptr);
+}
+
 // Abilities Menu Handler
 void AbilitiesMenuHandler(edict_t *ent, pmenuhnd_t *p)
 {
@@ -2295,42 +2509,41 @@ void AbilitiesMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	if (!item->SelectFunc)
 		return;
 
-	// Handle benefit purchase
-	if (strncmp(item->text_arg1, "ability_", 8) == 0)
-	{
-		const char *benefit_name = item->text_arg1 + 8; // Skip "ability_" prefix
-
-		// Find benefit by name
-		for (size_t i = 0; i < BenefitsDataSoA::NUM_BENEFITS; ++i)
-		{
-			if (g_benefitsData.categories[i] != BenefitCategory::ABILITY)
-				continue;
-
-			if (strcmp(g_benefitsData.names[i], benefit_name) == 0)
-			{
-				BenefitID benefit_id = static_cast<BenefitID>(i);
-				int32_t cost = 1; // Default cost
-
-				if (PlayerPurchaseBenefit(ent, benefit_id, cost))
-				{
-					// Refresh menu to show updated state
-					PMenu_Close(ent);
-					OpenAbilitiesMenu(ent);
-				}
-				return;
-			}
-		}
-	}
-
-	// Handle special menu actions
-	if (strcmp(item->text_arg1, "back_to_main") == 0)
+	// Handle back navigation
+	if (strcmp(item->text_arg1, "back_to_upgrade") == 0)
 	{
 		PMenu_Close(ent);
 		OpenUpgradeMenu(ent);
+		return;
+	}
+
+	// Handle reset skills
+	if (strcmp(item->text_arg1, "reset_skills") == 0)
+	{
+		ResetAllSkills(ent);
+		PMenu_Close(ent);
+		OpenAbilitiesMenu(ent);
+		return;
+	}
+
+	// Open detail menu for selected ability (upgrade_id is directly in text_arg1)
+	const char *upgrade_id = item->text_arg1;
+	if (upgrade_id && upgrade_id[0] != '\0')
+	{
+		PMenu_Close(ent);
+
+		// Set menu protection
+		if (ent && ent->client)
+		{
+			ent->client->menu_protected = true;
+			ent->client->menu_protection_start = level.time;
+		}
+
+		CreateAbilityDetailMenu(ent, upgrade_id);
 	}
 }
 
-// Create Abilities Menu
+// Create Abilities Menu - New skill-based system
 pmenuhnd_t *CreateAbilitiesMenu(edict_t *ent)
 {
 	if (!ent || !ent->client)
@@ -2341,13 +2554,13 @@ pmenuhnd_t *CreateAbilitiesMenu(edict_t *ent)
 	int menu_index = 0;
 
 	// Header
-	Q_strlcpy(abilities_menu[menu_index].text, "=== ABILITIES SHOP ===", sizeof(abilities_menu[menu_index].text));
+	Q_strlcpy(abilities_menu[menu_index].text, "=== ABILITIES ===", sizeof(abilities_menu[menu_index].text));
 	abilities_menu[menu_index].align = PMENU_ALIGN_CENTER;
 	abilities_menu[menu_index].SelectFunc = nullptr;
 	menu_index++;
 
 	// Points display
-	G_FmtTo(abilities_menu[menu_index].text, "Points Available: {}", ent->client->pers.ability_points);
+	G_FmtTo(abilities_menu[menu_index].text, "Skill Points: {}", ent->client->pers.skill_points);
 	abilities_menu[menu_index].align = PMENU_ALIGN_CENTER;
 	abilities_menu[menu_index].SelectFunc = nullptr;
 	menu_index++;
@@ -2358,55 +2571,53 @@ pmenuhnd_t *CreateAbilitiesMenu(edict_t *ent)
 	abilities_menu[menu_index].SelectFunc = nullptr;
 	menu_index++;
 
-	// List ability benefits (only show available ones)
-	bool has_available = false;
-	for (size_t i = 0; i < BenefitsDataSoA::NUM_BENEFITS && menu_index < 25; ++i)
+	// List upgradeable abilities
+	const UpgradeDefinition* defs = GetUpgradeDefinitions();
+	size_t def_count = GetUpgradeDefinitionCount();
+
+	bool has_abilities = false;
+	for (size_t i = 0; i < def_count && menu_index < 25; ++i)
 	{
-		if (g_benefitsData.categories[i] != BenefitCategory::ABILITY)
+		if (defs[i].category != UpgradeCategory::ABILITY)
 			continue;
 
-		BenefitID benefit_id = static_cast<BenefitID>(i);
-		bool owned = PlayerHasBenefit(ent, benefit_id);
+		int8_t current_level = GetSkillLevel(ent, defs[i].id);
+		int8_t max_level = defs[i].max_level;
+		bool can_upgrade = CanUpgrade(ent, defs[i].id);
 
-		// Skip if already owned - cleaner menu
-		if (owned)
+		// Show ability with current level
+		if (max_level == 1)
 		{
-			continue;
-		}
-
-		// Check prerequisites
-		auto prereq = g_benefitsData.prerequisites[i];
-		bool prereq_met = (prereq == BenefitID::NONE) || PlayerHasBenefit(ent, prereq);
-
-		// Don't show if prerequisite not met - cleaner menu
-		if (!prereq_met)
-		{
-			continue;
-		}
-
-		bool can_afford = ent->client->pers.ability_points >= 1;
-
-		// Available to purchase
-		G_FmtTo(abilities_menu[menu_index].text,
-				"{} {} (1 pt)", can_afford ? ">" : " ", g_benefitsData.names[i]);
-		abilities_menu[menu_index].align = PMENU_ALIGN_LEFT;
-		if (can_afford)
-		{
-			abilities_menu[menu_index].SelectFunc = AbilitiesMenuHandler;
-			snprintf(abilities_menu[menu_index].text_arg1, sizeof(abilities_menu[menu_index].text_arg1),
-					 "ability_%s", g_benefitsData.names[i]);
+			// Boolean ability (owned or not)
+			if (current_level > 0)
+			{
+				G_FmtTo(abilities_menu[menu_index].text, "  {} [OWNED]", defs[i].name);
+				abilities_menu[menu_index].SelectFunc = AbilitiesMenuHandler; // Allow viewing details
+			}
+			else
+			{
+				G_FmtTo(abilities_menu[menu_index].text, "{} {} [{}pt]",
+					can_upgrade ? ">" : " ", defs[i].name, defs[i].cost_per_level);
+				abilities_menu[menu_index].SelectFunc = AbilitiesMenuHandler; // Allow viewing details
+			}
 		}
 		else
 		{
-			abilities_menu[menu_index].SelectFunc = nullptr;
+			// Multi-level ability
+			G_FmtTo(abilities_menu[menu_index].text, "{} {} [{}/{}] {}pt",
+				can_upgrade ? ">" : " ", defs[i].name, current_level, max_level, defs[i].cost_per_level);
+			abilities_menu[menu_index].SelectFunc = AbilitiesMenuHandler; // Always allow selection to view details
 		}
+
+		Q_strlcpy(abilities_menu[menu_index].text_arg1, defs[i].id, sizeof(abilities_menu[menu_index].text_arg1));
+		abilities_menu[menu_index].align = PMENU_ALIGN_LEFT;
 		menu_index++;
-		has_available = true;
+		has_abilities = true;
 	}
 
-	if (!has_available)
+	if (!has_abilities)
 	{
-		Q_strlcpy(abilities_menu[menu_index].text, "All abilities purchased!", sizeof(abilities_menu[menu_index].text));
+		Q_strlcpy(abilities_menu[menu_index].text, "No abilities available", sizeof(abilities_menu[menu_index].text));
 		abilities_menu[menu_index].align = PMENU_ALIGN_CENTER;
 		abilities_menu[menu_index].SelectFunc = nullptr;
 		menu_index++;
@@ -2418,11 +2629,18 @@ pmenuhnd_t *CreateAbilitiesMenu(edict_t *ent)
 	abilities_menu[menu_index].SelectFunc = nullptr;
 	menu_index++;
 
-	// Back to main menu
+	// Reset all skills option
+	Q_strlcpy(abilities_menu[menu_index].text, "Reset All Skills (Free)", sizeof(abilities_menu[menu_index].text));
+	abilities_menu[menu_index].align = PMENU_ALIGN_LEFT;
+	abilities_menu[menu_index].SelectFunc = AbilitiesMenuHandler;
+	Q_strlcpy(abilities_menu[menu_index].text_arg1, "reset_skills", sizeof(abilities_menu[menu_index].text_arg1));
+	menu_index++;
+
+	// Back to upgrade menu
 	Q_strlcpy(abilities_menu[menu_index].text, "< Back", sizeof(abilities_menu[menu_index].text));
 	abilities_menu[menu_index].align = PMENU_ALIGN_LEFT;
 	abilities_menu[menu_index].SelectFunc = AbilitiesMenuHandler;
-	Q_strlcpy(abilities_menu[menu_index].text_arg1, "back_to_main", sizeof(abilities_menu[menu_index].text_arg1));
+	Q_strlcpy(abilities_menu[menu_index].text_arg1, "back_to_upgrade", sizeof(abilities_menu[menu_index].text_arg1));
 	menu_index++;
 
 	return PMenu_Open(ent, abilities_menu, 0, menu_index, nullptr, nullptr);
@@ -2626,70 +2844,6 @@ void UpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		PMenu_Close(ent);
 		OpenAbilitiesMenu(ent); // This already sets protection
 	}
-	else if (strcmp(item->text_arg1, "weapon_upgrades") == 0)
-	{
-		PMenu_Close(ent);
-		OpenWeaponsMenu(ent); // This already sets protection
-	}
-	else if (strcmp(item->text_arg1, "restore_points") == 0)
-	{
-		// Preserve admin-given bonus points
-		int32_t admin_bonus_ability = ent->client->pers.admin_bonus_ability_points;
-		int32_t admin_bonus_weapon = ent->client->pers.admin_bonus_weapon_points;
-
-		PlayerRestoreAllPoints(ent);
-
-		// Re-add admin bonus points after restore
-		ent->client->pers.ability_points += admin_bonus_ability;
-		ent->client->pers.weapon_points += admin_bonus_weapon;
-
-		if (admin_bonus_ability > 0 || admin_bonus_weapon > 0)
-		{
-			gi.LocClient_Print(ent, PRINT_HIGH, "Points restored (preserved {} admin ability and {} admin weapon bonus)\n",
-							   admin_bonus_ability, admin_bonus_weapon);
-		}
-
-		PMenu_Close(ent);
-		OpenUpgradeMenu(ent); // This already sets protection
-	}
-	else if (strcmp(item->text_arg1, "toggle_auto_buy_abilities") == 0)
-	{
-		bool was_enabled = ent->client->pers.auto_buy_abilities;
-		ent->client->pers.auto_buy_abilities = !ent->client->pers.auto_buy_abilities;
-
-		// If disabling auto-buy for the first time, offer refund
-		if (was_enabled && !ent->client->pers.auto_buy_abilities &&
-			!ent->client->pers.has_manually_disabled_auto_buy)
-		{
-			PlayerRefundAutoPurchasedBenefits(ent);
-		}
-		else
-		{
-			gi.LocClient_Print(ent, PRINT_HIGH, "Auto-buy abilities: {}\n",
-							   ent->client->pers.auto_buy_abilities ? "ON" : "OFF");
-		}
-		PMenu_Close(ent);
-		OpenUpgradeMenu(ent); // This already sets protection
-	}
-	else if (strcmp(item->text_arg1, "toggle_auto_buy_weapons") == 0)
-	{
-		bool was_enabled = ent->client->pers.auto_buy_weapons;
-		ent->client->pers.auto_buy_weapons = !ent->client->pers.auto_buy_weapons;
-
-		// If disabling auto-buy for the first time, offer refund
-		if (was_enabled && !ent->client->pers.auto_buy_weapons &&
-			!ent->client->pers.has_manually_disabled_auto_buy)
-		{
-			PlayerRefundAutoPurchasedBenefits(ent);
-		}
-		else
-		{
-			gi.LocClient_Print(ent, PRINT_HIGH, "Auto-buy weapons: {}\n",
-							   ent->client->pers.auto_buy_weapons ? "ON" : "OFF");
-		}
-		PMenu_Close(ent);
-		OpenUpgradeMenu(ent); // This already sets protection
-	}
 	else if (strcmp(item->text_arg1, "back_to_main") == 0)
 	{
 		PMenu_Close(ent);
@@ -2707,18 +2861,13 @@ pmenuhnd_t *CreateUpgradeMenu(edict_t *ent)
 	int menu_index = 0;
 
 	// Title
-	Q_strlcpy(upgrade_menu[menu_index].text, "=== UPGRADE MENU ===", sizeof(upgrade_menu[menu_index].text));
+	Q_strlcpy(upgrade_menu[menu_index].text, "=== UPGRADES ===", sizeof(upgrade_menu[menu_index].text));
 	upgrade_menu[menu_index].align = PMENU_ALIGN_CENTER;
 	upgrade_menu[menu_index].SelectFunc = nullptr;
 	menu_index++;
 
 	// Points display
-	G_FmtTo(upgrade_menu[menu_index].text, "Ability Points: {}", ent->client->pers.ability_points);
-	upgrade_menu[menu_index].align = PMENU_ALIGN_CENTER;
-	upgrade_menu[menu_index].SelectFunc = nullptr;
-	menu_index++;
-
-	G_FmtTo(upgrade_menu[menu_index].text, "Weapon Points: {}", ent->client->pers.weapon_points);
+	G_FmtTo(upgrade_menu[menu_index].text, "Skill Points: {}", ent->client->pers.skill_points);
 	upgrade_menu[menu_index].align = PMENU_ALIGN_CENTER;
 	upgrade_menu[menu_index].SelectFunc = nullptr;
 	menu_index++;
@@ -2730,36 +2879,22 @@ pmenuhnd_t *CreateUpgradeMenu(edict_t *ent)
 	menu_index++;
 
 	// Menu options
-	Q_strlcpy(upgrade_menu[menu_index].text, "> Abilities Shop", sizeof(upgrade_menu[menu_index].text));
+	Q_strlcpy(upgrade_menu[menu_index].text, "> Abilities", sizeof(upgrade_menu[menu_index].text));
 	upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
 	upgrade_menu[menu_index].SelectFunc = UpgradeMenuHandler;
 	Q_strlcpy(upgrade_menu[menu_index].text_arg1, "abilities_shop", sizeof(upgrade_menu[menu_index].text_arg1));
 	menu_index++;
 
-	Q_strlcpy(upgrade_menu[menu_index].text, "> Weapon Upgrades", sizeof(upgrade_menu[menu_index].text));
+	// Placeholder for future weapon upgrades
+	Q_strlcpy(upgrade_menu[menu_index].text, "  Weapons (Coming Soon)", sizeof(upgrade_menu[menu_index].text));
 	upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
-	upgrade_menu[menu_index].SelectFunc = UpgradeMenuHandler;
-	Q_strlcpy(upgrade_menu[menu_index].text_arg1, "weapon_upgrades", sizeof(upgrade_menu[menu_index].text_arg1));
+	upgrade_menu[menu_index].SelectFunc = nullptr;
 	menu_index++;
 
-	// Always show restore option - helps late-joining players and those who need to reset
-	Q_strlcpy(upgrade_menu[menu_index].text, "> Restore All Points", sizeof(upgrade_menu[menu_index].text));
+	// Placeholder for future talents
+	Q_strlcpy(upgrade_menu[menu_index].text, "  Talents (Coming Soon)", sizeof(upgrade_menu[menu_index].text));
 	upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
-	upgrade_menu[menu_index].SelectFunc = UpgradeMenuHandler;
-	Q_strlcpy(upgrade_menu[menu_index].text_arg1, "restore_points", sizeof(upgrade_menu[menu_index].text_arg1));
-	menu_index++;
-
-	// Auto-buy toggles
-	G_FmtTo(upgrade_menu[menu_index].text, "> Auto-buy Abilities: {}", ent->client->pers.auto_buy_abilities ? "ON" : "OFF");
-	upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
-	upgrade_menu[menu_index].SelectFunc = UpgradeMenuHandler;
-	Q_strlcpy(upgrade_menu[menu_index].text_arg1, "toggle_auto_buy_abilities", sizeof(upgrade_menu[menu_index].text_arg1));
-	menu_index++;
-
-	G_FmtTo(upgrade_menu[menu_index].text, "> Auto-buy Weapons: {}", ent->client->pers.auto_buy_weapons ? "ON" : "OFF");
-	upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
-	upgrade_menu[menu_index].SelectFunc = UpgradeMenuHandler;
-	Q_strlcpy(upgrade_menu[menu_index].text_arg1, "toggle_auto_buy_weapons", sizeof(upgrade_menu[menu_index].text_arg1));
+	upgrade_menu[menu_index].SelectFunc = nullptr;
 	menu_index++;
 
 	// Separator

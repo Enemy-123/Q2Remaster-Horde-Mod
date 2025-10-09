@@ -106,6 +106,13 @@ void Killed(edict_t* targ, edict_t* inflictor, edict_t* attacker, int damage, co
 	targ->enemy = attacker;
 	targ->lastMOD = mod;
 
+	// Award XP for monster kills (Horde/PvM modes)
+	if ((targ->svflags & SVF_MONSTER) && attacker && attacker->client)
+	{
+		extern void AwardKillXP(edict_t* attacker, edict_t* monster);
+		AwardKillXP(attacker, targ);
+	}
+
 	// [Paril-KEX] monsters call die in their damage handler
 	if (targ->svflags & SVF_MONSTER)
 		return;
