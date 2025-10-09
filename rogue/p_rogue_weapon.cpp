@@ -424,6 +424,12 @@ void Heatbeam_Fire(edict_t* ent)
 	else
 		kick = g_config.plasmabeam.kick_singleplayer;
 
+	// Apply Plasmabeam damage upgrade: +1 per level
+	if (ent && ent->client)
+	{
+		damage += ent->client->pers.skills.pb_damage;
+	}
+
 	if (is_quad)
 	{
 		damage *= damage_multiplier;
@@ -442,11 +448,20 @@ void Heatbeam_Fire(edict_t* ent)
 	G_UnLagCompensate();
 	Weapon_PowerupSound(ent);
 
-	// send muzzle flash
-	gi.WriteByte(svc_muzzleflash);
-	gi.WriteEntity(ent);
-	gi.WriteByte(MZ_HEATBEAM | is_silenced);
-	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+	// send muzzle flash (check for silent mode)
+	bool silent_mode = false;
+	if (ent && ent->client)
+	{
+		silent_mode = ent->client->pers.skills.pb_silent;
+	}
+
+	if (!silent_mode)
+	{
+		gi.WriteByte(svc_muzzleflash);
+		gi.WriteEntity(ent);
+		gi.WriteByte(MZ_HEATBEAM | is_silenced);
+		gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+	}
 
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 

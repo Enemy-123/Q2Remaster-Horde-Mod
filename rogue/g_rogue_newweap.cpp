@@ -4,6 +4,9 @@
 #include "../shared.h"
 #include "../horde/g_horde_benefits.h"
 
+// Forward declaration for burn function from g_fire.cpp
+void apply_burning(edict_t* target, edict_t* attacker, int damage, gtime_t duration);
+
 /*
 ========================
 fire_flechette
@@ -1099,6 +1102,14 @@ struct heatbeam_pierce_t : pierce_args_t
 				T_Damage(tr.ent, self, attacker, aimdir, tr.endpos, vec3_origin,
 						 current_damage, kick, DAMAGE_ENERGY, mod);
 
+				// Apply plasmabeam burn damage if upgrade is active
+				if (self->client && self->client->pers.skills.pb_burn > 0)
+				{
+					// Burn damage: 1 damage per tick per level (10 damage per tick at level 10)
+					int burn_damage = 1 * self->client->pers.skills.pb_burn;
+					apply_burning(tr.ent, attacker, burn_damage, 10_sec);
+				}
+
 				tr.ent->beam_hit_time = level.time;
 				damage *= 0.98f;
 
@@ -1125,7 +1136,28 @@ struct heatbeam_pierce_t : pierce_args_t
 static void fire_beams(edict_t *self, const vec3_t &start, const vec3_t &aimdir, const vec3_t &offset,
 					   int damage, int kick, int te_beam, int te_impact, mod_t mod)
 {
-	if (self && self->client && PlayerHasPiercingPlasma(self))
+	// Apply plasmabeam damage upgrade: +1 per level
+	if (self && self->client)
+	{
+		damage += self->client->pers.skills.pb_damage;
+	}
+
+	// Calculate pierce chance: 100% if benefit active, otherwise 4% per level (max 40% at level 10)
+	float pierce_chance = 0.0f;
+	if (self && self->client)
+	{
+		if (PlayerHasPiercingPlasma(self))
+		{
+			pierce_chance = 1.0f; // Benefit gives 100% pierce
+		}
+		else if (self->client->pers.skills.pb_pierce > 0)
+		{
+			pierce_chance = self->client->pers.skills.pb_pierce * 0.04f; // 4% per level
+		}
+	}
+
+	// Roll for pierce
+	if (pierce_chance > 0.0f && frandom() < pierce_chance)
 	{
 		vec3_t end = start + (aimdir * 8192);
 		contents_t content_mask = MASK_PROJECTILE | MASK_WATER;
@@ -1217,6 +1249,14 @@ static void fire_beams(edict_t *self, const vec3_t &start, const vec3_t &aimdir,
 					// Use attacker instead of self for damage credit
 					T_Damage(tr.ent, self, attacker, aimdir, tr.endpos, tr.plane.normal,
 							 damage, kick, DAMAGE_ENERGY, mod);
+
+					// Apply plasmabeam burn damage if upgrade is active
+					if (self->client && self->client->pers.skills.pb_burn > 0)
+					{
+						// Burn damage: 1 damage per tick per level (10 damage per tick at level 10)
+						int burn_damage = 1 * self->client->pers.skills.pb_burn;
+						apply_burning(tr.ent, attacker, burn_damage, 10_sec);
+					}
 				}
 				else
 				{

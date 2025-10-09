@@ -49,6 +49,7 @@ void OpenSSGUpgradeMenu(edict_t *ent);    // Forward declare SSG Upgrade submenu
 void OpenGLUpgradeMenu(edict_t *ent);     // Forward declare GL Upgrade submenu
 void OpenRLUpgradeMenu(edict_t *ent);     // Forward declare RL Upgrade submenu
 void OpenProxUpgradeMenu(edict_t *ent);   // Forward declare Prox Upgrade submenu
+void OpenPlasmabeamUpgradeMenu(edict_t *ent); // Forward declare Plasmabeam Upgrade submenu
 void RespawnWeaponMenuHandler(edict_t *ent, pmenuhnd_t *p);
 void OpenAdminMenu(edict_t *ent); // Forward declare Admin menu functions
 void AdminMenuHandler(edict_t *ent, pmenuhnd_t *p);
@@ -3063,6 +3064,7 @@ void OpenWeaponUpgradeMenu(edict_t *ent)
 	add_entry("> Prox Launcher", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "prox_launcher");
 	add_entry("> ETF Rifle", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "etf_rifle");
 	add_entry("> Ion Ripper", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "ion_ripper");
+	add_entry("> Plasmabeam", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "plasmabeam");
 	add_entry("> Railgun", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "railgun");
 	add_entry("> BFG10K", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "bfg10k");
 
@@ -3156,6 +3158,11 @@ void WeaponUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		PMenu_Close(ent);
 		OpenIonRipperUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "plasmabeam") == 0)
+	{
+		PMenu_Close(ent);
+		OpenPlasmabeamUpgradeMenu(ent);
 	}
 	else if (strcmp(arg, "railgun") == 0)
 	{
@@ -5058,6 +5065,136 @@ void BFGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "BFG10K Silent Mode: {}\n", ent->client->pers.skills.bfg_silent ? "ON" : "OFF");
 		PMenu_Close(ent);
 		OpenBFGUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "back_to_weapons") == 0)
+	{
+		PMenu_Close(ent);
+		OpenWeaponUpgradeMenu(ent);
+	}
+}
+
+/////////////////////////////////////////////
+// PLASMABEAM UPGRADE SUBMENU
+/////////////////////////////////////////////
+
+static pmenu_t plasmabeam_upgrade_menu[32];
+
+void PlasmabeamUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p);
+
+void OpenPlasmabeamUpgradeMenu(edict_t *ent)
+{
+	if (!ent || !ent->client)
+		return;
+
+	if (ent->client->menu)
+		PMenu_Close(ent);
+
+	ent->client->menu_protected = true;
+	ent->client->menu_protection_start = level.time;
+
+	memset(plasmabeam_upgrade_menu, 0, sizeof(plasmabeam_upgrade_menu));
+	int count = 0;
+
+	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
+	{
+		if (count < 32)
+		{
+			Q_strlcpy(plasmabeam_upgrade_menu[count].text, text, sizeof(plasmabeam_upgrade_menu[count].text));
+			plasmabeam_upgrade_menu[count].align = align;
+			plasmabeam_upgrade_menu[count].SelectFunc = func;
+			if (arg)
+				Q_strlcpy(plasmabeam_upgrade_menu[count].text_arg1, arg, sizeof(plasmabeam_upgrade_menu[count].text_arg1));
+			count++;
+		}
+	};
+
+	add_entry("=== PLASMABEAM ===", PMENU_ALIGN_CENTER);
+	add_entry("", PMENU_ALIGN_CENTER);
+
+	char status[128];
+	snprintf(status, sizeof(status), "Damage Level: %d/10", ent->client->pers.skills.pb_damage);
+	add_entry(status, PMENU_ALIGN_LEFT, PlasmabeamUpgradeMenuHandler, "pb_damage");
+
+	snprintf(status, sizeof(status), "Burn Level: %d/10", ent->client->pers.skills.pb_burn);
+	add_entry(status, PMENU_ALIGN_LEFT, PlasmabeamUpgradeMenuHandler, "pb_burn");
+
+	snprintf(status, sizeof(status), "Pierce Level: %d/10 (%.0f%% chance)", ent->client->pers.skills.pb_pierce, ent->client->pers.skills.pb_pierce * 4.0f);
+	add_entry(status, PMENU_ALIGN_LEFT, PlasmabeamUpgradeMenuHandler, "pb_pierce");
+
+	const char *silent_status = ent->client->pers.skills.pb_silent ? "ON" : "OFF";
+	snprintf(status, sizeof(status), "Silent Mode: %s", silent_status);
+	add_entry(status, PMENU_ALIGN_LEFT, PlasmabeamUpgradeMenuHandler, "pb_silent");
+
+	add_entry("", PMENU_ALIGN_CENTER);
+	add_entry("---", PMENU_ALIGN_CENTER);
+	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, PlasmabeamUpgradeMenuHandler, "back_to_weapons");
+
+	PMenu_Open(ent, plasmabeam_upgrade_menu, -1, count, nullptr, nullptr);
+}
+
+void PlasmabeamUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client || !p || p->cur < 0)
+	{
+		if (ent && ent->client && ent->client->menu)
+			PMenu_Close(ent);
+		return;
+	}
+
+	pmenu_t *item = &p->entries[p->cur];
+	if (!item->SelectFunc)
+		return;
+
+	const char *arg = item->text_arg1;
+
+	if (strcmp(arg, "pb_damage") == 0)
+	{
+		if (ent->client->pers.skills.pb_damage < 10)
+		{
+			ent->client->pers.skills.pb_damage++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Plasmabeam Damage increased to level {}!\n", ent->client->pers.skills.pb_damage);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Plasmabeam Damage is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenPlasmabeamUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "pb_burn") == 0)
+	{
+		if (ent->client->pers.skills.pb_burn < 10)
+		{
+			ent->client->pers.skills.pb_burn++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Plasmabeam Burn increased to level {}!\n", ent->client->pers.skills.pb_burn);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Plasmabeam Burn is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenPlasmabeamUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "pb_pierce") == 0)
+	{
+		if (ent->client->pers.skills.pb_pierce < 10)
+		{
+			ent->client->pers.skills.pb_pierce++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Plasmabeam Pierce increased to level {} ({}% chance)!\n", ent->client->pers.skills.pb_pierce, ent->client->pers.skills.pb_pierce * 4);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Plasmabeam Pierce is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenPlasmabeamUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "pb_silent") == 0)
+	{
+		ent->client->pers.skills.pb_silent = !ent->client->pers.skills.pb_silent;
+		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Plasmabeam Silent Mode: {}\n", ent->client->pers.skills.pb_silent ? "ON" : "OFF");
+		PMenu_Close(ent);
+		OpenPlasmabeamUpgradeMenu(ent);
 	}
 	else if (strcmp(arg, "back_to_weapons") == 0)
 	{

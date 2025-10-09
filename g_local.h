@@ -3243,6 +3243,12 @@ struct player_skills_t {
 	bool ir_trails = false;       // Disable Ion Ripper trail effects
 	bool ir_silent = false;       // Silent firing (no flash/noise)
 
+	// Weapon Upgrades - Plasmabeam
+	int8_t pb_damage = 0;         // 0-10: Plasmabeam damage (+1 per level)
+	int8_t pb_burn = 0;           // 0-10: Burn damage (+1 dmg per tick per level)
+	int8_t pb_pierce = 0;         // 0-10: Pierce chance (4% per level, max 40%)
+	bool pb_silent = false;       // Silent firing (no flash/noise)
+
 	// Future expansion - room for 22 more abilities
 
 	// Weapon Upgrades - Railgun
