@@ -2168,6 +2168,13 @@ void weapon_railgun_fire(edict_t* ent)
 		kick = g_config.railgun.kick;
 	}
 
+	// Apply railgun damage upgrade
+	constexpr int RAILGUN_ADDON_DAMAGE = 8;
+	if (ent->client && ent->client->pers.skills.rg_damage > 0)
+	{
+		damage += RAILGUN_ADDON_DAMAGE * ent->client->pers.skills.rg_damage;
+	}
+
 	if (is_quad)
 	{
 		damage *= damage_multiplier;
@@ -2182,13 +2189,16 @@ void weapon_railgun_fire(edict_t* ent)
 
 	P_AddWeaponKick(ent, ent->client->v_forward * -3, { -3.f, 0.f, 0.f });
 
-	// send muzzle flash
-	gi.WriteByte(svc_muzzleflash);
-	gi.WriteEntity(ent);
-	gi.WriteByte(MZ_RAILGUN | is_silenced);
-	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+	// send muzzle flash (unless silent mode is enabled)
+	if (!ent->client || !ent->client->pers.skills.rg_silent)
+	{
+		gi.WriteByte(svc_muzzleflash);
+		gi.WriteEntity(ent);
+		gi.WriteByte(MZ_RAILGUN | is_silenced);
+		gi.multicast(ent->s.origin, MULTICAST_PVS, false);
 
-	PlayerNoise(ent, start, PNOISE_WEAPON);
+		PlayerNoise(ent, start, PNOISE_WEAPON);
+	}
 
 	G_RemoveAmmo(ent);
 }
@@ -2295,14 +2305,24 @@ void weapon_bfg_fire(edict_t* ent)
 	else
 		damage = g_config.bfg.damage;
 
-	// Handle muzzle flash for standard BFG charge-up
+	// Apply BFG damage upgrade
+	constexpr float BFG10K_ADDON_DAMAGE = 2.0f;
+	if (ent->client && ent->client->pers.skills.bfg_damage > 0)
+	{
+		damage += static_cast<int>(BFG10K_ADDON_DAMAGE * ent->client->pers.skills.bfg_damage);
+	}
+
+	// Handle muzzle flash for standard BFG charge-up (unless silent mode)
 	if (!PlayerHasBFGSlide(ent) && ent->client->ps.gunframe == 9)
 	{
-		gi.WriteByte(svc_muzzleflash);
-		gi.WriteEntity(ent);
-		gi.WriteByte(MZ_BFG | is_silenced);
-		gi.multicast(ent->s.origin, MULTICAST_PVS, false);
-		PlayerNoise(ent, ent->s.origin, PNOISE_WEAPON);
+		if (!ent->client || !ent->client->pers.skills.bfg_silent)
+		{
+			gi.WriteByte(svc_muzzleflash);
+			gi.WriteEntity(ent);
+			gi.WriteByte(MZ_BFG | is_silenced);
+			gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+			PlayerNoise(ent, ent->s.origin, PNOISE_WEAPON);
+		}
 		return;
 	}
 
@@ -2314,24 +2334,36 @@ void weapon_bfg_fire(edict_t* ent)
 	if (is_quad)
 		damage *= damage_multiplier;
 
+	// Calculate BFG speed with upgrade
+	constexpr int BFG10K_INITIAL_SPEED = 650;
+	constexpr int BFG10K_ADDON_SPEED = 35;
+	int bfg_speed = BFG10K_INITIAL_SPEED;
+	if (ent->client && ent->client->pers.skills.bfg_speed > 0)
+	{
+		bfg_speed += BFG10K_ADDON_SPEED * ent->client->pers.skills.bfg_speed;
+	}
+
 	vec3_t start, dir;
 	P_ProjectSource(ent, ent->client->v_angle, { 8, 8, -8 }, start, dir);
 
-	// Fire BFG projectile
-	fire_bfg(ent, start, dir, damage, 600, damage_radius);
+	// Fire BFG projectile with upgraded speed
+	fire_bfg(ent, start, dir, damage, bfg_speed, damage_radius);
 
 	// Apply weapon kick
 	P_AddWeaponKick(ent, ent->client->v_forward * -2, { -20.f, 0, crandom() * 8 });
 	ent->client->kick.total = DAMAGE_TIME();
 	ent->client->kick.time = level.time + ent->client->kick.total;
 
-	// Muzzle flash for the actual firing
-	gi.WriteByte(svc_muzzleflash);
-	gi.WriteEntity(ent);
-	gi.WriteByte(MZ_BFG2 | is_silenced);
-	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+	// Muzzle flash for the actual firing (unless silent mode)
+	if (!ent->client || !ent->client->pers.skills.bfg_silent)
+	{
+		gi.WriteByte(svc_muzzleflash);
+		gi.WriteEntity(ent);
+		gi.WriteByte(MZ_BFG2 | is_silenced);
+		gi.multicast(ent->s.origin, MULTICAST_PVS, false);
 
-	PlayerNoise(ent, start, PNOISE_WEAPON);
+		PlayerNoise(ent, start, PNOISE_WEAPON);
+	}
 
 	// Remove the correct amount of ammo in a single, clear call
 	G_RemoveAmmo(ent, required_ammo);

@@ -4,6 +4,9 @@
 #include "memory_safety.h"
 #include "horde/g_horde_benefits.h"
 
+// Forward declaration for burn function from g_fire.cpp
+void apply_burning(edict_t* target, edict_t* attacker, int damage, gtime_t duration);
+
 /*
 ================ =
 fire_hit
@@ -1510,7 +1513,17 @@ struct fire_rail_pierce_t : pierce_args_t
 		{
 			// try to kill it first
 			if ((tr.ent != self) && (tr.ent->takedamage))
+			{
 				T_Damage(tr.ent, self, self, aimdir, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_NONE, MOD_RAILGUN);
+
+				// Apply railgun burn damage if upgrade is active
+				if (self->client && self->client->pers.skills.rg_burn > 0)
+				{
+					// Burn damage: 1 damage per tick per level
+					int burn_damage = 1 * self->client->pers.skills.rg_burn;
+					apply_burning(tr.ent, self, burn_damage, 10_sec);
+				}
+			}
 
 			// dead, so we don't need to care about checking pierce
 			if (!tr.ent->inuse || (!tr.ent->solid || tr.ent->solid == SOLID_TRIGGER))
@@ -2155,7 +2168,15 @@ TOUCH(bfg_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_t
 	if (PlayerHasBFGSlide(self->owner)) {
 		// Set expiry timestamp if not already set
 		if (self->timestamp == 0_ms) {
-			self->timestamp = level.time + BFG_WALL_EXPIRE_TIME;
+			// Apply BFG duration upgrade to wall-stick time
+			gtime_t wall_expire_time = BFG_WALL_EXPIRE_TIME;
+			constexpr float BFG10K_ADDON_DURATION = 0.05f;  // 0.05 seconds per level
+			if (self->owner && self->owner->client && self->owner->client->pers.skills.bfg_duration > 0)
+			{
+				float duration_bonus = BFG10K_ADDON_DURATION * self->owner->client->pers.skills.bfg_duration;
+				wall_expire_time = wall_expire_time + gtime_t::from_sec(duration_bonus);
+			}
+			self->timestamp = level.time + wall_expire_time;
 		}
 
 		// Calculate new velocity more efficiently

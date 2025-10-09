@@ -3057,6 +3057,8 @@ void OpenWeaponUpgradeMenu(edict_t *ent)
 	add_entry("> Hand Grenades", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "hand_grenades");
 	add_entry("> ETF Rifle", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "etf_rifle");
 	add_entry("> Ion Ripper", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "ion_ripper");
+	add_entry("> Railgun", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "railgun");
+	add_entry("> BFG10K", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "bfg10k");
 
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("---", PMENU_ALIGN_CENTER);
@@ -3071,6 +3073,8 @@ void OpenHyperblasterUpgradeMenu(edict_t *ent);
 void OpenHGUpgradeMenu(edict_t *ent);
 void OpenETFUpgradeMenu(edict_t *ent);
 void OpenIonRipperUpgradeMenu(edict_t *ent);
+void OpenRailgunUpgradeMenu(edict_t *ent);
+void OpenBFGUpgradeMenu(edict_t *ent);
 
 void WeaponUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 {
@@ -3131,6 +3135,16 @@ void WeaponUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		PMenu_Close(ent);
 		OpenIonRipperUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "railgun") == 0)
+	{
+		PMenu_Close(ent);
+		OpenRailgunUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "bfg10k") == 0)
+	{
+		PMenu_Close(ent);
+		OpenBFGUpgradeMenu(ent);
 	}
 	else if (strcmp(arg, "back_to_upgrades") == 0)
 	{
@@ -4331,6 +4345,308 @@ void IonRipperUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Ion Ripper Silent Mode: {}\n", ent->client->pers.skills.ir_silent ? "ON" : "OFF");
 		PMenu_Close(ent);
 		OpenIonRipperUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "back_to_weapons") == 0)
+	{
+		PMenu_Close(ent);
+		OpenWeaponUpgradeMenu(ent);
+	}
+}
+
+/////////////////////////////////////////////
+// RAILGUN UPGRADE SUBMENU
+/////////////////////////////////////////////
+
+static pmenu_t railgun_upgrade_menu[32];
+
+void RailgunUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p);
+
+void OpenRailgunUpgradeMenu(edict_t *ent)
+{
+	if (!ent || !ent->client)
+		return;
+
+	if (ent->client->menu)
+		PMenu_Close(ent);
+
+	ent->client->menu_protected = true;
+	ent->client->menu_protection_start = level.time;
+
+	memset(railgun_upgrade_menu, 0, sizeof(railgun_upgrade_menu));
+	int count = 0;
+
+	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
+	{
+		if (count < 32)
+		{
+			Q_strlcpy(railgun_upgrade_menu[count].text, text, sizeof(railgun_upgrade_menu[count].text));
+			railgun_upgrade_menu[count].align = align;
+			railgun_upgrade_menu[count].SelectFunc = func;
+			if (arg)
+				Q_strlcpy(railgun_upgrade_menu[count].text_arg1, arg, sizeof(railgun_upgrade_menu[count].text_arg1));
+			count++;
+		}
+	};
+
+	add_entry("=== RAILGUN ===", PMENU_ALIGN_CENTER);
+	add_entry("", PMENU_ALIGN_CENTER);
+
+	char status[128];
+	snprintf(status, sizeof(status), "Damage Level: %d/10", ent->client->pers.skills.rg_damage);
+	add_entry(status, PMENU_ALIGN_LEFT, RailgunUpgradeMenuHandler, "rg_damage");
+
+	snprintf(status, sizeof(status), "Burn Level: %d/10", ent->client->pers.skills.rg_burn);
+	add_entry(status, PMENU_ALIGN_LEFT, RailgunUpgradeMenuHandler, "rg_burn");
+
+	snprintf(status, sizeof(status), "Pierce Level: %d/10", ent->client->pers.skills.rg_pierce);
+	add_entry(status, PMENU_ALIGN_LEFT, RailgunUpgradeMenuHandler, "rg_pierce");
+
+	const char *trails_status = ent->client->pers.skills.rg_trails ? "OFF" : "ON";
+	snprintf(status, sizeof(status), "Trails: %s", trails_status);
+	add_entry(status, PMENU_ALIGN_LEFT, RailgunUpgradeMenuHandler, "rg_trails");
+
+	const char *silent_status = ent->client->pers.skills.rg_silent ? "ON" : "OFF";
+	snprintf(status, sizeof(status), "Silent Mode: %s", silent_status);
+	add_entry(status, PMENU_ALIGN_LEFT, RailgunUpgradeMenuHandler, "rg_silent");
+
+	add_entry("", PMENU_ALIGN_CENTER);
+	add_entry("---", PMENU_ALIGN_CENTER);
+	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, RailgunUpgradeMenuHandler, "back_to_weapons");
+
+	PMenu_Open(ent, railgun_upgrade_menu, -1, count, nullptr, nullptr);
+}
+
+void RailgunUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client || !p || p->cur < 0)
+	{
+		if (ent && ent->client && ent->client->menu)
+			PMenu_Close(ent);
+		return;
+	}
+
+	pmenu_t *item = &p->entries[p->cur];
+	if (!item->SelectFunc)
+		return;
+
+	const char *arg = item->text_arg1;
+
+	if (strcmp(arg, "rg_damage") == 0)
+	{
+		if (ent->client->pers.skills.rg_damage < 10)
+		{
+			ent->client->pers.skills.rg_damage++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Railgun Damage increased to level {}!\n", ent->client->pers.skills.rg_damage);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Railgun Damage is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenRailgunUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "rg_burn") == 0)
+	{
+		if (ent->client->pers.skills.rg_burn < 10)
+		{
+			ent->client->pers.skills.rg_burn++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Railgun Burn increased to level {}!\n", ent->client->pers.skills.rg_burn);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Railgun Burn is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenRailgunUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "rg_pierce") == 0)
+	{
+		if (ent->client->pers.skills.rg_pierce < 10)
+		{
+			ent->client->pers.skills.rg_pierce++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Railgun Pierce increased to level {}!\n", ent->client->pers.skills.rg_pierce);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Railgun Pierce is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenRailgunUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "rg_trails") == 0)
+	{
+		ent->client->pers.skills.rg_trails = !ent->client->pers.skills.rg_trails;
+		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Railgun Trails: {}\n", ent->client->pers.skills.rg_trails ? "OFF" : "ON");
+		PMenu_Close(ent);
+		OpenRailgunUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "rg_silent") == 0)
+	{
+		ent->client->pers.skills.rg_silent = !ent->client->pers.skills.rg_silent;
+		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Railgun Silent Mode: {}\n", ent->client->pers.skills.rg_silent ? "ON" : "OFF");
+		PMenu_Close(ent);
+		OpenRailgunUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "back_to_weapons") == 0)
+	{
+		PMenu_Close(ent);
+		OpenWeaponUpgradeMenu(ent);
+	}
+}
+
+/////////////////////////////////////////////
+// BFG10K UPGRADE SUBMENU
+/////////////////////////////////////////////
+
+static pmenu_t bfg_upgrade_menu[32];
+
+void BFGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p);
+
+void OpenBFGUpgradeMenu(edict_t *ent)
+{
+	if (!ent || !ent->client)
+		return;
+
+	if (ent->client->menu)
+		PMenu_Close(ent);
+
+	ent->client->menu_protected = true;
+	ent->client->menu_protection_start = level.time;
+
+	memset(bfg_upgrade_menu, 0, sizeof(bfg_upgrade_menu));
+	int count = 0;
+
+	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
+	{
+		if (count < 32)
+		{
+			Q_strlcpy(bfg_upgrade_menu[count].text, text, sizeof(bfg_upgrade_menu[count].text));
+			bfg_upgrade_menu[count].align = align;
+			bfg_upgrade_menu[count].SelectFunc = func;
+			if (arg)
+				Q_strlcpy(bfg_upgrade_menu[count].text_arg1, arg, sizeof(bfg_upgrade_menu[count].text_arg1));
+			count++;
+		}
+	};
+
+	add_entry("=== BFG10K ===", PMENU_ALIGN_CENTER);
+	add_entry("", PMENU_ALIGN_CENTER);
+
+	char status[128];
+	snprintf(status, sizeof(status), "Damage Level: %d/10", ent->client->pers.skills.bfg_damage);
+	add_entry(status, PMENU_ALIGN_LEFT, BFGUpgradeMenuHandler, "bfg_damage");
+
+	snprintf(status, sizeof(status), "Speed Level: %d/10", ent->client->pers.skills.bfg_speed);
+	add_entry(status, PMENU_ALIGN_LEFT, BFGUpgradeMenuHandler, "bfg_speed");
+
+	snprintf(status, sizeof(status), "Duration Level: %d/10", ent->client->pers.skills.bfg_duration);
+	add_entry(status, PMENU_ALIGN_LEFT, BFGUpgradeMenuHandler, "bfg_duration");
+
+	// BFG Mode display
+	const char *mode_str = "Normal";
+	if (ent->client->pers.bfg_mode == BFGMode::SLIDE)
+		mode_str = "Slide";
+	else if (ent->client->pers.bfg_mode == BFGMode::GRAV_PULL)
+		mode_str = "Pull";
+
+	snprintf(status, sizeof(status), "Mode: %s", mode_str);
+	add_entry(status, PMENU_ALIGN_LEFT, BFGUpgradeMenuHandler, "bfg_mode");
+
+	const char *silent_status = ent->client->pers.skills.bfg_silent ? "ON" : "OFF";
+	snprintf(status, sizeof(status), "Silent Mode: %s", silent_status);
+	add_entry(status, PMENU_ALIGN_LEFT, BFGUpgradeMenuHandler, "bfg_silent");
+
+	add_entry("", PMENU_ALIGN_CENTER);
+	add_entry("---", PMENU_ALIGN_CENTER);
+	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, BFGUpgradeMenuHandler, "back_to_weapons");
+
+	PMenu_Open(ent, bfg_upgrade_menu, -1, count, nullptr, nullptr);
+}
+
+void BFGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client || !p || p->cur < 0)
+	{
+		if (ent && ent->client && ent->client->menu)
+			PMenu_Close(ent);
+		return;
+	}
+
+	pmenu_t *item = &p->entries[p->cur];
+	if (!item->SelectFunc)
+		return;
+
+	const char *arg = item->text_arg1;
+
+	if (strcmp(arg, "bfg_damage") == 0)
+	{
+		if (ent->client->pers.skills.bfg_damage < 10)
+		{
+			ent->client->pers.skills.bfg_damage++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "BFG10K Damage increased to level {}!\n", ent->client->pers.skills.bfg_damage);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "BFG10K Damage is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenBFGUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "bfg_speed") == 0)
+	{
+		if (ent->client->pers.skills.bfg_speed < 10)
+		{
+			ent->client->pers.skills.bfg_speed++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "BFG10K Speed increased to level {}!\n", ent->client->pers.skills.bfg_speed);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "BFG10K Speed is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenBFGUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "bfg_duration") == 0)
+	{
+		if (ent->client->pers.skills.bfg_duration < 10)
+		{
+			ent->client->pers.skills.bfg_duration++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "BFG10K Duration increased to level {}!\n", ent->client->pers.skills.bfg_duration);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "BFG10K Duration is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenBFGUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "bfg_mode") == 0)
+	{
+		// Cycle through modes: Normal -> Slide -> Pull -> Normal
+		if (ent->client->pers.bfg_mode == BFGMode::NORMAL)
+		{
+			ent->client->pers.bfg_mode = BFGMode::SLIDE;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "BFG10K Mode: Slide\n");
+		}
+		else if (ent->client->pers.bfg_mode == BFGMode::SLIDE)
+		{
+			ent->client->pers.bfg_mode = BFGMode::GRAV_PULL;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "BFG10K Mode: Pull\n");
+		}
+		else
+		{
+			ent->client->pers.bfg_mode = BFGMode::NORMAL;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "BFG10K Mode: Normal\n");
+		}
+		PMenu_Close(ent);
+		OpenBFGUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "bfg_silent") == 0)
+	{
+		ent->client->pers.skills.bfg_silent = !ent->client->pers.skills.bfg_silent;
+		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "BFG10K Silent Mode: {}\n", ent->client->pers.skills.bfg_silent ? "ON" : "OFF");
+		PMenu_Close(ent);
+		OpenBFGUpgradeMenu(ent);
 	}
 	else if (strcmp(arg, "back_to_weapons") == 0)
 	{

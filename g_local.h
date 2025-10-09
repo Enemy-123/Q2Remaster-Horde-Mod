@@ -3227,6 +3227,20 @@ struct player_skills_t {
 	bool ir_silent = false;       // Silent firing (no flash/noise)
 
 	// Future expansion - room for 22 more abilities
+
+	// Weapon Upgrades - Railgun
+	int8_t rg_damage = 0;         // 0-10: Railgun damage (+8 per level)
+	int8_t rg_burn = 0;           // 0-10: Burn damage (+1 dmg per tick per level)
+	int8_t rg_pierce = 0;         // 0-10: Pierce chance (increases penetration)
+	bool rg_trails = false;       // Disable railgun trail effects
+	bool rg_silent = false;       // Silent firing (no flash/noise)
+
+	// Weapon Upgrades - BFG10K
+	int8_t bfg_damage = 0;        // 0-10: BFG damage (+2.0 per level)
+	int8_t bfg_speed = 0;         // 0-10: BFG projectile speed (+35 per level)
+	int8_t bfg_duration = 0;      // 0-10: BFG effect duration (+0.05s per level)
+	bool bfg_silent = false;      // Silent firing (no flash/noise)
+
 	int8_t reserved[22] = {0};
 };;
 
