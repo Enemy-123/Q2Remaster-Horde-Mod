@@ -4260,6 +4260,10 @@ void OpenIonRipperUpgradeMenu(edict_t *ent)
 	snprintf(status, sizeof(status), "Speed Level: %d/10", ent->client->pers.skills.ir_speed);
 	add_entry(status, PMENU_ALIGN_LEFT, IonRipperUpgradeMenuHandler, "ir_speed");
 
+	const char *trails_status = ent->client->pers.skills.ir_trails ? "OFF" : "ON";
+	snprintf(status, sizeof(status), "Trails: %s", trails_status);
+	add_entry(status, PMENU_ALIGN_LEFT, IonRipperUpgradeMenuHandler, "ir_trails");
+
 	const char *silent_status = ent->client->pers.skills.ir_silent ? "ON" : "OFF";
 	snprintf(status, sizeof(status), "Silent Mode: %s", silent_status);
 	add_entry(status, PMENU_ALIGN_LEFT, IonRipperUpgradeMenuHandler, "ir_silent");
@@ -4311,6 +4315,13 @@ void IonRipperUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		{
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Ion Ripper Speed is already at maximum level!\n");
 		}
+		PMenu_Close(ent);
+		OpenIonRipperUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "ir_trails") == 0)
+	{
+		ent->client->pers.skills.ir_trails = !ent->client->pers.skills.ir_trails;
+		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Ion Ripper Trails: {}\n", ent->client->pers.skills.ir_trails ? "OFF" : "ON");
 		PMenu_Close(ent);
 		OpenIonRipperUpgradeMenu(ent);
 	}

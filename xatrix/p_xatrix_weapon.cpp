@@ -42,9 +42,13 @@ void weapon_ionripper_fire(edict_t* ent)
 		speed += ent->client->pers.skills.ir_speed * 40;
 	}
 
+	// Determine effect based on trails setting
 	// Note: EF_IONRIPPER is required for proper bouncing behavior
-	// The trails setting doesn't affect the effect parameter for Ion Ripper
-	fire_ionripper(ent, start, dir, damage, speed, EF_IONRIPPER);
+	effects_t effect = EF_IONRIPPER;
+	if (ent && ent->client && ent->client->pers.skills.ir_trails)
+		effect = EF_NONE;  // Disable trails
+
+	fire_ionripper(ent, start, dir, damage, speed, effect);
 
 	// send muzzle flash (check for silent mode)
 	bool silent_mode = false;

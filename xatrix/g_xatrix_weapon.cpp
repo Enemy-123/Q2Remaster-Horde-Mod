@@ -85,9 +85,7 @@ TOUCH(ionripper_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool o
 	}
 	else
 	{
-        // This 'return' was causing the projectile to persist after hitting a non-damageable surface.
-        // It should be freed instead.
-		G_FreeEdict(self);
+		// Don't free the entity - let it bounce off walls with MOVETYPE_WALLBOUNCE
 		return;
 	}
 
