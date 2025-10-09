@@ -1048,24 +1048,9 @@ static void HORDE_ApplyAmmoRegen(edict_t* ent) {
 		return;
 	}
 
-	// Determine ammo amount and regen time based on skill level
-	// Lvl 1-3: +1 ammo per 3 seconds
-	// Lvl 4-6: +2 ammo per 3 seconds
-	// Lvl 7-10: +3 ammo per 2 seconds
+	// Fixed regen time: 5 seconds per tick
 	int8_t ammo_regen_level = client->pers.skills.ammo_regen;
-	int ammo_amount = 1;
-	gtime_t regen_time = 3_sec;
-
-	if (ammo_regen_level <= 3) {
-		ammo_amount = 1;
-		regen_time = 3_sec;
-	} else if (ammo_regen_level <= 6) {
-		ammo_amount = 2;
-		regen_time = 3_sec;
-	} else {
-		ammo_amount = 3;
-		regen_time = 2_sec;
-	}
+	gtime_t regen_time = 5_sec;
 
 	client->ammoregentime = level.time + regen_time;
 
@@ -1076,23 +1061,25 @@ static void HORDE_ApplyAmmoRegen(edict_t* ent) {
 		int alt_weapon_id;      // Alternative weapon ID (if applicable, 0 otherwise)
 		int ammo_inventory_id;  // ID of ammo in inventory
 		int ammo_max_id;        // ID for max ammo
+		int per_level_amount;   // Amount of ammo per upgrade level
 	} AmmoRegenRule;
 
-	// Define the regeneration rules (amount is determined by skill level)
+	// Define the regeneration rules with specific amounts per level
+	// At level 5, cells would give 25 (5 * 5), rockets would give 5 (1 * 5), etc.
 	const AmmoRegenRule regenRules[] = {
-		// Weapon check, Weapon ID,           Alt Weapon ID,        Ammo ID,           Max Ammo ID
-		{1,             IT_WEAPON_SHOTGUN,    IT_WEAPON_SSHOTGUN,   IT_AMMO_SHELLS,    AMMO_SHELLS},
-		{1,             IT_WEAPON_MACHINEGUN, IT_WEAPON_CHAINGUN,   IT_AMMO_BULLETS,   AMMO_BULLETS},
-		{0,             0,                    0,                    IT_AMMO_GRENADES,  AMMO_GRENADES},
-		{1,             IT_WEAPON_RLAUNCHER,  0,                    IT_AMMO_ROCKETS,   AMMO_ROCKETS},
-		{1,             IT_WEAPON_HYPERBLASTER, 0,                  IT_AMMO_CELLS,     AMMO_CELLS},
-		{1,             IT_WEAPON_RAILGUN,    0,                    IT_AMMO_SLUGS,     AMMO_SLUGS},
-		{1,             IT_WEAPON_PHALANX,    0,                    IT_AMMO_MAGSLUG,   AMMO_MAGSLUG},
-		{1,             IT_WEAPON_ETF_RIFLE,  0,                    IT_AMMO_FLECHETTES,AMMO_FLECHETTES},
-		{1,             IT_WEAPON_PROXLAUNCHER,    0,               IT_AMMO_PROX,      AMMO_PROX},
-		{1,             IT_WEAPON_DISRUPTOR,  0,                    IT_AMMO_ROUNDS,    AMMO_DISRUPTOR},
-		{0,             0,                    0,                    IT_AMMO_TESLA,     AMMO_TESLA},
-		{0,             0,                    0,                    IT_AMMO_TRAP,      AMMO_TRAP}
+		// Weapon check, Weapon ID,           Alt Weapon ID,        Ammo ID,            Max Ammo ID,    Per Level
+		{1,             IT_WEAPON_SHOTGUN,    IT_WEAPON_SSHOTGUN,   IT_AMMO_SHELLS,     AMMO_SHELLS,    1},  // Not specified, using 1
+		{1,             IT_WEAPON_MACHINEGUN, IT_WEAPON_CHAINGUN,   IT_AMMO_BULLETS,    AMMO_BULLETS,   5},  // 5 bullets per level
+		{0,             0,                    0,                    IT_AMMO_GRENADES,   AMMO_GRENADES,  1},  // 1 grenade per level
+		{1,             IT_WEAPON_RLAUNCHER,  0,                    IT_AMMO_ROCKETS,    AMMO_ROCKETS,   1},  // 1 rocket per level
+		{1,             IT_WEAPON_HYPERBLASTER, 0,                  IT_AMMO_CELLS,      AMMO_CELLS,     5},  // 5 cells per level
+		{1,             IT_WEAPON_RAILGUN,    0,                    IT_AMMO_SLUGS,      AMMO_SLUGS,     1},  // 1 slug per level
+		{1,             IT_WEAPON_PHALANX,    0,                    IT_AMMO_MAGSLUG,    AMMO_MAGSLUG,   1},  // Not specified, using 1
+		{1,             IT_WEAPON_ETF_RIFLE,  0,                    IT_AMMO_FLECHETTES, AMMO_FLECHETTES,5},  // 5 flechettes per level
+		{1,             IT_WEAPON_PROXLAUNCHER,    0,               IT_AMMO_PROX,       AMMO_PROX,      1},  // 1 prox per level
+		{1,             IT_WEAPON_DISRUPTOR,  0,                    IT_AMMO_ROUNDS,     AMMO_DISRUPTOR, 1},  // 1 round per level
+		{0,             0,                    0,                    IT_AMMO_TESLA,      AMMO_TESLA,     1},  // 1 tesla per level
+		{0,             0,                    0,                    IT_AMMO_TRAP,       AMMO_TRAP,      1}   // 1 trap per level
 	};
 
 	// Apply all regeneration rules
@@ -1140,7 +1127,10 @@ static void HORDE_ApplyAmmoRegen(edict_t* ent) {
 			continue;
 		}
 
-		// Add ammo based on skill level
+		// Calculate ammo amount: per_level_amount * skill_level
+		int ammo_amount = regenRules[i].per_level_amount * ammo_regen_level;
+
+		// Add ammo
 		client->pers.inventory[regenRules[i].ammo_inventory_id] += ammo_amount;
 
 		// Cap at maximum value

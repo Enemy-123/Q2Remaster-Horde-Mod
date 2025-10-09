@@ -176,7 +176,7 @@ void PvM_OpenStatsMenu(edict_t* player)
     player->client->menu_protected = true;
     player->client->menu_protection_start = level.time;
 
-    static pmenu_t entries[12];
+    static pmenu_t entries[20];  // Increased for more entries
     memset(entries, 0, sizeof(entries));
     int count = 0;
 
@@ -195,20 +195,30 @@ void PvM_OpenStatsMenu(edict_t* player)
     int32_t xp_needed = PvM_GetXPToNextLevel(player);
 
     // Title
-    add_entry("*PvM Character Stats*", PMENU_ALIGN_CENTER);
-    add_entry("", PMENU_ALIGN_CENTER); // Separator
+    add_entry("*Character Info*", PMENU_ALIGN_LEFT);
+    add_entry("", PMENU_ALIGN_LEFT); // Separator
 
     // Level and XP display
-    add_entry(G_Fmt("Level: {} | XP: {}/{}",
-                    player->client->pers.pvm_level,
+    add_entry(G_Fmt("Level: {}", player->client->pers.pvm_level).data(), PMENU_ALIGN_LEFT);
+    add_entry(G_Fmt("XP: {}/{}", 
                     player->client->pers.pvm_xp,
                     player->client->pers.pvm_xp + xp_needed).data(),
-              PMENU_ALIGN_CENTER);
+              PMENU_ALIGN_LEFT);
 
-    add_entry(G_Fmt("Stat Points: {}", player->client->pers.pvm_stat_points).data(),
-              PMENU_ALIGN_CENTER);
+    // Character points
+    add_entry(G_Fmt("Upgraded Points: {}", player->client->pers.skill_points).data(),
+              PMENU_ALIGN_LEFT);
+    add_entry(G_Fmt("Weapon Points: {}", player->client->pers.weapon_points).data(),
+              PMENU_ALIGN_LEFT);
+    add_entry(G_Fmt("Talent Points: {}", player->client->pers.pvm_stat_points).data(),
+              PMENU_ALIGN_LEFT);
 
-    add_entry("", PMENU_ALIGN_CENTER); // Separator
+    // Respawn weapon
+    const char* respawn_weapon = Character_GetRespawnWeapon(player);
+    add_entry(G_Fmt("Respawn Weapon: {}", respawn_weapon ? respawn_weapon : "None").data(),
+              PMENU_ALIGN_LEFT);
+
+    add_entry("", PMENU_ALIGN_LEFT); // Separator
 
     // Max Ammo stat
     bool can_upgrade_ammo = player->client->pers.pvm_stat_points > 0 &&
@@ -230,7 +240,7 @@ void PvM_OpenStatsMenu(edict_t* player)
               PMENU_ALIGN_LEFT,
               can_upgrade_vitality ? PvM_StatsMenuHandler : nullptr);
 
-    add_entry("", PMENU_ALIGN_CENTER); // Separator
+    add_entry("", PMENU_ALIGN_LEFT); // Separator
 
     // Reset option (only if there are allocated stats)
     int32_t total_allocated = player->client->pers.pvm_max_ammo_level +
@@ -240,7 +250,7 @@ void PvM_OpenStatsMenu(edict_t* player)
         add_entry("Reset Stats (Free)", PMENU_ALIGN_LEFT, PvM_StatsMenuHandler);
     }
 
-    add_entry("", PMENU_ALIGN_CENTER); // Separator
+    add_entry("", PMENU_ALIGN_LEFT); // Separator
     add_entry("Back", PMENU_ALIGN_LEFT, PvM_StatsMenuHandler);
     add_entry("Close", PMENU_ALIGN_LEFT, PvM_StatsMenuHandler);
 
@@ -285,14 +295,52 @@ void PvM_CheckLevelUp(edict_t* player)
         player->client->pers.pvm_level = current_level;
         player->client->pers.skill_points++; // Grant 1 skill point per level
 
+        // Every 5 levels, auto-grant +1 vitality and +1 max ammo (free)
+        bool got_free_vitality = false;
+        bool got_free_max_ammo = false;
+        
+        if (current_level % 5 == 0)
+        {
+            // Auto-grant vitality if not at cap
+            if (player->client->pers.pvm_vitality_level < VITALITY_LEVEL_CAP)
+            {
+                player->client->pers.pvm_vitality_level++;
+                got_free_vitality = true;
+            }
+            
+            // Auto-grant max ammo if not at cap
+            if (player->client->pers.pvm_max_ammo_level < MAX_AMMO_LEVEL_CAP)
+            {
+                player->client->pers.pvm_max_ammo_level++;
+                got_free_max_ammo = true;
+            }
+        }
+
         // Show level-up message
         gi.LocClient_Print(player, PRINT_TYPEWRITER, nullptr,
                            "LEVEL UP!\\nYou are now level {}!\n+1 Skill Point\n",
                            current_level);
 
         gi.LocClient_Print(player, PRINT_HIGH, nullptr,
-                           "*** LEVEL UP! You are now level {} (+1 skill point ***\n",
+                           "*** LEVEL UP! You are now level {} (+1 skill point) ***\n",
                            current_level);
+
+        // Show bonus message if applicable
+        if (got_free_vitality && got_free_max_ammo)
+        {
+            gi.LocClient_Print(player, PRINT_HIGH, nullptr,
+                               "*** MILESTONE! +1 Vitality & +1 Max Ammo (Free) ***\n");
+        }
+        else if (got_free_vitality)
+        {
+            gi.LocClient_Print(player, PRINT_HIGH, nullptr,
+                               "*** MILESTONE! +1 Vitality (Free) ***\n");
+        }
+        else if (got_free_max_ammo)
+        {
+            gi.LocClient_Print(player, PRINT_HIGH, nullptr,
+                               "*** MILESTONE! +1 Max Ammo (Free) ***\n");
+        }
 
         gi.LocBroadcast_Print(PRINT_CHAT, "*****{} gained a level*****\n", player_name);
 

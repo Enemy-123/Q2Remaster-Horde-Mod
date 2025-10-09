@@ -2122,8 +2122,8 @@ void HordeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		OpenRespawnWeaponMenu(ent);
 		shouldCloseMenu = false;
 	}
-	// PvM Stats
-	else if (strstr(selected_text, "PvM Stats"))
+	// Character Info
+	else if (strstr(selected_text, "Character Info"))
 	{
 		PvM_OpenStatsMenu(ent);
 		shouldCloseMenu = false;
@@ -2238,11 +2238,8 @@ pmenuhnd_t *CreateHordeMenu(edict_t *ent)
 	if (pvm->integer)
 	{
 		add_entry("Set Respawn Weapon", PMENU_ALIGN_LEFT, HordeMenuHandler);
-		// Add PvM Stats menu (show level and available points)
-		auto pvm_stats_text = G_Fmt("PvM Stats (Lvl:{} Pts:{})",
-									ent->client->pers.pvm_level,
-									ent->client->pers.pvm_stat_points);
-		add_entry(pvm_stats_text.data(), PMENU_ALIGN_LEFT, HordeMenuHandler);
+		// Add Character Info menu
+		add_entry("Character Info", PMENU_ALIGN_LEFT, HordeMenuHandler);
 	}
 
 	if (g_horde && !pvm->integer)

@@ -451,16 +451,8 @@ bool Pickup_Bandolier(edict_t *ent, edict_t *other)
 	}
 	else
 	{
-		G_AdjustAmmoCap(other, AMMO_BULLETS, 250);
-		G_AdjustAmmoCap(other, AMMO_SHELLS, 150);
-		G_AdjustAmmoCap(other, AMMO_CELLS, 250);
-		G_AdjustAmmoCap(other, AMMO_SLUGS, 75);
-		G_AdjustAmmoCap(other, AMMO_MAGSLUG, 63);
-		G_AdjustAmmoCap(other, AMMO_FLECHETTES, 250);
-		G_AdjustAmmoCap(other, AMMO_DISRUPTOR, 21);
-		G_AdjustAmmoCap(other, AMMO_TESLA, 7);
-		G_AdjustAmmoCap(other, AMMO_TRAP, 5);
-
+		// PvM mode: Don't extend max ammo cap (use max ammo ability instead)
+		// Just give ammo without adjusting capacity
 		G_AddAmmoAndCapQuantity(other, AMMO_BULLETS);
 		G_AddAmmoAndCapQuantity(other, AMMO_SHELLS);
 		G_AddAmmoAndCapQuantity(other, AMMO_CELLS);
@@ -500,17 +492,8 @@ bool Pickup_Pack(edict_t* ent, edict_t* other)
 
 	else
 	{
-		G_AdjustAmmoCap(other, AMMO_BULLETS, 300);
-		G_AdjustAmmoCap(other, AMMO_SHELLS, 200);
-		G_AdjustAmmoCap(other, AMMO_ROCKETS, 100);
-		G_AdjustAmmoCap(other, AMMO_GRENADES, 100);
-		G_AdjustAmmoCap(other, AMMO_CELLS, 300);
-		G_AdjustAmmoCap(other, AMMO_SLUGS, 100);
-		G_AdjustAmmoCap(other, AMMO_MAGSLUG, 100);
-		G_AdjustAmmoCap(other, AMMO_FLECHETTES, 300);
-		G_AdjustAmmoCap(other, AMMO_DISRUPTOR, 30);
-		G_AdjustAmmoCap(other, AMMO_TESLA, 10);
-		G_AdjustAmmoCap(other, AMMO_TRAP, 10);
+		// PvM mode: Don't extend max ammo cap (use max ammo ability instead)
+		// Just give ammo without adjusting capacity
 	}
 
 	G_AddAmmoAndCapQuantity(other, AMMO_BULLETS);
