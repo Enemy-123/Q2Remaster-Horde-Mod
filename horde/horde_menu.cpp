@@ -410,8 +410,9 @@ struct map_lists_t
 static map_lists_t categorized_maps;
 
 // Respawn weapon selection menu
-constexpr size_t RESPAWN_WEAPON_MENU_SIZE = 14;
+constexpr size_t RESPAWN_WEAPON_MENU_SIZE = 18; // Title, blank, current weapon, blank, 10 weapons, blank, Next, Previous, Back;
 static pmenu_t respawn_weapon_menu[RESPAWN_WEAPON_MENU_SIZE];
+static size_t respawn_weapon_current_page = 0;
 
 // Function to categorize the maps based on g_map_list cvar
 void CategorizeMapList()
@@ -1445,8 +1446,30 @@ void RespawnWeaponMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	// Handle "Back to Main Menu"
 	if (strcmp(selected_text, "Back to Main Menu") == 0)
 	{
+		respawn_weapon_current_page = 0; // Reset to first page
 		PMenu_Close(ent);
 		OpenHordeMenu(ent);
+		return;
+	}
+
+	// Handle "Next >"
+	if (strcmp(selected_text, "Next >") == 0)
+	{
+		respawn_weapon_current_page++;
+		PMenu_Close(ent);
+		OpenRespawnWeaponMenu(ent);
+		return;
+	}
+
+	// Handle "< Previous"
+	if (strcmp(selected_text, "< Previous") == 0)
+	{
+		if (respawn_weapon_current_page > 0)
+		{
+			respawn_weapon_current_page--;
+		}
+		PMenu_Close(ent);
+		OpenRespawnWeaponMenu(ent);
 		return;
 	}
 
@@ -1460,7 +1483,7 @@ void RespawnWeaponMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	Character_SetRespawnWeapon(ent, selected_text);
 	gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Respawn weapon set to: {}\n", selected_text);
 
-	// Reopen the menu to show updated selection
+	// Reopen the menu to show updated selection (stay on same page)
 	PMenu_Close(ent);
 	OpenRespawnWeaponMenu(ent);
 }
@@ -1497,6 +1520,45 @@ void OpenRespawnWeaponMenu(edict_t *ent)
 		}
 	};
 
+	// All weapons across both pages
+	static const char* all_weapons[] = {
+		// Page 0: Base weapons
+		"Blaster",
+		"Shotgun",
+		"Super Shotgun",
+		"Machinegun",
+		"Chaingun",
+		"Grenade Launcher",
+		"Rocket Launcher",
+		"HyperBlaster",
+		"Railgun",
+		"BFG10K",
+		// Page 1: Expansion weapons
+		"20mm Cannon",
+		"ETF Rifle",
+		"Prox Launcher",
+		"Plasma Beam",
+		"Ionripper",
+		"Phalanx",
+		"Disruptor",
+		"Tesla",
+		"Trap",
+		"Grenades"
+	};
+	constexpr size_t total_weapons = sizeof(all_weapons) / sizeof(all_weapons[0]);
+	constexpr size_t weapons_per_page = 10;
+	constexpr size_t total_pages = (total_weapons + weapons_per_page - 1) / weapons_per_page;
+
+	// Validate and clamp current page
+	if (respawn_weapon_current_page >= total_pages)
+	{
+		respawn_weapon_current_page = 0;
+	}
+
+	// Calculate weapon range for current page
+	size_t start_index = respawn_weapon_current_page * weapons_per_page;
+	size_t end_index = std::min(start_index + weapons_per_page, total_weapons);
+
 	// Title
 	add_entry("*Set Respawn Weapon*", PMENU_ALIGN_CENTER);
 	add_entry("", PMENU_ALIGN_CENTER);
@@ -1508,20 +1570,42 @@ void OpenRespawnWeaponMenu(edict_t *ent)
 	add_entry(current_weapon_display, PMENU_ALIGN_LEFT);
 	add_entry("", PMENU_ALIGN_CENTER);
 
-	// Weapon options
-	add_entry("Blaster", PMENU_ALIGN_LEFT, RespawnWeaponMenuHandler);
-	add_entry("Shotgun", PMENU_ALIGN_LEFT, RespawnWeaponMenuHandler);
-	add_entry("Super Shotgun", PMENU_ALIGN_LEFT, RespawnWeaponMenuHandler);
-	add_entry("Machinegun", PMENU_ALIGN_LEFT, RespawnWeaponMenuHandler);
-	add_entry("Chaingun", PMENU_ALIGN_LEFT, RespawnWeaponMenuHandler);
-	add_entry("Grenade Launcher", PMENU_ALIGN_LEFT, RespawnWeaponMenuHandler);
-	add_entry("Rocket Launcher", PMENU_ALIGN_LEFT, RespawnWeaponMenuHandler);
-	add_entry("HyperBlaster", PMENU_ALIGN_LEFT, RespawnWeaponMenuHandler);
-	add_entry("Railgun", PMENU_ALIGN_LEFT, RespawnWeaponMenuHandler);
-	add_entry("BFG10K", PMENU_ALIGN_LEFT, RespawnWeaponMenuHandler);
+	// Weapon options for current page
+	for (size_t i = start_index; i < end_index; ++i)
+	{
+		add_entry(all_weapons[i], PMENU_ALIGN_LEFT, RespawnWeaponMenuHandler);
+	}
 
-	// Back option
+	// Fill remaining weapon slots if we have fewer than 10 weapons on this page
+	for (size_t i = end_index - start_index; i < weapons_per_page; ++i)
+	{
+		add_entry("", PMENU_ALIGN_CENTER);
+	}
+
+	// Navigation section
 	add_entry("", PMENU_ALIGN_CENTER);
+
+	// Next button (only if not on last page)
+	if (respawn_weapon_current_page < total_pages - 1)
+	{
+		add_entry("Next >", PMENU_ALIGN_LEFT, RespawnWeaponMenuHandler);
+	}
+	else
+	{
+		add_entry("", PMENU_ALIGN_CENTER);
+	}
+
+	// Previous button (only if not on first page)
+	if (respawn_weapon_current_page > 0)
+	{
+		add_entry("< Previous", PMENU_ALIGN_LEFT, RespawnWeaponMenuHandler);
+	}
+	else
+	{
+		add_entry("", PMENU_ALIGN_CENTER);
+	}
+
+	// Back to main menu
 	add_entry("Back to Main Menu", PMENU_ALIGN_LEFT, RespawnWeaponMenuHandler);
 
 	PMenu_Open(ent, respawn_weapon_menu, -1, count, nullptr, nullptr);
@@ -3114,7 +3198,7 @@ public:
 		// Add column headers. The X coordinates here will be the same for the data below.
 		int header_y = PLAYER_Y_START - PLAYER_Y_SPACING; // Position headers just above the first player
 		layout_builder.append(fmt::format(
-			"if 0 xv -140 yv {} string2 \"Name\" xv 70 yv {} string2 \"Score\" xv 120 yv {} string2 \"Lv\" xv 160 yv {} string2 \"Ping\" endif \n",
+			"if 0 xv -140 yv {} string2 \"Name\" xv 70 yv {} string2 \"Score\" xv 120 yv {} string2 \"Lv\" xv 160 yv {} string2 \"Png\" endif \n",
 			header_y, header_y, header_y, header_y));
 
 		// Loop through players and display their info
