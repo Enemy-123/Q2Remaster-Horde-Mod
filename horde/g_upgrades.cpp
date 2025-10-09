@@ -6,12 +6,21 @@
 static const UpgradeDefinition UPGRADE_DEFS[] = {
     // Phase 2: Core abilities
     {
+        "vampire",
+        "Vampirism",
+        "Passive: Recover health from damage dealt\n"
+        "Base: 5% lifesteal\n"
+        "Each level: +1% lifesteal\n"
+        "Lvl 10: 15% lifesteal\nLevel 6+ Enables Armor Vamp\n",
+        10, 1, UpgradeCategory::ABILITY, nullptr, 0
+    },
+    {
         "ammo_regen",
         "Ammo Regen",
         "Passive: Regenerate ammo over time\n"
-        "Lvl 1-3: +1 ammo/3sec\n"
-        "Lvl 4-6: +2 ammo/3sec\n"
-        "Lvl 7-10: +3 ammo/2sec",
+        "+1 projectile and +5 cells/bullets\n"
+        "per level\n"
+        "each 5 sec",
         10, 1, UpgradeCategory::ABILITY, nullptr, 0
     },
     {

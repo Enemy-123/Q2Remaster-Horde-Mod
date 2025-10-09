@@ -106,7 +106,7 @@ void Character_CreateDefault(edict_t* player)
     std::ofstream file(filepath, std::ios::out | std::ios::trunc);
     if (!file.is_open())
     {
-        gi.Com_PrintFmt("Character: Failed to create character file for {}\n", GetPlayerName(player));
+        // gi.Com_PrintFmt("Character: Failed to create character file for {}\n", GetPlayerName(player));
         return;
     }
 
@@ -116,7 +116,7 @@ void Character_CreateDefault(edict_t* player)
     writer->write(root, &file);
     file.close();
 
-    gi.Com_PrintFmt("Character: Created new character file for {}\n", GetPlayerName(player));
+    // gi.Com_PrintFmt("Character: Created new character file for {}\n", GetPlayerName(player));
 }
 
 // Load character from file
@@ -140,8 +140,8 @@ bool Character_Load(edict_t* player)
     if (!file.is_open())
     {
         // No character file exists, create default
-        gi.Com_PrintFmt("Character: No character file found for {}, creating default\n",
-                        player_name);
+        // gi.Com_PrintFmt("Character: No character file found for {}, creating default\n",
+                        // player_name);
         Character_CreateDefault(player);
         return false;
     }
@@ -153,8 +153,8 @@ bool Character_Load(edict_t* player)
 
     if (!Json::parseFromStream(builder, file, &root, &errs))
     {
-        gi.Com_PrintFmt("Character: Failed to parse character file for {}: {}\n",
-                        player_name, errs);
+        // gi.Com_PrintFmt("Character: Failed to parse character file for {}: {}\n",
+                        // player_name, errs);
         file.close();
         return false;
     }
@@ -243,14 +243,14 @@ bool Character_Load(edict_t* player)
     if (player->client->pers.pvm_level == 1 && player->client->pers.pvm_xp == 0)
     {
         player->client->pers.pvm_level = 0;
-        gi.Com_PrintFmt("Character: Migrated {} from old level 1 start to level 0\n", player_name);
+        // gi.Com_PrintFmt("Character: Migrated {} from old level 1 start to level 0\n", player_name);
         Character_Save(player); // Save the migrated data
     }
 
-    gi.Com_PrintFmt("Character: Loaded character for {} (respawn weapon: {}, PvM level: {})\n",
-                    player_name,
-                    player->client->pers.respawn_weapon_name,
-                    player->client->pers.pvm_level);
+    // gi.Com_PrintFmt("Character: Loaded character for {} (respawn weapon: {}, PvM level: {})\n",
+                    // player_name,
+                    // player->client->pers.respawn_weapon_name,
+                    // player->client->pers.pvm_level);
 
     return true;
 }
@@ -305,8 +305,8 @@ bool Character_Save(edict_t* player)
 
     if (!file.is_open())
     {
-        gi.Com_PrintFmt("Character: Failed to save character file for {}\n",
-                        player_name);
+        // gi.Com_PrintFmt("Character: Failed to save character file for {}\n",
+                        // player_name);
         return false;
     }
 
@@ -316,7 +316,7 @@ bool Character_Save(edict_t* player)
     writer->write(root, &file);
     file.close();
 
-    gi.Com_PrintFmt("Character: Saved character for {}\n", player_name);
+    // gi.Com_PrintFmt("Character: Saved character for {}\n", player_name);
     return true;
 }
 

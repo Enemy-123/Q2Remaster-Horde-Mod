@@ -6,6 +6,7 @@
 #include "horde/g_horde_benefits.h"
 #include "horde/g_horde_phys.h"
 #include "horde/horde_performance.h"
+#include "horde/g_upgrades.h"
 #include "shared.h"
 
 
@@ -1007,8 +1008,13 @@ void HandleVampireEffect(edict_t* attacker, edict_t* targ, int damage)
     // --- 1. Guard Clauses & Early Exits ---
     // These fast checks prevent unnecessary processing and are crucial for performance.
 
-    // Vampire effect is disabled or damage is zero.
-    if (!PlayerHasVampire(attacker) || damage <= 0) {
+    // Check if attacker has vampire skill (new skill system)
+    if (!attacker || !attacker->client || damage <= 0) {
+        return;
+    }
+
+    int8_t vampire_level = GetSkillLevel(attacker, "vampire");
+    if (vampire_level <= 0) {
         return;
     }
 
@@ -1086,8 +1092,8 @@ void HandleVampireEffect(edict_t* attacker, edict_t* targ, int damage)
     }
 
     // --- 4. Armor Vampire Effect ---
-    // At higher vampire levels, the attacker can also steal armor.
-    if (PlayerHasBenefit(attacker, BenefitID::VAMPIRE_UPGRADED)) {
+    // At higher vampire levels (6+), the attacker can also steal armor.
+    if (vampire_level >= 6) {
         apply_armor_vampire(attacker, damage);
     }
 }

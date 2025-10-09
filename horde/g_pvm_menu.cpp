@@ -18,10 +18,13 @@ constexpr int32_t VITALITY_LEVEL_CAP = 10;
 // Calculate XP required for a specific level
 int32_t PvM_GetXPForLevel(int32_t level)
 {
-    if (level <= 1)
+    if (level < 1)
         return 0;
 
     // XP for level N = BASE_XP * (GROWTH_FACTOR ^ (N-1))
+    // Level 1 requires: 100 * (2^0) = 100 XP
+    // Level 2 requires: 100 * (2^1) = 200 XP
+    // Level 3 requires: 100 * (2^2) = 400 XP, etc.
     return static_cast<int32_t>(BASE_XP_PER_LEVEL * std::pow(XP_GROWTH_FACTOR, level - 1));
 }
 
