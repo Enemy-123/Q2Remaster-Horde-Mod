@@ -1072,6 +1072,21 @@ void weapon_grenade_fire(edict_t* ent, bool held)
 	float radius;
 
 	radius = static_cast<float>(damage + g_config.grenade.radius_offset);
+
+	// Apply Hand Grenade upgrades
+	if (ent && ent->client)
+	{
+		// Damage upgrade: initial 200 + (level * 10)
+		damage += static_cast<int>(ent->client->pers.skills.hg_damage * 10);
+
+		// Radius damage upgrade: initial value + (level * 10)
+		// Note: radius is calculated from damage, so we add the radius_damage upgrade to radius directly
+		radius += ent->client->pers.skills.hg_radius_damage * 10.0f;
+
+		// Radius upgrade: initial value + (level * 5)
+		radius += ent->client->pers.skills.hg_radius * 5.0f;
+	}
+
 	if (is_quad)
 		damage *= damage_multiplier;
 
@@ -1467,20 +1482,39 @@ void Blaster_Fire(edict_t* ent, const vec3_t& g_offset, int damage, bool hyper, 
 		P_AddWeaponKick(ent, ent->client->v_forward * -2, { -1.f, 0.f, 0.f });
 
 	// let the regular blaster projectiles travel a bit faster because it is a completely useless gun
-	int const speed = hyper ? g_config.hyperblaster.speed : g_config.blaster.speed;
+	int speed = hyper ? g_config.hyperblaster.speed : g_config.blaster.speed;
 	int const bounces = hyper ? g_config.hyperblaster.bounces : g_config.blaster.bounces;
+
+	// Apply speed upgrades
+	if (ent && ent->client)
+	{
+		if (hyper)
+			speed += ent->client->pers.skills.hb_speed * 40;
+		else
+			speed += ent->client->pers.skills.bl_speed * 40;
+	}
+
 	//left hb / right blaster
 	!hyper ? fire_blaster(ent, start, dir, damage, speed, effect, hyper ? MOD_HYPERBLASTER : MOD_BLASTER, bounces)
 	: fire_blaster_bolt(ent, start, dir, damage, speed, effect, hyper ? MOD_HYPERBLASTER : MOD_BLASTER, bounces);
 
-	// send muzzle flash
-	gi.WriteByte(svc_muzzleflash);
-	gi.WriteEntity(ent);
-	if (hyper)
-		gi.WriteByte(MZ_HYPERBLASTER | is_silenced);
-	else
-		gi.WriteByte(MZ_BLASTER | is_silenced);
-	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+	// send muzzle flash (check for silent mode)
+	bool silent_mode = false;
+	if (ent && ent->client)
+	{
+		silent_mode = hyper ? ent->client->pers.skills.hb_silent : ent->client->pers.skills.bl_silent;
+	}
+
+	if (!silent_mode)
+	{
+		gi.WriteByte(svc_muzzleflash);
+		gi.WriteEntity(ent);
+		if (hyper)
+			gi.WriteByte(MZ_HYPERBLASTER | is_silenced);
+		else
+			gi.WriteByte(MZ_BLASTER | is_silenced);
+		gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+	}
 
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 }
@@ -1504,9 +1538,25 @@ void Weapon_Blaster_Fire(edict_t* ent)
 	ent->client->blaster_ammo--;
 
 	// reduced damage to balance with Strength Tech (4x multiplier)
-	int const damage = irandom(g_config.blaster.damage_min, g_config.blaster.damage_max);
-	
-	Blaster_Fire(ent, vec3_origin, damage, false, EF_BLASTER);
+	int damage_min = g_config.blaster.damage_min;
+	int damage_max = g_config.blaster.damage_max;
+
+	// Apply Blaster upgrades
+	if (ent && ent->client)
+	{
+		// Damage upgrade: min +2 per level, max +5 per level
+		damage_min += ent->client->pers.skills.bl_damage * 2;
+		damage_max += ent->client->pers.skills.bl_damage * 5;
+	}
+
+	int const damage = irandom(damage_min, damage_max);
+
+	// Determine effect based on trails setting
+	effects_t effect = EF_BLASTER;
+	if (ent && ent->client && ent->client->pers.skills.bl_trails)
+		effect = EF_NONE;  // Disable trails
+
+	Blaster_Fire(ent, vec3_origin, damage, false, effect);
 }
 
 void Weapon_Blaster(edict_t* ent)
@@ -1565,8 +1615,25 @@ void Weapon_HyperBlaster_Fire(edict_t* ent)
 			offset[2] = 0;
 			offset[1] = 4 * cosf(rotation);
 
-			damage = irandom(g_config.hyperblaster.damage_min, g_config.hyperblaster.damage_max);
-			Blaster_Fire(ent, offset, damage, true, ((ent->client->ps.gunframe - 6) % 4) == 0 ? EF_HYPERBLASTER : EF_NONE);
+			// Apply Hyperblaster damage upgrades
+			int damage_min = g_config.hyperblaster.damage_min;
+			int damage_max = g_config.hyperblaster.damage_max;
+			if (ent && ent->client)
+			{
+				// Damage upgrade varies by config - using the difference between min and max
+				float upgrade_per_level = (damage_max - damage_min) / 10.0f;
+				damage_min += static_cast<int>(ent->client->pers.skills.hb_damage * upgrade_per_level);
+				damage_max += static_cast<int>(ent->client->pers.skills.hb_damage * upgrade_per_level);
+			}
+
+			damage = irandom(damage_min, damage_max);
+
+			// Determine effect based on trails setting
+			effects_t effect = ((ent->client->ps.gunframe - 6) % 4) == 0 ? EF_HYPERBLASTER : EF_NONE;
+			if (ent && ent->client && ent->client->pers.skills.hb_trails)
+				effect = EF_NONE;  // Disable trails
+
+			Blaster_Fire(ent, offset, damage, true, effect);
 			Weapon_PowerupSound(ent);
 
 			G_RemoveAmmo(ent);

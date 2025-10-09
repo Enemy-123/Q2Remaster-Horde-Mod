@@ -18,6 +18,12 @@ void weapon_ionripper_fire(edict_t* ent)
 	else
 		damage = g_config.ionripper.damage;
 
+	// Apply Ion Ripper damage upgrade: +2.5 per level
+	if (ent && ent->client)
+	{
+		damage += static_cast<int>(ent->client->pers.skills.ir_damage * 2.5f);
+	}
+
 	if (is_quad)
 		damage *= damage_multiplier;
 
@@ -29,13 +35,31 @@ void weapon_ionripper_fire(edict_t* ent)
 
 	P_AddWeaponKick(ent, ent->client->v_forward * -3, { -3.f, 0.f, 0.f });
 
-	fire_ionripper(ent, start, dir, damage, 900, EF_IONRIPPER);
+	// Apply Ion Ripper speed upgrade: +40 per level
+	int speed = 900;
+	if (ent && ent->client)
+	{
+		speed += ent->client->pers.skills.ir_speed * 40;
+	}
 
-	// send muzzle flash
-	gi.WriteByte(svc_muzzleflash);
-	gi.WriteEntity(ent);
-	gi.WriteByte(MZ_IONRIPPER | is_silenced);
-	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+	// Note: EF_IONRIPPER is required for proper bouncing behavior
+	// The trails setting doesn't affect the effect parameter for Ion Ripper
+	fire_ionripper(ent, start, dir, damage, speed, EF_IONRIPPER);
+
+	// send muzzle flash (check for silent mode)
+	bool silent_mode = false;
+	if (ent && ent->client)
+	{
+		silent_mode = ent->client->pers.skills.ir_silent;
+	}
+
+	if (!silent_mode)
+	{
+		gi.WriteByte(svc_muzzleflash);
+		gi.WriteEntity(ent);
+		gi.WriteByte(MZ_IONRIPPER | is_silenced);
+		gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+	}
 
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 

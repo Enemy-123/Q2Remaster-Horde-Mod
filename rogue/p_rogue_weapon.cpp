@@ -277,6 +277,12 @@ void weapon_etf_rifle_fire(edict_t* ent)
 	else
 		damage = irandom(9, 13);
 
+	// Apply ETF Rifle damage upgrade: +1.25 per level
+	if (ent && ent->client)
+	{
+		damage += static_cast<int>(ent->client->pers.skills.etf_damage * 1.f);
+	}
+
 	if (!(ent->client->buttons & BUTTON_ATTACK))
 	{
 		ent->client->ps.gunframe = 8;
@@ -294,6 +300,12 @@ void weapon_etf_rifle_fire(edict_t* ent)
 		ent->client->ps.gunframe = 8;
 		NoAmmoWeaponChange(ent, true);
 		return;
+	}
+
+	// Apply ETF Rifle kick upgrade: +2 per level
+	if (ent && ent->client)
+	{
+		kick += ent->client->pers.skills.etf_kick * 3;
 	}
 
 	if (is_quad)
@@ -316,16 +328,32 @@ void weapon_etf_rifle_fire(edict_t* ent)
 	else
 		offset = { 15, 6, -8 };
 
+	// Apply ETF Rifle speed upgrade: +40 per level
+	int speed = 1450;
+	if (ent && ent->client)
+	{
+		speed += ent->client->pers.skills.etf_speed * 40;
+	}
+
 	vec3_t start, dir;
 	P_ProjectSource(ent, ent->client->v_angle + kick_angles, offset, start, dir);
-	fire_flechette(ent, start, dir, damage, 1450, kick);
+	fire_flechette(ent, start, dir, damage, speed, kick);
 	Weapon_PowerupSound(ent);
 
-	// send muzzle flash
-	gi.WriteByte(svc_muzzleflash);
-	gi.WriteEntity(ent);
-	gi.WriteByte((ent->client->ps.gunframe == 6 ? MZ_ETF_RIFLE : MZ_ETF_RIFLE_2) | is_silenced);
-	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+	// send muzzle flash (check for silent mode)
+	bool silent_mode = false;
+	if (ent && ent->client)
+	{
+		silent_mode = ent->client->pers.skills.etf_silent;
+	}
+
+	if (!silent_mode)
+	{
+		gi.WriteByte(svc_muzzleflash);
+		gi.WriteEntity(ent);
+		gi.WriteByte((ent->client->ps.gunframe == 6 ? MZ_ETF_RIFLE : MZ_ETF_RIFLE_2) | is_silenced);
+		gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+	}
 
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 

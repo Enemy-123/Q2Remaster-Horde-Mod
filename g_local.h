@@ -3196,7 +3196,36 @@ struct player_skills_t {
 	int8_t cg_tracers = 0;        // 0-10: Tracer bullet damage scaling
 	int8_t cg_spread = 0;         // 0-1: Reduced spread (1 = half spread)
 	bool cg_silent = false;       // Silent firing (no flash/noise)
-	
+
+	// Weapon Upgrades - Hand Grenade
+	int8_t hg_damage = 0;         // 0-10: Hand grenade damage (+10 per level)
+	int8_t hg_radius_damage = 0;  // 0-10: Hand grenade radius damage (+10 per level)
+	int8_t hg_radius = 0;         // 0-10: Hand grenade explosion radius (+5 per level)
+
+	// Weapon Upgrades - Blaster
+	int8_t bl_damage = 0;         // 0-10: Blaster damage (min +2, max +5 per level)
+	int8_t bl_speed = 0;          // 0-10: Blaster projectile speed (+40 per level)
+	bool bl_trails = false;       // Disable blaster trail effects
+	bool bl_silent = false;       // Silent firing (no flash/noise)
+
+	// Weapon Upgrades - Hyperblaster
+	int8_t hb_damage = 0;         // 0-10: Hyperblaster damage (varies by config)
+	int8_t hb_speed = 0;          // 0-10: Hyperblaster projectile speed (+40 per level)
+	bool hb_trails = false;       // Disable hyperblaster trail effects
+	bool hb_silent = false;       // Silent firing (no flash/noise)
+
+	// Weapon Upgrades - ETF Rifle
+	int8_t etf_damage = 0;        // 0-10: ETF Rifle damage (+1.25 per level)
+	int8_t etf_speed = 0;         // 0-10: ETF Rifle projectile speed (+40 per level)
+	int8_t etf_kick = 0;          // 0-10: ETF Rifle kick/recoil (+2 per level)
+	bool etf_silent = false;      // Silent firing (no flash/noise)
+
+	// Weapon Upgrades - Ion Ripper
+	int8_t ir_damage = 0;         // 0-10: Ion Ripper damage (+2.5 per level)
+	int8_t ir_speed = 0;          // 0-10: Ion Ripper projectile speed (+40 per level)
+	bool ir_trails = false;       // Disable Ion Ripper trail effects
+	bool ir_silent = false;       // Silent firing (no flash/noise)
+
 	// Future expansion - room for 22 more abilities
 	int8_t reserved[22] = {0};
 };;
