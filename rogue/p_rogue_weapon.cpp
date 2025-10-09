@@ -332,7 +332,7 @@ void weapon_etf_rifle_fire(edict_t* ent)
 	int speed = 1450;
 	if (ent && ent->client)
 	{
-		speed += ent->client->pers.skills.etf_speed * 40;
+		speed += ent->client->pers.skills.etf_range * 40;
 	}
 
 	vec3_t start, dir;

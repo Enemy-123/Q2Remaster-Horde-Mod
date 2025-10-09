@@ -1079,12 +1079,11 @@ void weapon_grenade_fire(edict_t* ent, bool held)
 		// Damage upgrade: initial 200 + (level * 10)
 		damage += static_cast<int>(ent->client->pers.skills.hg_damage * 10);
 
-		// Radius damage upgrade: initial value + (level * 10)
-		// Note: radius is calculated from damage, so we add the radius_damage upgrade to radius directly
-		radius += ent->client->pers.skills.hg_radius_damage * 10.0f;
+		// Range upgrade affects throw distance (GRENADE_MINSPEED/MAXSPEED)
+		// Note: Range is handled elsewhere, not in radius calculation
 
-		// Radius upgrade: initial value + (level * 5)
-		radius += ent->client->pers.skills.hg_radius * 5.0f;
+		// Radius damage upgrade: affects explosion radius size (adds 10 per level)
+		radius += ent->client->pers.skills.hg_radius_damage * 10.0f;
 	}
 
 	if (is_quad)
@@ -1359,7 +1358,7 @@ void weapon_grenadelauncher_fire(edict_t* ent)
 	// Speed upgrade: initial 600 + (level * 30)
 	int speed = g_config.grenadelauncher.speed;
 	if (ent && ent->client)
-		speed += ent->client->pers.skills.gl_speed * 30;
+		speed += ent->client->pers.skills.gl_range * 30;
 
 	fire_grenade(ent, start, dir, damage, speed, 2.5_sec, radius, (crandom_open() * 10.0f), (200 + crandom_open() * 10.0f), false);
 
@@ -1430,7 +1429,7 @@ void Weapon_RocketLauncher_Fire(edict_t* ent)
 	// Speed upgrade: base + (level * 28)
 	int speed = g_config.rocket.speed;
 	if (ent && ent->client)
-		speed += ent->client->pers.skills.rl_speed * 28;
+		speed += ent->client->pers.skills.rl_range * 28;
 
 	fire_rocket(ent, start, dir, damage, speed, damage_radius, radius_damage);
 
@@ -1489,9 +1488,9 @@ void Blaster_Fire(edict_t* ent, const vec3_t& g_offset, int damage, bool hyper, 
 	if (ent && ent->client)
 	{
 		if (hyper)
-			speed += ent->client->pers.skills.hb_speed * 40;
+			speed += ent->client->pers.skills.hb_range * 40;
 		else
-			speed += ent->client->pers.skills.bl_speed * 40;
+			speed += ent->client->pers.skills.bl_range * 40;
 	}
 
 	//left hb / right blaster
@@ -2412,9 +2411,9 @@ void weapon_bfg_fire(edict_t* ent)
 	constexpr int BFG10K_INITIAL_SPEED = 650;
 	constexpr int BFG10K_ADDON_SPEED = 35;
 	int bfg_speed = BFG10K_INITIAL_SPEED;
-	if (ent->client && ent->client->pers.skills.bfg_speed > 0)
+	if (ent->client && ent->client->pers.skills.bfg_range > 0)
 	{
-		bfg_speed += BFG10K_ADDON_SPEED * ent->client->pers.skills.bfg_speed;
+		bfg_speed += BFG10K_ADDON_SPEED * ent->client->pers.skills.bfg_range;
 	}
 
 	vec3_t start, dir;

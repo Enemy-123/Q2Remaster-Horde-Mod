@@ -3216,30 +3216,30 @@ struct player_skills_t {
 
 	// Weapon Upgrades - Hand Grenade
 	int8_t hg_damage = 0;         // 0-10: Hand grenade damage (+10 per level)
+	int8_t hg_range = 0;          // 0-10: Hand grenade throw range (GRENADE_MINSPEED/MAXSPEED)
 	int8_t hg_radius_damage = 0;  // 0-10: Hand grenade radius damage (+10 per level)
-	int8_t hg_radius = 0;         // 0-10: Hand grenade explosion radius (+5 per level)
 
 	// Weapon Upgrades - Blaster
 	int8_t bl_damage = 0;         // 0-10: Blaster damage (min +2, max +5 per level)
-	int8_t bl_speed = 0;          // 0-10: Blaster projectile speed (+40 per level)
+	int8_t bl_range = 0;          // 0-10: Blaster projectile range/speed (+40 per level)
 	bool bl_trails = false;       // Disable blaster trail effects
 	bool bl_silent = false;       // Silent firing (no flash/noise)
 
 	// Weapon Upgrades - Hyperblaster
 	int8_t hb_damage = 0;         // 0-10: Hyperblaster damage (varies by config)
-	int8_t hb_speed = 0;          // 0-10: Hyperblaster projectile speed (+40 per level)
+	int8_t hb_range = 0;          // 0-10: Hyperblaster projectile range/speed (+40 per level)
 	bool hb_trails = false;       // Disable hyperblaster trail effects
 	bool hb_silent = false;       // Silent firing (no flash/noise)
 
 	// Weapon Upgrades - ETF Rifle
 	int8_t etf_damage = 0;        // 0-10: ETF Rifle damage (+1.25 per level)
-	int8_t etf_speed = 0;         // 0-10: ETF Rifle projectile speed (+40 per level)
+	int8_t etf_range = 0;         // 0-10: ETF Rifle projectile range/speed (+40 per level)
 	int8_t etf_kick = 0;          // 0-10: ETF Rifle kick/recoil (+2 per level)
 	bool etf_silent = false;      // Silent firing (no flash/noise)
 
 	// Weapon Upgrades - Ion Ripper
 	int8_t ir_damage = 0;         // 0-10: Ion Ripper damage (+2.5 per level)
-	int8_t ir_speed = 0;          // 0-10: Ion Ripper projectile speed (+40 per level)
+	int8_t ir_range = 0;          // 0-10: Ion Ripper projectile range/speed (+40 per level)
 	bool ir_trails = false;       // Disable Ion Ripper trail effects
 	bool ir_silent = false;       // Silent firing (no flash/noise)
 
@@ -3260,7 +3260,7 @@ struct player_skills_t {
 
 	// Weapon Upgrades - BFG10K
 	int8_t bfg_damage = 0;        // 0-10: BFG damage (+2.0 per level)
-	int8_t bfg_speed = 0;         // 0-10: BFG projectile speed (+35 per level)
+	int8_t bfg_range = 0;         // 0-10: BFG projectile range/speed (+35 per level)
 	int8_t bfg_duration = 0;      // 0-10: BFG effect duration (+0.05s per level)
 	bool bfg_silent = false;      // Silent firing (no flash/noise)
 
@@ -3272,7 +3272,12 @@ struct player_skills_t {
 	bool pl_silent = false;       // Silent firing (no flash/noise)
 	bool pl_improved_traps = false; // Cluster prox upgrade
 
-	int8_t reserved[22] = {0};
+	// Weapon Upgrades - Chainfist
+	int8_t cf_damage = 0;         // 0-10: Chainfist damage
+	int8_t cf_range = 0;          // 0-10: Chainfist attack range
+	bool cf_silent = false;       // Silent firing (no flash/noise)
+
+	int8_t reserved[19] = {0};
 };;
 
 // client data that stays across multiple level loads

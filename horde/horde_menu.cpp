@@ -3276,7 +3276,7 @@ void OpenRLUpgradeMenu(edict_t *ent, int cursor_pos)
 
 	// Calculate upgrade percentage
 	int current_upgrades = ent->client->pers.skills.rl_damage +
-	                       ent->client->pers.skills.rl_speed +
+	                       ent->client->pers.skills.rl_range +
 	                       ent->client->pers.skills.rl_radius;
 	int max_upgrades = 30;
 	int percentage = (current_upgrades * 100) / max_upgrades;
@@ -3292,8 +3292,8 @@ void OpenRLUpgradeMenu(edict_t *ent, int cursor_pos)
 	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.rl_damage);
 	add_entry(status, PMENU_ALIGN_LEFT, RLUpgradeMenuHandler, "rl_damage");
 
-	snprintf(status, sizeof(status), "Speed %d [10]", ent->client->pers.skills.rl_speed);
-	add_entry(status, PMENU_ALIGN_LEFT, RLUpgradeMenuHandler, "rl_speed");
+	snprintf(status, sizeof(status), "Range %d [10]", ent->client->pers.skills.rl_range);
+	add_entry(status, PMENU_ALIGN_LEFT, RLUpgradeMenuHandler, "rl_range");
 
 	snprintf(status, sizeof(status), "Radius %d [10]", ent->client->pers.skills.rl_radius);
 	add_entry(status, PMENU_ALIGN_LEFT, RLUpgradeMenuHandler, "rl_radius");
@@ -3342,12 +3342,12 @@ void RLUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		PMenu_Close(ent);
 		OpenRLUpgradeMenu(ent);
 	}
-	else if (strcmp(arg, "rl_speed") == 0)
+	else if (strcmp(arg, "rl_range") == 0)
 	{
-		if (ent->client->pers.skills.rl_speed < 10)
+		if (ent->client->pers.skills.rl_range < 10)
 		{
-			ent->client->pers.skills.rl_speed++;
-			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Rocket Launcher Speed increased to level {}!\n", ent->client->pers.skills.rl_speed);
+			ent->client->pers.skills.rl_range++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Rocket Launcher Range increased to level {}!\n", ent->client->pers.skills.rl_range);
 		}
 		else
 		{
@@ -3361,7 +3361,7 @@ void RLUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		if (ent->client->pers.skills.rl_radius < 10)
 		{
 			ent->client->pers.skills.rl_radius++;
-			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Rocket Launcher Radius increased to level {}!\n", ent->client->pers.skills.rl_radius);
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Rocket Launcher Radius Damage increased to level {}!\n", ent->client->pers.skills.rl_radius);
 		}
 		else
 		{
@@ -3429,7 +3429,7 @@ void OpenGLUpgradeMenu(edict_t *ent, int cursor_pos)
 
 	// Calculate upgrade percentage
 	int current_upgrades = ent->client->pers.skills.gl_damage +
-	                       ent->client->pers.skills.gl_speed +
+	                       ent->client->pers.skills.gl_range +
 	                       ent->client->pers.skills.gl_radius;
 	int max_upgrades = 30; // 3 stats * 10 max each
 	int percentage = (current_upgrades * 100) / max_upgrades;
@@ -3445,8 +3445,8 @@ void OpenGLUpgradeMenu(edict_t *ent, int cursor_pos)
 	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.gl_damage);
 	add_entry(status, PMENU_ALIGN_LEFT, GLUpgradeMenuHandler, "gl_damage");
 
-	snprintf(status, sizeof(status), "Speed %d [10]", ent->client->pers.skills.gl_speed);
-	add_entry(status, PMENU_ALIGN_LEFT, GLUpgradeMenuHandler, "gl_speed");
+	snprintf(status, sizeof(status), "Range %d [10]", ent->client->pers.skills.gl_range);
+	add_entry(status, PMENU_ALIGN_LEFT, GLUpgradeMenuHandler, "gl_range");
 
 	snprintf(status, sizeof(status), "Radius %d [10]", ent->client->pers.skills.gl_radius);
 	add_entry(status, PMENU_ALIGN_LEFT, GLUpgradeMenuHandler, "gl_radius");
@@ -3501,12 +3501,12 @@ void GLUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		PMenu_Close(ent);
 		OpenGLUpgradeMenu(ent, cursor);
 	}
-	else if (strcmp(arg, "gl_speed") == 0)
+	else if (strcmp(arg, "gl_range") == 0)
 	{
-		if (ent->client->pers.skills.gl_speed < 10)
+		if (ent->client->pers.skills.gl_range < 10)
 		{
-			ent->client->pers.skills.gl_speed++;
-			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Grenade Launcher Speed increased to level {}!\n", ent->client->pers.skills.gl_speed);
+			ent->client->pers.skills.gl_range++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Grenade Launcher Range increased to level {}!\n", ent->client->pers.skills.gl_range);
 		}
 		else
 		{
@@ -3520,7 +3520,7 @@ void GLUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		if (ent->client->pers.skills.gl_radius < 10)
 		{
 			ent->client->pers.skills.gl_radius++;
-			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Grenade Launcher Radius increased to level {}!\n", ent->client->pers.skills.gl_radius);
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Grenade Launcher Radius Damage increased to level {}!\n", ent->client->pers.skills.gl_radius);
 		}
 		else
 		{
@@ -4143,8 +4143,17 @@ void OpenHGUpgradeMenu(edict_t *ent, int cursor_pos)
 		}
 	};
 
-	// Title
-	add_entry("=== HAND GRENADES ===", PMENU_ALIGN_CENTER);
+	// Calculate upgrade percentage
+	int current_upgrades = ent->client->pers.skills.hg_damage +
+	                       ent->client->pers.skills.hg_range +
+	                       ent->client->pers.skills.hg_radius_damage;
+	int max_upgrades = 30; // 3 stats * 10 max each
+	int percentage = (current_upgrades * 100) / max_upgrades;
+
+	// Title with percentage
+	char title[64];
+	snprintf(title, sizeof(title), "=== HAND GRENADES (%d%%) ===", percentage);
+	add_entry(title, PMENU_ALIGN_CENTER);
 	add_entry("", PMENU_ALIGN_CENTER);
 
 	// Display current upgrade levels
@@ -4152,11 +4161,11 @@ void OpenHGUpgradeMenu(edict_t *ent, int cursor_pos)
 	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.hg_damage);
 	add_entry(status, PMENU_ALIGN_LEFT, HGUpgradeMenuHandler, "hg_damage");
 
+	snprintf(status, sizeof(status), "Range %d [10]", ent->client->pers.skills.hg_range);
+	add_entry(status, PMENU_ALIGN_LEFT, HGUpgradeMenuHandler, "hg_range");
+
 	snprintf(status, sizeof(status), "Radius Damage %d [10]", ent->client->pers.skills.hg_radius_damage);
 	add_entry(status, PMENU_ALIGN_LEFT, HGUpgradeMenuHandler, "hg_radius_damage");
-
-	snprintf(status, sizeof(status), "Radius %d [10]", ent->client->pers.skills.hg_radius);
-	add_entry(status, PMENU_ALIGN_LEFT, HGUpgradeMenuHandler, "hg_radius");
 
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("---", PMENU_ALIGN_CENTER);
@@ -4180,6 +4189,8 @@ void HGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 
 	const char *arg = item->text_arg1;
 
+	int cursor = p->cur; // Save cursor position for reopening
+
 	if (strcmp(arg, "hg_damage") == 0)
 	{
 		if (ent->client->pers.skills.hg_damage < 10)
@@ -4192,7 +4203,21 @@ void HGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Hand Grenade Damage is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenHGUpgradeMenu(ent);
+		OpenHGUpgradeMenu(ent, cursor);
+	}
+	else if (strcmp(arg, "hg_range") == 0)
+	{
+		if (ent->client->pers.skills.hg_range < 10)
+		{
+			ent->client->pers.skills.hg_range++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Hand Grenade Range increased to level {}!\n", ent->client->pers.skills.hg_range);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Hand Grenade Range is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenHGUpgradeMenu(ent, cursor);
 	}
 	else if (strcmp(arg, "hg_radius_damage") == 0)
 	{
@@ -4206,21 +4231,7 @@ void HGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Hand Grenade Radius Damage is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenHGUpgradeMenu(ent);
-	}
-	else if (strcmp(arg, "hg_radius") == 0)
-	{
-		if (ent->client->pers.skills.hg_radius < 10)
-		{
-			ent->client->pers.skills.hg_radius++;
-			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Hand Grenade Radius increased to level {}!\n", ent->client->pers.skills.hg_radius);
-		}
-		else
-		{
-			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Hand Grenade Radius is already at maximum level!\n");
-		}
-		PMenu_Close(ent);
-		OpenHGUpgradeMenu(ent);
+		OpenHGUpgradeMenu(ent, cursor);
 	}
 	else if (strcmp(arg, "back_to_weapons") == 0)
 	{
@@ -4356,7 +4367,7 @@ void ProxUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		if (ent->client->pers.skills.pl_radius < 10)
 		{
 			ent->client->pers.skills.pl_radius++;
-			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Prox Launcher Radius increased to level {}!\n", ent->client->pers.skills.pl_radius);
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Prox Launcher Radius Damage increased to level {}!\n", ent->client->pers.skills.pl_radius);
 		}
 		else
 		{
@@ -4435,8 +4446,8 @@ void OpenBlasterUpgradeMenu(edict_t *ent)
 	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.bl_damage);
 	add_entry(status, PMENU_ALIGN_LEFT, BlasterUpgradeMenuHandler, "bl_damage");
 
-	snprintf(status, sizeof(status), "Speed %d [10]", ent->client->pers.skills.bl_speed);
-	add_entry(status, PMENU_ALIGN_LEFT, BlasterUpgradeMenuHandler, "bl_speed");
+	snprintf(status, sizeof(status), "Range %d [10]", ent->client->pers.skills.bl_range);
+	add_entry(status, PMENU_ALIGN_LEFT, BlasterUpgradeMenuHandler, "bl_range");
 
 	const char *trails_status = ent->client->pers.skills.bl_trails ? "DISABLED" : "ENABLED";
 	snprintf(status, sizeof(status), "Trails: %s", trails_status);
@@ -4482,12 +4493,12 @@ void BlasterUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		PMenu_Close(ent);
 		OpenBlasterUpgradeMenu(ent);
 	}
-	else if (strcmp(arg, "bl_speed") == 0)
+	else if (strcmp(arg, "bl_range") == 0)
 	{
-		if (ent->client->pers.skills.bl_speed < 10)
+		if (ent->client->pers.skills.bl_range < 10)
 		{
-			ent->client->pers.skills.bl_speed++;
-			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Blaster Speed increased to level {}!\n", ent->client->pers.skills.bl_speed);
+			ent->client->pers.skills.bl_range++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Blaster Range increased to level {}!\n", ent->client->pers.skills.bl_range);
 		}
 		else
 		{
@@ -4559,8 +4570,8 @@ void OpenHyperblasterUpgradeMenu(edict_t *ent)
 	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.hb_damage);
 	add_entry(status, PMENU_ALIGN_LEFT, HyperblasterUpgradeMenuHandler, "hb_damage");
 
-	snprintf(status, sizeof(status), "Speed %d [10]", ent->client->pers.skills.hb_speed);
-	add_entry(status, PMENU_ALIGN_LEFT, HyperblasterUpgradeMenuHandler, "hb_speed");
+	snprintf(status, sizeof(status), "Range %d [10]", ent->client->pers.skills.hb_range);
+	add_entry(status, PMENU_ALIGN_LEFT, HyperblasterUpgradeMenuHandler, "hb_range");
 
 	const char *trails_status = ent->client->pers.skills.hb_trails ? "DISABLED" : "ENABLED";
 	snprintf(status, sizeof(status), "Trails: %s", trails_status);
@@ -4606,12 +4617,12 @@ void HyperblasterUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		PMenu_Close(ent);
 		OpenHyperblasterUpgradeMenu(ent);
 	}
-	else if (strcmp(arg, "hb_speed") == 0)
+	else if (strcmp(arg, "hb_range") == 0)
 	{
-		if (ent->client->pers.skills.hb_speed < 10)
+		if (ent->client->pers.skills.hb_range < 10)
 		{
-			ent->client->pers.skills.hb_speed++;
-			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Hyperblaster Speed increased to level {}!\n", ent->client->pers.skills.hb_speed);
+			ent->client->pers.skills.hb_range++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Hyperblaster Range increased to level {}!\n", ent->client->pers.skills.hb_range);
 		}
 		else
 		{
@@ -4683,8 +4694,8 @@ void OpenETFUpgradeMenu(edict_t *ent, int cursor_pos)
 	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.etf_damage);
 	add_entry(status, PMENU_ALIGN_LEFT, ETFUpgradeMenuHandler, "etf_damage");
 
-	snprintf(status, sizeof(status), "Speed %d [10]", ent->client->pers.skills.etf_speed);
-	add_entry(status, PMENU_ALIGN_LEFT, ETFUpgradeMenuHandler, "etf_speed");
+	snprintf(status, sizeof(status), "Range %d [10]", ent->client->pers.skills.etf_range);
+	add_entry(status, PMENU_ALIGN_LEFT, ETFUpgradeMenuHandler, "etf_range");
 
 	snprintf(status, sizeof(status), "Kick %d [10]", ent->client->pers.skills.etf_kick);
 	add_entry(status, PMENU_ALIGN_LEFT, ETFUpgradeMenuHandler, "etf_kick");
@@ -4729,12 +4740,12 @@ void ETFUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		PMenu_Close(ent);
 		OpenETFUpgradeMenu(ent);
 	}
-	else if (strcmp(arg, "etf_speed") == 0)
+	else if (strcmp(arg, "etf_range") == 0)
 	{
-		if (ent->client->pers.skills.etf_speed < 10)
+		if (ent->client->pers.skills.etf_range < 10)
 		{
-			ent->client->pers.skills.etf_speed++;
-			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "ETF Rifle Speed increased to level {}!\n", ent->client->pers.skills.etf_speed);
+			ent->client->pers.skills.etf_range++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "ETF Rifle Range increased to level {}!\n", ent->client->pers.skills.etf_range);
 		}
 		else
 		{
@@ -4813,8 +4824,8 @@ void OpenIonRipperUpgradeMenu(edict_t *ent)
 	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.ir_damage);
 	add_entry(status, PMENU_ALIGN_LEFT, IonRipperUpgradeMenuHandler, "ir_damage");
 
-	snprintf(status, sizeof(status), "Speed %d [10]", ent->client->pers.skills.ir_speed);
-	add_entry(status, PMENU_ALIGN_LEFT, IonRipperUpgradeMenuHandler, "ir_speed");
+	snprintf(status, sizeof(status), "Range %d [10]", ent->client->pers.skills.ir_range);
+	add_entry(status, PMENU_ALIGN_LEFT, IonRipperUpgradeMenuHandler, "ir_range");
 
 	const char *trails_status = ent->client->pers.skills.ir_trails ? "OFF" : "ON";
 	snprintf(status, sizeof(status), "Trails: %s", trails_status);
@@ -4860,12 +4871,12 @@ void IonRipperUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		PMenu_Close(ent);
 		OpenIonRipperUpgradeMenu(ent);
 	}
-	else if (strcmp(arg, "ir_speed") == 0)
+	else if (strcmp(arg, "ir_range") == 0)
 	{
-		if (ent->client->pers.skills.ir_speed < 10)
+		if (ent->client->pers.skills.ir_range < 10)
 		{
-			ent->client->pers.skills.ir_speed++;
-			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Ion Ripper Speed increased to level {}!\n", ent->client->pers.skills.ir_speed);
+			ent->client->pers.skills.ir_range++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Ion Ripper Range increased to level {}!\n", ent->client->pers.skills.ir_range);
 		}
 		else
 		{
@@ -5078,8 +5089,8 @@ void OpenBFGUpgradeMenu(edict_t *ent, int cursor_pos)
 	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.bfg_damage);
 	add_entry(status, PMENU_ALIGN_LEFT, BFGUpgradeMenuHandler, "bfg_damage");
 
-	snprintf(status, sizeof(status), "Speed %d [10]", ent->client->pers.skills.bfg_speed);
-	add_entry(status, PMENU_ALIGN_LEFT, BFGUpgradeMenuHandler, "bfg_speed");
+	snprintf(status, sizeof(status), "Range %d [10]", ent->client->pers.skills.bfg_range);
+	add_entry(status, PMENU_ALIGN_LEFT, BFGUpgradeMenuHandler, "bfg_range");
 
 	snprintf(status, sizeof(status), "Duration %d [10]", ent->client->pers.skills.bfg_duration);
 	add_entry(status, PMENU_ALIGN_LEFT, BFGUpgradeMenuHandler, "bfg_duration");
@@ -5134,12 +5145,12 @@ void BFGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		PMenu_Close(ent);
 		OpenBFGUpgradeMenu(ent);
 	}
-	else if (strcmp(arg, "bfg_speed") == 0)
+	else if (strcmp(arg, "bfg_range") == 0)
 	{
-		if (ent->client->pers.skills.bfg_speed < 10)
+		if (ent->client->pers.skills.bfg_range < 10)
 		{
-			ent->client->pers.skills.bfg_speed++;
-			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "BFG10K Speed increased to level {}!\n", ent->client->pers.skills.bfg_speed);
+			ent->client->pers.skills.bfg_range++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "BFG10K Range increased to level {}!\n", ent->client->pers.skills.bfg_range);
 		}
 		else
 		{
