@@ -3141,6 +3141,14 @@ public:
 			const char *player_name = GetPlayerName(player_ent);
 			std::string score_str = fmt::format("{}", player.score);
 			int32_t player_level = player_ent->client->pers.pvm_level;
+
+			// DEBUG: Print level info when building scoreboard
+			if (level.intermissiontime)
+			{
+				gi.Com_PrintFmt("DEBUG Scoreboard addPlayerList: Player {} ({}), index={}, pvm_level={}, pvm_xp={}\n",
+					player_name, i, player.index, player_level, player_ent->client->pers.pvm_xp);
+			}
+
 			std::string level_str = fmt::format("{}", player_level);
 			std::string ping_str = fmt::format("{}", player.ping);
 

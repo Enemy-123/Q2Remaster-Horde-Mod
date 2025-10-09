@@ -986,7 +986,7 @@ void InitClientPt(const edict_t* ent, gclient_t* client)
 	}
 
 	// Clear inventory except blaster and tech items
-	for (size_t i = 0; i < MAX_ITEMS; i++) {
+	for (size_t i = 0; i < IT_TOTAL; i++) {
 		// Note: You might need to cast IT_WEAPON_BLASTER if it's also an int
 		if (i != static_cast<size_t>(IT_WEAPON_BLASTER) && !IsTechItem(i)) {
 			client->pers.inventory[i] = 0;
@@ -999,7 +999,7 @@ void InitClientPt(const edict_t* ent, gclient_t* client)
 	client->pers.iddmg_state = saved_iddmg_state;
 	client->pers.sentry_gun_choice = saved_sentrygun_state;
 
-	// Reset health values 
+	// Reset health values
 		client->pers.health = 100;
 		client->pers.max_health = 100;
 }
@@ -2806,6 +2806,14 @@ void PutClientInServer(edict_t* ent)
 
 	// Clear client data while preserving persistant info and camera settings
 	client_persistant_t saved = client->pers;
+
+	// DEBUG: Log pvm_level before and after save/restore
+	if (is_horde && level.intermissiontime)
+	{
+		gi.Com_PrintFmt("DEBUG PutClientInServer: Player {} before memset - pvm_level: {}, pvm_xp: {}\n",
+			ent - g_edicts - 1, client->pers.pvm_level, client->pers.pvm_xp);
+	}
+
 	bool saved_auto_eyecam = client->auto_eyecam;
 	bool saved_use_eyecam = client->use_eyecam;
 	memset(client, 0, sizeof(*client));
@@ -2815,9 +2823,29 @@ void PutClientInServer(edict_t* ent)
 	client->use_eyecam = saved_use_eyecam;
 	client->pers.sentry_gun_choice = client->resp.sentry_gun_choice;
 
+	// DEBUG: Log pvm_level after restore
+	if (is_horde && level.intermissiontime)
+	{
+		gi.Com_PrintFmt("DEBUG PutClientInServer: Player {} after restore - pvm_level: {}, pvm_xp: {}, pers.health: {}\n",
+			ent - g_edicts - 1, client->pers.pvm_level, client->pers.pvm_xp, client->pers.health);
+	}
+
 	// Initialize persistant data if needed
 	if (client->pers.health <= 0)
+	{
+		if (is_horde && level.intermissiontime)
+		{
+			gi.Com_PrintFmt("DEBUG PutClientInServer: Player {} calling InitClientPersistant (health <= 0)\n",
+				ent - g_edicts - 1);
+		}
 		InitClientPersistant(ent, client);
+
+		if (is_horde && level.intermissiontime)
+		{
+			gi.Com_PrintFmt("DEBUG PutClientInServer: Player {} after InitClientPersistant - pvm_level: {}, pvm_xp: {}\n",
+				ent - g_edicts - 1, client->pers.pvm_level, client->pers.pvm_xp);
+		}
+	}
 
 	// Restore social ID
 	Q_strlcpy(ent->client->pers.social_id, social_id, sizeof(social_id));
