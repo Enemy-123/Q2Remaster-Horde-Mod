@@ -3114,8 +3114,8 @@ public:
 		// Add column headers. The X coordinates here will be the same for the data below.
 		int header_y = PLAYER_Y_START - PLAYER_Y_SPACING; // Position headers just above the first player
 		layout_builder.append(fmt::format(
-			"if 0 xv -140 yv {} string2 \"Name\" xv 70 yv {} string2 \"Score\" xv 120 yv {} string2 \"Ping\" endif \n",
-			header_y, header_y, header_y));
+			"if 0 xv -140 yv {} string2 \"Name\" xv 70 yv {} string2 \"Score\" xv 120 yv {} string2 \"Lv\" xv 160 yv {} string2 \"Ping\" endif \n",
+			header_y, header_y, header_y, header_y));
 
 		// Loop through players and display their info
 		for (size_t i = 0; i < std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY); ++i)
@@ -3140,13 +3140,16 @@ public:
 
 			const char *player_name = GetPlayerName(player_ent);
 			std::string score_str = fmt::format("{}", player.score);
+			int32_t player_level = player_ent->client->pers.pvm_level;
+			std::string level_str = fmt::format("{}", player_level);
 			std::string ping_str = fmt::format("{}", player.ping);
 
 			player_line_content += fmt::format(
 				"xv -140 yv {} string \"{}\" "
 				"xv 70 yv {} string \"{}\" "
-				"xv 120 yv {} string \"{}\"",
-				y, player_name, y, score_str, y, ping_str);
+				"xv 120 yv {} string \"{}\" "
+				"xv 160 yv {} string \"{}\"",
+				y, player_name, y, score_str, y, level_str, y, ping_str);
 
 			layout_builder.append(fmt::format("if 0 {} endif \n", player_line_content));
 		}
@@ -3185,7 +3188,7 @@ public:
 				std::string spectator_line_content = fmt::format(
 					"xv -140 yv {} string2 \"{}\" "
 					"xv 70 yv {} string2 \"{}\" "
-					"xv 120 yv {} string2 \"{}\"",
+					"xv 160 yv {} string2 \"{}\"",
 					y, spec_name, y, score_str, y, ping_str);
 
 				layout_builder.append(fmt::format("if 0 {} endif \n", spectator_line_content));

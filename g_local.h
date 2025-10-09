@@ -3149,7 +3149,7 @@ constexpr int32_t AUTO_SHIELD_MANUAL = -1;
 constexpr int32_t AUTO_SHIELD_AUTO = 0;
 
 // Player leveling constants
-constexpr int32_t LEVELUP_PLAYER_ADDON_HEALTH = 3; // +3 HP per level
+constexpr int32_t LEVELUP_PLAYER_ADDON_HEALTH = 1; // +1 HP per level
 
 // Player skill/upgrade tracking system
 struct player_skills_t {
@@ -3248,7 +3248,7 @@ struct client_persistant_t
 	char respawn_weapon_name[64];         // Saved respawn weapon preference
 
 	// PvM Leveling System
-	int32_t pvm_level = 1;                // Current PvM level (separate from Horde)
+	int32_t pvm_level = 0;                // Current PvM level (separate from Horde)
 	int32_t pvm_xp = 0;                   // Current experience points
 	int32_t pvm_stat_points = 0;          // Unspent stat points (legacy, deprecated)
 	int32_t pvm_max_ammo_level = 0;       // Max Ammo stat level (legacy, deprecated)

@@ -85,7 +85,7 @@ void Character_CreateDefault(edict_t* player)
     data.iddmg_display = player->client->pers.iddmg_state;
     data.sentry_gun_choice = static_cast<int32_t>(player->client->pers.sentry_gun_choice);
     data.morph_preference = player->client->pers.morph_preference;
-    data.level = 1;
+    data.level = 0;
     data.xp = 0;
 
     // Save to file
@@ -96,7 +96,7 @@ void Character_CreateDefault(edict_t* player)
     root["preferences"]["iddmg_display"] = data.iddmg_display;
     root["preferences"]["sentry_gun_choice"] = data.sentry_gun_choice;
     root["preferences"]["morph_preference"] = data.morph_preference;
-    root["stats"]["pvm_level"] = 1;
+    root["stats"]["pvm_level"] = 0;
     root["stats"]["pvm_xp"] = 0;
     root["stats"]["pvm_stat_points"] = 0;
     root["stats"]["pvm_max_ammo_level"] = 0;
@@ -236,6 +236,15 @@ bool Character_Load(edict_t* player)
             if (skills.isMember("tesla_chain") && skills["tesla_chain"].isBool())
                 player->client->pers.skills.tesla_chain = skills["tesla_chain"].asBool();
         }
+    }
+
+    // Migration: Convert old level 1 starting characters to level 0
+    // (Old system started at level 1, new system starts at level 0)
+    if (player->client->pers.pvm_level == 1 && player->client->pers.pvm_xp == 0)
+    {
+        player->client->pers.pvm_level = 0;
+        gi.Com_PrintFmt("Character: Migrated {} from old level 1 start to level 0\n", player_name);
+        Character_Save(player); // Save the migrated data
     }
 
     gi.Com_PrintFmt("Character: Loaded character for {} (respawn weapon: {}, PvM level: {})\n",

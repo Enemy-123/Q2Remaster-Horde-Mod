@@ -360,12 +360,13 @@ void PvM_ApplyStatBonuses(edict_t* player)
     if (!player || !player->client)
         return;
 
-        // Apply health bonus per level
-        int32_t health_bonus_level = LEVELUP_PLAYER_ADDON_HEALTH;
-        player->client->pers.max_health += health_bonus_level;
-        player->client->resp.max_health += health_bonus_level;
-        player->max_health += health_bonus_level;
-        player->health += health_bonus_level; // Also heal
+    // Apply health bonus per level (+1 HP per level)
+    int32_t pvm_level = player->client->pers.pvm_level;
+    int32_t health_bonus_total = LEVELUP_PLAYER_ADDON_HEALTH * pvm_level;
+    player->client->pers.max_health += health_bonus_total;
+    player->client->resp.max_health += health_bonus_total;
+    player->max_health += health_bonus_total;
+    player->health += health_bonus_total; // Also heal
 
     // Get stat levels
     int32_t max_ammo_level = player->client->pers.pvm_max_ammo_level;

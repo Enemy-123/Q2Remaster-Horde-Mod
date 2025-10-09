@@ -1295,7 +1295,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	{
 		client->pers.skills = player_skills_t(); // Zero-initialize all skills
 		client->pers.skill_points = 0;
-		client->pers.pvm_level = 1; // Start at level 1
+		client->pers.pvm_level = 0; // Start at level 0
 		client->pers.pvm_xp = 0;
 	}
 
