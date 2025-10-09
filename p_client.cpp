@@ -1249,7 +1249,7 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 	if ((ent->svflags & SVF_BOT) && ent->client->resp.ctf_team != CTF_NOTEAM)
 	{
 		bool bot_has_tech = false;
-		for (size_t i = 0; i < MAX_ITEMS && !bot_has_tech; i++)
+		for (size_t i = 0; i < IT_TOTAL && !bot_has_tech; i++)
 		{
 			if ((itemlist[i].flags & IF_TECH) && client->pers.inventory[i] > 0)
 				bot_has_tech = true;

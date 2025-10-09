@@ -3099,13 +3099,13 @@ public:
 		}
 		else
 		{
-			// You can also use the custom dogtag on the intermission screen
+			// Intermission screen - split into separate appends for better error isolation
+			// Each if/endif pair is self-contained and easier to debug
 			layout_builder.append(fmt::format(
-				"if 25 xv -140 yv 3 picn {} endif "
-				"if 25 xv 205 yv 3 pic 25 endif "
-				"if 0 xv 70 yv -20 num 0 {} endif \n",
-				horde_dogtag_path,
-				total_score));
+				"if 25 xv -140 yv 3 picn {} endif \n", horde_dogtag_path));
+			layout_builder.append("if 25 xv 205 yv 3 pic 25 endif \n");
+			layout_builder.append(fmt::format(
+				"if 0 xv 70 yv -20 num 0 {} endif \n", total_score));
 		}
 	}
 
@@ -3142,12 +3142,12 @@ public:
 			std::string score_str = fmt::format("{}", player.score);
 			int32_t player_level = player_ent->client->pers.pvm_level;
 
-			// DEBUG: Print level info when building scoreboard
-			if (level.intermissiontime)
-			{
-				gi.Com_PrintFmt("DEBUG Scoreboard addPlayerList: Player {} ({}), index={}, pvm_level={}, pvm_xp={}\n",
-					player_name, i, player.index, player_level, player_ent->client->pers.pvm_xp);
-			}
+			// // DEBUG: Print level info when building scoreboard
+			// if (level.intermissiontime)
+			// {
+			// 	gi.Com_PrintFmt("DEBUG Scoreboard addPlayerList: Player {} ({}), index={}, pvm_level={}, pvm_xp={}\n",
+			// 		player_name, i, player.index, player_level, player_ent->client->pers.pvm_xp);
+			// }
 
 			std::string level_str = fmt::format("{}", player_level);
 			std::string ping_str = fmt::format("{}", player.ping);
