@@ -1321,6 +1321,16 @@ void weapon_grenadelauncher_fire(edict_t* ent)
 	int	  damage = napalm ? g_config.grenadelauncher.damage_napalm : g_config.grenadelauncher.damage_normal;
 	float radius = napalm ? g_config.grenadelauncher.radius_napalm : g_config.grenadelauncher.radius_normal;
 
+	// Apply weapon upgrades from player skills
+	if (ent && ent->client)
+	{
+		// Damage upgrade: initial 100 + (level * 6)
+		damage += static_cast<int>(ent->client->pers.skills.gl_damage * 6);
+
+		// Radius upgrade: initial 100 + (level * 2.5)
+		radius += ent->client->pers.skills.gl_radius * 2.5f;
+	}
+
 	if (is_quad)
 		damage *= damage_multiplier;
 
@@ -1331,14 +1341,24 @@ void weapon_grenadelauncher_fire(edict_t* ent)
 
 	P_AddWeaponKick(ent, ent->client->v_forward * -2, { -1.f, 0.f, 0.f });
 
-	fire_grenade(ent, start, dir, damage, g_config.grenadelauncher.speed, 2.5_sec, radius, (crandom_open() * 10.0f), (200 + crandom_open() * 10.0f), false);
+	// Speed upgrade: initial 600 + (level * 30)
+	int speed = g_config.grenadelauncher.speed;
+	if (ent && ent->client)
+		speed += ent->client->pers.skills.gl_speed * 30;
 
-	gi.WriteByte(svc_muzzleflash);
-	gi.WriteEntity(ent);
-	gi.WriteByte(MZ_GRENADE | is_silenced);
-	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+	fire_grenade(ent, start, dir, damage, speed, 2.5_sec, radius, (crandom_open() * 10.0f), (200 + crandom_open() * 10.0f), false);
 
-	PlayerNoise(ent, start, PNOISE_WEAPON);
+	// Apply silent mode (no muzzle flash)
+	bool is_silent = (ent && ent->client && ent->client->pers.skills.gl_silent);
+	if (!is_silent)
+	{
+		gi.WriteByte(svc_muzzleflash);
+		gi.WriteEntity(ent);
+		gi.WriteByte(MZ_GRENADE | is_silenced);
+		gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+
+		PlayerNoise(ent, start, PNOISE_WEAPON);
+	}
 
 	G_RemoveAmmo(ent);
 
@@ -1371,6 +1391,18 @@ void Weapon_RocketLauncher_Fire(edict_t* ent)
 	damage = irandom(g_config.rocket.damage_min, g_config.rocket.damage_max);
 	radius_damage = g_config.rocket.radius;
 	damage_radius = g_config.rocket.radius;
+
+	// Apply weapon upgrades from player skills
+	if (ent && ent->client)
+	{
+		// Damage upgrade: base + (level * 3.5)
+		damage += static_cast<int>(ent->client->pers.skills.rl_damage * 3.5f);
+		radius_damage += static_cast<int>(ent->client->pers.skills.rl_damage * 3.5f);
+
+		// Radius upgrade: base + (level * 2.5)
+		damage_radius += ent->client->pers.skills.rl_radius * 2.5f;
+	}
+
 	if (is_quad)
 	{
 		damage *= damage_multiplier;
@@ -1379,17 +1411,28 @@ void Weapon_RocketLauncher_Fire(edict_t* ent)
 
 	vec3_t start, dir;
 	P_ProjectSource(ent, ent->client->v_angle, { 8, 8, -8 }, start, dir);
-	fire_rocket(ent, start, dir, damage, g_config.rocket.speed, damage_radius, radius_damage);
+
+	// Speed upgrade: base + (level * 28)
+	int speed = g_config.rocket.speed;
+	if (ent && ent->client)
+		speed += ent->client->pers.skills.rl_speed * 28;
+
+	fire_rocket(ent, start, dir, damage, speed, damage_radius, radius_damage);
 
 	P_AddWeaponKick(ent, ent->client->v_forward * -2, { -1.f, 0.f, 0.f });
 
-	// send muzzle flash
-	gi.WriteByte(svc_muzzleflash);
-	gi.WriteEntity(ent);
-	gi.WriteByte(MZ_ROCKET | is_silenced);
-	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+	// Apply silent mode (no muzzle flash)
+	bool is_silent = (ent && ent->client && ent->client->pers.skills.rl_silent);
+	if (!is_silent)
+	{
+		// send muzzle flash
+		gi.WriteByte(svc_muzzleflash);
+		gi.WriteEntity(ent);
+		gi.WriteByte(MZ_ROCKET | is_silenced);
+		gi.multicast(ent->s.origin, MULTICAST_PVS, false);
 
-	PlayerNoise(ent, start, PNOISE_WEAPON);
+		PlayerNoise(ent, start, PNOISE_WEAPON);
+	}
 
 	G_RemoveAmmo(ent);
 }

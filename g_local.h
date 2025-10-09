@@ -3169,9 +3169,23 @@ struct player_skills_t {
 	bool sentry_upgrade = false;  // Sentry improvements
 	bool tesla_chain = false;     // Tesla chain lightning
 
-	// Future expansion - room for 32 more abilities
-	int8_t reserved[32] = {0};
-};
+	// Weapon Upgrades - Grenade Launcher
+	int8_t gl_damage = 0;         // 0-10: Grenade damage
+	int8_t gl_speed = 0;          // 0-10: Grenade speed
+	int8_t gl_radius = 0;         // 0-10: Explosion radius
+	bool gl_trails = false;       // Disable grenade trail effects
+	bool gl_silent = false;       // Silent firing (no flash/noise)
+
+		// Weapon Upgrades - Rocket Launcher
+	int8_t rl_damage = 0;         // 0-10: Rocket damage multiplier
+	int8_t rl_speed = 0;          // 0-10: Rocket speed
+	int8_t rl_radius = 0;         // 0-10: Explosion radius
+	bool rl_trails = false;       // Disable rocket trail effects
+	bool rl_silent = false;       // Silent firing (no flash/noise)
+	
+	// Future expansion - room for 22 more abilities
+	int8_t reserved[22] = {0};
+};;
 
 // client data that stays across multiple level loads
 struct client_persistant_t

@@ -1152,7 +1152,9 @@ void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir,
 	grenade->solid = SOLID_BBOX;
 	grenade->svflags |= SVF_PROJECTILE;
 	grenade->flags |= (FL_DODGE | FL_TRAP);
-	grenade->s.effects |= EF_GRENADE;
+	// Apply trail effect unless player has disabled it
+	if (!(self->client && self->client->pers.skills.gl_trails))
+		grenade->s.effects |= EF_GRENADE;
 	grenade->speed = speed;
 	grenade->dmg = damage;
 	grenade->dmg_radius = damage_radius;
@@ -1423,7 +1425,9 @@ edict_t* fire_rocket(edict_t* self, const vec3_t& start, const vec3_t& dir, int 
 	if (self && self->client && !G_ShouldPlayersCollide(true))
 		rocket->clipmask &= ~CONTENTS_PLAYER;
 	rocket->solid = SOLID_BBOX;
-	rocket->s.effects |= EF_ROCKET;
+	// Apply rocket trail effect unless player has disabled it
+	if (!(self->client && self->client->pers.skills.rl_trails))
+		rocket->s.effects |= EF_ROCKET;
 	rocket->s.modelindex = gi.modelindex("models/objects/rocket/tris.md2");
 	rocket->owner = self;
 

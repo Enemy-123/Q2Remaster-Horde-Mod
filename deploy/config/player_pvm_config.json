@@ -114,6 +114,30 @@
     }
   },
 
+  "// ==================== WEAPON UPGRADES ====================": "Player weapon upgrade progression",
+  "weapon_upgrades": {
+    "rocketlauncher": {
+      "damage_initial": 100,
+      "damage_addon": 3.5,
+      "speed_initial": 650,
+      "speed_addon": 28,
+      "radius_damage_initial": 100,
+      "radius_damage_addon": 2.5,
+      "damage_radius_initial": 100,
+      "damage_radius_addon": 2.5
+    },
+    "grenadelauncher": {
+      "damage_initial": 100,
+      "damage_addon": 6,
+      "speed_initial": 600,
+      "speed_addon": 30,
+      "radius_damage_initial": 100,
+      "radius_damage_addon": 5,
+      "radius_initial": 100,
+      "radius_addon": 2.5
+    }
+  },
+
   "// ==================== HOOK ====================": "Offhand hook system configuration",
   "hook": {
     "speed": 900,

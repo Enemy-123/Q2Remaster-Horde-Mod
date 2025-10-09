@@ -41,6 +41,9 @@ pmenuhnd_t *CreateHUDMenu(edict_t *ent);
 void OpenMiscMenu(edict_t *ent, int cursor_position = -1); // Forward declare Misc menu functions
 void MiscMenuHandler(edict_t *ent, pmenuhnd_t *p);
 void OpenRespawnWeaponMenu(edict_t *ent); // Forward declare Respawn Weapon menu
+void OpenWeaponUpgradeMenu(edict_t *ent); // Forward declare Weapon Upgrade menu
+void OpenGLUpgradeMenu(edict_t *ent);     // Forward declare GL Upgrade submenu
+void OpenRLUpgradeMenu(edict_t *ent);     // Forward declare RL Upgrade submenu
 void RespawnWeaponMenuHandler(edict_t *ent, pmenuhnd_t *p);
 void OpenAdminMenu(edict_t *ent); // Forward declare Admin menu functions
 void AdminMenuHandler(edict_t *ent, pmenuhnd_t *p);
@@ -2927,6 +2930,11 @@ void UpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		PMenu_Close(ent);
 		OpenAbilitiesMenu(ent); // This already sets protection
 	}
+	else if (strcmp(item->text_arg1, "weapons_shop") == 0)
+	{
+		PMenu_Close(ent);
+		OpenWeaponUpgradeMenu(ent);
+	}
 	else if (strcmp(item->text_arg1, "back_to_main") == 0)
 	{
 		PMenu_Close(ent);
@@ -2968,10 +2976,11 @@ pmenuhnd_t *CreateUpgradeMenu(edict_t *ent)
 	Q_strlcpy(upgrade_menu[menu_index].text_arg1, "abilities_shop", sizeof(upgrade_menu[menu_index].text_arg1));
 	menu_index++;
 
-	// Placeholder for future weapon upgrades
-	Q_strlcpy(upgrade_menu[menu_index].text, "  Weapons (Coming Soon)", sizeof(upgrade_menu[menu_index].text));
+	// Weapon upgrades
+	Q_strlcpy(upgrade_menu[menu_index].text, "> Weapons", sizeof(upgrade_menu[menu_index].text));
 	upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
-	upgrade_menu[menu_index].SelectFunc = nullptr;
+	upgrade_menu[menu_index].SelectFunc = UpgradeMenuHandler;
+	Q_strlcpy(upgrade_menu[menu_index].text_arg1, "weapons_shop", sizeof(upgrade_menu[menu_index].text_arg1));
 	menu_index++;
 
 	// Placeholder for future talents
@@ -2994,6 +3003,380 @@ pmenuhnd_t *CreateUpgradeMenu(edict_t *ent)
 	menu_index++;
 
 	return PMenu_Open(ent, upgrade_menu, 0, menu_index, nullptr, nullptr);
+}
+
+/////////////////////////////////////////////
+// WEAPON UPGRADE MENU
+/////////////////////////////////////////////
+
+static pmenu_t weapon_upgrade_menu[32];
+
+void WeaponUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p);
+
+void OpenWeaponUpgradeMenu(edict_t *ent)
+{
+	if (!ent || !ent->client)
+		return;
+
+	if (ent->client->menu)
+		PMenu_Close(ent);
+
+	// Set menu protection
+	ent->client->menu_protected = true;
+	ent->client->menu_protection_start = level.time;
+
+	memset(weapon_upgrade_menu, 0, sizeof(weapon_upgrade_menu));
+	int count = 0;
+
+	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
+	{
+		if (count < 32)
+		{
+			Q_strlcpy(weapon_upgrade_menu[count].text, text, sizeof(weapon_upgrade_menu[count].text));
+			weapon_upgrade_menu[count].align = align;
+			weapon_upgrade_menu[count].SelectFunc = func;
+			if (arg)
+				Q_strlcpy(weapon_upgrade_menu[count].text_arg1, arg, sizeof(weapon_upgrade_menu[count].text_arg1));
+			count++;
+		}
+	};
+
+	// Title
+	add_entry("=== WEAPON UPGRADES ===", PMENU_ALIGN_CENTER);
+	add_entry("", PMENU_ALIGN_CENTER);
+
+	// Weapon options
+	add_entry("- Weapon Vacant -", PMENU_ALIGN_LEFT); // Blaster placeholder
+	add_entry("", PMENU_ALIGN_CENTER);
+
+	add_entry("> Rocket Launcher", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "rocket_launcher");
+	add_entry("> Grenade Launcher", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "grenade_launcher");
+
+	add_entry("", PMENU_ALIGN_CENTER);
+	add_entry("---", PMENU_ALIGN_CENTER);
+	add_entry("< Back to Upgrades", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "back_to_upgrades");
+
+	PMenu_Open(ent, weapon_upgrade_menu, -1, count, nullptr, nullptr);
+}
+
+void WeaponUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client || !p || p->cur < 0)
+	{
+		if (ent && ent->client && ent->client->menu)
+			PMenu_Close(ent);
+		return;
+	}
+
+	pmenu_t *item = &p->entries[p->cur];
+	if (!item->SelectFunc)
+		return;
+
+	const char *arg = item->text_arg1;
+
+	if (strcmp(arg, "rocket_launcher") == 0)
+	{
+		PMenu_Close(ent);
+		OpenRLUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "grenade_launcher") == 0)
+	{
+		PMenu_Close(ent);
+		OpenGLUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "back_to_upgrades") == 0)
+	{
+		PMenu_Close(ent);
+		OpenUpgradeMenu(ent);
+	}
+}
+
+/////////////////////////////////////////////
+// ROCKET LAUNCHER UPGRADE SUBMENU
+/////////////////////////////////////////////
+
+static pmenu_t rl_upgrade_menu[32];
+
+void RLUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p);
+
+void OpenRLUpgradeMenu(edict_t *ent)
+{
+	if (!ent || !ent->client)
+		return;
+
+	if (ent->client->menu)
+		PMenu_Close(ent);
+
+	// Set menu protection
+	ent->client->menu_protected = true;
+	ent->client->menu_protection_start = level.time;
+
+	memset(rl_upgrade_menu, 0, sizeof(rl_upgrade_menu));
+	int count = 0;
+
+	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
+	{
+		if (count < 32)
+		{
+			Q_strlcpy(rl_upgrade_menu[count].text, text, sizeof(rl_upgrade_menu[count].text));
+			rl_upgrade_menu[count].align = align;
+			rl_upgrade_menu[count].SelectFunc = func;
+			if (arg)
+				Q_strlcpy(rl_upgrade_menu[count].text_arg1, arg, sizeof(rl_upgrade_menu[count].text_arg1));
+			count++;
+		}
+	};
+
+	// Title
+	add_entry("=== ROCKET LAUNCHER ===", PMENU_ALIGN_CENTER);
+	add_entry("", PMENU_ALIGN_CENTER);
+
+	// Display current upgrade levels
+	char status[128];
+	snprintf(status, sizeof(status), "Damage Level: %d/10", ent->client->pers.skills.rl_damage);
+	add_entry(status, PMENU_ALIGN_LEFT, RLUpgradeMenuHandler, "rl_damage");
+
+	snprintf(status, sizeof(status), "Speed Level: %d/10", ent->client->pers.skills.rl_speed);
+	add_entry(status, PMENU_ALIGN_LEFT, RLUpgradeMenuHandler, "rl_speed");
+
+	snprintf(status, sizeof(status), "Radius Level: %d/10", ent->client->pers.skills.rl_radius);
+	add_entry(status, PMENU_ALIGN_LEFT, RLUpgradeMenuHandler, "rl_radius");
+
+	const char *trails_status = ent->client->pers.skills.rl_trails ? "ON" : "OFF";
+	snprintf(status, sizeof(status), "No Trails: %s", trails_status);
+	add_entry(status, PMENU_ALIGN_LEFT, RLUpgradeMenuHandler, "rl_trails");
+
+	const char *silent_status = ent->client->pers.skills.rl_silent ? "ON" : "OFF";
+	snprintf(status, sizeof(status), "Silent Mode: %s", silent_status);
+	add_entry(status, PMENU_ALIGN_LEFT, RLUpgradeMenuHandler, "rl_silent");
+
+	add_entry("", PMENU_ALIGN_CENTER);
+	add_entry("---", PMENU_ALIGN_CENTER);
+	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, RLUpgradeMenuHandler, "back_to_weapons");
+
+	PMenu_Open(ent, rl_upgrade_menu, -1, count, nullptr, nullptr);
+}
+
+void RLUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client || !p || p->cur < 0)
+	{
+		if (ent && ent->client && ent->client->menu)
+			PMenu_Close(ent);
+		return;
+	}
+
+	pmenu_t *item = &p->entries[p->cur];
+	if (!item->SelectFunc)
+		return;
+
+	const char *arg = item->text_arg1;
+
+	if (strcmp(arg, "rl_damage") == 0)
+	{
+		if (ent->client->pers.skills.rl_damage < 10)
+		{
+			ent->client->pers.skills.rl_damage++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Rocket Launcher Damage increased to level {}!\n", ent->client->pers.skills.rl_damage);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Rocket Launcher Damage is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenRLUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "rl_speed") == 0)
+	{
+		if (ent->client->pers.skills.rl_speed < 10)
+		{
+			ent->client->pers.skills.rl_speed++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Rocket Launcher Speed increased to level {}!\n", ent->client->pers.skills.rl_speed);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Rocket Launcher Speed is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenRLUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "rl_radius") == 0)
+	{
+		if (ent->client->pers.skills.rl_radius < 10)
+		{
+			ent->client->pers.skills.rl_radius++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Rocket Launcher Radius increased to level {}!\n", ent->client->pers.skills.rl_radius);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Rocket Launcher Radius is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenRLUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "rl_trails") == 0)
+	{
+		ent->client->pers.skills.rl_trails = !ent->client->pers.skills.rl_trails;
+		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Rocket Launcher Trails: {}\n", ent->client->pers.skills.rl_trails ? "DISABLED" : "ENABLED");
+		PMenu_Close(ent);
+		OpenRLUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "rl_silent") == 0)
+	{
+		ent->client->pers.skills.rl_silent = !ent->client->pers.skills.rl_silent;
+		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Rocket Launcher Silent Mode: {}\n", ent->client->pers.skills.rl_silent ? "ON" : "OFF");
+		PMenu_Close(ent);
+		OpenRLUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "back_to_weapons") == 0)
+	{
+		PMenu_Close(ent);
+		OpenWeaponUpgradeMenu(ent);
+	}
+}
+
+/////////////////////////////////////////////
+// GRENADE LAUNCHER UPGRADE SUBMENU
+/////////////////////////////////////////////
+
+static pmenu_t gl_upgrade_menu[32];
+
+void GLUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p);
+
+void OpenGLUpgradeMenu(edict_t *ent)
+{
+	if (!ent || !ent->client)
+		return;
+
+	if (ent->client->menu)
+		PMenu_Close(ent);
+
+	// Set menu protection
+	ent->client->menu_protected = true;
+	ent->client->menu_protection_start = level.time;
+
+	memset(gl_upgrade_menu, 0, sizeof(gl_upgrade_menu));
+	int count = 0;
+
+	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
+	{
+		if (count < 32)
+		{
+			Q_strlcpy(gl_upgrade_menu[count].text, text, sizeof(gl_upgrade_menu[count].text));
+			gl_upgrade_menu[count].align = align;
+			gl_upgrade_menu[count].SelectFunc = func;
+			if (arg)
+				Q_strlcpy(gl_upgrade_menu[count].text_arg1, arg, sizeof(gl_upgrade_menu[count].text_arg1));
+			count++;
+		}
+	};
+
+	// Title
+	add_entry("=== GRENADE LAUNCHER ===", PMENU_ALIGN_CENTER);
+	add_entry("", PMENU_ALIGN_CENTER);
+
+	// Display current upgrade levels
+	char status[128];
+	snprintf(status, sizeof(status), "Damage Level: %d/10", ent->client->pers.skills.gl_damage);
+	add_entry(status, PMENU_ALIGN_LEFT, GLUpgradeMenuHandler, "gl_damage");
+
+	snprintf(status, sizeof(status), "Speed Level: %d/10", ent->client->pers.skills.gl_speed);
+	add_entry(status, PMENU_ALIGN_LEFT, GLUpgradeMenuHandler, "gl_speed");
+
+	snprintf(status, sizeof(status), "Radius Level: %d/10", ent->client->pers.skills.gl_radius);
+	add_entry(status, PMENU_ALIGN_LEFT, GLUpgradeMenuHandler, "gl_radius");
+
+	const char *trails_status = ent->client->pers.skills.gl_trails ? "ON" : "OFF";
+	snprintf(status, sizeof(status), "No Trails: %s", trails_status);
+	add_entry(status, PMENU_ALIGN_LEFT, GLUpgradeMenuHandler, "gl_trails");
+
+	const char *silent_status = ent->client->pers.skills.gl_silent ? "ON" : "OFF";
+	snprintf(status, sizeof(status), "Silent Mode: %s", silent_status);
+	add_entry(status, PMENU_ALIGN_LEFT, GLUpgradeMenuHandler, "gl_silent");
+
+	add_entry("", PMENU_ALIGN_CENTER);
+	add_entry("---", PMENU_ALIGN_CENTER);
+	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, GLUpgradeMenuHandler, "back_to_weapons");
+
+	PMenu_Open(ent, gl_upgrade_menu, -1, count, nullptr, nullptr);
+}
+
+void GLUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client || !p || p->cur < 0)
+	{
+		if (ent && ent->client && ent->client->menu)
+			PMenu_Close(ent);
+		return;
+	}
+
+	pmenu_t *item = &p->entries[p->cur];
+	if (!item->SelectFunc)
+		return;
+
+	const char *arg = item->text_arg1;
+
+	if (strcmp(arg, "gl_damage") == 0)
+	{
+		if (ent->client->pers.skills.gl_damage < 10)
+		{
+			ent->client->pers.skills.gl_damage++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Grenade Launcher Damage increased to level {}!\n", ent->client->pers.skills.gl_damage);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Grenade Launcher Damage is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenGLUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "gl_speed") == 0)
+	{
+		if (ent->client->pers.skills.gl_speed < 10)
+		{
+			ent->client->pers.skills.gl_speed++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Grenade Launcher Speed increased to level {}!\n", ent->client->pers.skills.gl_speed);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Grenade Launcher Speed is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenGLUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "gl_radius") == 0)
+	{
+		if (ent->client->pers.skills.gl_radius < 10)
+		{
+			ent->client->pers.skills.gl_radius++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Grenade Launcher Radius increased to level {}!\n", ent->client->pers.skills.gl_radius);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Grenade Launcher Radius is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenGLUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "gl_trails") == 0)
+	{
+		ent->client->pers.skills.gl_trails = !ent->client->pers.skills.gl_trails;
+		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Grenade Launcher Trails: {}\n", ent->client->pers.skills.gl_trails ? "DISABLED" : "ENABLED");
+		PMenu_Close(ent);
+		OpenGLUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "gl_silent") == 0)
+	{
+		ent->client->pers.skills.gl_silent = !ent->client->pers.skills.gl_silent;
+		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Grenade Launcher Silent Mode: {}\n", ent->client->pers.skills.gl_silent ? "ON" : "OFF");
+		PMenu_Close(ent);
+		OpenGLUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "back_to_weapons") == 0)
+	{
+		PMenu_Close(ent);
+		OpenWeaponUpgradeMenu(ent);
+	}
 }
 
 /////////////////////////////////////////////
