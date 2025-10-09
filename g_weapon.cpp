@@ -637,10 +637,20 @@ Now checks for g_energyshells and redirects to fire_energy_shotgun if enabled.
 */
 void fire_shotgun(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick, int hspread, int vspread, int count, mod_t mod)
 {
-	// Check if player has energy shells upgrade
-	if (PlayerHasEnergyShells(self))
+	// Check if player has energy shells upgrade (global benefit or weapon-specific)
+	// Use mod.id to determine which weapon is firing
+	bool use_energy = PlayerHasEnergyShells(self);
+	if (self->client)
 	{
-		// Call the energy version instead
+		if (mod.id == MOD_SHOTGUN && self->client->pers.skills.sg_energized)
+			use_energy = true;
+		else if (mod.id == MOD_SSHOTGUN && self->client->pers.skills.ssg_energized)
+			use_energy = true;
+	}
+
+	if (use_energy)
+	{
+		// Call the energy version instead (damage, kick, hspread, vspread already applied in weapon_*_fire)
 		fire_energy_shotgun(self, start, aimdir, damage, kick, hspread, vspread, count, mod);
 		return;
 	}

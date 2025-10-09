@@ -44,6 +44,8 @@ void OpenRespawnWeaponMenu(edict_t *ent); // Forward declare Respawn Weapon menu
 void OpenWeaponUpgradeMenu(edict_t *ent); // Forward declare Weapon Upgrade menu
 void OpenMGUpgradeMenu(edict_t *ent);     // Forward declare MG Upgrade submenu
 void OpenCGUpgradeMenu(edict_t *ent);     // Forward declare CG Upgrade submenu
+void OpenSGUpgradeMenu(edict_t *ent);     // Forward declare SG Upgrade submenu
+void OpenSSGUpgradeMenu(edict_t *ent);    // Forward declare SSG Upgrade submenu
 void OpenGLUpgradeMenu(edict_t *ent);     // Forward declare GL Upgrade submenu
 void OpenRLUpgradeMenu(edict_t *ent);     // Forward declare RL Upgrade submenu
 void RespawnWeaponMenuHandler(edict_t *ent, pmenuhnd_t *p);
@@ -3050,6 +3052,8 @@ void OpenWeaponUpgradeMenu(edict_t *ent)
 	// Weapon options
 	add_entry("> Blaster", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "blaster");
 	add_entry("> Hyperblaster", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "hyperblaster");
+	add_entry("> Shotgun", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "shotgun");
+	add_entry("> Super Shotgun", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "supershotgun");
 	add_entry("> Machinegun", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "machinegun");
 	add_entry("> Chaingun", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "chaingun");
 	add_entry("> Rocket Launcher", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "rocket_launcher");
@@ -3100,6 +3104,16 @@ void WeaponUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		PMenu_Close(ent);
 		OpenHyperblasterUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "shotgun") == 0)
+	{
+		PMenu_Close(ent);
+		OpenSGUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "supershotgun") == 0)
+	{
+		PMenu_Close(ent);
+		OpenSSGUpgradeMenu(ent);
 	}
 	else if (strcmp(arg, "machinegun") == 0)
 	{
@@ -3590,6 +3604,8 @@ void MGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 /////////////////////////////////////////////
 
 static pmenu_t cg_upgrade_menu[32];
+static pmenu_t sg_upgrade_menu[32];
+static pmenu_t ssg_upgrade_menu[32];
 
 void CGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p);
 
@@ -3727,6 +3743,228 @@ void CGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		PMenu_Close(ent);
 		OpenWeaponUpgradeMenu(ent);
 	}
+}
+
+/////////////////////////////////////////////
+// SHOTGUN UPGRADE SUBMENU
+/////////////////////////////////////////////
+
+void OpenSGUpgradeMenu(edict_t *ent)
+{
+	if (!ent || !ent->client)
+		return;
+
+	if (ent->client->menu)
+		PMenu_Close(ent);
+
+	// Set menu protection
+	ent->client->menu_protected = true;
+	ent->client->menu_protection_start = level.time;
+
+	memset(sg_upgrade_menu, 0, sizeof(sg_upgrade_menu));
+	int count = 0;
+
+	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
+	{
+		if (count < 32)
+		{
+			Q_strlcpy(sg_upgrade_menu[count].text, text, sizeof(sg_upgrade_menu[count].text));
+			sg_upgrade_menu[count].align = align;
+			sg_upgrade_menu[count].SelectFunc = func;
+			if (arg)
+				Q_strlcpy(sg_upgrade_menu[count].text_arg1, arg, sizeof(sg_upgrade_menu[count].text_arg1));
+			count++;
+		}
+	};
+
+	// Title
+	add_entry("=== SHOTGUN ===", PMENU_ALIGN_CENTER);
+	add_entry("", PMENU_ALIGN_CENTER);
+
+	// Display current upgrade levels
+	char status[128];
+	snprintf(status, sizeof(status), "Damage Level: %d/10", ent->client->pers.skills.sg_damage);
+	add_entry(status, PMENU_ALIGN_LEFT, [](edict_t *ent, pmenuhnd_t *p) {
+		if (ent->client->pers.skills.sg_damage < 10) {
+			ent->client->pers.skills.sg_damage++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Shotgun Damage increased to level {}!\n", ent->client->pers.skills.sg_damage);
+		} else {
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Shotgun Damage is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenSGUpgradeMenu(ent);
+	}, "sg_damage");
+
+	snprintf(status, sizeof(status), "Strike Level: %d/10", ent->client->pers.skills.sg_strike);
+	add_entry(status, PMENU_ALIGN_LEFT, [](edict_t *ent, pmenuhnd_t *p) {
+		if (ent->client->pers.skills.sg_strike < 10) {
+			ent->client->pers.skills.sg_strike++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Shotgun Strike increased to level {}!\n", ent->client->pers.skills.sg_strike);
+		} else {
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Shotgun Strike is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenSGUpgradeMenu(ent);
+	}, "sg_strike");
+
+	snprintf(status, sizeof(status), "Pellets Level: %d/10", ent->client->pers.skills.sg_pellets);
+	add_entry(status, PMENU_ALIGN_LEFT, [](edict_t *ent, pmenuhnd_t *p) {
+		if (ent->client->pers.skills.sg_pellets < 10) {
+			ent->client->pers.skills.sg_pellets++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Shotgun Pellets increased to level {}!\n", ent->client->pers.skills.sg_pellets);
+		} else {
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Shotgun Pellets is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenSGUpgradeMenu(ent);
+	}, "sg_pellets");
+
+	const char *spread_status = ent->client->pers.skills.sg_spread ? "ON" : "OFF";
+	snprintf(status, sizeof(status), "Reduced Spread: %s", spread_status);
+	add_entry(status, PMENU_ALIGN_LEFT, [](edict_t *ent, pmenuhnd_t *p) {
+		ent->client->pers.skills.sg_spread = !ent->client->pers.skills.sg_spread;
+		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Shotgun Reduced Spread: {}\n", ent->client->pers.skills.sg_spread ? "ON" : "OFF");
+		PMenu_Close(ent);
+		OpenSGUpgradeMenu(ent);
+	}, "sg_spread");
+
+	const char *silent_status = ent->client->pers.skills.sg_silent ? "ON" : "OFF";
+	snprintf(status, sizeof(status), "Silent Mode: %s", silent_status);
+	add_entry(status, PMENU_ALIGN_LEFT, [](edict_t *ent, pmenuhnd_t *p) {
+		ent->client->pers.skills.sg_silent = !ent->client->pers.skills.sg_silent;
+		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Shotgun Silent Mode: {}\n", ent->client->pers.skills.sg_silent ? "ON" : "OFF");
+		PMenu_Close(ent);
+		OpenSGUpgradeMenu(ent);
+	}, "sg_silent");
+
+	const char *energized_status = ent->client->pers.skills.sg_energized ? "ON" : "OFF";
+	snprintf(status, sizeof(status), "Energized Shells: %s", energized_status);
+	add_entry(status, PMENU_ALIGN_LEFT, [](edict_t *ent, pmenuhnd_t *p) {
+		ent->client->pers.skills.sg_energized = !ent->client->pers.skills.sg_energized;
+		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Shotgun Energized Shells: {}\n", ent->client->pers.skills.sg_energized ? "ON" : "OFF");
+		PMenu_Close(ent);
+		OpenSGUpgradeMenu(ent);
+	}, "sg_energized");
+
+	add_entry("", PMENU_ALIGN_CENTER);
+	add_entry("---", PMENU_ALIGN_CENTER);
+	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, [](edict_t *ent, pmenuhnd_t *p) {
+		PMenu_Close(ent);
+		OpenWeaponUpgradeMenu(ent);
+	}, "back_to_weapons");
+
+	PMenu_Open(ent, sg_upgrade_menu, -1, count, nullptr, nullptr);
+}
+
+/////////////////////////////////////////////
+// SUPER SHOTGUN UPGRADE SUBMENU
+/////////////////////////////////////////////
+
+void OpenSSGUpgradeMenu(edict_t *ent)
+{
+	if (!ent || !ent->client)
+		return;
+
+	if (ent->client->menu)
+		PMenu_Close(ent);
+
+	// Set menu protection
+	ent->client->menu_protected = true;
+	ent->client->menu_protection_start = level.time;
+
+	memset(ssg_upgrade_menu, 0, sizeof(ssg_upgrade_menu));
+	int count = 0;
+
+	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
+	{
+		if (count < 32)
+		{
+			Q_strlcpy(ssg_upgrade_menu[count].text, text, sizeof(ssg_upgrade_menu[count].text));
+			ssg_upgrade_menu[count].align = align;
+			ssg_upgrade_menu[count].SelectFunc = func;
+			if (arg)
+				Q_strlcpy(ssg_upgrade_menu[count].text_arg1, arg, sizeof(ssg_upgrade_menu[count].text_arg1));
+			count++;
+		}
+	};
+
+	// Title
+	add_entry("=== SUPER SHOTGUN ===", PMENU_ALIGN_CENTER);
+	add_entry("", PMENU_ALIGN_CENTER);
+
+	// Display current upgrade levels
+	char status[128];
+	snprintf(status, sizeof(status), "Damage Level: %d/10", ent->client->pers.skills.ssg_damage);
+	add_entry(status, PMENU_ALIGN_LEFT, [](edict_t *ent, pmenuhnd_t *p) {
+		if (ent->client->pers.skills.ssg_damage < 10) {
+			ent->client->pers.skills.ssg_damage++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Super Shotgun Damage increased to level {}!\n", ent->client->pers.skills.ssg_damage);
+		} else {
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Super Shotgun Damage is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenSSGUpgradeMenu(ent);
+	}, "ssg_damage");
+
+	snprintf(status, sizeof(status), "Strike Level: %d/10", ent->client->pers.skills.ssg_strike);
+	add_entry(status, PMENU_ALIGN_LEFT, [](edict_t *ent, pmenuhnd_t *p) {
+		if (ent->client->pers.skills.ssg_strike < 10) {
+			ent->client->pers.skills.ssg_strike++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Super Shotgun Strike increased to level {}!\n", ent->client->pers.skills.ssg_strike);
+		} else {
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Super Shotgun Strike is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenSSGUpgradeMenu(ent);
+	}, "ssg_strike");
+
+	snprintf(status, sizeof(status), "Pellets Level: %d/10", ent->client->pers.skills.ssg_pellets);
+	add_entry(status, PMENU_ALIGN_LEFT, [](edict_t *ent, pmenuhnd_t *p) {
+		if (ent->client->pers.skills.ssg_pellets < 10) {
+			ent->client->pers.skills.ssg_pellets++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Super Shotgun Pellets increased to level {}!\n", ent->client->pers.skills.ssg_pellets);
+		} else {
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Super Shotgun Pellets is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenSSGUpgradeMenu(ent);
+	}, "ssg_pellets");
+
+	const char *spread_status = ent->client->pers.skills.ssg_spread ? "ON" : "OFF";
+	snprintf(status, sizeof(status), "Reduced Spread: %s", spread_status);
+	add_entry(status, PMENU_ALIGN_LEFT, [](edict_t *ent, pmenuhnd_t *p) {
+		ent->client->pers.skills.ssg_spread = !ent->client->pers.skills.ssg_spread;
+		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Super Shotgun Reduced Spread: {}\n", ent->client->pers.skills.ssg_spread ? "ON" : "OFF");
+		PMenu_Close(ent);
+		OpenSSGUpgradeMenu(ent);
+	}, "ssg_spread");
+
+	const char *silent_status = ent->client->pers.skills.ssg_silent ? "ON" : "OFF";
+	snprintf(status, sizeof(status), "Silent Mode: %s", silent_status);
+	add_entry(status, PMENU_ALIGN_LEFT, [](edict_t *ent, pmenuhnd_t *p) {
+		ent->client->pers.skills.ssg_silent = !ent->client->pers.skills.ssg_silent;
+		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Super Shotgun Silent Mode: {}\n", ent->client->pers.skills.ssg_silent ? "ON" : "OFF");
+		PMenu_Close(ent);
+		OpenSSGUpgradeMenu(ent);
+	}, "ssg_silent");
+
+	const char *energized_status = ent->client->pers.skills.ssg_energized ? "ON" : "OFF";
+	snprintf(status, sizeof(status), "Energized Shells: %s", energized_status);
+	add_entry(status, PMENU_ALIGN_LEFT, [](edict_t *ent, pmenuhnd_t *p) {
+		ent->client->pers.skills.ssg_energized = !ent->client->pers.skills.ssg_energized;
+		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Super Shotgun Energized Shells: {}\n", ent->client->pers.skills.ssg_energized ? "ON" : "OFF");
+		PMenu_Close(ent);
+		OpenSSGUpgradeMenu(ent);
+	}, "ssg_energized");
+
+	add_entry("", PMENU_ALIGN_CENTER);
+	add_entry("---", PMENU_ALIGN_CENTER);
+	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, [](edict_t *ent, pmenuhnd_t *p) {
+		PMenu_Close(ent);
+		OpenWeaponUpgradeMenu(ent);
+	}, "back_to_weapons");
+
+	PMenu_Open(ent, ssg_upgrade_menu, -1, count, nullptr, nullptr);
 }
 
 /////////////////////////////////////////////

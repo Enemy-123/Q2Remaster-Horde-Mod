@@ -3197,6 +3197,22 @@ struct player_skills_t {
 	int8_t cg_spread = 0;         // 0-1: Reduced spread (1 = half spread)
 	bool cg_silent = false;       // Silent firing (no flash/noise)
 
+	// Weapon Upgrades - Shotgun
+	int8_t sg_damage = 0;         // 0-10: Shotgun damage (+0.2 per level)
+	int8_t sg_strike = 0;         // 0-10: Shotgun kick increase (+2 per level)
+	int8_t sg_pellets = 0;        // 0-10: Pellet count (+0.5 per level)
+	bool sg_spread = false;       // Reduced spread (1.5x tighter)
+	bool sg_silent = false;       // Silent firing (no flash/noise)
+	bool sg_energized = false;    // Energy shells (fire_energy_shotgun)
+
+	// Weapon Upgrades - Super Shotgun
+	int8_t ssg_damage = 0;        // 0-10: Super Shotgun damage (+0.4 per level)
+	int8_t ssg_strike = 0;        // 0-10: Super Shotgun kick increase (+2 per level)
+	int8_t ssg_pellets = 0;       // 0-10: Pellet count (+0.5 per level)
+	bool ssg_spread = false;      // Reduced spread (1.5x tighter)
+	bool ssg_silent = false;      // Silent firing (no flash/noise)
+	bool ssg_energized = false;   // Energy shells (fire_energy_shotgun)
+
 	// Weapon Upgrades - Hand Grenade
 	int8_t hg_damage = 0;         // 0-10: Hand grenade damage (+10 per level)
 	int8_t hg_radius_damage = 0;  // 0-10: Hand grenade radius damage (+10 per level)

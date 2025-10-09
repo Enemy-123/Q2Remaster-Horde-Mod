@@ -2056,7 +2056,22 @@ void weapon_shotgun_fire(edict_t* ent)
 	int damage;
 	int kick = g_config.shotgun.kick;
 
-	damage = !PlayerHasEnergyShells(ent) ? irandom(g_config.shotgun.damage_min, g_config.shotgun.damage_max) : irandom(g_config.shotgun.damage_energy_min, g_config.shotgun.damage_energy_max);
+	// Check if using energy shells (global benefit or weapon-specific upgrade)
+	bool use_energy = PlayerHasEnergyShells(ent) || (ent->client && ent->client->pers.skills.sg_energized);
+	damage = !use_energy ? irandom(g_config.shotgun.damage_min, g_config.shotgun.damage_max) : irandom(g_config.shotgun.damage_energy_min, g_config.shotgun.damage_energy_max);
+
+	// Apply damage upgrade (+0.2 per level, max 10 levels = +2.0 damage)
+	if (ent->client && ent->client->pers.skills.sg_damage > 0)
+	{
+		damage += static_cast<int>(ent->client->pers.skills.sg_damage * 0.2f);
+	}
+
+	// Apply strike (kick) upgrade (+2 per level for noticeable feedback)
+	if (ent->client && ent->client->pers.skills.sg_strike > 0)
+	{
+		kick += ent->client->pers.skills.sg_strike * 2;
+	}
+
 	vec3_t start, dir;
 	// Paril: kill sideways angle on hitscan
 	P_ProjectSource(ent, ent->client->v_angle, { 0, 0, -8 }, start, dir, true);
@@ -2069,20 +2084,38 @@ void weapon_shotgun_fire(edict_t* ent)
 		kick *= damage_multiplier;
 	}
 
+	// Calculate pellet count with fractional tracking (+0.5 per level)
+	int base_pellets = G_IsDeathmatch() ? g_config.shotgun.pellet_count_deathmatch : g_config.shotgun.pellet_count_normal;
+	int pellet_count = base_pellets;
+	if (ent->client && ent->client->pers.skills.sg_pellets > 0)
+	{
+		pellet_count += static_cast<int>(ent->client->pers.skills.sg_pellets * 0.5f);
+	}
+
+	// Apply spread reduction (divide by 1.5f for tighter spread)
+	int hspread = 500;
+	int vspread = 500;
+	if (ent->client && ent->client->pers.skills.sg_spread)
+	{
+		hspread = static_cast<int>(hspread / 1.5f);
+		vspread = static_cast<int>(vspread / 1.5f);
+	}
+
 	G_LagCompensate(ent, start, dir);
-	if (G_IsDeathmatch())
-		fire_shotgun(ent, start, dir, damage, kick, 500, 500, g_config.shotgun.pellet_count_deathmatch, MOD_SHOTGUN);
-	else
-		fire_shotgun(ent, start, dir, damage, kick, 500, 500, g_config.shotgun.pellet_count_normal, MOD_SHOTGUN);
+	fire_shotgun(ent, start, dir, damage, kick, hspread, vspread, pellet_count, MOD_SHOTGUN);
 	G_UnLagCompensate();
 
-	// send muzzle flash
-	gi.WriteByte(svc_muzzleflash);
-	gi.WriteEntity(ent);
-	gi.WriteByte(MZ_SHOTGUN | is_silenced);
-	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+	// send muzzle flash (suppressed if silent mode enabled)
+	bool silent = ent->client && ent->client->pers.skills.sg_silent;
+	if (!silent)
+	{
+		gi.WriteByte(svc_muzzleflash);
+		gi.WriteEntity(ent);
+		gi.WriteByte(MZ_SHOTGUN | is_silenced);
+		gi.multicast(ent->s.origin, MULTICAST_PVS, false);
 
-	PlayerNoise(ent, start, PNOISE_WEAPON);
+		PlayerNoise(ent, start, PNOISE_WEAPON);
+	}
 
 	G_RemoveAmmo(ent);
 }
@@ -2100,12 +2133,44 @@ void weapon_supershotgun_fire(edict_t* ent)
 	int damage;
 	int kick = g_config.supershotgun.kick;
 
-	damage = !PlayerHasEnergyShells(ent) ? irandom(g_config.supershotgun.damage_min, g_config.supershotgun.damage_max) : irandom(g_config.supershotgun.damage_energy_min, g_config.supershotgun.damage_energy_max);
+	// Check if using energy shells (global benefit or weapon-specific upgrade)
+	bool use_energy = PlayerHasEnergyShells(ent) || (ent->client && ent->client->pers.skills.ssg_energized);
+	damage = !use_energy ? irandom(g_config.supershotgun.damage_min, g_config.supershotgun.damage_max) : irandom(g_config.supershotgun.damage_energy_min, g_config.supershotgun.damage_energy_max);
+
+	// Apply damage upgrade (+0.4 per level, max 10 levels = +4.0 damage)
+	if (ent->client && ent->client->pers.skills.ssg_damage > 0)
+	{
+		damage += static_cast<int>(ent->client->pers.skills.ssg_damage * 0.4f);
+	}
+
+	// Apply strike (kick) upgrade (+2 per level for noticeable feedback)
+	if (ent->client && ent->client->pers.skills.ssg_strike > 0)
+	{
+		kick += ent->client->pers.skills.ssg_strike * 2;
+	}
 
 	if (is_quad)
 	{
 		damage *= damage_multiplier;
 		kick *= damage_multiplier;
+	}
+
+	// Calculate pellet count with fractional tracking (+0.5 per level)
+	int base_pellets = g_config.supershotgun.pellet_count;
+	int pellet_count_per_barrel = base_pellets / 2;
+	if (ent->client && ent->client->pers.skills.ssg_pellets > 0)
+	{
+		int additional_pellets = static_cast<int>(ent->client->pers.skills.ssg_pellets * 0.5f);
+		pellet_count_per_barrel = (base_pellets + additional_pellets) / 2;
+	}
+
+	// Apply spread reduction (divide by 1.5f for tighter spread)
+	int hspread = DEFAULT_SHOTGUN_HSPREAD;
+	int vspread = DEFAULT_SHOTGUN_VSPREAD;
+	if (ent->client && ent->client->pers.skills.ssg_spread)
+	{
+		hspread = static_cast<int>(hspread / 1.5f);
+		vspread = static_cast<int>(vspread / 1.5f);
 	}
 
 	vec3_t start, dir;
@@ -2118,21 +2183,25 @@ void weapon_supershotgun_fire(edict_t* ent)
 	v[ROLL] = ent->client->v_angle[ROLL];
 	// Paril: kill sideways angle on hitscan
 	P_ProjectSource(ent, v, { 0, 0, -8 }, start, dir, true);
-	fire_shotgun(ent, start, dir, damage, kick, DEFAULT_SHOTGUN_HSPREAD, DEFAULT_SHOTGUN_VSPREAD, g_config.supershotgun.pellet_count / 2, MOD_SSHOTGUN);
+	fire_shotgun(ent, start, dir, damage, kick, hspread, vspread, pellet_count_per_barrel, MOD_SSHOTGUN);
 	v[YAW] = ent->client->v_angle[YAW] + 5;
 	P_ProjectSource(ent, v, { 0, 0, -8 }, start, dir, true);
-	fire_shotgun(ent, start, dir, damage, kick, DEFAULT_SHOTGUN_HSPREAD, DEFAULT_SHOTGUN_VSPREAD, g_config.supershotgun.pellet_count / 2, MOD_SSHOTGUN);
+	fire_shotgun(ent, start, dir, damage, kick, hspread, vspread, pellet_count_per_barrel, MOD_SSHOTGUN);
 	G_UnLagCompensate();
 	// DEFAULT_SSHOTGUN_COUNT /2.7
 	P_AddWeaponKick(ent, ent->client->v_forward * -2, { -2.f, 0.f, 0.f });
 
-	// send muzzle flash
-	gi.WriteByte(svc_muzzleflash);
-	gi.WriteEntity(ent);
-	gi.WriteByte(MZ_SSHOTGUN | is_silenced);
-	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+	// send muzzle flash (suppressed if silent mode enabled)
+	bool silent = ent->client && ent->client->pers.skills.ssg_silent;
+	if (!silent)
+	{
+		gi.WriteByte(svc_muzzleflash);
+		gi.WriteEntity(ent);
+		gi.WriteByte(MZ_SSHOTGUN | is_silenced);
+		gi.multicast(ent->s.origin, MULTICAST_PVS, false);
 
-	PlayerNoise(ent, start, PNOISE_WEAPON);
+		PlayerNoise(ent, start, PNOISE_WEAPON);
+	}
 
 	G_RemoveAmmo(ent);
 }
