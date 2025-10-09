@@ -42,12 +42,12 @@ void OpenMiscMenu(edict_t *ent, int cursor_position = -1); // Forward declare Mi
 void MiscMenuHandler(edict_t *ent, pmenuhnd_t *p);
 void OpenRespawnWeaponMenu(edict_t *ent); // Forward declare Respawn Weapon menu
 void OpenWeaponUpgradeMenu(edict_t *ent); // Forward declare Weapon Upgrade menu
-void OpenMGUpgradeMenu(edict_t *ent);     // Forward declare MG Upgrade submenu
-void OpenCGUpgradeMenu(edict_t *ent);     // Forward declare CG Upgrade submenu
-void OpenSGUpgradeMenu(edict_t *ent);     // Forward declare SG Upgrade submenu
-void OpenSSGUpgradeMenu(edict_t *ent);    // Forward declare SSG Upgrade submenu
-void OpenGLUpgradeMenu(edict_t *ent);     // Forward declare GL Upgrade submenu
-void OpenRLUpgradeMenu(edict_t *ent);     // Forward declare RL Upgrade submenu
+void OpenMGUpgradeMenu(edict_t *ent, int cursor_pos = -1);     // Forward declare MG Upgrade submenu
+void OpenCGUpgradeMenu(edict_t *ent, int cursor_pos = -1);     // Forward declare CG Upgrade submenu
+void OpenSGUpgradeMenu(edict_t *ent, int cursor_pos = -1);     // Forward declare SG Upgrade submenu
+void OpenSSGUpgradeMenu(edict_t *ent, int cursor_pos = -1);    // Forward declare SSG Upgrade submenu
+void OpenGLUpgradeMenu(edict_t *ent, int cursor_pos = -1);     // Forward declare GL Upgrade submenu
+void OpenRLUpgradeMenu(edict_t *ent, int cursor_pos = -1);     // Forward declare RL Upgrade submenu
 void OpenProxUpgradeMenu(edict_t *ent);   // Forward declare Prox Upgrade submenu
 void OpenPlasmabeamUpgradeMenu(edict_t *ent); // Forward declare Plasmabeam Upgrade submenu
 void RespawnWeaponMenuHandler(edict_t *ent, pmenuhnd_t *p);
@@ -3016,6 +3016,7 @@ pmenuhnd_t *CreateUpgradeMenu(edict_t *ent)
 /////////////////////////////////////////////
 
 static pmenu_t weapon_upgrade_menu[32];
+static size_t weapon_upgrade_current_page = 0;
 
 void WeaponUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p);
 
@@ -3047,29 +3048,66 @@ void OpenWeaponUpgradeMenu(edict_t *ent)
 		}
 	};
 
-	// Title
-	add_entry("=== WEAPON UPGRADES ===", PMENU_ALIGN_CENTER);
+	// All weapons (name, handler_arg)
+	struct WeaponEntry {
+		const char* name;
+		const char* arg;
+	};
+
+	static const WeaponEntry all_weapons[] = {
+		{"> Blaster", "blaster"},
+		{"> Hyperblaster", "hyperblaster"},
+		{"> Shotgun", "shotgun"},
+		{"> Super Shotgun", "supershotgun"},
+		{"> Machinegun", "machinegun"},
+		{"> Chaingun", "chaingun"},
+		{"> Grenade Launcher", "grenade_launcher"},
+		{"> Rocket Launcher", "rocket_launcher"},
+		{"> Hand Grenades", "hand_grenades"},
+		{"> Prox Launcher", "prox_launcher"},
+		{"> ETF Rifle", "etf_rifle"},
+		{"> Ion Ripper", "ion_ripper"},
+		{"> Plasmabeam", "plasmabeam"},
+		{"> Railgun", "railgun"},
+		{"> BFG10K", "bfg10k"}
+	};
+	constexpr size_t total_weapons = sizeof(all_weapons) / sizeof(all_weapons[0]);
+	constexpr size_t weapons_per_page = 10;
+	constexpr size_t total_pages = (total_weapons + weapons_per_page - 1) / weapons_per_page;
+
+	// Ensure current page is valid
+	if (weapon_upgrade_current_page >= total_pages)
+		weapon_upgrade_current_page = 0;
+
+	// Title with page indicator
+	char title[64];
+	snprintf(title, sizeof(title), "=== WEAPON UPGRADES (Page %zu/%zu) ===", weapon_upgrade_current_page + 1, total_pages);
+	add_entry(title, PMENU_ALIGN_CENTER);
 	add_entry("", PMENU_ALIGN_CENTER);
 
-	// Weapon options
-	add_entry("> Blaster", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "blaster");
-	add_entry("> Hyperblaster", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "hyperblaster");
-	add_entry("> Shotgun", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "shotgun");
-	add_entry("> Super Shotgun", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "supershotgun");
-	add_entry("> Machinegun", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "machinegun");
-	add_entry("> Chaingun", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "chaingun");
-	add_entry("> Rocket Launcher", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "rocket_launcher");
-	add_entry("> Grenade Launcher", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "grenade_launcher");
-	add_entry("> Hand Grenades", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "hand_grenades");
-	add_entry("> Prox Launcher", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "prox_launcher");
-	add_entry("> ETF Rifle", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "etf_rifle");
-	add_entry("> Ion Ripper", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "ion_ripper");
-	add_entry("> Plasmabeam", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "plasmabeam");
-	add_entry("> Railgun", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "railgun");
-	add_entry("> BFG10K", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "bfg10k");
+	// Add weapons for current page
+	size_t start_index = weapon_upgrade_current_page * weapons_per_page;
+	size_t end_index = std::min(start_index + weapons_per_page, total_weapons);
 
+	for (size_t i = start_index; i < end_index; i++)
+	{
+		add_entry(all_weapons[i].name, PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, all_weapons[i].arg);
+	}
+
+	// Navigation and exit
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("---", PMENU_ALIGN_CENTER);
+
+	if (weapon_upgrade_current_page < total_pages - 1)
+	{
+		add_entry("Next >", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "next_page");
+	}
+
+	if (weapon_upgrade_current_page > 0)
+	{
+		add_entry("< Previous", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "prev_page");
+	}
+
 	add_entry("< Back to Upgrades", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "back_to_upgrades");
 
 	PMenu_Open(ent, weapon_upgrade_menu, -1, count, nullptr, nullptr);
@@ -3078,11 +3116,11 @@ void OpenWeaponUpgradeMenu(edict_t *ent)
 // Forward declarations for new weapon menus
 void OpenBlasterUpgradeMenu(edict_t *ent);
 void OpenHyperblasterUpgradeMenu(edict_t *ent);
-void OpenHGUpgradeMenu(edict_t *ent);
-void OpenETFUpgradeMenu(edict_t *ent);
+void OpenHGUpgradeMenu(edict_t *ent, int cursor_pos = -1);
+void OpenETFUpgradeMenu(edict_t *ent, int cursor_pos = -1);
 void OpenIonRipperUpgradeMenu(edict_t *ent);
 void OpenRailgunUpgradeMenu(edict_t *ent);
-void OpenBFGUpgradeMenu(edict_t *ent);
+void OpenBFGUpgradeMenu(edict_t *ent, int cursor_pos = -1);
 
 void WeaponUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 {
@@ -3099,6 +3137,24 @@ void WeaponUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 
 	const char *arg = item->text_arg1;
 
+	// Handle page navigation
+	if (strcmp(arg, "next_page") == 0)
+	{
+		weapon_upgrade_current_page++;
+		PMenu_Close(ent);
+		OpenWeaponUpgradeMenu(ent);
+		return;
+	}
+	else if (strcmp(arg, "prev_page") == 0)
+	{
+		if (weapon_upgrade_current_page > 0)
+			weapon_upgrade_current_page--;
+		PMenu_Close(ent);
+		OpenWeaponUpgradeMenu(ent);
+		return;
+	}
+
+	// Handle weapon selection
 	if (strcmp(arg, "blaster") == 0)
 	{
 		PMenu_Close(ent);
@@ -3176,6 +3232,7 @@ void WeaponUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	}
 	else if (strcmp(arg, "back_to_upgrades") == 0)
 	{
+		weapon_upgrade_current_page = 0; // Reset to first page
 		PMenu_Close(ent);
 		OpenUpgradeMenu(ent);
 	}
@@ -3189,7 +3246,7 @@ static pmenu_t rl_upgrade_menu[32];
 
 void RLUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p);
 
-void OpenRLUpgradeMenu(edict_t *ent)
+void OpenRLUpgradeMenu(edict_t *ent, int cursor_pos)
 {
 	if (!ent || !ent->client)
 		return;
@@ -3217,19 +3274,28 @@ void OpenRLUpgradeMenu(edict_t *ent)
 		}
 	};
 
-	// Title
-	add_entry("=== ROCKET LAUNCHER ===", PMENU_ALIGN_CENTER);
+	// Calculate upgrade percentage
+	int current_upgrades = ent->client->pers.skills.rl_damage +
+	                       ent->client->pers.skills.rl_speed +
+	                       ent->client->pers.skills.rl_radius;
+	int max_upgrades = 30;
+	int percentage = (current_upgrades * 100) / max_upgrades;
+
+	// Title with percentage
+	char title[64];
+	snprintf(title, sizeof(title), "=== ROCKET LAUNCHER (%d%%) ===", percentage);
+	add_entry(title, PMENU_ALIGN_CENTER);
 	add_entry("", PMENU_ALIGN_CENTER);
 
 	// Display current upgrade levels
 	char status[128];
-	snprintf(status, sizeof(status), "Damage Level: %d/10", ent->client->pers.skills.rl_damage);
+	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.rl_damage);
 	add_entry(status, PMENU_ALIGN_LEFT, RLUpgradeMenuHandler, "rl_damage");
 
-	snprintf(status, sizeof(status), "Speed Level: %d/10", ent->client->pers.skills.rl_speed);
+	snprintf(status, sizeof(status), "Speed %d [10]", ent->client->pers.skills.rl_speed);
 	add_entry(status, PMENU_ALIGN_LEFT, RLUpgradeMenuHandler, "rl_speed");
 
-	snprintf(status, sizeof(status), "Radius Level: %d/10", ent->client->pers.skills.rl_radius);
+	snprintf(status, sizeof(status), "Radius %d [10]", ent->client->pers.skills.rl_radius);
 	add_entry(status, PMENU_ALIGN_LEFT, RLUpgradeMenuHandler, "rl_radius");
 
 	const char *trails_status = ent->client->pers.skills.rl_trails ? "ON" : "OFF";
@@ -3244,7 +3310,7 @@ void OpenRLUpgradeMenu(edict_t *ent)
 	add_entry("---", PMENU_ALIGN_CENTER);
 	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, RLUpgradeMenuHandler, "back_to_weapons");
 
-	PMenu_Open(ent, rl_upgrade_menu, -1, count, nullptr, nullptr);
+	PMenu_Open(ent, rl_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
 
 void RLUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
@@ -3333,7 +3399,7 @@ static pmenu_t gl_upgrade_menu[32];
 
 void GLUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p);
 
-void OpenGLUpgradeMenu(edict_t *ent)
+void OpenGLUpgradeMenu(edict_t *ent, int cursor_pos)
 {
 	if (!ent || !ent->client)
 		return;
@@ -3361,19 +3427,28 @@ void OpenGLUpgradeMenu(edict_t *ent)
 		}
 	};
 
-	// Title
-	add_entry("=== GRENADE LAUNCHER ===", PMENU_ALIGN_CENTER);
+	// Calculate upgrade percentage
+	int current_upgrades = ent->client->pers.skills.gl_damage +
+	                       ent->client->pers.skills.gl_speed +
+	                       ent->client->pers.skills.gl_radius;
+	int max_upgrades = 30; // 3 stats * 10 max each
+	int percentage = (current_upgrades * 100) / max_upgrades;
+
+	// Title with percentage
+	char title[64];
+	snprintf(title, sizeof(title), "=== GRENADE LAUNCHER (%d%%) ===", percentage);
+	add_entry(title, PMENU_ALIGN_CENTER);
 	add_entry("", PMENU_ALIGN_CENTER);
 
 	// Display current upgrade levels
 	char status[128];
-	snprintf(status, sizeof(status), "Damage Level: %d/10", ent->client->pers.skills.gl_damage);
+	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.gl_damage);
 	add_entry(status, PMENU_ALIGN_LEFT, GLUpgradeMenuHandler, "gl_damage");
 
-	snprintf(status, sizeof(status), "Speed Level: %d/10", ent->client->pers.skills.gl_speed);
+	snprintf(status, sizeof(status), "Speed %d [10]", ent->client->pers.skills.gl_speed);
 	add_entry(status, PMENU_ALIGN_LEFT, GLUpgradeMenuHandler, "gl_speed");
 
-	snprintf(status, sizeof(status), "Radius Level: %d/10", ent->client->pers.skills.gl_radius);
+	snprintf(status, sizeof(status), "Radius %d [10]", ent->client->pers.skills.gl_radius);
 	add_entry(status, PMENU_ALIGN_LEFT, GLUpgradeMenuHandler, "gl_radius");
 
 	const char *trails_status = ent->client->pers.skills.gl_trails ? "ON" : "OFF";
@@ -3392,7 +3467,7 @@ void OpenGLUpgradeMenu(edict_t *ent)
 	add_entry("---", PMENU_ALIGN_CENTER);
 	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, GLUpgradeMenuHandler, "back_to_weapons");
 
-	PMenu_Open(ent, gl_upgrade_menu, -1, count, nullptr, nullptr);
+	PMenu_Open(ent, gl_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
 
 void GLUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
@@ -3410,6 +3485,8 @@ void GLUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 
 	const char *arg = item->text_arg1;
 
+	int cursor = p->cur; // Save cursor position for reopening
+
 	if (strcmp(arg, "gl_damage") == 0)
 	{
 		if (ent->client->pers.skills.gl_damage < 10)
@@ -3422,7 +3499,7 @@ void GLUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Grenade Launcher Damage is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenGLUpgradeMenu(ent);
+		OpenGLUpgradeMenu(ent, cursor);
 	}
 	else if (strcmp(arg, "gl_speed") == 0)
 	{
@@ -3436,7 +3513,7 @@ void GLUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Grenade Launcher Speed is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenGLUpgradeMenu(ent);
+		OpenGLUpgradeMenu(ent, cursor);
 	}
 	else if (strcmp(arg, "gl_radius") == 0)
 	{
@@ -3450,28 +3527,28 @@ void GLUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Grenade Launcher Radius is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenGLUpgradeMenu(ent);
+		OpenGLUpgradeMenu(ent, cursor);
 	}
 	else if (strcmp(arg, "gl_trails") == 0)
 	{
 		ent->client->pers.skills.gl_trails = !ent->client->pers.skills.gl_trails;
 		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Grenade Launcher Trails: {}\n", ent->client->pers.skills.gl_trails ? "DISABLED" : "ENABLED");
 		PMenu_Close(ent);
-		OpenGLUpgradeMenu(ent);
+		OpenGLUpgradeMenu(ent, cursor);
 	}
 	else if (strcmp(arg, "gl_silent") == 0)
 	{
 		ent->client->pers.skills.gl_silent = !ent->client->pers.skills.gl_silent;
 		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Grenade Launcher Silent Mode: {}\n", ent->client->pers.skills.gl_silent ? "ON" : "OFF");
 		PMenu_Close(ent);
-		OpenGLUpgradeMenu(ent);
+		OpenGLUpgradeMenu(ent, cursor);
 	}
 	else if (strcmp(arg, "gl_bouncy") == 0)
 	{
 		ent->client->pers.skills.gl_bouncy = !ent->client->pers.skills.gl_bouncy;
 		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Grenade Launcher Bouncy Grenades: {}\n", ent->client->pers.skills.gl_bouncy ? "ON" : "OFF");
 		PMenu_Close(ent);
-		OpenGLUpgradeMenu(ent);
+		OpenGLUpgradeMenu(ent, cursor);
 	}
 	else if (strcmp(arg, "back_to_weapons") == 0)
 	{
@@ -3488,7 +3565,7 @@ static pmenu_t mg_upgrade_menu[32];
 
 void MGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p);
 
-void OpenMGUpgradeMenu(edict_t *ent)
+void OpenMGUpgradeMenu(edict_t *ent, int cursor_pos)
 {
 	if (!ent || !ent->client)
 		return;
@@ -3516,19 +3593,29 @@ void OpenMGUpgradeMenu(edict_t *ent)
 		}
 	};
 
-	// Title
-	add_entry("=== MACHINEGUN ===", PMENU_ALIGN_CENTER);
+	// Calculate upgrade percentage
+	int current_upgrades = ent->client->pers.skills.mg_damage +
+	                       ent->client->pers.skills.mg_pierce +
+	                       ent->client->pers.skills.mg_tracers +
+	                       ent->client->pers.skills.mg_spread;
+	int max_upgrades = 31;
+	int percentage = (current_upgrades * 100) / max_upgrades;
+
+	// Title with percentage
+	char title[64];
+	snprintf(title, sizeof(title), "=== MACHINEGUN (%d%%) ===", percentage);
+	add_entry(title, PMENU_ALIGN_CENTER);
 	add_entry("", PMENU_ALIGN_CENTER);
 
 	// Display current upgrade levels
 	char status[128];
-	snprintf(status, sizeof(status), "Damage Level: %d/10", ent->client->pers.skills.mg_damage);
+	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.mg_damage);
 	add_entry(status, PMENU_ALIGN_LEFT, MGUpgradeMenuHandler, "mg_damage");
 
-	snprintf(status, sizeof(status), "Pierce Level: %d/10", ent->client->pers.skills.mg_pierce);
+	snprintf(status, sizeof(status), "Pierce %d [10]", ent->client->pers.skills.mg_pierce);
 	add_entry(status, PMENU_ALIGN_LEFT, MGUpgradeMenuHandler, "mg_pierce");
 
-	snprintf(status, sizeof(status), "Tracers Level: %d/10", ent->client->pers.skills.mg_tracers);
+	snprintf(status, sizeof(status), "Tracers %d [10]", ent->client->pers.skills.mg_tracers);
 	add_entry(status, PMENU_ALIGN_LEFT, MGUpgradeMenuHandler, "mg_tracers");
 
 	const char *spread_status = ent->client->pers.skills.mg_spread ? "ON" : "OFF";
@@ -3543,7 +3630,7 @@ void OpenMGUpgradeMenu(edict_t *ent)
 	add_entry("---", PMENU_ALIGN_CENTER);
 	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, MGUpgradeMenuHandler, "back_to_weapons");
 
-	PMenu_Open(ent, mg_upgrade_menu, -1, count, nullptr, nullptr);
+	PMenu_Open(ent, mg_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
 
 void MGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
@@ -3634,7 +3721,7 @@ static pmenu_t ssg_upgrade_menu[32];
 
 void CGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p);
 
-void OpenCGUpgradeMenu(edict_t *ent)
+void OpenCGUpgradeMenu(edict_t *ent, int cursor_pos)
 {
 	if (!ent || !ent->client)
 		return;
@@ -3662,19 +3749,29 @@ void OpenCGUpgradeMenu(edict_t *ent)
 		}
 	};
 
-	// Title
-	add_entry("=== CHAINGUN ===", PMENU_ALIGN_CENTER);
+	// Calculate upgrade percentage
+	int current_upgrades = ent->client->pers.skills.cg_damage +
+	                       ent->client->pers.skills.cg_spin +
+	                       ent->client->pers.skills.cg_tracers +
+	                       ent->client->pers.skills.cg_spread;
+	int max_upgrades = 31;
+	int percentage = (current_upgrades * 100) / max_upgrades;
+
+	// Title with percentage
+	char title[64];
+	snprintf(title, sizeof(title), "=== CHAINGUN (%d%%) ===", percentage);
+	add_entry(title, PMENU_ALIGN_CENTER);
 	add_entry("", PMENU_ALIGN_CENTER);
 
 	// Display current upgrade levels
 	char status[128];
-	snprintf(status, sizeof(status), "Damage Level: %d/10", ent->client->pers.skills.cg_damage);
+	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.cg_damage);
 	add_entry(status, PMENU_ALIGN_LEFT, CGUpgradeMenuHandler, "cg_damage");
 
-	snprintf(status, sizeof(status), "Spin Level: %d/10", ent->client->pers.skills.cg_spin);
+	snprintf(status, sizeof(status), "Spin %d [10]", ent->client->pers.skills.cg_spin);
 	add_entry(status, PMENU_ALIGN_LEFT, CGUpgradeMenuHandler, "cg_spin");
 
-	snprintf(status, sizeof(status), "Tracers Level: %d/10", ent->client->pers.skills.cg_tracers);
+	snprintf(status, sizeof(status), "Tracers %d [10]", ent->client->pers.skills.cg_tracers);
 	add_entry(status, PMENU_ALIGN_LEFT, CGUpgradeMenuHandler, "cg_tracers");
 
 	const char *spread_status = ent->client->pers.skills.cg_spread ? "ON" : "OFF";
@@ -3689,7 +3786,7 @@ void OpenCGUpgradeMenu(edict_t *ent)
 	add_entry("---", PMENU_ALIGN_CENTER);
 	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, CGUpgradeMenuHandler, "back_to_weapons");
 
-	PMenu_Open(ent, cg_upgrade_menu, -1, count, nullptr, nullptr);
+	PMenu_Open(ent, cg_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
 
 void CGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
@@ -3774,7 +3871,7 @@ void CGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 // SHOTGUN UPGRADE SUBMENU
 /////////////////////////////////////////////
 
-void OpenSGUpgradeMenu(edict_t *ent)
+void OpenSGUpgradeMenu(edict_t *ent, int cursor_pos)
 {
 	if (!ent || !ent->client)
 		return;
@@ -3802,13 +3899,22 @@ void OpenSGUpgradeMenu(edict_t *ent)
 		}
 	};
 
-	// Title
-	add_entry("=== SHOTGUN ===", PMENU_ALIGN_CENTER);
+	// Calculate upgrade percentage
+	int current_upgrades = ent->client->pers.skills.sg_damage +
+	                       ent->client->pers.skills.sg_strike +
+	                       ent->client->pers.skills.sg_pellets;
+	int max_upgrades = 30;
+	int percentage = (current_upgrades * 100) / max_upgrades;
+
+	// Title with percentage
+	char title[64];
+	snprintf(title, sizeof(title), "=== SHOTGUN (%d%%) ===", percentage);
+	add_entry(title, PMENU_ALIGN_CENTER);
 	add_entry("", PMENU_ALIGN_CENTER);
 
 	// Display current upgrade levels
 	char status[128];
-	snprintf(status, sizeof(status), "Damage Level: %d/10", ent->client->pers.skills.sg_damage);
+	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.sg_damage);
 	add_entry(status, PMENU_ALIGN_LEFT, [](edict_t *ent, pmenuhnd_t *p) {
 		if (ent->client->pers.skills.sg_damage < 10) {
 			ent->client->pers.skills.sg_damage++;
@@ -3820,7 +3926,7 @@ void OpenSGUpgradeMenu(edict_t *ent)
 		OpenSGUpgradeMenu(ent);
 	}, "sg_damage");
 
-	snprintf(status, sizeof(status), "Strike Level: %d/10", ent->client->pers.skills.sg_strike);
+	snprintf(status, sizeof(status), "Strike %d [10]", ent->client->pers.skills.sg_strike);
 	add_entry(status, PMENU_ALIGN_LEFT, [](edict_t *ent, pmenuhnd_t *p) {
 		if (ent->client->pers.skills.sg_strike < 10) {
 			ent->client->pers.skills.sg_strike++;
@@ -3832,7 +3938,7 @@ void OpenSGUpgradeMenu(edict_t *ent)
 		OpenSGUpgradeMenu(ent);
 	}, "sg_strike");
 
-	snprintf(status, sizeof(status), "Pellets Level: %d/10", ent->client->pers.skills.sg_pellets);
+	snprintf(status, sizeof(status), "Pellets %d [10]", ent->client->pers.skills.sg_pellets);
 	add_entry(status, PMENU_ALIGN_LEFT, [](edict_t *ent, pmenuhnd_t *p) {
 		if (ent->client->pers.skills.sg_pellets < 10) {
 			ent->client->pers.skills.sg_pellets++;
@@ -3878,14 +3984,14 @@ void OpenSGUpgradeMenu(edict_t *ent)
 		OpenWeaponUpgradeMenu(ent);
 	}, "back_to_weapons");
 
-	PMenu_Open(ent, sg_upgrade_menu, -1, count, nullptr, nullptr);
+	PMenu_Open(ent, sg_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
 
 /////////////////////////////////////////////
 // SUPER SHOTGUN UPGRADE SUBMENU
 /////////////////////////////////////////////
 
-void OpenSSGUpgradeMenu(edict_t *ent)
+void OpenSSGUpgradeMenu(edict_t *ent, int cursor_pos)
 {
 	if (!ent || !ent->client)
 		return;
@@ -3913,13 +4019,22 @@ void OpenSSGUpgradeMenu(edict_t *ent)
 		}
 	};
 
-	// Title
-	add_entry("=== SUPER SHOTGUN ===", PMENU_ALIGN_CENTER);
+	// Calculate upgrade percentage
+	int current_upgrades = ent->client->pers.skills.ssg_damage +
+	                       ent->client->pers.skills.ssg_strike +
+	                       ent->client->pers.skills.ssg_pellets;
+	int max_upgrades = 30;
+	int percentage = (current_upgrades * 100) / max_upgrades;
+
+	// Title with percentage
+	char title[64];
+	snprintf(title, sizeof(title), "=== SUPER SHOTGUN (%d%%) ===", percentage);
+	add_entry(title, PMENU_ALIGN_CENTER);
 	add_entry("", PMENU_ALIGN_CENTER);
 
 	// Display current upgrade levels
 	char status[128];
-	snprintf(status, sizeof(status), "Damage Level: %d/10", ent->client->pers.skills.ssg_damage);
+	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.ssg_damage);
 	add_entry(status, PMENU_ALIGN_LEFT, [](edict_t *ent, pmenuhnd_t *p) {
 		if (ent->client->pers.skills.ssg_damage < 10) {
 			ent->client->pers.skills.ssg_damage++;
@@ -3931,7 +4046,7 @@ void OpenSSGUpgradeMenu(edict_t *ent)
 		OpenSSGUpgradeMenu(ent);
 	}, "ssg_damage");
 
-	snprintf(status, sizeof(status), "Strike Level: %d/10", ent->client->pers.skills.ssg_strike);
+	snprintf(status, sizeof(status), "Strike %d [10]", ent->client->pers.skills.ssg_strike);
 	add_entry(status, PMENU_ALIGN_LEFT, [](edict_t *ent, pmenuhnd_t *p) {
 		if (ent->client->pers.skills.ssg_strike < 10) {
 			ent->client->pers.skills.ssg_strike++;
@@ -3943,7 +4058,7 @@ void OpenSSGUpgradeMenu(edict_t *ent)
 		OpenSSGUpgradeMenu(ent);
 	}, "ssg_strike");
 
-	snprintf(status, sizeof(status), "Pellets Level: %d/10", ent->client->pers.skills.ssg_pellets);
+	snprintf(status, sizeof(status), "Pellets %d [10]", ent->client->pers.skills.ssg_pellets);
 	add_entry(status, PMENU_ALIGN_LEFT, [](edict_t *ent, pmenuhnd_t *p) {
 		if (ent->client->pers.skills.ssg_pellets < 10) {
 			ent->client->pers.skills.ssg_pellets++;
@@ -3989,7 +4104,7 @@ void OpenSSGUpgradeMenu(edict_t *ent)
 		OpenWeaponUpgradeMenu(ent);
 	}, "back_to_weapons");
 
-	PMenu_Open(ent, ssg_upgrade_menu, -1, count, nullptr, nullptr);
+	PMenu_Open(ent, ssg_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
 
 /////////////////////////////////////////////
@@ -4000,7 +4115,7 @@ static pmenu_t hg_upgrade_menu[32];
 
 void HGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p);
 
-void OpenHGUpgradeMenu(edict_t *ent)
+void OpenHGUpgradeMenu(edict_t *ent, int cursor_pos)
 {
 	if (!ent || !ent->client)
 		return;
@@ -4034,20 +4149,20 @@ void OpenHGUpgradeMenu(edict_t *ent)
 
 	// Display current upgrade levels
 	char status[128];
-	snprintf(status, sizeof(status), "Damage Level: %d/10", ent->client->pers.skills.hg_damage);
+	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.hg_damage);
 	add_entry(status, PMENU_ALIGN_LEFT, HGUpgradeMenuHandler, "hg_damage");
 
-	snprintf(status, sizeof(status), "Radius Damage Level: %d/10", ent->client->pers.skills.hg_radius_damage);
+	snprintf(status, sizeof(status), "Radius Damage %d [10]", ent->client->pers.skills.hg_radius_damage);
 	add_entry(status, PMENU_ALIGN_LEFT, HGUpgradeMenuHandler, "hg_radius_damage");
 
-	snprintf(status, sizeof(status), "Radius Level: %d/10", ent->client->pers.skills.hg_radius);
+	snprintf(status, sizeof(status), "Radius %d [10]", ent->client->pers.skills.hg_radius);
 	add_entry(status, PMENU_ALIGN_LEFT, HGUpgradeMenuHandler, "hg_radius");
 
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("---", PMENU_ALIGN_CENTER);
 	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, HGUpgradeMenuHandler, "back_to_weapons");
 
-	PMenu_Open(ent, hg_upgrade_menu, -1, count, nullptr, nullptr);
+	PMenu_Open(ent, hg_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
 
 void HGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
@@ -4150,19 +4265,28 @@ void OpenProxUpgradeMenu(edict_t *ent)
 		}
 	};
 
-	// Title
-	add_entry("=== PROX LAUNCHER ===", PMENU_ALIGN_CENTER);
+	// Calculate upgrade percentage
+	int current_upgrades = ent->client->pers.skills.pl_damage +
+	                       ent->client->pers.skills.pl_range +
+	                       ent->client->pers.skills.pl_radius;
+	int max_upgrades = 30;
+	int percentage = (current_upgrades * 100) / max_upgrades;
+
+	// Title with percentage
+	char title[64];
+	snprintf(title, sizeof(title), "=== PROX LAUNCHER (%d%%) ===", percentage);
+	add_entry(title, PMENU_ALIGN_CENTER);
 	add_entry("", PMENU_ALIGN_CENTER);
 
 	// Display current upgrade levels
 	char status[128];
-	snprintf(status, sizeof(status), "Damage Level: %d/10", ent->client->pers.skills.pl_damage);
+	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.pl_damage);
 	add_entry(status, PMENU_ALIGN_LEFT, ProxUpgradeMenuHandler, "pl_damage");
 
-	snprintf(status, sizeof(status), "Range Level: %d/10", ent->client->pers.skills.pl_range);
+	snprintf(status, sizeof(status), "Range %d [10]", ent->client->pers.skills.pl_range);
 	add_entry(status, PMENU_ALIGN_LEFT, ProxUpgradeMenuHandler, "pl_range");
 
-	snprintf(status, sizeof(status), "Radius Level: %d/10", ent->client->pers.skills.pl_radius);
+	snprintf(status, sizeof(status), "Radius %d [10]", ent->client->pers.skills.pl_radius);
 	add_entry(status, PMENU_ALIGN_LEFT, ProxUpgradeMenuHandler, "pl_radius");
 
 	const char *trails_status = ent->client->pers.skills.pl_trails ? "ON" : "OFF";
@@ -4308,10 +4432,10 @@ void OpenBlasterUpgradeMenu(edict_t *ent)
 	add_entry("", PMENU_ALIGN_CENTER);
 
 	char status[128];
-	snprintf(status, sizeof(status), "Damage Level: %d/10", ent->client->pers.skills.bl_damage);
+	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.bl_damage);
 	add_entry(status, PMENU_ALIGN_LEFT, BlasterUpgradeMenuHandler, "bl_damage");
 
-	snprintf(status, sizeof(status), "Speed Level: %d/10", ent->client->pers.skills.bl_speed);
+	snprintf(status, sizeof(status), "Speed %d [10]", ent->client->pers.skills.bl_speed);
 	add_entry(status, PMENU_ALIGN_LEFT, BlasterUpgradeMenuHandler, "bl_speed");
 
 	const char *trails_status = ent->client->pers.skills.bl_trails ? "DISABLED" : "ENABLED";
@@ -4432,10 +4556,10 @@ void OpenHyperblasterUpgradeMenu(edict_t *ent)
 	add_entry("", PMENU_ALIGN_CENTER);
 
 	char status[128];
-	snprintf(status, sizeof(status), "Damage Level: %d/10", ent->client->pers.skills.hb_damage);
+	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.hb_damage);
 	add_entry(status, PMENU_ALIGN_LEFT, HyperblasterUpgradeMenuHandler, "hb_damage");
 
-	snprintf(status, sizeof(status), "Speed Level: %d/10", ent->client->pers.skills.hb_speed);
+	snprintf(status, sizeof(status), "Speed %d [10]", ent->client->pers.skills.hb_speed);
 	add_entry(status, PMENU_ALIGN_LEFT, HyperblasterUpgradeMenuHandler, "hb_speed");
 
 	const char *trails_status = ent->client->pers.skills.hb_trails ? "DISABLED" : "ENABLED";
@@ -4525,7 +4649,7 @@ static pmenu_t etf_upgrade_menu[32];
 
 void ETFUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p);
 
-void OpenETFUpgradeMenu(edict_t *ent)
+void OpenETFUpgradeMenu(edict_t *ent, int cursor_pos)
 {
 	if (!ent || !ent->client)
 		return;
@@ -4556,13 +4680,13 @@ void OpenETFUpgradeMenu(edict_t *ent)
 	add_entry("", PMENU_ALIGN_CENTER);
 
 	char status[128];
-	snprintf(status, sizeof(status), "Damage Level: %d/10", ent->client->pers.skills.etf_damage);
+	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.etf_damage);
 	add_entry(status, PMENU_ALIGN_LEFT, ETFUpgradeMenuHandler, "etf_damage");
 
-	snprintf(status, sizeof(status), "Speed Level: %d/10", ent->client->pers.skills.etf_speed);
+	snprintf(status, sizeof(status), "Speed %d [10]", ent->client->pers.skills.etf_speed);
 	add_entry(status, PMENU_ALIGN_LEFT, ETFUpgradeMenuHandler, "etf_speed");
 
-	snprintf(status, sizeof(status), "Kick Level: %d/10", ent->client->pers.skills.etf_kick);
+	snprintf(status, sizeof(status), "Kick %d [10]", ent->client->pers.skills.etf_kick);
 	add_entry(status, PMENU_ALIGN_LEFT, ETFUpgradeMenuHandler, "etf_kick");
 
 	const char *silent_status = ent->client->pers.skills.etf_silent ? "ON" : "OFF";
@@ -4573,7 +4697,7 @@ void OpenETFUpgradeMenu(edict_t *ent)
 	add_entry("---", PMENU_ALIGN_CENTER);
 	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, ETFUpgradeMenuHandler, "back_to_weapons");
 
-	PMenu_Open(ent, etf_upgrade_menu, -1, count, nullptr, nullptr);
+	PMenu_Open(ent, etf_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
 
 void ETFUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
@@ -4686,10 +4810,10 @@ void OpenIonRipperUpgradeMenu(edict_t *ent)
 	add_entry("", PMENU_ALIGN_CENTER);
 
 	char status[128];
-	snprintf(status, sizeof(status), "Damage Level: %d/10", ent->client->pers.skills.ir_damage);
+	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.ir_damage);
 	add_entry(status, PMENU_ALIGN_LEFT, IonRipperUpgradeMenuHandler, "ir_damage");
 
-	snprintf(status, sizeof(status), "Speed Level: %d/10", ent->client->pers.skills.ir_speed);
+	snprintf(status, sizeof(status), "Speed %d [10]", ent->client->pers.skills.ir_speed);
 	add_entry(status, PMENU_ALIGN_LEFT, IonRipperUpgradeMenuHandler, "ir_speed");
 
 	const char *trails_status = ent->client->pers.skills.ir_trails ? "OFF" : "ON";
@@ -4810,13 +4934,13 @@ void OpenRailgunUpgradeMenu(edict_t *ent)
 	add_entry("", PMENU_ALIGN_CENTER);
 
 	char status[128];
-	snprintf(status, sizeof(status), "Damage Level: %d/10", ent->client->pers.skills.rg_damage);
+	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.rg_damage);
 	add_entry(status, PMENU_ALIGN_LEFT, RailgunUpgradeMenuHandler, "rg_damage");
 
-	snprintf(status, sizeof(status), "Burn Level: %d/10", ent->client->pers.skills.rg_burn);
+	snprintf(status, sizeof(status), "Burn %d [10]", ent->client->pers.skills.rg_burn);
 	add_entry(status, PMENU_ALIGN_LEFT, RailgunUpgradeMenuHandler, "rg_burn");
 
-	snprintf(status, sizeof(status), "Pierce Level: %d/10", ent->client->pers.skills.rg_pierce);
+	snprintf(status, sizeof(status), "Pierce %d [10]", ent->client->pers.skills.rg_pierce);
 	add_entry(status, PMENU_ALIGN_LEFT, RailgunUpgradeMenuHandler, "rg_pierce");
 
 	const char *trails_status = ent->client->pers.skills.rg_trails ? "OFF" : "ON";
@@ -4920,7 +5044,7 @@ static pmenu_t bfg_upgrade_menu[32];
 
 void BFGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p);
 
-void OpenBFGUpgradeMenu(edict_t *ent)
+void OpenBFGUpgradeMenu(edict_t *ent, int cursor_pos)
 {
 	if (!ent || !ent->client)
 		return;
@@ -4951,13 +5075,13 @@ void OpenBFGUpgradeMenu(edict_t *ent)
 	add_entry("", PMENU_ALIGN_CENTER);
 
 	char status[128];
-	snprintf(status, sizeof(status), "Damage Level: %d/10", ent->client->pers.skills.bfg_damage);
+	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.bfg_damage);
 	add_entry(status, PMENU_ALIGN_LEFT, BFGUpgradeMenuHandler, "bfg_damage");
 
-	snprintf(status, sizeof(status), "Speed Level: %d/10", ent->client->pers.skills.bfg_speed);
+	snprintf(status, sizeof(status), "Speed %d [10]", ent->client->pers.skills.bfg_speed);
 	add_entry(status, PMENU_ALIGN_LEFT, BFGUpgradeMenuHandler, "bfg_speed");
 
-	snprintf(status, sizeof(status), "Duration Level: %d/10", ent->client->pers.skills.bfg_duration);
+	snprintf(status, sizeof(status), "Duration %d [10]", ent->client->pers.skills.bfg_duration);
 	add_entry(status, PMENU_ALIGN_LEFT, BFGUpgradeMenuHandler, "bfg_duration");
 
 	// BFG Mode display
@@ -4978,7 +5102,7 @@ void OpenBFGUpgradeMenu(edict_t *ent)
 	add_entry("---", PMENU_ALIGN_CENTER);
 	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, BFGUpgradeMenuHandler, "back_to_weapons");
 
-	PMenu_Open(ent, bfg_upgrade_menu, -1, count, nullptr, nullptr);
+	PMenu_Open(ent, bfg_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
 
 void BFGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
@@ -5112,10 +5236,10 @@ void OpenPlasmabeamUpgradeMenu(edict_t *ent)
 	add_entry("", PMENU_ALIGN_CENTER);
 
 	char status[128];
-	snprintf(status, sizeof(status), "Damage Level: %d/10", ent->client->pers.skills.pb_damage);
+	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.pb_damage);
 	add_entry(status, PMENU_ALIGN_LEFT, PlasmabeamUpgradeMenuHandler, "pb_damage");
 
-	snprintf(status, sizeof(status), "Burn Level: %d/10", ent->client->pers.skills.pb_burn);
+	snprintf(status, sizeof(status), "Burn %d [10]", ent->client->pers.skills.pb_burn);
 	add_entry(status, PMENU_ALIGN_LEFT, PlasmabeamUpgradeMenuHandler, "pb_burn");
 
 	snprintf(status, sizeof(status), "Pierce Level: %d/10 (%.0f%% chance)", ent->client->pers.skills.pb_pierce, ent->client->pers.skills.pb_pierce * 4.0f);
