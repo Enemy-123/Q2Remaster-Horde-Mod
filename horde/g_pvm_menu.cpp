@@ -11,7 +11,7 @@ extern void OpenHordeMenu(edict_t* ent) noexcept;
 
 // Constants from pvm_stats.json
 constexpr int32_t BASE_XP_PER_LEVEL = 100;
-constexpr float XP_GROWTH_FACTOR = 1.15f;
+constexpr float XP_GROWTH_FACTOR = 2.f;
 constexpr int32_t MAX_AMMO_LEVEL_CAP = 10;
 constexpr int32_t VITALITY_LEVEL_CAP = 10;
 
@@ -275,7 +275,7 @@ void PvM_CheckLevelUp(edict_t* player)
     int32_t current_level = player->client->pers.pvm_level;
     int32_t current_xp = player->client->pers.pvm_xp;
     int32_t xp_for_next = PvM_GetXPForLevel(current_level + 1);
-
+    const char* player_name = GetPlayerName(player);
     // Check if player has enough XP for next level
     while (current_xp >= xp_for_next && current_level < 99) // Max level 99
     {
@@ -285,10 +285,14 @@ void PvM_CheckLevelUp(edict_t* player)
         player->client->pers.pvm_stat_points++; // Grant 1 stat point per level
 
         // Show level-up message
-        gi.LocCenter_Print(player, "\n\n\nLEVEL UP!\nYou are now level {}!\n+1 Stat Point\n",
-                          current_level);
+        gi.LocClient_Print(player, PRINT_TYPEWRITER, nullptr, "\nLEVEL UP!\nYou are now level {}!\n+1 Stat Point\n",
+                           current_level);
+
         gi.LocClient_Print(player, PRINT_HIGH, nullptr, "*** LEVEL UP! You are now level {}! ***\n",
-                          current_level);
+                           current_level);
+        gi.LocBroadcast_Print(PRINT_CHAT, "{} Has gained a level!\n", player_name);
+
+        gi.sound(player, CHAN_AUTO, gi.soundindex("misc/keyuse.wav"), 1.f, ATTN_NORM, 0.f);
 
         // Update for next iteration
         xp_for_next = PvM_GetXPForLevel(current_level + 1);
