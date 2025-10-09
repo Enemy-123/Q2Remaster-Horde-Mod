@@ -512,6 +512,7 @@ void Config_Load(const char* basedir)
 			g_config.machinegun.kick = GetJsonInt(w, "kick", 2);
 			g_config.machinegun.tracer_damage = GetJsonInt(w, "tracer_damage", 40);
 			g_config.machinegun.tracer_cooldown_ms = GetJsonInt(w, "tracer_cooldown_ms", 500);
+			g_config.machinegun.tracer_damage_per_level = GetJsonInt(w, "tracer_damage_per_level", 4);
 		}
 
 		// Chaingun
@@ -523,6 +524,7 @@ void Config_Load(const char* basedir)
 			g_config.chaingun.kick = GetJsonInt(w, "kick", 2);
 			g_config.chaingun.tracer_damage = GetJsonInt(w, "tracer_damage", 20);
 			g_config.chaingun.tracer_cooldown_ms = GetJsonInt(w, "tracer_cooldown_ms", 300);
+			g_config.chaingun.tracer_damage_per_level = GetJsonInt(w, "tracer_damage_per_level", 2);
 		}
 
 		// Grenade

@@ -42,6 +42,8 @@ void OpenMiscMenu(edict_t *ent, int cursor_position = -1); // Forward declare Mi
 void MiscMenuHandler(edict_t *ent, pmenuhnd_t *p);
 void OpenRespawnWeaponMenu(edict_t *ent); // Forward declare Respawn Weapon menu
 void OpenWeaponUpgradeMenu(edict_t *ent); // Forward declare Weapon Upgrade menu
+void OpenMGUpgradeMenu(edict_t *ent);     // Forward declare MG Upgrade submenu
+void OpenCGUpgradeMenu(edict_t *ent);     // Forward declare CG Upgrade submenu
 void OpenGLUpgradeMenu(edict_t *ent);     // Forward declare GL Upgrade submenu
 void OpenRLUpgradeMenu(edict_t *ent);     // Forward declare RL Upgrade submenu
 void RespawnWeaponMenuHandler(edict_t *ent, pmenuhnd_t *p);
@@ -3049,6 +3051,8 @@ void OpenWeaponUpgradeMenu(edict_t *ent)
 	add_entry("- Weapon Vacant -", PMENU_ALIGN_LEFT); // Blaster placeholder
 	add_entry("", PMENU_ALIGN_CENTER);
 
+	add_entry("> Machinegun", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "machinegun");
+	add_entry("> Chaingun", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "chaingun");
 	add_entry("> Rocket Launcher", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "rocket_launcher");
 	add_entry("> Grenade Launcher", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "grenade_launcher");
 
@@ -3074,7 +3078,17 @@ void WeaponUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 
 	const char *arg = item->text_arg1;
 
-	if (strcmp(arg, "rocket_launcher") == 0)
+	if (strcmp(arg, "machinegun") == 0)
+	{
+		PMenu_Close(ent);
+		OpenMGUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "chaingun") == 0)
+	{
+		PMenu_Close(ent);
+		OpenCGUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "rocket_launcher") == 0)
 	{
 		PMenu_Close(ent);
 		OpenRLUpgradeMenu(ent);
@@ -3371,6 +3385,294 @@ void GLUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Grenade Launcher Silent Mode: {}\n", ent->client->pers.skills.gl_silent ? "ON" : "OFF");
 		PMenu_Close(ent);
 		OpenGLUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "back_to_weapons") == 0)
+	{
+		PMenu_Close(ent);
+		OpenWeaponUpgradeMenu(ent);
+	}
+}
+
+/////////////////////////////////////////////
+// MACHINEGUN UPGRADE SUBMENU
+/////////////////////////////////////////////
+
+static pmenu_t mg_upgrade_menu[32];
+
+void MGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p);
+
+void OpenMGUpgradeMenu(edict_t *ent)
+{
+	if (!ent || !ent->client)
+		return;
+
+	if (ent->client->menu)
+		PMenu_Close(ent);
+
+	// Set menu protection
+	ent->client->menu_protected = true;
+	ent->client->menu_protection_start = level.time;
+
+	memset(mg_upgrade_menu, 0, sizeof(mg_upgrade_menu));
+	int count = 0;
+
+	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
+	{
+		if (count < 32)
+		{
+			Q_strlcpy(mg_upgrade_menu[count].text, text, sizeof(mg_upgrade_menu[count].text));
+			mg_upgrade_menu[count].align = align;
+			mg_upgrade_menu[count].SelectFunc = func;
+			if (arg)
+				Q_strlcpy(mg_upgrade_menu[count].text_arg1, arg, sizeof(mg_upgrade_menu[count].text_arg1));
+			count++;
+		}
+	};
+
+	// Title
+	add_entry("=== MACHINEGUN ===", PMENU_ALIGN_CENTER);
+	add_entry("", PMENU_ALIGN_CENTER);
+
+	// Display current upgrade levels
+	char status[128];
+	snprintf(status, sizeof(status), "Damage Level: %d/10", ent->client->pers.skills.mg_damage);
+	add_entry(status, PMENU_ALIGN_LEFT, MGUpgradeMenuHandler, "mg_damage");
+
+	snprintf(status, sizeof(status), "Pierce Level: %d/10", ent->client->pers.skills.mg_pierce);
+	add_entry(status, PMENU_ALIGN_LEFT, MGUpgradeMenuHandler, "mg_pierce");
+
+	snprintf(status, sizeof(status), "Tracers Level: %d/10", ent->client->pers.skills.mg_tracers);
+	add_entry(status, PMENU_ALIGN_LEFT, MGUpgradeMenuHandler, "mg_tracers");
+
+	const char *spread_status = ent->client->pers.skills.mg_spread ? "ON" : "OFF";
+	snprintf(status, sizeof(status), "Reduced Spread: %s", spread_status);
+	add_entry(status, PMENU_ALIGN_LEFT, MGUpgradeMenuHandler, "mg_spread");
+
+	const char *silent_status = ent->client->pers.skills.mg_silent ? "ON" : "OFF";
+	snprintf(status, sizeof(status), "Silent Mode: %s", silent_status);
+	add_entry(status, PMENU_ALIGN_LEFT, MGUpgradeMenuHandler, "mg_silent");
+
+	add_entry("", PMENU_ALIGN_CENTER);
+	add_entry("---", PMENU_ALIGN_CENTER);
+	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, MGUpgradeMenuHandler, "back_to_weapons");
+
+	PMenu_Open(ent, mg_upgrade_menu, -1, count, nullptr, nullptr);
+}
+
+void MGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client || !p || p->cur < 0)
+	{
+		if (ent && ent->client && ent->client->menu)
+			PMenu_Close(ent);
+		return;
+	}
+
+	pmenu_t *item = &p->entries[p->cur];
+	if (!item->SelectFunc)
+		return;
+
+	const char *arg = item->text_arg1;
+
+	if (strcmp(arg, "mg_damage") == 0)
+	{
+		if (ent->client->pers.skills.mg_damage < 10)
+		{
+			ent->client->pers.skills.mg_damage++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Machinegun Damage increased to level {}!\n", ent->client->pers.skills.mg_damage);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Machinegun Damage is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenMGUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "mg_pierce") == 0)
+	{
+		if (ent->client->pers.skills.mg_pierce < 10)
+		{
+			ent->client->pers.skills.mg_pierce++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Machinegun Pierce increased to level {}!\n", ent->client->pers.skills.mg_pierce);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Machinegun Pierce is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenMGUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "mg_tracers") == 0)
+	{
+		if (ent->client->pers.skills.mg_tracers < 10)
+		{
+			ent->client->pers.skills.mg_tracers++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Machinegun Tracers increased to level {}!\n", ent->client->pers.skills.mg_tracers);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Machinegun Tracers is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenMGUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "mg_spread") == 0)
+	{
+		ent->client->pers.skills.mg_spread = !ent->client->pers.skills.mg_spread;
+		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Machinegun Reduced Spread: {}\n", ent->client->pers.skills.mg_spread ? "ON" : "OFF");
+		PMenu_Close(ent);
+		OpenMGUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "mg_silent") == 0)
+	{
+		ent->client->pers.skills.mg_silent = !ent->client->pers.skills.mg_silent;
+		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Machinegun Silent Mode: {}\n", ent->client->pers.skills.mg_silent ? "ON" : "OFF");
+		PMenu_Close(ent);
+		OpenMGUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "back_to_weapons") == 0)
+	{
+		PMenu_Close(ent);
+		OpenWeaponUpgradeMenu(ent);
+	}
+}
+
+/////////////////////////////////////////////
+// CHAINGUN UPGRADE SUBMENU
+/////////////////////////////////////////////
+
+static pmenu_t cg_upgrade_menu[32];
+
+void CGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p);
+
+void OpenCGUpgradeMenu(edict_t *ent)
+{
+	if (!ent || !ent->client)
+		return;
+
+	if (ent->client->menu)
+		PMenu_Close(ent);
+
+	// Set menu protection
+	ent->client->menu_protected = true;
+	ent->client->menu_protection_start = level.time;
+
+	memset(cg_upgrade_menu, 0, sizeof(cg_upgrade_menu));
+	int count = 0;
+
+	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
+	{
+		if (count < 32)
+		{
+			Q_strlcpy(cg_upgrade_menu[count].text, text, sizeof(cg_upgrade_menu[count].text));
+			cg_upgrade_menu[count].align = align;
+			cg_upgrade_menu[count].SelectFunc = func;
+			if (arg)
+				Q_strlcpy(cg_upgrade_menu[count].text_arg1, arg, sizeof(cg_upgrade_menu[count].text_arg1));
+			count++;
+		}
+	};
+
+	// Title
+	add_entry("=== CHAINGUN ===", PMENU_ALIGN_CENTER);
+	add_entry("", PMENU_ALIGN_CENTER);
+
+	// Display current upgrade levels
+	char status[128];
+	snprintf(status, sizeof(status), "Damage Level: %d/10", ent->client->pers.skills.cg_damage);
+	add_entry(status, PMENU_ALIGN_LEFT, CGUpgradeMenuHandler, "cg_damage");
+
+	snprintf(status, sizeof(status), "Spin Level: %d/10", ent->client->pers.skills.cg_spin);
+	add_entry(status, PMENU_ALIGN_LEFT, CGUpgradeMenuHandler, "cg_spin");
+
+	snprintf(status, sizeof(status), "Tracers Level: %d/10", ent->client->pers.skills.cg_tracers);
+	add_entry(status, PMENU_ALIGN_LEFT, CGUpgradeMenuHandler, "cg_tracers");
+
+	const char *spread_status = ent->client->pers.skills.cg_spread ? "ON" : "OFF";
+	snprintf(status, sizeof(status), "Reduced Spread: %s", spread_status);
+	add_entry(status, PMENU_ALIGN_LEFT, CGUpgradeMenuHandler, "cg_spread");
+
+	const char *silent_status = ent->client->pers.skills.cg_silent ? "ON" : "OFF";
+	snprintf(status, sizeof(status), "Silent Mode: %s", silent_status);
+	add_entry(status, PMENU_ALIGN_LEFT, CGUpgradeMenuHandler, "cg_silent");
+
+	add_entry("", PMENU_ALIGN_CENTER);
+	add_entry("---", PMENU_ALIGN_CENTER);
+	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, CGUpgradeMenuHandler, "back_to_weapons");
+
+	PMenu_Open(ent, cg_upgrade_menu, -1, count, nullptr, nullptr);
+}
+
+void CGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client || !p || p->cur < 0)
+	{
+		if (ent && ent->client && ent->client->menu)
+			PMenu_Close(ent);
+		return;
+	}
+
+	pmenu_t *item = &p->entries[p->cur];
+	if (!item->SelectFunc)
+		return;
+
+	const char *arg = item->text_arg1;
+
+	if (strcmp(arg, "cg_damage") == 0)
+	{
+		if (ent->client->pers.skills.cg_damage < 10)
+		{
+			ent->client->pers.skills.cg_damage++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Chaingun Damage increased to level {}!\n", ent->client->pers.skills.cg_damage);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Chaingun Damage is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenCGUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "cg_spin") == 0)
+	{
+		if (ent->client->pers.skills.cg_spin < 10)
+		{
+			ent->client->pers.skills.cg_spin++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Chaingun Spin increased to level {}!\n", ent->client->pers.skills.cg_spin);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Chaingun Spin is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenCGUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "cg_tracers") == 0)
+	{
+		if (ent->client->pers.skills.cg_tracers < 10)
+		{
+			ent->client->pers.skills.cg_tracers++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Chaingun Tracers increased to level {}!\n", ent->client->pers.skills.cg_tracers);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Chaingun Tracers is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenCGUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "cg_spread") == 0)
+	{
+		ent->client->pers.skills.cg_spread = !ent->client->pers.skills.cg_spread;
+		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Chaingun Reduced Spread: {}\n", ent->client->pers.skills.cg_spread ? "ON" : "OFF");
+		PMenu_Close(ent);
+		OpenCGUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "cg_silent") == 0)
+	{
+		ent->client->pers.skills.cg_silent = !ent->client->pers.skills.cg_silent;
+		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Chaingun Silent Mode: {}\n", ent->client->pers.skills.cg_silent ? "ON" : "OFF");
+		PMenu_Close(ent);
+		OpenCGUpgradeMenu(ent);
 	}
 	else if (strcmp(arg, "back_to_weapons") == 0)
 	{

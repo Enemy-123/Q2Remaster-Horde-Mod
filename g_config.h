@@ -68,7 +68,8 @@ struct MachinegunConfig
 	int kick = 2;
 	int tracer_damage = 40;
 	int tracer_cooldown_ms = 500;
-};
+	int tracer_damage_per_level = 4;  // Damage added per tracer upgrade level (max 40 at level 10)
+};;
 
 struct ChaingunConfig
 {
@@ -77,7 +78,8 @@ struct ChaingunConfig
 	int kick = 2;
 	int tracer_damage = 20;
 	int tracer_cooldown_ms = 300;
-};
+	int tracer_damage_per_level = 2;  // Damage added per tracer upgrade level (max 20 at level 10)
+};;
 
 struct GrenadeConfig
 {

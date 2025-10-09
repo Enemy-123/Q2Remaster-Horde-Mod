@@ -3182,6 +3182,20 @@ struct player_skills_t {
 	int8_t rl_radius = 0;         // 0-10: Explosion radius
 	bool rl_trails = false;       // Disable rocket trail effects
 	bool rl_silent = false;       // Silent firing (no flash/noise)
+
+	// Weapon Upgrades - Machinegun
+	int8_t mg_damage = 0;         // 0-10: Machinegun damage multiplier
+	int8_t mg_pierce = 0;         // 0-10: Pierce chance (3% per level, max 30%)
+	int8_t mg_tracers = 0;        // 0-10: Tracer bullet damage scaling
+	int8_t mg_spread = 0;         // 0-1: Reduced spread (1 = half spread)
+	bool mg_silent = false;       // Silent firing (no flash/noise)
+
+	// Weapon Upgrades - Chaingun
+	int8_t cg_damage = 0;         // 0-10: Chaingun damage multiplier
+	int8_t cg_spin = 0;           // 0-10: Faster spin-up/spin-down
+	int8_t cg_tracers = 0;        // 0-10: Tracer bullet damage scaling
+	int8_t cg_spread = 0;         // 0-1: Reduced spread (1 = half spread)
+	bool cg_silent = false;       // Silent firing (no flash/noise)
 	
 	// Future expansion - room for 22 more abilities
 	int8_t reserved[22] = {0};

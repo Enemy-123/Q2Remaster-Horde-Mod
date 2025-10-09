@@ -1620,9 +1620,23 @@ void Fire_TracerBullet(edict_t* ent, int damage, gtime_t cooldown_duration)
     if (!ent || !ent->client)
         return;
 
-    bool has_traced = PlayerHasTracedBullets(ent);
+    // Check if player has tracer bullets from benefits or weapon upgrades
+    bool has_traced = PlayerHasTracedBullets(ent) ||
+                      ent->client->pers.skills.mg_tracers > 0 ||
+                      ent->client->pers.skills.cg_tracers > 0;
     if (!has_traced || ent->client->resp.lasthbshot > level.time)
         return;
+
+    // Scale tracer damage based on weapon upgrades
+    int final_damage = damage;
+    if (ent->client->pers.skills.mg_tracers > 0)
+    {
+        final_damage = ent->client->pers.skills.mg_tracers * g_config.machinegun.tracer_damage_per_level;
+    }
+    else if (ent->client->pers.skills.cg_tracers > 0)
+    {
+        final_damage = ent->client->pers.skills.cg_tracers * g_config.chaingun.tracer_damage_per_level;
+    }
 
     const vec3_t& tracer_offset = (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
         ? TRACER_OFFSET_DUCKED
@@ -1632,7 +1646,7 @@ void Fire_TracerBullet(edict_t* ent, int damage, gtime_t cooldown_duration)
     vec3_t dir;
     P_ProjectSource(ent, ent->client->v_angle, tracer_offset, tracer_start, dir, true);
 
-    fire_blaster2(ent, tracer_start, dir, damage, 3150, EF_NONE, false);
+    fire_blaster2(ent, tracer_start, dir, final_damage, 3150, EF_NONE, false);
 
     ent->client->resp.lasthbshot = level.time + cooldown_duration;
 }
@@ -1666,6 +1680,9 @@ void Machinegun_Fire(edict_t* ent)
 		return;
 	}
 
+	// Apply machinegun damage upgrade (add 1 damage per level)
+	damage += ent->client->pers.skills.mg_damage;
+
 	// Apply quad damage modifier if active
 	if (is_quad) {
 		damage *= damage_multiplier;
@@ -1690,23 +1707,42 @@ void Machinegun_Fire(edict_t* ent)
 	vec3_t machinegun_offset = { 0.0f, 8.0f, -8.0f - GUN_HEIGHT_ADJUST };
 	P_ProjectSource(ent, ent->client->v_angle, machinegun_offset, start, forward, true);
 
+	// Apply spread reduction if upgraded (divide spread by 2)
+	int hspread = DEFAULT_BULLET_HSPREAD;
+	int vspread = DEFAULT_BULLET_VSPREAD;
+	if (ent->client->pers.skills.mg_spread > 0)
+	{
+		hspread /= 1.5;
+		vspread /= 1.5;
+	}
+
 	// Fire with lag compensation
 	G_LagCompensate(ent, start, forward);
-	fire_bullet(ent, start, forward, damage, kick,
-		DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_MACHINEGUN);
+	fire_bullet(ent, start, forward, damage, kick, hspread, vspread, MOD_MACHINEGUN);
 	G_UnLagCompensate();
 
-	// Play weapon sound with power-up effects
-	Weapon_PowerupSound(ent);
+	// Play weapon sound with power-up effects (unless silent mode)
+	if (!ent->client->pers.skills.mg_silent)
+	{
+		Weapon_PowerupSound(ent);
+	}
 
-	// Send muzzle flash effect to clients
+	// Send muzzle flash effect to clients (add MZ_SILENCED flag if silent mode)
+	int flash_flags = MZ_MACHINEGUN | is_silenced;
+	if (ent->client->pers.skills.mg_silent)
+	{
+		flash_flags |= MZ_SILENCED;
+	}
 	gi.WriteByte(svc_muzzleflash);
 	gi.WriteEntity(ent);
-	gi.WriteByte(MZ_MACHINEGUN | is_silenced);
+	gi.WriteByte(flash_flags);
 	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
 
-	// Generate noise event for AI awareness
-	PlayerNoise(ent, start, PNOISE_WEAPON);
+	// Generate noise event for AI awareness (unless silent mode)
+	if (!ent->client->pers.skills.mg_silent)
+	{
+		PlayerNoise(ent, start, PNOISE_WEAPON);
+	}
 
 	// Remove ammo
 	G_RemoveAmmo(ent);
@@ -1764,16 +1800,28 @@ void Chaingun_Fire(edict_t* ent)
 	int damage = irandom(g_config.chaingun.damage_min, g_config.chaingun.damage_max);
 	int kick = g_config.chaingun.kick;
 
+	// Apply chaingun damage upgrade (add 1 damage per level)
+	damage += ent->client->pers.skills.cg_damage;
+
+	// Apply spin upgrade by reducing frame transitions (skip frames for faster spin)
+	int frame_skip = ent->client->pers.skills.cg_spin / 2; // Every 2 spin levels = 1 frame skip
+
 	// Handle gun state transitions
 	if (ent->client->ps.gunframe > CHAINGUN_READY_FRAME) {
 		ent->client->ps.gunframe = CHAINGUN_START_FRAME;
-		gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnu1a.wav"), 1, ATTN_IDLE, 0);
+		if (!ent->client->pers.skills.cg_silent)
+		{
+			gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnu1a.wav"), 1, ATTN_IDLE, 0);
+		}
 	}
 	else if ((ent->client->ps.gunframe == CHAINGUN_PAUSE_FRAME) &&
 		!(ent->client->buttons & BUTTON_ATTACK)) {
 		ent->client->ps.gunframe = CHAINGUN_SPINDOWN_FRAME;
 		ent->client->weapon_sound = 0;
-		gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnd1a.wav"), 1, ATTN_IDLE, 0);
+		if (!ent->client->pers.skills.cg_silent)
+		{
+			gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnd1a.wav"), 1, ATTN_IDLE, 0);
+		}
 		return;
 	}
 	else if ((ent->client->ps.gunframe == CHAINGUN_END_FRAME) &&
@@ -1787,7 +1835,10 @@ void Chaingun_Fire(edict_t* ent)
 
 	if (ent->client->ps.gunframe == CHAINGUN_SOUND_FRAME) {
 		ent->client->weapon_sound = 0;
-		gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnd1a.wav"), 1, ATTN_IDLE, 0);
+		if (!ent->client->pers.skills.cg_silent)
+		{
+			gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnd1a.wav"), 1, ATTN_IDLE, 0);
+		}
 	}
 
     if (ent->client->ps.gunframe >= CHAINGUN_SPINDOWN_FRAME) {
@@ -1799,7 +1850,15 @@ void Chaingun_Fire(edict_t* ent)
 		return;
     }
 
-	ent->client->weapon_sound = gi.soundindex("weapons/chngnl1a.wav");
+	// Set weapon loop sound (unless silent mode)
+	if (!ent->client->pers.skills.cg_silent)
+	{
+		ent->client->weapon_sound = gi.soundindex("weapons/chngnl1a.wav");
+	}
+	else
+	{
+		ent->client->weapon_sound = 0;
+	}
 
 	if (ent->client->ps.gunframe <= CHAINGUN_SINGLE_SHOT_FRAME)
 		shots = 1;
@@ -1827,7 +1886,10 @@ void Chaingun_Fire(edict_t* ent)
 		NoAmmoWeaponChange(ent, true);
 		ent->client->ps.gunframe = CHAINGUN_SPINDOWN_FRAME;
 		ent->client->weapon_sound = 0;
-		gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnd1a.wav"), 1, ATTN_IDLE, 0);
+		if (!ent->client->pers.skills.cg_silent)
+		{
+			gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnd1a.wav"), 1, ATTN_IDLE, 0);
+		}
 		return;
 	}
 
@@ -1848,21 +1910,43 @@ void Chaingun_Fire(edict_t* ent)
     vec3_t fire_dir;
 	P_ProjectSource(ent, ent->client->v_angle, GUN_OFFSET, start_pos, fire_dir, true);
 
+	// Apply spread reduction if upgraded (divide spread by 2)
+	int hspread = DEFAULT_BULLET_HSPREAD;
+	int vspread = DEFAULT_BULLET_VSPREAD;
+	if (ent->client->pers.skills.cg_spread > 0)
+	{
+		hspread /= 1.5;
+		vspread /= 1.5;
+	}
+
 	G_LagCompensate(ent, start_pos, fire_dir);
 	for (int i = 0; i < shots; i++) {
-		fire_bullet(ent, start_pos, fire_dir, damage, kick,
-			DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_CHAINGUN);
+		fire_bullet(ent, start_pos, fire_dir, damage, kick, hspread, vspread, MOD_CHAINGUN);
 	}
 	G_UnLagCompensate();
 
-	Weapon_PowerupSound(ent);
+	// Play weapon sound with power-up effects (unless silent mode)
+	if (!ent->client->pers.skills.cg_silent)
+	{
+		Weapon_PowerupSound(ent);
+	}
 
+	// Send muzzle flash effect to clients (add MZ_SILENCED flag if silent mode)
+	int flash_flags = (MZ_CHAINGUN1 + shots - 1) | is_silenced;
+	if (ent->client->pers.skills.cg_silent)
+	{
+		flash_flags |= MZ_SILENCED;
+	}
 	gi.WriteByte(svc_muzzleflash);
 	gi.WriteEntity(ent);
-	gi.WriteByte((MZ_CHAINGUN1 + shots - 1) | is_silenced);
+	gi.WriteByte(flash_flags);
 	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
 
-	PlayerNoise(ent, start_pos, PNOISE_WEAPON);
+	// Generate noise event for AI awareness (unless silent mode)
+	if (!ent->client->pers.skills.cg_silent)
+	{
+		PlayerNoise(ent, start_pos, PNOISE_WEAPON);
+	}
 	
 	G_RemoveAmmo(ent, shots);
 
