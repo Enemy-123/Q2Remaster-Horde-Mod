@@ -3277,7 +3277,17 @@ struct player_skills_t {
 	int8_t cf_range = 0;          // 0-10: Chainfist attack range
 	bool cf_silent = false;       // Silent firing (no flash/noise)
 
-	int8_t reserved[19] = {0};
+	// Weapon Upgrades - Tesla
+	int8_t tesla_damage = 0;      // 0-10: Tesla damage (affects TESLA_DAMAGE)
+	int8_t tesla_range = 0;       // 0-10: Tesla throw range (GRENADE_MINSPEED/MAXSPEED)
+	int8_t tesla_radius = 0;      // 0-10: Tesla explosion radius (TESLA_DAMAGE_RADIUS)
+
+	// Weapon Upgrades - Trap
+	int8_t trap_damage = 0;       // 0-10: Trap explosion damage (g_config.trap.explosion_damage)
+	int8_t trap_range = 0;        // 0-10: Trap throw range (GRENADE_MINSPEED/MAXSPEED)
+	int8_t trap_radius = 0;       // 0-10: Trap explosion radius (TRAP_RADIUS)
+
+	int8_t reserved[10] = {0};
 };;
 
 // client data that stays across multiple level loads

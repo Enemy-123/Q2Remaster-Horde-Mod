@@ -1531,18 +1531,20 @@ void OpenRespawnWeaponMenu(edict_t *ent)
 
 	// All weapons across both pages
 	static const char* all_weapons[] = {
-		// Page 0: Base weapons
+		// Page 0: Base weapons (12 weapons)
+		"Chainfist",
 		"Blaster",
 		"Shotgun",
 		"Super Shotgun",
 		"Machinegun",
 		"Chaingun",
 		"Grenade Launcher",
+		"Grenades",
 		"Rocket Launcher",
 		"HyperBlaster",
 		"Railgun",
 		"BFG10K",
-		// Page 1: Expansion weapons
+		// Page 1: Expansion weapons (8 weapons)
 		"20mm Cannon",
 		"ETF Rifle",
 		"Prox Launcher",
@@ -1551,11 +1553,10 @@ void OpenRespawnWeaponMenu(edict_t *ent)
 		"Phalanx",
 		"Disruptor",
 		"Tesla",
-		"Trap",
-		"Grenades"
+		"Trap"
 	};
 	constexpr size_t total_weapons = sizeof(all_weapons) / sizeof(all_weapons[0]);
-	constexpr size_t weapons_per_page = 10;
+	constexpr size_t weapons_per_page = 12;
 	constexpr size_t total_pages = (total_weapons + weapons_per_page - 1) / weapons_per_page;
 
 	// Validate and clamp current page
@@ -3055,24 +3056,32 @@ void OpenWeaponUpgradeMenu(edict_t *ent)
 	};
 
 	static const WeaponEntry all_weapons[] = {
+		// Page 0: Base weapons (12 weapons)
+		{"> Chainfist", "chainfist"},
 		{"> Blaster", "blaster"},
-		{"> Hyperblaster", "hyperblaster"},
 		{"> Shotgun", "shotgun"},
 		{"> Super Shotgun", "supershotgun"},
 		{"> Machinegun", "machinegun"},
 		{"> Chaingun", "chaingun"},
 		{"> Grenade Launcher", "grenade_launcher"},
-		{"> Rocket Launcher", "rocket_launcher"},
 		{"> Hand Grenades", "hand_grenades"},
-		{"> Prox Launcher", "prox_launcher"},
-		{"> ETF Rifle", "etf_rifle"},
-		{"> Ion Ripper", "ion_ripper"},
-		{"> Plasmabeam", "plasmabeam"},
+		{"> Rocket Launcher", "rocket_launcher"},
+		{"> Hyperblaster", "hyperblaster"},
 		{"> Railgun", "railgun"},
-		{"> BFG10K", "bfg10k"}
+		{"> BFG10K", "bfg10k"},
+		// Page 1: Expansion weapons (8 weapons)
+		{"> 20mm Cannon", "20mm_cannon"},
+		{"> ETF Rifle", "etf_rifle"},
+		{"> Prox Launcher", "prox_launcher"},
+		{"> Plasma Beam", "plasmabeam"},
+		{"> Ion Ripper", "ion_ripper"},
+		{"> Phalanx", "phalanx"},
+		{"> Disruptor", "disruptor"},
+		{"> Tesla", "tesla"},
+		{"> Trap", "trap"}
 	};
 	constexpr size_t total_weapons = sizeof(all_weapons) / sizeof(all_weapons[0]);
-	constexpr size_t weapons_per_page = 10;
+	constexpr size_t weapons_per_page = 12;
 	constexpr size_t total_pages = (total_weapons + weapons_per_page - 1) / weapons_per_page;
 
 	// Ensure current page is valid
@@ -3114,6 +3123,7 @@ void OpenWeaponUpgradeMenu(edict_t *ent)
 }
 
 // Forward declarations for new weapon menus
+void OpenChainfistUpgradeMenu(edict_t *ent, int cursor_pos = -1);
 void OpenBlasterUpgradeMenu(edict_t *ent);
 void OpenHyperblasterUpgradeMenu(edict_t *ent);
 void OpenHGUpgradeMenu(edict_t *ent, int cursor_pos = -1);
@@ -3121,6 +3131,8 @@ void OpenETFUpgradeMenu(edict_t *ent, int cursor_pos = -1);
 void OpenIonRipperUpgradeMenu(edict_t *ent);
 void OpenRailgunUpgradeMenu(edict_t *ent);
 void OpenBFGUpgradeMenu(edict_t *ent, int cursor_pos = -1);
+void OpenTeslaUpgradeMenu(edict_t *ent, int cursor_pos = -1);
+void OpenTrapUpgradeMenu(edict_t *ent, int cursor_pos = -1);
 
 void WeaponUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 {
@@ -3155,7 +3167,12 @@ void WeaponUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	}
 
 	// Handle weapon selection
-	if (strcmp(arg, "blaster") == 0)
+	if (strcmp(arg, "chainfist") == 0)
+	{
+		PMenu_Close(ent);
+		OpenChainfistUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "blaster") == 0)
 	{
 		PMenu_Close(ent);
 		OpenBlasterUpgradeMenu(ent);
@@ -3229,6 +3246,31 @@ void WeaponUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		PMenu_Close(ent);
 		OpenBFGUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "20mm_cannon") == 0)
+	{
+		// TODO: Implement 20mm Cannon upgrade menu
+		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "20mm Cannon upgrades not yet implemented.\n");
+	}
+	else if (strcmp(arg, "phalanx") == 0)
+	{
+		// TODO: Implement Phalanx upgrade menu
+		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Phalanx upgrades not yet implemented.\n");
+	}
+	else if (strcmp(arg, "disruptor") == 0)
+	{
+		// TODO: Implement Disruptor upgrade menu
+		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Disruptor upgrades not yet implemented.\n");
+	}
+	else if (strcmp(arg, "tesla") == 0)
+	{
+		PMenu_Close(ent);
+		OpenTeslaUpgradeMenu(ent);
+	}
+	else if (strcmp(arg, "trap") == 0)
+	{
+		PMenu_Close(ent);
+		OpenTrapUpgradeMenu(ent);
 	}
 	else if (strcmp(arg, "back_to_upgrades") == 0)
 	{
@@ -5717,3 +5759,395 @@ void HordeScoreboardMessage(edict_t *ent, edict_t *killer)
 }
 
 // --- END OF FILE horde_menu.cpp ---
+
+/////////////////////////////////////////////
+// CHAINFIST UPGRADE SUBMENU
+/////////////////////////////////////////////
+
+static pmenu_t chainfist_upgrade_menu[32];
+
+void ChainfistUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p);
+
+void OpenChainfistUpgradeMenu(edict_t *ent, int cursor_pos)
+{
+	if (!ent || !ent->client)
+		return;
+
+	if (ent->client->menu)
+		PMenu_Close(ent);
+
+	// Set menu protection
+	ent->client->menu_protected = true;
+	ent->client->menu_protection_start = level.time;
+
+	memset(chainfist_upgrade_menu, 0, sizeof(chainfist_upgrade_menu));
+	int count = 0;
+
+	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
+	{
+		if (count < 32)
+		{
+			Q_strlcpy(chainfist_upgrade_menu[count].text, text, sizeof(chainfist_upgrade_menu[count].text));
+			chainfist_upgrade_menu[count].align = align;
+			chainfist_upgrade_menu[count].SelectFunc = func;
+			if (arg)
+				Q_strlcpy(chainfist_upgrade_menu[count].text_arg1, arg, sizeof(chainfist_upgrade_menu[count].text_arg1));
+			count++;
+		}
+	};
+
+	// Calculate upgrade percentage
+	int current_upgrades = ent->client->pers.skills.cf_damage +
+	                       ent->client->pers.skills.cf_range;
+	int max_upgrades = 20; // 2 stats * 10 max each
+	int percentage = (current_upgrades * 100) / max_upgrades;
+
+	// Title with percentage
+	char title[64];
+	snprintf(title, sizeof(title), "=== CHAINFIST (%d%%) ===", percentage);
+	add_entry(title, PMENU_ALIGN_CENTER);
+	add_entry("", PMENU_ALIGN_CENTER);
+
+	// Display current upgrade levels
+	char status[128];
+	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.cf_damage);
+	add_entry(status, PMENU_ALIGN_LEFT, ChainfistUpgradeMenuHandler, "cf_damage");
+
+	snprintf(status, sizeof(status), "Range %d [10]", ent->client->pers.skills.cf_range);
+	add_entry(status, PMENU_ALIGN_LEFT, ChainfistUpgradeMenuHandler, "cf_range");
+
+	const char *silent_status = ent->client->pers.skills.cf_silent ? "ON" : "OFF";
+	snprintf(status, sizeof(status), "Silent Mode: %s", silent_status);
+	add_entry(status, PMENU_ALIGN_LEFT, ChainfistUpgradeMenuHandler, "cf_silent");
+
+	add_entry("", PMENU_ALIGN_CENTER);
+	add_entry("---", PMENU_ALIGN_CENTER);
+	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, ChainfistUpgradeMenuHandler, "back_to_weapons");
+
+	PMenu_Open(ent, chainfist_upgrade_menu, cursor_pos, count, nullptr, nullptr);
+}
+
+void ChainfistUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client || !p || p->cur < 0)
+	{
+		if (ent && ent->client && ent->client->menu)
+			PMenu_Close(ent);
+		return;
+	}
+
+	pmenu_t *item = &p->entries[p->cur];
+	if (!item->SelectFunc)
+		return;
+
+	const char *arg = item->text_arg1;
+
+	int cursor = p->cur; // Save cursor position for reopening
+
+	if (strcmp(arg, "cf_damage") == 0)
+	{
+		if (ent->client->pers.skills.cf_damage < 10)
+		{
+			ent->client->pers.skills.cf_damage++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Chainfist Damage increased to level {}!\n", ent->client->pers.skills.cf_damage);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Chainfist Damage is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenChainfistUpgradeMenu(ent, cursor);
+	}
+	else if (strcmp(arg, "cf_range") == 0)
+	{
+		if (ent->client->pers.skills.cf_range < 10)
+		{
+			ent->client->pers.skills.cf_range++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Chainfist Range increased to level {}!\n", ent->client->pers.skills.cf_range);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Chainfist Range is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenChainfistUpgradeMenu(ent, cursor);
+	}
+	else if (strcmp(arg, "cf_silent") == 0)
+	{
+		ent->client->pers.skills.cf_silent = !ent->client->pers.skills.cf_silent;
+		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Chainfist Silent Mode: {}\n", ent->client->pers.skills.cf_silent ? "ON" : "OFF");
+		PMenu_Close(ent);
+		OpenChainfistUpgradeMenu(ent, cursor);
+	}
+	else if (strcmp(arg, "back_to_weapons") == 0)
+	{
+		PMenu_Close(ent);
+		OpenWeaponUpgradeMenu(ent);
+	}
+}
+
+/////////////////////////////////////////////
+// TESLA UPGRADE SUBMENU
+/////////////////////////////////////////////
+
+static pmenu_t tesla_upgrade_menu[32];
+
+void TeslaUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p);
+
+void OpenTeslaUpgradeMenu(edict_t *ent, int cursor_pos)
+{
+	if (!ent || !ent->client)
+		return;
+
+	if (ent->client->menu)
+		PMenu_Close(ent);
+
+	// Set menu protection
+	ent->client->menu_protected = true;
+	ent->client->menu_protection_start = level.time;
+
+	memset(tesla_upgrade_menu, 0, sizeof(tesla_upgrade_menu));
+	int count = 0;
+
+	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
+	{
+		if (count < 32)
+		{
+			Q_strlcpy(tesla_upgrade_menu[count].text, text, sizeof(tesla_upgrade_menu[count].text));
+			tesla_upgrade_menu[count].align = align;
+			tesla_upgrade_menu[count].SelectFunc = func;
+			if (arg)
+				Q_strlcpy(tesla_upgrade_menu[count].text_arg1, arg, sizeof(tesla_upgrade_menu[count].text_arg1));
+			count++;
+		}
+	};
+
+	// Calculate upgrade percentage
+	int current_upgrades = ent->client->pers.skills.tesla_damage +
+	                       ent->client->pers.skills.tesla_range +
+	                       ent->client->pers.skills.tesla_radius;
+	int max_upgrades = 30; // 3 stats * 10 max each
+	int percentage = (current_upgrades * 100) / max_upgrades;
+
+	// Title with percentage
+	char title[64];
+	snprintf(title, sizeof(title), "=== TESLA (%d%%) ===", percentage);
+	add_entry(title, PMENU_ALIGN_CENTER);
+	add_entry("", PMENU_ALIGN_CENTER);
+
+	// Display current upgrade levels
+	char status[128];
+	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.tesla_damage);
+	add_entry(status, PMENU_ALIGN_LEFT, TeslaUpgradeMenuHandler, "tesla_damage");
+
+	snprintf(status, sizeof(status), "Range %d [10]", ent->client->pers.skills.tesla_range);
+	add_entry(status, PMENU_ALIGN_LEFT, TeslaUpgradeMenuHandler, "tesla_range");
+
+	snprintf(status, sizeof(status), "Radius %d [10]", ent->client->pers.skills.tesla_radius);
+	add_entry(status, PMENU_ALIGN_LEFT, TeslaUpgradeMenuHandler, "tesla_radius");
+
+	add_entry("", PMENU_ALIGN_CENTER);
+	add_entry("---", PMENU_ALIGN_CENTER);
+	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, TeslaUpgradeMenuHandler, "back_to_weapons");
+
+	PMenu_Open(ent, tesla_upgrade_menu, cursor_pos, count, nullptr, nullptr);
+}
+
+void TeslaUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client || !p || p->cur < 0)
+	{
+		if (ent && ent->client && ent->client->menu)
+			PMenu_Close(ent);
+		return;
+	}
+
+	pmenu_t *item = &p->entries[p->cur];
+	if (!item->SelectFunc)
+		return;
+
+	const char *arg = item->text_arg1;
+
+	int cursor = p->cur; // Save cursor position for reopening
+
+	if (strcmp(arg, "tesla_damage") == 0)
+	{
+		if (ent->client->pers.skills.tesla_damage < 10)
+		{
+			ent->client->pers.skills.tesla_damage++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Tesla Damage increased to level {}!\n", ent->client->pers.skills.tesla_damage);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Tesla Damage is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenTeslaUpgradeMenu(ent, cursor);
+	}
+	else if (strcmp(arg, "tesla_range") == 0)
+	{
+		if (ent->client->pers.skills.tesla_range < 10)
+		{
+			ent->client->pers.skills.tesla_range++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Tesla Range increased to level {}!\n", ent->client->pers.skills.tesla_range);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Tesla Range is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenTeslaUpgradeMenu(ent, cursor);
+	}
+	else if (strcmp(arg, "tesla_radius") == 0)
+	{
+		if (ent->client->pers.skills.tesla_radius < 10)
+		{
+			ent->client->pers.skills.tesla_radius++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Tesla Radius increased to level {}!\n", ent->client->pers.skills.tesla_radius);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Tesla Radius is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenTeslaUpgradeMenu(ent, cursor);
+	}
+	else if (strcmp(arg, "back_to_weapons") == 0)
+	{
+		PMenu_Close(ent);
+		OpenWeaponUpgradeMenu(ent);
+	}
+}
+
+/////////////////////////////////////////////
+// TRAP UPGRADE SUBMENU
+/////////////////////////////////////////////
+
+static pmenu_t trap_upgrade_menu[32];
+
+void TrapUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p);
+
+void OpenTrapUpgradeMenu(edict_t *ent, int cursor_pos)
+{
+	if (!ent || !ent->client)
+		return;
+
+	if (ent->client->menu)
+		PMenu_Close(ent);
+
+	// Set menu protection
+	ent->client->menu_protected = true;
+	ent->client->menu_protection_start = level.time;
+
+	memset(trap_upgrade_menu, 0, sizeof(trap_upgrade_menu));
+	int count = 0;
+
+	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
+	{
+		if (count < 32)
+		{
+			Q_strlcpy(trap_upgrade_menu[count].text, text, sizeof(trap_upgrade_menu[count].text));
+			trap_upgrade_menu[count].align = align;
+			trap_upgrade_menu[count].SelectFunc = func;
+			if (arg)
+				Q_strlcpy(trap_upgrade_menu[count].text_arg1, arg, sizeof(trap_upgrade_menu[count].text_arg1));
+			count++;
+		}
+	};
+
+	// Calculate upgrade percentage
+	int current_upgrades = ent->client->pers.skills.trap_damage +
+	                       ent->client->pers.skills.trap_range +
+	                       ent->client->pers.skills.trap_radius;
+	int max_upgrades = 30; // 3 stats * 10 max each
+	int percentage = (current_upgrades * 100) / max_upgrades;
+
+	// Title with percentage
+	char title[64];
+	snprintf(title, sizeof(title), "=== TRAP (%d%%) ===", percentage);
+	add_entry(title, PMENU_ALIGN_CENTER);
+	add_entry("", PMENU_ALIGN_CENTER);
+
+	// Display current upgrade levels
+	char status[128];
+	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.trap_damage);
+	add_entry(status, PMENU_ALIGN_LEFT, TrapUpgradeMenuHandler, "trap_damage");
+
+	snprintf(status, sizeof(status), "Range %d [10]", ent->client->pers.skills.trap_range);
+	add_entry(status, PMENU_ALIGN_LEFT, TrapUpgradeMenuHandler, "trap_range");
+
+	snprintf(status, sizeof(status), "Radius %d [10]", ent->client->pers.skills.trap_radius);
+	add_entry(status, PMENU_ALIGN_LEFT, TrapUpgradeMenuHandler, "trap_radius");
+
+	add_entry("", PMENU_ALIGN_CENTER);
+	add_entry("---", PMENU_ALIGN_CENTER);
+	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, TrapUpgradeMenuHandler, "back_to_weapons");
+
+	PMenu_Open(ent, trap_upgrade_menu, cursor_pos, count, nullptr, nullptr);
+}
+
+void TrapUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client || !p || p->cur < 0)
+	{
+		if (ent && ent->client && ent->client->menu)
+			PMenu_Close(ent);
+		return;
+	}
+
+	pmenu_t *item = &p->entries[p->cur];
+	if (!item->SelectFunc)
+		return;
+
+	const char *arg = item->text_arg1;
+
+	int cursor = p->cur; // Save cursor position for reopening
+
+	if (strcmp(arg, "trap_damage") == 0)
+	{
+		if (ent->client->pers.skills.trap_damage < 10)
+		{
+			ent->client->pers.skills.trap_damage++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Trap Damage increased to level {}!\n", ent->client->pers.skills.trap_damage);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Trap Damage is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenTrapUpgradeMenu(ent, cursor);
+	}
+	else if (strcmp(arg, "trap_range") == 0)
+	{
+		if (ent->client->pers.skills.trap_range < 10)
+		{
+			ent->client->pers.skills.trap_range++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Trap Range increased to level {}!\n", ent->client->pers.skills.trap_range);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Trap Range is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenTrapUpgradeMenu(ent, cursor);
+	}
+	else if (strcmp(arg, "trap_radius") == 0)
+	{
+		if (ent->client->pers.skills.trap_radius < 10)
+		{
+			ent->client->pers.skills.trap_radius++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Trap Radius increased to level {}!\n", ent->client->pers.skills.trap_radius);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Trap Radius is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenTrapUpgradeMenu(ent, cursor);
+	}
+	else if (strcmp(arg, "back_to_weapons") == 0)
+	{
+		PMenu_Close(ent);
+		OpenWeaponUpgradeMenu(ent);
+	}
+}
