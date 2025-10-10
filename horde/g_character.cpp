@@ -210,6 +210,8 @@ bool Character_Load(edict_t* player)
         // Load skill points
         if (stats.isMember("skill_points") && stats["skill_points"].isInt())
             player->client->pers.skill_points = stats["skill_points"].asInt();
+        if (stats.isMember("weapon_points") && stats["weapon_points"].isInt())
+            player->client->pers.weapon_points = stats["weapon_points"].asInt();
 
         // Load skill-based upgrades
         if (stats.isMember("skills") && stats["skills"].isObject())
@@ -240,6 +242,217 @@ bool Character_Load(edict_t* player)
                 player->client->pers.skills.free_vitality = static_cast<int8_t>(skills["free_vitality"].asInt());
             if (skills.isMember("free_max_ammo") && skills["free_max_ammo"].isInt())
                 player->client->pers.skills.free_max_ammo = static_cast<int8_t>(skills["free_max_ammo"].asInt());
+        }
+
+        // Load weapon upgrades
+        if (stats.isMember("weapons") && stats["weapons"].isObject())
+        {
+            const Json::Value& weapons = stats["weapons"];
+
+            if (weapons.isMember("gl_damage") && weapons["gl_damage"].isInt())
+                player->client->pers.skills.gl_damage = static_cast<int8_t>(weapons["gl_damage"].asInt());
+            if (weapons.isMember("gl_range") && weapons["gl_range"].isInt())
+                player->client->pers.skills.gl_range = static_cast<int8_t>(weapons["gl_range"].asInt());
+            if (weapons.isMember("gl_radius") && weapons["gl_radius"].isInt())
+                player->client->pers.skills.gl_radius = static_cast<int8_t>(weapons["gl_radius"].asInt());
+            if (weapons.isMember("gl_trails") && weapons["gl_trails"].isBool())
+                player->client->pers.skills.gl_trails = weapons["gl_trails"].asBool();
+            if (weapons.isMember("gl_silent") && weapons["gl_silent"].isBool())
+                player->client->pers.skills.gl_silent = weapons["gl_silent"].asBool();
+            if (weapons.isMember("gl_bouncy") && weapons["gl_bouncy"].isBool())
+                player->client->pers.skills.gl_bouncy = weapons["gl_bouncy"].asBool();
+
+            if (weapons.isMember("rl_damage") && weapons["rl_damage"].isInt())
+                player->client->pers.skills.rl_damage = static_cast<int8_t>(weapons["rl_damage"].asInt());
+            if (weapons.isMember("rl_speed") && weapons["rl_speed"].isInt())
+                player->client->pers.skills.rl_speed = static_cast<int8_t>(weapons["rl_speed"].asInt());
+            if (weapons.isMember("rl_radius") && weapons["rl_radius"].isInt())
+                player->client->pers.skills.rl_radius = static_cast<int8_t>(weapons["rl_radius"].asInt());
+            if (weapons.isMember("rl_trails") && weapons["rl_trails"].isBool())
+                player->client->pers.skills.rl_trails = weapons["rl_trails"].asBool();
+            if (weapons.isMember("rl_silent") && weapons["rl_silent"].isBool())
+                player->client->pers.skills.rl_silent = weapons["rl_silent"].asBool();
+
+            if (weapons.isMember("mg_damage") && weapons["mg_damage"].isInt())
+                player->client->pers.skills.mg_damage = static_cast<int8_t>(weapons["mg_damage"].asInt());
+            if (weapons.isMember("mg_pierce") && weapons["mg_pierce"].isInt())
+                player->client->pers.skills.mg_pierce = static_cast<int8_t>(weapons["mg_pierce"].asInt());
+            if (weapons.isMember("mg_tracers") && weapons["mg_tracers"].isInt())
+                player->client->pers.skills.mg_tracers = static_cast<int8_t>(weapons["mg_tracers"].asInt());
+            if (weapons.isMember("mg_spread") && weapons["mg_spread"].isInt())
+                player->client->pers.skills.mg_spread = static_cast<int8_t>(weapons["mg_spread"].asInt());
+            if (weapons.isMember("mg_silent") && weapons["mg_silent"].isBool())
+                player->client->pers.skills.mg_silent = weapons["mg_silent"].asBool();
+
+            if (weapons.isMember("cg_damage") && weapons["cg_damage"].isInt())
+                player->client->pers.skills.cg_damage = static_cast<int8_t>(weapons["cg_damage"].asInt());
+            if (weapons.isMember("cg_spin") && weapons["cg_spin"].isInt())
+                player->client->pers.skills.cg_spin = static_cast<int8_t>(weapons["cg_spin"].asInt());
+            if (weapons.isMember("cg_tracers") && weapons["cg_tracers"].isInt())
+                player->client->pers.skills.cg_tracers = static_cast<int8_t>(weapons["cg_tracers"].asInt());
+            if (weapons.isMember("cg_spread") && weapons["cg_spread"].isInt())
+                player->client->pers.skills.cg_spread = static_cast<int8_t>(weapons["cg_spread"].asInt());
+            if (weapons.isMember("cg_silent") && weapons["cg_silent"].isBool())
+                player->client->pers.skills.cg_silent = weapons["cg_silent"].asBool();
+
+            if (weapons.isMember("sg_damage") && weapons["sg_damage"].isInt())
+                player->client->pers.skills.sg_damage = static_cast<int8_t>(weapons["sg_damage"].asInt());
+            if (weapons.isMember("sg_strike") && weapons["sg_strike"].isInt())
+                player->client->pers.skills.sg_strike = static_cast<int8_t>(weapons["sg_strike"].asInt());
+            if (weapons.isMember("sg_pellets") && weapons["sg_pellets"].isInt())
+                player->client->pers.skills.sg_pellets = static_cast<int8_t>(weapons["sg_pellets"].asInt());
+            if (weapons.isMember("sg_spread") && weapons["sg_spread"].isBool())
+                player->client->pers.skills.sg_spread = weapons["sg_spread"].asBool();
+            if (weapons.isMember("sg_silent") && weapons["sg_silent"].isBool())
+                player->client->pers.skills.sg_silent = weapons["sg_silent"].asBool();
+            if (weapons.isMember("sg_energized") && weapons["sg_energized"].isBool())
+                player->client->pers.skills.sg_energized = weapons["sg_energized"].asBool();
+
+            if (weapons.isMember("ssg_damage") && weapons["ssg_damage"].isInt())
+                player->client->pers.skills.ssg_damage = static_cast<int8_t>(weapons["ssg_damage"].asInt());
+            if (weapons.isMember("ssg_strike") && weapons["ssg_strike"].isInt())
+                player->client->pers.skills.ssg_strike = static_cast<int8_t>(weapons["ssg_strike"].asInt());
+            if (weapons.isMember("ssg_pellets") && weapons["ssg_pellets"].isInt())
+                player->client->pers.skills.ssg_pellets = static_cast<int8_t>(weapons["ssg_pellets"].asInt());
+            if (weapons.isMember("ssg_spread") && weapons["ssg_spread"].isBool())
+                player->client->pers.skills.ssg_spread = weapons["ssg_spread"].asBool();
+            if (weapons.isMember("ssg_silent") && weapons["ssg_silent"].isBool())
+                player->client->pers.skills.ssg_silent = weapons["ssg_silent"].asBool();
+            if (weapons.isMember("ssg_energized") && weapons["ssg_energized"].isBool())
+                player->client->pers.skills.ssg_energized = weapons["ssg_energized"].asBool();
+
+            if (weapons.isMember("hg_damage") && weapons["hg_damage"].isInt())
+                player->client->pers.skills.hg_damage = static_cast<int8_t>(weapons["hg_damage"].asInt());
+            if (weapons.isMember("hg_range") && weapons["hg_range"].isInt())
+                player->client->pers.skills.hg_range = static_cast<int8_t>(weapons["hg_range"].asInt());
+            if (weapons.isMember("hg_radius_damage") && weapons["hg_radius_damage"].isInt())
+                player->client->pers.skills.hg_radius_damage = static_cast<int8_t>(weapons["hg_radius_damage"].asInt());
+
+            if (weapons.isMember("bl_damage") && weapons["bl_damage"].isInt())
+                player->client->pers.skills.bl_damage = static_cast<int8_t>(weapons["bl_damage"].asInt());
+            if (weapons.isMember("bl_speed") && weapons["bl_speed"].isInt())
+                player->client->pers.skills.bl_speed = static_cast<int8_t>(weapons["bl_speed"].asInt());
+            if (weapons.isMember("bl_trails") && weapons["bl_trails"].isBool())
+                player->client->pers.skills.bl_trails = weapons["bl_trails"].asBool();
+            if (weapons.isMember("bl_silent") && weapons["bl_silent"].isBool())
+                player->client->pers.skills.bl_silent = weapons["bl_silent"].asBool();
+
+            if (weapons.isMember("hb_damage") && weapons["hb_damage"].isInt())
+                player->client->pers.skills.hb_damage = static_cast<int8_t>(weapons["hb_damage"].asInt());
+            if (weapons.isMember("hb_speed") && weapons["hb_speed"].isInt())
+                player->client->pers.skills.hb_speed = static_cast<int8_t>(weapons["hb_speed"].asInt());
+            if (weapons.isMember("hb_trails") && weapons["hb_trails"].isBool())
+                player->client->pers.skills.hb_trails = weapons["hb_trails"].asBool();
+            if (weapons.isMember("hb_silent") && weapons["hb_silent"].isBool())
+                player->client->pers.skills.hb_silent = weapons["hb_silent"].asBool();
+
+            if (weapons.isMember("etf_damage") && weapons["etf_damage"].isInt())
+                player->client->pers.skills.etf_damage = static_cast<int8_t>(weapons["etf_damage"].asInt());
+            if (weapons.isMember("etf_speed") && weapons["etf_speed"].isInt())
+                player->client->pers.skills.etf_speed = static_cast<int8_t>(weapons["etf_speed"].asInt());
+            if (weapons.isMember("etf_kick") && weapons["etf_kick"].isInt())
+                player->client->pers.skills.etf_kick = static_cast<int8_t>(weapons["etf_kick"].asInt());
+            if (weapons.isMember("etf_silent") && weapons["etf_silent"].isBool())
+                player->client->pers.skills.etf_silent = weapons["etf_silent"].asBool();
+
+            if (weapons.isMember("ir_damage") && weapons["ir_damage"].isInt())
+                player->client->pers.skills.ir_damage = static_cast<int8_t>(weapons["ir_damage"].asInt());
+            if (weapons.isMember("ir_speed") && weapons["ir_speed"].isInt())
+                player->client->pers.skills.ir_speed = static_cast<int8_t>(weapons["ir_speed"].asInt());
+            if (weapons.isMember("ir_trails") && weapons["ir_trails"].isBool())
+                player->client->pers.skills.ir_trails = weapons["ir_trails"].asBool();
+            if (weapons.isMember("ir_silent") && weapons["ir_silent"].isBool())
+                player->client->pers.skills.ir_silent = weapons["ir_silent"].asBool();
+
+            if (weapons.isMember("pb_damage") && weapons["pb_damage"].isInt())
+                player->client->pers.skills.pb_damage = static_cast<int8_t>(weapons["pb_damage"].asInt());
+            if (weapons.isMember("pb_burn") && weapons["pb_burn"].isInt())
+                player->client->pers.skills.pb_burn = static_cast<int8_t>(weapons["pb_burn"].asInt());
+            if (weapons.isMember("pb_pierce") && weapons["pb_pierce"].isInt())
+                player->client->pers.skills.pb_pierce = static_cast<int8_t>(weapons["pb_pierce"].asInt());
+            if (weapons.isMember("pb_silent") && weapons["pb_silent"].isBool())
+                player->client->pers.skills.pb_silent = weapons["pb_silent"].asBool();
+
+            if (weapons.isMember("rg_damage") && weapons["rg_damage"].isInt())
+                player->client->pers.skills.rg_damage = static_cast<int8_t>(weapons["rg_damage"].asInt());
+            if (weapons.isMember("rg_burn") && weapons["rg_burn"].isInt())
+                player->client->pers.skills.rg_burn = static_cast<int8_t>(weapons["rg_burn"].asInt());
+            if (weapons.isMember("rg_pierce") && weapons["rg_pierce"].isInt())
+                player->client->pers.skills.rg_pierce = static_cast<int8_t>(weapons["rg_pierce"].asInt());
+            if (weapons.isMember("rg_trails") && weapons["rg_trails"].isBool())
+                player->client->pers.skills.rg_trails = weapons["rg_trails"].asBool();
+            if (weapons.isMember("rg_silent") && weapons["rg_silent"].isBool())
+                player->client->pers.skills.rg_silent = weapons["rg_silent"].asBool();
+
+            if (weapons.isMember("bfg_damage") && weapons["bfg_damage"].isInt())
+                player->client->pers.skills.bfg_damage = static_cast<int8_t>(weapons["bfg_damage"].asInt());
+            if (weapons.isMember("bfg_speed") && weapons["bfg_speed"].isInt())
+                player->client->pers.skills.bfg_speed = static_cast<int8_t>(weapons["bfg_speed"].asInt());
+            if (weapons.isMember("bfg_duration") && weapons["bfg_duration"].isInt())
+                player->client->pers.skills.bfg_duration = static_cast<int8_t>(weapons["bfg_duration"].asInt());
+            if (weapons.isMember("bfg_silent") && weapons["bfg_silent"].isBool())
+                player->client->pers.skills.bfg_silent = weapons["bfg_silent"].asBool();
+
+            if (weapons.isMember("cannon20mm_damage") && weapons["cannon20mm_damage"].isInt())
+                player->client->pers.skills.cannon20mm_damage = static_cast<int8_t>(weapons["cannon20mm_damage"].asInt());
+            if (weapons.isMember("cannon20mm_range") && weapons["cannon20mm_range"].isInt())
+                player->client->pers.skills.cannon20mm_range = static_cast<int8_t>(weapons["cannon20mm_range"].asInt());
+            if (weapons.isMember("cannon20mm_recoil") && weapons["cannon20mm_recoil"].isInt())
+                player->client->pers.skills.cannon20mm_recoil = static_cast<int8_t>(weapons["cannon20mm_recoil"].asInt());
+            if (weapons.isMember("cannon20mm_silent") && weapons["cannon20mm_silent"].isBool())
+                player->client->pers.skills.cannon20mm_silent = weapons["cannon20mm_silent"].asBool();
+
+            if (weapons.isMember("pl_damage") && weapons["pl_damage"].isInt())
+                player->client->pers.skills.pl_damage = static_cast<int8_t>(weapons["pl_damage"].asInt());
+            if (weapons.isMember("pl_range") && weapons["pl_range"].isInt())
+                player->client->pers.skills.pl_range = static_cast<int8_t>(weapons["pl_range"].asInt());
+            if (weapons.isMember("pl_radius") && weapons["pl_radius"].isInt())
+                player->client->pers.skills.pl_radius = static_cast<int8_t>(weapons["pl_radius"].asInt());
+            if (weapons.isMember("pl_trails") && weapons["pl_trails"].isBool())
+                player->client->pers.skills.pl_trails = weapons["pl_trails"].asBool();
+            if (weapons.isMember("pl_silent") && weapons["pl_silent"].isBool())
+                player->client->pers.skills.pl_silent = weapons["pl_silent"].asBool();
+            if (weapons.isMember("pl_improved_traps") && weapons["pl_improved_traps"].isBool())
+                player->client->pers.skills.pl_improved_traps = weapons["pl_improved_traps"].asBool();
+
+            if (weapons.isMember("cf_damage") && weapons["cf_damage"].isInt())
+                player->client->pers.skills.cf_damage = static_cast<int8_t>(weapons["cf_damage"].asInt());
+            if (weapons.isMember("cf_range") && weapons["cf_range"].isInt())
+                player->client->pers.skills.cf_range = static_cast<int8_t>(weapons["cf_range"].asInt());
+            if (weapons.isMember("cf_silent") && weapons["cf_silent"].isBool())
+                player->client->pers.skills.cf_silent = weapons["cf_silent"].asBool();
+
+            if (weapons.isMember("tesla_damage") && weapons["tesla_damage"].isInt())
+                player->client->pers.skills.tesla_damage = static_cast<int8_t>(weapons["tesla_damage"].asInt());
+            if (weapons.isMember("tesla_range") && weapons["tesla_range"].isInt())
+                player->client->pers.skills.tesla_range = static_cast<int8_t>(weapons["tesla_range"].asInt());
+            if (weapons.isMember("tesla_radius") && weapons["tesla_radius"].isInt())
+                player->client->pers.skills.tesla_radius = static_cast<int8_t>(weapons["tesla_radius"].asInt());
+
+            if (weapons.isMember("trap_damage") && weapons["trap_damage"].isInt())
+                player->client->pers.skills.trap_damage = static_cast<int8_t>(weapons["trap_damage"].asInt());
+            if (weapons.isMember("trap_range") && weapons["trap_range"].isInt())
+                player->client->pers.skills.trap_range = static_cast<int8_t>(weapons["trap_range"].asInt());
+            if (weapons.isMember("trap_radius") && weapons["trap_radius"].isInt())
+                player->client->pers.skills.trap_radius = static_cast<int8_t>(weapons["trap_radius"].asInt());
+
+            if (weapons.isMember("phalanx_damage") && weapons["phalanx_damage"].isInt())
+                player->client->pers.skills.phalanx_damage = static_cast<int8_t>(weapons["phalanx_damage"].asInt());
+            if (weapons.isMember("phalanx_speed") && weapons["phalanx_speed"].isInt())
+                player->client->pers.skills.phalanx_speed = static_cast<int8_t>(weapons["phalanx_speed"].asInt());
+            if (weapons.isMember("phalanx_radius") && weapons["phalanx_radius"].isInt())
+                player->client->pers.skills.phalanx_radius = static_cast<int8_t>(weapons["phalanx_radius"].asInt());
+            if (weapons.isMember("phalanx_silent") && weapons["phalanx_silent"].isBool())
+                player->client->pers.skills.phalanx_silent = weapons["phalanx_silent"].asBool();
+
+            if (weapons.isMember("disruptor_damage") && weapons["disruptor_damage"].isInt())
+                player->client->pers.skills.disruptor_damage = static_cast<int8_t>(weapons["disruptor_damage"].asInt());
+            if (weapons.isMember("disruptor_speed") && weapons["disruptor_speed"].isInt())
+                player->client->pers.skills.disruptor_speed = static_cast<int8_t>(weapons["disruptor_speed"].asInt());
+            if (weapons.isMember("disruptor_duration") && weapons["disruptor_duration"].isInt())
+                player->client->pers.skills.disruptor_duration = static_cast<int8_t>(weapons["disruptor_duration"].asInt());
+            if (weapons.isMember("disruptor_silent") && weapons["disruptor_silent"].isBool())
+                player->client->pers.skills.disruptor_silent = weapons["disruptor_silent"].asBool();
         }
     }
 
@@ -293,6 +506,7 @@ bool Character_Save(edict_t* player)
 
     // Save skill-based upgrades
     root["stats"]["skill_points"] = player->client->pers.skill_points;
+    root["stats"]["weapon_points"] = player->client->pers.weapon_points;
     root["stats"]["skills"]["vampire"] = player->client->pers.skills.vampire;
     root["stats"]["skills"]["ammo_regen"] = player->client->pers.skills.ammo_regen;
     root["stats"]["skills"]["vitality"] = player->client->pers.skills.vitality;
@@ -306,6 +520,120 @@ bool Character_Save(edict_t* player)
     // Save free bonuses from milestones (permanent, not resetable)
     root["stats"]["skills"]["free_vitality"] = player->client->pers.skills.free_vitality;
     root["stats"]["skills"]["free_max_ammo"] = player->client->pers.skills.free_max_ammo;
+
+    // Save weapon upgrades
+    root["stats"]["weapons"]["gl_damage"] = player->client->pers.skills.gl_damage;
+    root["stats"]["weapons"]["gl_range"] = player->client->pers.skills.gl_range;
+    root["stats"]["weapons"]["gl_radius"] = player->client->pers.skills.gl_radius;
+    root["stats"]["weapons"]["gl_trails"] = player->client->pers.skills.gl_trails;
+    root["stats"]["weapons"]["gl_silent"] = player->client->pers.skills.gl_silent;
+    root["stats"]["weapons"]["gl_bouncy"] = player->client->pers.skills.gl_bouncy;
+
+    root["stats"]["weapons"]["rl_damage"] = player->client->pers.skills.rl_damage;
+    root["stats"]["weapons"]["rl_speed"] = player->client->pers.skills.rl_speed;
+    root["stats"]["weapons"]["rl_radius"] = player->client->pers.skills.rl_radius;
+    root["stats"]["weapons"]["rl_trails"] = player->client->pers.skills.rl_trails;
+    root["stats"]["weapons"]["rl_silent"] = player->client->pers.skills.rl_silent;
+
+    root["stats"]["weapons"]["mg_damage"] = player->client->pers.skills.mg_damage;
+    root["stats"]["weapons"]["mg_pierce"] = player->client->pers.skills.mg_pierce;
+    root["stats"]["weapons"]["mg_tracers"] = player->client->pers.skills.mg_tracers;
+    root["stats"]["weapons"]["mg_spread"] = player->client->pers.skills.mg_spread;
+    root["stats"]["weapons"]["mg_silent"] = player->client->pers.skills.mg_silent;
+
+    root["stats"]["weapons"]["cg_damage"] = player->client->pers.skills.cg_damage;
+    root["stats"]["weapons"]["cg_spin"] = player->client->pers.skills.cg_spin;
+    root["stats"]["weapons"]["cg_tracers"] = player->client->pers.skills.cg_tracers;
+    root["stats"]["weapons"]["cg_spread"] = player->client->pers.skills.cg_spread;
+    root["stats"]["weapons"]["cg_silent"] = player->client->pers.skills.cg_silent;
+
+    root["stats"]["weapons"]["sg_damage"] = player->client->pers.skills.sg_damage;
+    root["stats"]["weapons"]["sg_strike"] = player->client->pers.skills.sg_strike;
+    root["stats"]["weapons"]["sg_pellets"] = player->client->pers.skills.sg_pellets;
+    root["stats"]["weapons"]["sg_spread"] = player->client->pers.skills.sg_spread;
+    root["stats"]["weapons"]["sg_silent"] = player->client->pers.skills.sg_silent;
+    root["stats"]["weapons"]["sg_energized"] = player->client->pers.skills.sg_energized;
+
+    root["stats"]["weapons"]["ssg_damage"] = player->client->pers.skills.ssg_damage;
+    root["stats"]["weapons"]["ssg_strike"] = player->client->pers.skills.ssg_strike;
+    root["stats"]["weapons"]["ssg_pellets"] = player->client->pers.skills.ssg_pellets;
+    root["stats"]["weapons"]["ssg_spread"] = player->client->pers.skills.ssg_spread;
+    root["stats"]["weapons"]["ssg_silent"] = player->client->pers.skills.ssg_silent;
+    root["stats"]["weapons"]["ssg_energized"] = player->client->pers.skills.ssg_energized;
+
+    root["stats"]["weapons"]["hg_damage"] = player->client->pers.skills.hg_damage;
+    root["stats"]["weapons"]["hg_range"] = player->client->pers.skills.hg_range;
+    root["stats"]["weapons"]["hg_radius_damage"] = player->client->pers.skills.hg_radius_damage;
+
+    root["stats"]["weapons"]["bl_damage"] = player->client->pers.skills.bl_damage;
+    root["stats"]["weapons"]["bl_speed"] = player->client->pers.skills.bl_speed;
+    root["stats"]["weapons"]["bl_trails"] = player->client->pers.skills.bl_trails;
+    root["stats"]["weapons"]["bl_silent"] = player->client->pers.skills.bl_silent;
+
+    root["stats"]["weapons"]["hb_damage"] = player->client->pers.skills.hb_damage;
+    root["stats"]["weapons"]["hb_speed"] = player->client->pers.skills.hb_speed;
+    root["stats"]["weapons"]["hb_trails"] = player->client->pers.skills.hb_trails;
+    root["stats"]["weapons"]["hb_silent"] = player->client->pers.skills.hb_silent;
+
+    root["stats"]["weapons"]["etf_damage"] = player->client->pers.skills.etf_damage;
+    root["stats"]["weapons"]["etf_speed"] = player->client->pers.skills.etf_speed;
+    root["stats"]["weapons"]["etf_kick"] = player->client->pers.skills.etf_kick;
+    root["stats"]["weapons"]["etf_silent"] = player->client->pers.skills.etf_silent;
+
+    root["stats"]["weapons"]["ir_damage"] = player->client->pers.skills.ir_damage;
+    root["stats"]["weapons"]["ir_speed"] = player->client->pers.skills.ir_speed;
+    root["stats"]["weapons"]["ir_trails"] = player->client->pers.skills.ir_trails;
+    root["stats"]["weapons"]["ir_silent"] = player->client->pers.skills.ir_silent;
+
+    root["stats"]["weapons"]["pb_damage"] = player->client->pers.skills.pb_damage;
+    root["stats"]["weapons"]["pb_burn"] = player->client->pers.skills.pb_burn;
+    root["stats"]["weapons"]["pb_pierce"] = player->client->pers.skills.pb_pierce;
+    root["stats"]["weapons"]["pb_silent"] = player->client->pers.skills.pb_silent;
+
+    root["stats"]["weapons"]["rg_damage"] = player->client->pers.skills.rg_damage;
+    root["stats"]["weapons"]["rg_burn"] = player->client->pers.skills.rg_burn;
+    root["stats"]["weapons"]["rg_pierce"] = player->client->pers.skills.rg_pierce;
+    root["stats"]["weapons"]["rg_trails"] = player->client->pers.skills.rg_trails;
+    root["stats"]["weapons"]["rg_silent"] = player->client->pers.skills.rg_silent;
+
+    root["stats"]["weapons"]["bfg_damage"] = player->client->pers.skills.bfg_damage;
+    root["stats"]["weapons"]["bfg_speed"] = player->client->pers.skills.bfg_speed;
+    root["stats"]["weapons"]["bfg_duration"] = player->client->pers.skills.bfg_duration;
+    root["stats"]["weapons"]["bfg_silent"] = player->client->pers.skills.bfg_silent;
+
+    root["stats"]["weapons"]["cannon20mm_damage"] = player->client->pers.skills.cannon20mm_damage;
+    root["stats"]["weapons"]["cannon20mm_range"] = player->client->pers.skills.cannon20mm_range;
+    root["stats"]["weapons"]["cannon20mm_recoil"] = player->client->pers.skills.cannon20mm_recoil;
+    root["stats"]["weapons"]["cannon20mm_silent"] = player->client->pers.skills.cannon20mm_silent;
+
+    root["stats"]["weapons"]["pl_damage"] = player->client->pers.skills.pl_damage;
+    root["stats"]["weapons"]["pl_range"] = player->client->pers.skills.pl_range;
+    root["stats"]["weapons"]["pl_radius"] = player->client->pers.skills.pl_radius;
+    root["stats"]["weapons"]["pl_trails"] = player->client->pers.skills.pl_trails;
+    root["stats"]["weapons"]["pl_silent"] = player->client->pers.skills.pl_silent;
+    root["stats"]["weapons"]["pl_improved_traps"] = player->client->pers.skills.pl_improved_traps;
+
+    root["stats"]["weapons"]["cf_damage"] = player->client->pers.skills.cf_damage;
+    root["stats"]["weapons"]["cf_range"] = player->client->pers.skills.cf_range;
+    root["stats"]["weapons"]["cf_silent"] = player->client->pers.skills.cf_silent;
+
+    root["stats"]["weapons"]["tesla_damage"] = player->client->pers.skills.tesla_damage;
+    root["stats"]["weapons"]["tesla_range"] = player->client->pers.skills.tesla_range;
+    root["stats"]["weapons"]["tesla_radius"] = player->client->pers.skills.tesla_radius;
+
+    root["stats"]["weapons"]["trap_damage"] = player->client->pers.skills.trap_damage;
+    root["stats"]["weapons"]["trap_range"] = player->client->pers.skills.trap_range;
+    root["stats"]["weapons"]["trap_radius"] = player->client->pers.skills.trap_radius;
+
+    root["stats"]["weapons"]["phalanx_damage"] = player->client->pers.skills.phalanx_damage;
+    root["stats"]["weapons"]["phalanx_speed"] = player->client->pers.skills.phalanx_speed;
+    root["stats"]["weapons"]["phalanx_radius"] = player->client->pers.skills.phalanx_radius;
+    root["stats"]["weapons"]["phalanx_silent"] = player->client->pers.skills.phalanx_silent;
+
+    root["stats"]["weapons"]["disruptor_damage"] = player->client->pers.skills.disruptor_damage;
+    root["stats"]["weapons"]["disruptor_speed"] = player->client->pers.skills.disruptor_speed;
+    root["stats"]["weapons"]["disruptor_duration"] = player->client->pers.skills.disruptor_duration;
+    root["stats"]["weapons"]["disruptor_silent"] = player->client->pers.skills.disruptor_silent;
 
     // Write to file
     std::string filepath = Character_GetFilePath(player);

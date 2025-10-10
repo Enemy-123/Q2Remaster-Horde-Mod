@@ -3356,7 +3356,7 @@ void WeaponUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 
 		refunded_points += skills.tesla_damage + skills.tesla_range + skills.tesla_radius;
 		skills.tesla_damage = skills.tesla_range = skills.tesla_radius = 0;
-		skills.tesla_chain = false;
+		// Note: tesla_chain is a skill talent, not a weapon upgrade, so it's not reset here
 
 		refunded_points += skills.trap_damage + skills.trap_range + skills.trap_radius;
 		skills.trap_damage = skills.trap_range = skills.trap_radius = 0;
@@ -3367,6 +3367,9 @@ void WeaponUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 
 		// Refund the points
 		ent->client->pers.weapon_points += refunded_points;
+
+		// Save the reset to disk
+		Character_Save(ent);
 
 		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "All weapon upgrades reset! {} weapon points refunded.\n", refunded_points);
 
