@@ -1361,6 +1361,15 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	}
 
 	//
+	// POWER CUBES INITIALIZATION (Horde currency system)
+	//
+	// Initialize to 0 on first connect (persists across respawns)
+	if (client->pers.pvm_level == 0)
+	{
+		client->pers.horde_power_cubes = 0;
+	}
+
+	//
 	// BLASTER AMMO INITIALIZATION (Vortex-style)
 	//
 	client->blaster_ammo = 25;

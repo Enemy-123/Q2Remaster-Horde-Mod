@@ -917,9 +917,9 @@ bool Pickup_Armor(edict_t* ent, edict_t* other)
 			// Calculate max capacity based on bullets/cells max ammo
 			int max_capacity = 0;
 			if (g_config.power_cubes.use_bullets_max)
-				max_capacity = max(max_capacity, other->client->pers.max_ammo[AMMO_BULLETS]);
+				max_capacity = max(max_capacity, static_cast<int>(other->client->pers.max_ammo[AMMO_BULLETS]));
 			if (g_config.power_cubes.use_cells_max)
-				max_capacity = max(max_capacity, other->client->pers.max_ammo[AMMO_CELLS]);
+				max_capacity = max(max_capacity, static_cast<int>(other->client->pers.max_ammo[AMMO_CELLS]));
 
 			// Add cubes with capacity check
 			int current_cubes = other->client->pers.horde_power_cubes;

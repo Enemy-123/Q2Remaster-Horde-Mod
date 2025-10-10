@@ -1411,6 +1411,30 @@ void Cmd_Where_f(edict_t* ent) {
 
 /*
 =================
+Cmd_PowerCubes_f
+
+Display current power cubes count and capacity
+=================
+*/
+void Cmd_PowerCubes_f(edict_t* ent)
+{
+	if (!ent || !ent->client)
+		return;
+
+	// Calculate max capacity based on bullets/cells max ammo
+	int max_capacity = 0;
+	if (g_config.power_cubes.use_bullets_max)
+		max_capacity = max(max_capacity, static_cast<int>(ent->client->pers.max_ammo[AMMO_BULLETS]));
+	if (g_config.power_cubes.use_cells_max)
+		max_capacity = max(max_capacity, static_cast<int>(ent->client->pers.max_ammo[AMMO_CELLS]));
+
+	int current_cubes = ent->client->pers.horde_power_cubes;
+
+	gi.LocClient_Print(ent, PRINT_HIGH, "Power Cubes: {}/{}\n", current_cubes, max_capacity);
+}
+
+/*
+=================
 Cmd_Clear_AI_Enemy_f
 =================
 */
@@ -2184,6 +2208,8 @@ void ClientCommand(edict_t* ent)
 		Cmd_Kill_AI_f(ent);
 	else if (Q_strcasecmp(cmd, "where") == 0)
 		Cmd_Where_f(ent);
+	else if (Q_strcasecmp(cmd, "powercubes") == 0)
+		Cmd_PowerCubes_f(ent);
 	else if (Q_strcasecmp(cmd, "clear_ai_enemy") == 0)
 		Cmd_Clear_AI_Enemy_f(ent);
 	else if (Q_strcasecmp(cmd, "coopp") == 0) {

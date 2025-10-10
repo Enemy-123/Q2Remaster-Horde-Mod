@@ -1186,6 +1186,8 @@ void G_SetStats(edict_t* ent)
 	ent->client->ps.stats[STAT_FRAGS] = ent->client->resp.score;
 	ent->client->ps.stats[STAT_SPREE] = ent->client->resp.spree;
 
+	// CUBES
+	ent->client->ps.stats[STAT_CUBES] = ent->client->pers.horde_power_cubes;
 	//
 	// help icon / current weapon if not shown
 	//

@@ -246,6 +246,10 @@ bool Character_Load(edict_t* player)
                 player->client->pers.skills.free_max_ammo = static_cast<int8_t>(skills["free_max_ammo"].asInt());
         }
 
+        // Load power cubes currency
+        if (stats.isMember("horde_power_cubes") && stats["horde_power_cubes"].isInt())
+            player->client->pers.horde_power_cubes = stats["horde_power_cubes"].asInt();
+
         // Load weapon upgrades
         if (stats.isMember("weapons") && stats["weapons"].isObject())
         {
@@ -523,6 +527,9 @@ bool Character_Save(edict_t* player)
     // Save free bonuses from milestones (permanent, not resetable)
     root["stats"]["skills"]["free_vitality"] = player->client->pers.skills.free_vitality;
     root["stats"]["skills"]["free_max_ammo"] = player->client->pers.skills.free_max_ammo;
+
+    // Save power cubes currency
+    root["stats"]["horde_power_cubes"] = player->client->pers.horde_power_cubes;
 
     // Save weapon upgrades
     root["stats"]["weapons"]["gl_damage"] = player->client->pers.skills.gl_damage;

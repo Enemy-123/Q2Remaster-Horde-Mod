@@ -1972,6 +1972,8 @@ static void G_InitStatusbar()
 
 		sb.xr(-50).yt(68).num(3, STAT_SPREE).xr(-43).yt(53).string2("Spree");
 
+		sb.xr(-50).yt(115).num(3, STAT_SPREE).xr(-43).yt(100).string2("Power\nCubes");
+
 		sb.ifstat(STAT_ID_DAMAGE)
 			.xv(130).yv(150).string2("DMG-ID")
 			.xv(136).yv(159).num(5, STAT_ID_DAMAGE)
