@@ -17,20 +17,28 @@ inline void padRight(char* str, int target_length) {
 }
 
 // Simple sprintf-based formatting for menu items with aligned indicators
-
+constexpr int MENU_NAME_COLUMN_WIDTH = 14;
 // Format a menu item with numbered prefix and progress indicator
-// Example: "  1. Vampire:   [03/10]" (left-aligned like Vortex)
-// Uses %02d formatting for zero-padded 2-digit alignment
+// Example: "  1. Vampire:        [ 3/10]" (left-aligned like Vortex)
+// Uses %2d formatting for perfect 2-digit alignment
 inline void MenuFormatItemWithProgress(char* buffer, size_t buffer_size,
                                        int item_number, const char* name,
                                        int current, int max)
 {
-	char padded_name[MENU_TEXT_MAX];
-	snprintf(padded_name, sizeof(padded_name), "%s:", name);
-	padRight(padded_name, MENU_NAME_WIDTH);
-	snprintf(buffer, buffer_size, "  %d. %s[%02d/%02d]", item_number, padded_name, current, max);
-}
+    // A temporary buffer for the name plus the colon
+    char name_with_colon[MENU_TEXT_MAX];
+    snprintf(name_with_colon, sizeof(name_with_colon), "%s:", name);
 
+    // Use the powerful printf specifier to handle all alignment in one go!
+    // %-*.s is a special syntax that lets us pass the width as an argument.
+    snprintf(buffer, buffer_size, "  %2d. %-*.*s [%02d/%02d]",
+             item_number,
+             MENU_NAME_COLUMN_WIDTH, // The minimum width (for padding)
+             MENU_NAME_COLUMN_WIDTH, // The maximum width (for truncating)
+             name_with_colon,        // The string to format
+             current,
+             max);
+}
 // Format a menu item with numbered prefix and [OWNED] indicator
 // Example: "  1. Vampire:        [OWNED]" (left-aligned like Vortex)
 inline void MenuFormatItemWithOwned(char* buffer, size_t buffer_size,
