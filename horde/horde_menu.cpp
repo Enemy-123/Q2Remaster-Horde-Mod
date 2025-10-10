@@ -5244,7 +5244,7 @@ void BFGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 // 20MM CANNON (ETG) UPGRADE SUBMENU
 /////////////////////////////////////////////
 
-static pmenu_t etg_upgrade_menu[32];
+static pmenu_t cannon20mm_upgrade_menu[32];
 
 void ETGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p);
 
@@ -5259,18 +5259,18 @@ void Open20mmCannonUpgradeMenu(edict_t *ent, int cursor_pos)
 	ent->client->menu_protected = true;
 	ent->client->menu_protection_start = level.time;
 
-	memset(etg_upgrade_menu, 0, sizeof(etg_upgrade_menu));
+	memset(cannon20mm_upgrade_menu, 0, sizeof(cannon20mm_upgrade_menu));
 	int count = 0;
 
 	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
 	{
 		if (count < 32)
 		{
-			Q_strlcpy(etg_upgrade_menu[count].text, text, sizeof(etg_upgrade_menu[count].text));
-			etg_upgrade_menu[count].align = align;
-			etg_upgrade_menu[count].SelectFunc = func;
+			Q_strlcpy(cannon20mm_upgrade_menu[count].text, text, sizeof(cannon20mm_upgrade_menu[count].text));
+			cannon20mm_upgrade_menu[count].align = align;
+			cannon20mm_upgrade_menu[count].SelectFunc = func;
 			if (arg)
-				Q_strlcpy(etg_upgrade_menu[count].text_arg1, arg, sizeof(etg_upgrade_menu[count].text_arg1));
+				Q_strlcpy(cannon20mm_upgrade_menu[count].text_arg1, arg, sizeof(cannon20mm_upgrade_menu[count].text_arg1));
 			count++;
 		}
 	};
@@ -5279,24 +5279,24 @@ void Open20mmCannonUpgradeMenu(edict_t *ent, int cursor_pos)
 	add_entry("", PMENU_ALIGN_CENTER);
 
 	char status[128];
-	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.etg_damage);
-	add_entry(status, PMENU_ALIGN_LEFT, ETGUpgradeMenuHandler, "etg_damage");
+	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.cannon20mm_damage);
+	add_entry(status, PMENU_ALIGN_LEFT, ETGUpgradeMenuHandler, "cannon20mm_damage");
 
-	snprintf(status, sizeof(status), "Range %d [10]", ent->client->pers.skills.etg_range);
-	add_entry(status, PMENU_ALIGN_LEFT, ETGUpgradeMenuHandler, "etg_range");
+	snprintf(status, sizeof(status), "Range %d [10]", ent->client->pers.skills.cannon20mm_range);
+	add_entry(status, PMENU_ALIGN_LEFT, ETGUpgradeMenuHandler, "cannon20mm_range");
 
-	snprintf(status, sizeof(status), "Recoil Reduction %d [10]", ent->client->pers.skills.etg_recoil);
-	add_entry(status, PMENU_ALIGN_LEFT, ETGUpgradeMenuHandler, "etg_recoil");
+	snprintf(status, sizeof(status), "Recoil Reduction %d [10]", ent->client->pers.skills.cannon20mm_recoil);
+	add_entry(status, PMENU_ALIGN_LEFT, ETGUpgradeMenuHandler, "cannon20mm_recoil");
 
-	const char *silent_status = ent->client->pers.skills.etg_silent ? "ON" : "OFF";
+	const char *silent_status = ent->client->pers.skills.cannon20mm_silent ? "ON" : "OFF";
 	snprintf(status, sizeof(status), "Silent Mode: %s", silent_status);
-	add_entry(status, PMENU_ALIGN_LEFT, ETGUpgradeMenuHandler, "etg_silent");
+	add_entry(status, PMENU_ALIGN_LEFT, ETGUpgradeMenuHandler, "cannon20mm_silent");
 
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("---", PMENU_ALIGN_CENTER);
 	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, ETGUpgradeMenuHandler, "back_to_weapons");
 
-	PMenu_Open(ent, etg_upgrade_menu, cursor_pos, count, nullptr, nullptr);
+	PMenu_Open(ent, cannon20mm_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
 
 void ETGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
@@ -5314,12 +5314,12 @@ void ETGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 
 	const char *arg = item->text_arg1;
 
-	if (strcmp(arg, "etg_damage") == 0)
+	if (strcmp(arg, "cannon20mm_damage") == 0)
 	{
-		if (ent->client->pers.skills.etg_damage < 10)
+		if (ent->client->pers.skills.cannon20mm_damage < 10)
 		{
-			ent->client->pers.skills.etg_damage++;
-			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "20mm Cannon Damage increased to level {}!\n", ent->client->pers.skills.etg_damage);
+			ent->client->pers.skills.cannon20mm_damage++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "20mm Cannon Damage increased to level {}!\n", ent->client->pers.skills.cannon20mm_damage);
 		}
 		else
 		{
@@ -5328,12 +5328,12 @@ void ETGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		PMenu_Close(ent);
 		Open20mmCannonUpgradeMenu(ent, p->cur);
 	}
-	else if (strcmp(arg, "etg_range") == 0)
+	else if (strcmp(arg, "cannon20mm_range") == 0)
 	{
-		if (ent->client->pers.skills.etg_range < 10)
+		if (ent->client->pers.skills.cannon20mm_range < 10)
 		{
-			ent->client->pers.skills.etg_range++;
-			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "20mm Cannon Range increased to level {}!\n", ent->client->pers.skills.etg_range);
+			ent->client->pers.skills.cannon20mm_range++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "20mm Cannon Range increased to level {}!\n", ent->client->pers.skills.cannon20mm_range);
 		}
 		else
 		{
@@ -5342,12 +5342,12 @@ void ETGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		PMenu_Close(ent);
 		Open20mmCannonUpgradeMenu(ent, p->cur);
 	}
-	else if (strcmp(arg, "etg_recoil") == 0)
+	else if (strcmp(arg, "cannon20mm_recoil") == 0)
 	{
-		if (ent->client->pers.skills.etg_recoil < 10)
+		if (ent->client->pers.skills.cannon20mm_recoil < 10)
 		{
-			ent->client->pers.skills.etg_recoil++;
-			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "20mm Cannon Recoil Reduction increased to level {}!\n", ent->client->pers.skills.etg_recoil);
+			ent->client->pers.skills.cannon20mm_recoil++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "20mm Cannon Recoil Reduction increased to level {}!\n", ent->client->pers.skills.cannon20mm_recoil);
 		}
 		else
 		{
@@ -5356,10 +5356,10 @@ void ETGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		PMenu_Close(ent);
 		Open20mmCannonUpgradeMenu(ent, p->cur);
 	}
-	else if (strcmp(arg, "etg_silent") == 0)
+	else if (strcmp(arg, "cannon20mm_silent") == 0)
 	{
-		ent->client->pers.skills.etg_silent = !ent->client->pers.skills.etg_silent;
-		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "20mm Cannon Silent Mode: {}\n", ent->client->pers.skills.etg_silent ? "ON" : "OFF");
+		ent->client->pers.skills.cannon20mm_silent = !ent->client->pers.skills.cannon20mm_silent;
+		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "20mm Cannon Silent Mode: {}\n", ent->client->pers.skills.cannon20mm_silent ? "ON" : "OFF");
 		PMenu_Close(ent);
 		Open20mmCannonUpgradeMenu(ent, p->cur);
 	}

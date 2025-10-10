@@ -2311,13 +2311,13 @@ void weapon_20mm_fire(edict_t* ent)
 	// Apply skill upgrades (players only)
 	if (ent->client)
 	{
-		damage += ent->client->pers.skills.etg_damage * 2;  // +2 damage per level
-		range += ent->client->pers.skills.etg_range * g_config.cannon20mm.range_addon;
+		damage += ent->client->pers.skills.cannon20mm_damage * 2;  // +2 damage per level
+		range += ent->client->pers.skills.cannon20mm_range * g_config.cannon20mm.range_addon;
 
 		// Recoil reduction: kick *= (1.0f - level * 0.1f)
-		if (ent->client->pers.skills.etg_recoil > 0)
+		if (ent->client->pers.skills.cannon20mm_recoil > 0)
 		{
-			float recoil_multiplier = 1.0f - (ent->client->pers.skills.etg_recoil * 0.1f);
+			float recoil_multiplier = 1.0f - (ent->client->pers.skills.cannon20mm_recoil * 0.1f);
 			if (recoil_multiplier < 0.0f) recoil_multiplier = 0.0f;
 			kick = static_cast<int>(kick * recoil_multiplier);
 		}

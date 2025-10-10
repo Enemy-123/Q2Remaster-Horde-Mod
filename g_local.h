@@ -3265,10 +3265,10 @@ struct player_skills_t {
 	bool bfg_silent = false;      // Silent firing (no flash/noise)
 
 	// Weapon Upgrades - 20mm Cannon (ETG)
-	int8_t etg_damage = 0;        // 0-10: 20mm Cannon damage (+2 per level)
-	int8_t etg_range = 0;         // 0-10: 20mm Cannon range (+30 per level)
-	int8_t etg_recoil = 0;        // 0-10: Recoil reduction (kick *= 1.0f - level * 0.1f)
-	bool etg_silent = false;      // Silent firing (no flash/noise)
+	int8_t cannon20mm_damage = 0;        // 0-10: 20mm Cannon damage (+2 per level)
+	int8_t cannon20mm_range = 0;         // 0-10: 20mm Cannon range (+30 per level)
+	int8_t cannon20mm_recoil = 0;        // 0-10: Recoil reduction (kick *= 1.0f - level * 0.1f)
+	bool cannon20mm_silent = false;      // Silent firing (no flash/noise)
 
 	// Weapon Upgrades - Prox Launcher
 	int8_t pl_damage = 0;         // 0-10: Prox launcher damage
