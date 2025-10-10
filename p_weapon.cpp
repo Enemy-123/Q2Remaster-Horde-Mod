@@ -1501,7 +1501,7 @@ void Blaster_Fire(edict_t* ent, const vec3_t& g_offset, int damage, bool hyper, 
 		if (hyper)
 			speed += ent->client->pers.skills.hb_speed * g_config.hyperblaster.speed_addon;
 		else
-			speed += ent->client->pers.skills.bl_range * g_config.blaster.speed_addon;
+			speed += ent->client->pers.skills.bl_speed * g_config.blaster.speed_addon;
 	}
 
 	//left hb / right blaster

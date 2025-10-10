@@ -3221,7 +3221,7 @@ struct player_skills_t {
 
 	// Weapon Upgrades - Blaster
 	int8_t bl_damage = 0;         // 0-10: Blaster damage (min +2, max +5 per level)
-	int8_t bl_range = 0;          // 0-10: Blaster projectile range/speed (+40 per level)
+	int8_t bl_speed = 0;          // 0-10: Blaster projectile range/speed (+40 per level)
 	bool bl_trails = false;       // Disable blaster trail effects
 	bool bl_silent = false;       // Silent firing (no flash/noise)
 

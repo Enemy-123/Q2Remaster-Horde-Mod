@@ -4489,8 +4489,8 @@ void OpenBlasterUpgradeMenu(edict_t *ent, int cursor_pos)
 	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.bl_damage);
 	add_entry(status, PMENU_ALIGN_LEFT, BlasterUpgradeMenuHandler, "bl_damage");
 
-	snprintf(status, sizeof(status), "Range %d [10]", ent->client->pers.skills.bl_range);
-	add_entry(status, PMENU_ALIGN_LEFT, BlasterUpgradeMenuHandler, "bl_range");
+	snprintf(status, sizeof(status), "Speed %d [10]", ent->client->pers.skills.bl_speed);
+	add_entry(status, PMENU_ALIGN_LEFT, BlasterUpgradeMenuHandler, "bl_speed");
 
 	const char *trails_status = ent->client->pers.skills.bl_trails ? "DISABLED" : "ENABLED";
 	snprintf(status, sizeof(status), "Trails: %s", trails_status);
@@ -4536,12 +4536,12 @@ void BlasterUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		PMenu_Close(ent);
 		OpenBlasterUpgradeMenu(ent, p->cur);
 	}
-	else if (strcmp(arg, "bl_range") == 0)
+	else if (strcmp(arg, "bl_speed") == 0)
 	{
-		if (ent->client->pers.skills.bl_range < 10)
+		if (ent->client->pers.skills.bl_speed < 10)
 		{
-			ent->client->pers.skills.bl_range++;
-			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Blaster Range increased to level {}!\n", ent->client->pers.skills.bl_range);
+			ent->client->pers.skills.bl_speed++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Blaster Speed increased to level {}!\n", ent->client->pers.skills.bl_speed);
 		}
 		else
 		{
