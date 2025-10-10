@@ -2821,11 +2821,11 @@ void PutClientInServer(edict_t* ent)
 	client_persistant_t saved = client->pers;
 
 	// DEBUG: Log pvm_level before and after save/restore
-	if (is_horde && level.intermissiontime)
-	{
-		gi.Com_PrintFmt("DEBUG PutClientInServer: Player {} before memset - pvm_level: {}, pvm_xp: {}\n",
-			ent - g_edicts - 1, client->pers.pvm_level, client->pers.pvm_xp);
-	}
+	// if (is_horde && level.intermissiontime)
+	// {
+	// 	gi.Com_PrintFmt("DEBUG PutClientInServer: Player {} before memset - pvm_level: {}, pvm_xp: {}\n",
+	// 		ent - g_edicts - 1, client->pers.pvm_level, client->pers.pvm_xp);
+	// }
 
 	bool saved_auto_eyecam = client->auto_eyecam;
 	bool saved_use_eyecam = client->use_eyecam;
@@ -2837,27 +2837,27 @@ void PutClientInServer(edict_t* ent)
 	client->pers.sentry_gun_choice = client->resp.sentry_gun_choice;
 
 	// DEBUG: Log pvm_level after restore
-	if (is_horde && level.intermissiontime)
-	{
-		gi.Com_PrintFmt("DEBUG PutClientInServer: Player {} after restore - pvm_level: {}, pvm_xp: {}, pers.health: {}\n",
-			ent - g_edicts - 1, client->pers.pvm_level, client->pers.pvm_xp, client->pers.health);
-	}
+	// if (is_horde && level.intermissiontime)
+	// {
+	// 	gi.Com_PrintFmt("DEBUG PutClientInServer: Player {} after restore - pvm_level: {}, pvm_xp: {}, pers.health: {}\n",
+	// 		ent - g_edicts - 1, client->pers.pvm_level, client->pers.pvm_xp, client->pers.health);
+	// }
 
 	// Initialize persistant data if needed
 	if (client->pers.health <= 0)
 	{
-		if (is_horde && level.intermissiontime)
-		{
-			gi.Com_PrintFmt("DEBUG PutClientInServer: Player {} calling InitClientPersistant (health <= 0)\n",
-				ent - g_edicts - 1);
-		}
+		// if (is_horde && level.intermissiontime)
+		// {
+		// 	gi.Com_PrintFmt("DEBUG PutClientInServer: Player {} calling InitClientPersistant (health <= 0)\n",
+		// 		ent - g_edicts - 1);
+		// }
 		InitClientPersistant(ent, client);
 
-		if (is_horde && level.intermissiontime)
-		{
-			gi.Com_PrintFmt("DEBUG PutClientInServer: Player {} after InitClientPersistant - pvm_level: {}, pvm_xp: {}\n",
-				ent - g_edicts - 1, client->pers.pvm_level, client->pers.pvm_xp);
-		}
+		// if (is_horde && level.intermissiontime)
+		// {
+		// 	gi.Com_PrintFmt("DEBUG PutClientInServer: Player {} after InitClientPersistant - pvm_level: {}, pvm_xp: {}\n",
+		// 		ent - g_edicts - 1, client->pers.pvm_level, client->pers.pvm_xp);
+		// }
 	}
 
 	// Restore social ID

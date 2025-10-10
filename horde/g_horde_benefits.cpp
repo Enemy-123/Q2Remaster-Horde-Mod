@@ -311,7 +311,7 @@ std::string GetActiveBonusesString() {
 
 // Check if player has a specific benefit
 bool PlayerHasBenefit(edict_t* player, BenefitID benefit_id) {
-    if (!player || !player->client) return false;
+    if (!player || !player->client || !player->svflags & SVF_BOT) return false;
 
     // Disable benefits for non-bots (for testing the new skill system)
     if (!(player->svflags & SVF_BOT)) {
@@ -479,7 +479,7 @@ void PlayerEarnWeaponPoints(edict_t* player, int32_t points) {
 }
 
 bool PlayerCanAffordBenefit(edict_t* player, BenefitID benefit_id, int32_t cost) {
-    if (!player || !player->client) return false;
+    if (!player || !player->client || !player->svflags & SVF_BOT) return false;
 
     auto category = g_benefitsData.categories[static_cast<size_t>(benefit_id)];
     int32_t available_points = (category == BenefitCategory::ABILITY) ?
@@ -490,7 +490,7 @@ bool PlayerCanAffordBenefit(edict_t* player, BenefitID benefit_id, int32_t cost)
 }
 
 void PlayerSpendPoints(edict_t* player, BenefitID benefit_id, int32_t cost) {
-    if (!player || !player->client) return;
+    if (!player || !player->client || !player->svflags & SVF_BOT) return;
 
     auto category = g_benefitsData.categories[static_cast<size_t>(benefit_id)];
     int32_t* points = (category == BenefitCategory::ABILITY) ?
@@ -601,7 +601,7 @@ void CheckPlayerAutoBuy(edict_t* player) {
 
 // Benefit purchasing with per-player messages
 bool PlayerPurchaseBenefit(edict_t* player, BenefitID benefit_id, int32_t cost) {
-    if (!player || !player->client) return false;
+    if (!player || !player->client || !player->svflags & SVF_BOT) return false;
 
     // Check if player can afford it
     if (!PlayerCanAffordBenefit(player, benefit_id, cost)) {

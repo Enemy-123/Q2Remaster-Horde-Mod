@@ -1921,6 +1921,7 @@ struct monsterinfo_t
 	bool death_processed = false; // death management for onentitydeath
 	uint8_t monster_type_id;
 	uint8_t resurrections_performed = 0; // Track number of successful resurrections by medic
+	int32_t pvm_level = 0; // Monster level based on player degree level
 
 
 	bonus_flags_t bonus_flags = BF_NONE; //Powerups or Special Flags for horde

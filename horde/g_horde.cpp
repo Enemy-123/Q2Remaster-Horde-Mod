@@ -494,8 +494,8 @@ void IncreaseSpawnAttempts(edict_t *spawn_point)
 		const float cooldown_factor = success_rate < 0.3f ? 1.5f : 0.75f;
 		const float attempt_multiplier = current_attempts <= 8 ? current_attempts * 0.25f : 2.0f;
 		calculated_duration = gtime_t::from_sec(cooldown_factor * attempt_multiplier);
-		if (developer->integer == 1)
-			gi.Com_PrintFmt("SpawnPoint at {} inactivated for adaptive cooldown.\n", spawn_point->s.origin);
+		// if (developer->integer == 1)
+		// 	gi.Com_PrintFmt("SpawnPoint at {} inactivated for adaptive cooldown.\n", spawn_point->s.origin);
 	}
 	else if ((current_attempts & 1) == 0)
 	{
@@ -1286,19 +1286,19 @@ inline int32_t GetAdjustedMonsterCap(const horde::MapSize &mapSize, int32_t wave
 		const int32_t playerBonus = extraPlayers * BONUS_PER_PLAYER;
 		finalAdjustedCap += playerBonus;
 
-		if (developer->integer > 1)
-		{
-			gi.Com_PrintFmt("GetAdjustedMonsterCap: Wave={}, BaseCap={}, Humans={}, BonusPlayers={}, Bonus={}, FinalCap={}\n",
-							waveLevel, baseCap, numHumanPlayers, extraPlayers, playerBonus, finalAdjustedCap);
-		}
+		// if (developer->integer > 1)
+		// {
+		// 	gi.Com_PrintFmt("GetAdjustedMonsterCap: Wave={}, BaseCap={}, Humans={}, BonusPlayers={}, Bonus={}, FinalCap={}\n",
+		// 					waveLevel, baseCap, numHumanPlayers, extraPlayers, playerBonus, finalAdjustedCap);
+		// }
 	}
 	else
 	{
-		if (developer->integer > 1)
-		{
-			gi.Com_PrintFmt("GetAdjustedMonsterCap: Wave={}, BaseCap={}, Humans={}, No Bonus, FinalCap={}\n",
-							waveLevel, baseCap, numHumanPlayers, finalAdjustedCap);
-		}
+		// if (developer->integer > 1)
+		// {
+		// 	gi.Com_PrintFmt("GetAdjustedMonsterCap: Wave={}, BaseCap={}, Humans={}, No Bonus, FinalCap={}\n",
+		// 					waveLevel, baseCap, numHumanPlayers, finalAdjustedCap);
+		// }
 	}
 	// --- End Player Count Bonus ---
 
@@ -1323,19 +1323,19 @@ inline static void ClampNumToSpawn(const horde::MapSize &mapSize, const char* ma
 		// Fallback to config-based map defaults if the global cap isn't ready
 		const int32_t fallbackCap = GetMonsterCapForMap(mapname, mapSize);
 		g_horde_local.num_to_spawn = std::clamp(g_horde_local.num_to_spawn, 0, fallbackCap);
-		if (developer->integer)
-		{
-			gi.Com_PrintFmt("ClampNumToSpawn: WARN - g_adjusted_monster_cap not ready, used fallback {}\n", fallbackCap);
-		}
+		// if (developer->integer)
+		// {
+		// 	gi.Com_PrintFmt("ClampNumToSpawn: WARN - g_adjusted_monster_cap not ready, used fallback {}\n", fallbackCap);
+		// }
 	}
 	else
 	{
 		// Clamp using the globally calculated value
 		g_horde_local.num_to_spawn = std::clamp(g_horde_local.num_to_spawn, 0, maxAllowed);
-		if (developer->integer > 1)
-		{
-			gi.Com_PrintFmt("ClampNumToSpawn: Clamping num_to_spawn to {} (g_adjusted_monster_cap)\n", maxAllowed);
-		}
+		// if (developer->integer > 1)
+		// {
+		// 	gi.Com_PrintFmt("ClampNumToSpawn: Clamping num_to_spawn to {} (g_adjusted_monster_cap)\n", maxAllowed);
+		// }
 	}
 }
 
@@ -1722,10 +1722,10 @@ static ConditionParams GetConditionParams(const horde::MapSize &mapSize, int32_t
 		// Ensure params.maxMonsters is comfortably above this initial spawn count
 		// Add a buffer, e.g., 5-8 monsters, or a percentage.
 		params.maxMonsters = std::max(params.maxMonsters, estimatedInitialSpawn + 5);
-		if (developer->integer)
-		{
-			gi.Com_PrintFmt("GetConditionParams: BigMap Early Wave (lvl {}) Fix: maxMonsters adjusted to {} (estimated initial: {})\n", lvl, params.maxMonsters, estimatedInitialSpawn);
-		}
+		// if (developer->integer)
+		// {
+		// 	gi.Com_PrintFmt("GetConditionParams: BigMap Early Wave (lvl {}) Fix: maxMonsters adjusted to {} (estimated initial: {})\n", lvl, params.maxMonsters, estimatedInitialSpawn);
+		// }
 	}
 	// ***** END NEW FIX *****
 
@@ -2207,10 +2207,10 @@ static inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpeci
 	{
 		selected_type &= ~MonsterWaveType::Flying;
 
-		if (developer->integer)
-		{
-			gi.Com_PrintFmt("GetWaveComposition: Detected repeating Flying wave. Forcing ground-only.\n");
-		}
+		// if (developer->integer)
+		// {
+		// 	gi.Com_PrintFmt("GetWaveComposition: Detected repeating Flying wave. Forcing ground-only.\n");
+		// }
 	}
 
 	// Process optional components for this definition
@@ -2750,7 +2750,7 @@ static horde::MonsterTypeID EmergencyFallbackSelection(const MonsterSelectionCon
 	// Debug-only: This is expected for flying spawn points or restrictive wave types
 	if (developer->integer >= 2)
 		gi.Com_PrintFmt("DEBUG: Monster picker emergency fallback (Lvl: {}, FlyPoint: {}, WaveType: {})\n",
-		                ctx.currentActualLevel, ctx.isSpawnPointFlying, static_cast<int>(ctx.waveTypeForFiltering));
+						ctx.currentActualLevel, ctx.isSpawnPointFlying, static_cast<int>(ctx.waveTypeForFiltering));
 
 	// Try to respect wave type requirements first
 	for (size_t i = 0; i < MONSTER_DATA_COUNT; ++i)
@@ -2777,16 +2777,22 @@ static horde::MonsterTypeID EmergencyFallbackSelection(const MonsterSelectionCon
 		if (level.time - last_warning_time >= 10_sec)
 		{
 			// Simplified wave type description for logging
-			const char* wave_type_str = "Unknown";
-			if (ctx.waveTypeForFiltering == MonsterWaveType::Ground) wave_type_str = "Ground";
-			else if (ctx.waveTypeForFiltering == MonsterWaveType::Flying) wave_type_str = "Flying";
-			else if (HasWaveType(ctx.waveTypeForFiltering, MonsterWaveType::Boss)) wave_type_str = "Boss";
-			else if (HasWaveType(ctx.waveTypeForFiltering, MonsterWaveType::Gekk)) wave_type_str = "Gekk";
-			else if (ctx.waveTypeForFiltering == MonsterWaveType::None) wave_type_str = "None";
-			else wave_type_str = "Mixed";
+			const char *wave_type_str = "Unknown";
+			if (ctx.waveTypeForFiltering == MonsterWaveType::Ground)
+				wave_type_str = "Ground";
+			else if (ctx.waveTypeForFiltering == MonsterWaveType::Flying)
+				wave_type_str = "Flying";
+			else if (HasWaveType(ctx.waveTypeForFiltering, MonsterWaveType::Boss))
+				wave_type_str = "Boss";
+			else if (HasWaveType(ctx.waveTypeForFiltering, MonsterWaveType::Gekk))
+				wave_type_str = "Gekk";
+			else if (ctx.waveTypeForFiltering == MonsterWaveType::None)
+				wave_type_str = "None";
+			else
+				wave_type_str = "Mixed";
 
 			gi.Com_PrintFmt("WARNING: Emergency fallback ignoring wave type (WaveType={}, FlyPoint={}, EffLvl={}, Recovery={})\n",
-			                wave_type_str, ctx.isSpawnPointFlying, ctx.effectiveLevel, ctx.isRecoveryModeActive);
+							wave_type_str, ctx.isSpawnPointFlying, ctx.effectiveLevel, ctx.isRecoveryModeActive);
 			last_warning_time = level.time;
 		}
 	}
@@ -3592,10 +3598,10 @@ void ResetGame()
 {
 	if (hasBeenReset)
 	{
-		if (developer && developer->integer > 1)
-		{
-			gi.Com_PrintFmt("INFO: Reset already performed, skipping...\n");
-		}
+		// if (developer && developer->integer > 1)
+		// {
+		// 	gi.Com_PrintFmt("INFO: Reset already performed, skipping...\n");
+		// }
 		return;
 	}
 	hasBeenReset = true;
@@ -3776,12 +3782,12 @@ static bool CheckRemainingMonstersCondition(const horde::MapSize &mapSize, WaveE
 			ResetWaveAdvanceState();
 			return true;
 		}
-		else if (developer->integer)
-		{
-			// This warning is useful for debugging desyncs between counters and reality.
-			gi.Com_PrintFmt("WARN: CheckRemaining: Pools empty, live count 0, but GetStroggsNum() != 0. Live: {}, NumSpawn: {}, Queued: {}. Totalalives: {}.\n",
-							ctx.liveMonsters, g_horde_local.num_to_spawn, g_horde_local.queued_monsters, GetStroggsNum());
-		}
+		// else if (developer->integer)
+		// {
+		// 	// This warning is useful for debugging desyncs between counters and reality.
+		// 	gi.Com_PrintFmt("WARN: CheckRemaining: Pools empty, live count 0, but GetStroggsNum() != 0. Live: {}, NumSpawn: {}, Queued: {}. Totalalives: {}.\n",
+		// 					ctx.liveMonsters, g_horde_local.num_to_spawn, g_horde_local.queued_monsters, GetStroggsNum());
+		// }
 	}
 
 	// --- 3. Absolute Failsafe Timer ---
@@ -3790,7 +3796,7 @@ static bool CheckRemainingMonstersCondition(const horde::MapSize &mapSize, WaveE
 	{
 		reason = WaveEndReason::TimeLimitReached;
 		if (developer->integer)
-			gi.Com_PrintFmt("Wave ended: Independent time limit reached ({:.1f}s).\n", ctx.params.independentTimeThreshold.seconds());
+			// gi.Com_PrintFmt("Wave ended: Independent time limit reached ({:.1f}s).\n", ctx.params.independentTimeThreshold.seconds());
 		return true;
 	}
 
@@ -3844,7 +3850,7 @@ static bool CheckRemainingMonstersCondition(const horde::MapSize &mapSize, WaveE
 	{
 		reason = WaveEndReason::MonstersRemaining;
 		if (developer->integer)
-			gi.Com_PrintFmt("Wave ended: Conditional timer expired. Live: {}, Queued: {}.\n", ctx.liveMonsters, g_horde_local.queued_monsters);
+			// gi.Com_PrintFmt("Wave ended: Conditional timer expired. Live: {}, Queued: {}.\n", ctx.liveMonsters, g_horde_local.queued_monsters);
 		return true;
 	}
 
@@ -3857,8 +3863,8 @@ static bool CheckRemainingMonstersCondition(const horde::MapSize &mapSize, WaveE
 			elapsed_since_condition_start >= (g_horde_local.conditionTimeThreshold * 0.7f))
 		{
 			reason = WaveEndReason::MonstersRemaining;
-			if (developer->integer)
-				gi.Com_PrintFmt("Wave ended: High level, few monsters, 70%% of conditional timer elapsed.\n");
+			// if (developer->integer)
+			// 	gi.Com_PrintFmt("Wave ended: High level, few monsters, 70%% of conditional timer elapsed.\n");
 			return true;
 		}
 	}
@@ -6231,10 +6237,10 @@ public:
         }
 
         // Log execution summary
-        if (developer->integer && (total_spawned < total_planned || developer->integer >= 2)) {
-            gi.Com_PrintFmt("SPAWN EXECUTION: Planned={}, Spawned={}, ValidationFailed={}, SpawnFailed={}\n",
-                            total_planned, total_spawned, total_validation_failures, total_spawn_failures);
-        }
+        // if (developer->integer && (total_spawned < total_planned || developer->integer >= 2)) {
+        //     gi.Com_PrintFmt("SPAWN EXECUTION: Planned={}, Spawned={}, ValidationFailed={}, SpawnFailed={}\n",
+        //                     total_planned, total_spawned, total_validation_failures, total_spawn_failures);
+        // }
     }
 };
 
@@ -7335,11 +7341,11 @@ static void Horde_InitLevel(const int32_t lvl)
 		}
 	}
 
-	if (developer->integer)
-	{
-		gi.Com_PrintFmt("Horde_InitLevel: Built cache with {} eligible monsters for wave {}.\n",
-			g_eligible_monsters_for_wave.size(), current_wave_level);
-	}
+	// if (developer->integer)
+	// {
+	// 	gi.Com_PrintFmt("Horde_InitLevel: Built cache with {} eligible monsters for wave {}.\n",
+	// 		g_eligible_monsters_for_wave.size(), current_wave_level);
+	// }
 
 	// --- 4. PROGRESSIVE PRECACHE LOGIC ---
 	// Skip for PVM mode - all monsters already precached at map start
@@ -7522,11 +7528,11 @@ static void Horde_InitLevel(const int32_t lvl)
 			break;
 		}
 	}
-	if (developer->integer)
-	{
-		gi.Com_PrintFmt("Horde_InitLevel: Wave {}. num_to_spawn: {}, queued: {}. Total for wave: {}\n",
-			lvl, g_horde_local.num_to_spawn, g_horde_local.queued_monsters, g_totalMonstersInWave);
-	}
+	// if (developer->integer)
+	// {
+	// 	gi.Com_PrintFmt("Horde_InitLevel: Wave {}. num_to_spawn: {}, queued: {}. Total for wave: {}\n",
+	// 		lvl, g_horde_local.num_to_spawn, g_horde_local.queued_monsters, g_totalMonstersInWave);
+	// }
 
 	ProcessWaveRewards(lvl);
 	Horde_CleanBodies();

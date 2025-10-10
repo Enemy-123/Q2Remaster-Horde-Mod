@@ -270,7 +270,7 @@ void makron_torso(edict_t* ent)
 	// Ensure ent is valid before proceeding
 	if (!ent) {
 		// Use Com_PrintFmt for error logging
-		gi.Com_PrintFmt("ERROR: makron_torso called with NULL entity.\n");
+		// gi.Com_PrintFmt("ERROR: makron_torso called with NULL entity.\n");
 		return;
 	}
 
@@ -308,7 +308,7 @@ void makron_spawn_torso(edict_t* self)
 	// Ensure self is valid
 	if (!self) {
 		// Use Com_PrintFmt for error logging
-		gi.Com_PrintFmt("ERROR: makron_spawn_torso called with NULL self entity.\n");
+		// gi.Com_PrintFmt("ERROR: makron_spawn_torso called with NULL self entity.\n");
 		return;
 	}
 
@@ -318,10 +318,10 @@ void makron_spawn_torso(edict_t* self)
 	// Check if ThrowGib returned a valid entity
 	if (!tempent)
 	{
-		gi.Com_PrintFmt("ERROR: makron_spawn_torso failed to spawn torso gib for {} ({}) at {}\n",
-			self->classname ? self->classname : "unknown", // Safely handle potentially null classname
-			self->s.number,
-			self->s.origin); // Pass vec3_t directly, fmt should handle it
+		// gi.Com_PrintFmt("ERROR: makron_spawn_torso failed to spawn torso gib for {} ({}) at {}\n",
+		// 	self->classname ? self->classname : "unknown", // Safely handle potentially null classname
+		// 	self->s.number,
+		// 	self->s.origin); // Pass vec3_t directly, fmt should handle it
 
 		// Attempt to handle boss death even if gib fails, to avoid blocking game progression.
 		if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
@@ -338,8 +338,8 @@ void makron_spawn_torso(edict_t* self)
 	}
 	else {
 		// Log if tempent->maxs[2] seems invalid
-		gi.Com_PrintFmt("Warning: makron_spawn_torso encountered non-positive tempent->maxs[2] ({}) for {} ({})\n",
-			tempent->maxs[2], self->classname ? self->classname : "unknown", self->s.number);
+		// gi.Com_PrintFmt("Warning: makron_spawn_torso encountered non-positive tempent->maxs[2] ({}) for {} ({})\n",
+			// tempent->maxs[2], self->classname ? self->classname : "unknown", self->s.number);
 	}
 
 	tempent->s.origin[2] += self->maxs[2] - 15.f;

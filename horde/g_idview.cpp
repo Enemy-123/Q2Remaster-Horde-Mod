@@ -94,8 +94,14 @@ const char* FormatEntityInfo_Fast(edict_t* ent) {
     switch (type) {
     case EntityType::Monster: {
         const char* full_name = GetDisplayName(ent);
-        
-        out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {}", full_name, ent->health).out;
+
+        out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}", full_name).out;
+
+        if (ent->monsterinfo.pvm_level > 0) {
+            out = fmt::format_to_n(out, static_cast<size_t>(end - out), " Lv.{}", ent->monsterinfo.pvm_level).out;
+        }
+
+        out = fmt::format_to_n(out, static_cast<size_t>(end - out), "\nH: {}", ent->health).out;
 
         if (ent->monsterinfo.armor_power >= 1) {
             out = fmt::format_to_n(out, static_cast<size_t>(end - out), " A: {}", ent->monsterinfo.armor_power).out;
@@ -121,8 +127,14 @@ const char* FormatEntityInfo_Fast(edict_t* ent) {
 
     case EntityType::Player: {
         const char* playerName = GetPlayerName(ent);
-        
-        out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {}", playerName, ent->health).out;
+
+        out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}", playerName).out;
+
+        if (ent->client->pers.pvm_level > 0) {
+            out = fmt::format_to_n(out, static_cast<size_t>(end - out), " Lv.{}", ent->client->pers.pvm_level).out;
+        }
+
+        out = fmt::format_to_n(out, static_cast<size_t>(end - out), "\nH: {}", ent->health).out;
 
         int armor_value = GetArmorInfo(ent);
         if (armor_value > 0) {
