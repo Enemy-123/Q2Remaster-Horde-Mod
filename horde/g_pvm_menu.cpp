@@ -209,11 +209,9 @@ void PvM_OpenStatsMenu(edict_t* player)
               PMENU_ALIGN_LEFT);
 
     // Character points
-    add_entry(G_Fmt("Upgraded Points: {}", player->client->pers.skill_points).data(),
+    add_entry(G_Fmt("Skill Points: {}", player->client->pers.skill_points).data(),
               PMENU_ALIGN_LEFT);
     add_entry(G_Fmt("Weapon Points: {}", player->client->pers.weapon_points).data(),
-              PMENU_ALIGN_LEFT);
-    add_entry(G_Fmt("Talent Points: {}", player->client->pers.pvm_stat_points).data(),
               PMENU_ALIGN_LEFT);
 
     // Respawn weapon
@@ -223,35 +221,20 @@ void PvM_OpenStatsMenu(edict_t* player)
 
     add_entry("", PMENU_ALIGN_LEFT); // Separator
 
-    // Max Ammo stat
-    bool can_upgrade_ammo = player->client->pers.pvm_stat_points > 0 &&
-                           player->client->pers.pvm_max_ammo_level < MAX_AMMO_LEVEL_CAP;
-    add_entry(G_Fmt("Max Ammo [{}/{}] {}",
-                    player->client->pers.pvm_max_ammo_level,
-                    MAX_AMMO_LEVEL_CAP,
-                    can_upgrade_ammo ? "[+]" : "").data(),
-              PMENU_ALIGN_LEFT,
-              can_upgrade_ammo ? PvM_StatsMenuHandler : nullptr);
-
-    // Vitality stat
-    bool can_upgrade_vitality = player->client->pers.pvm_stat_points > 0 &&
-                               player->client->pers.pvm_vitality_level < VITALITY_LEVEL_CAP;
-    add_entry(G_Fmt("Vitality [{}/{}] {}",
-                    player->client->pers.pvm_vitality_level,
-                    VITALITY_LEVEL_CAP,
-                    can_upgrade_vitality ? "[+]" : "").data(),
-              PMENU_ALIGN_LEFT,
-              can_upgrade_vitality ? PvM_StatsMenuHandler : nullptr);
-
-    add_entry("", PMENU_ALIGN_LEFT); // Separator
-
-    // Reset option (only if there are allocated stats)
-    int32_t total_allocated = player->client->pers.pvm_max_ammo_level +
-                             player->client->pers.pvm_vitality_level;
-    if (total_allocated > 0)
-    {
-        add_entry("Reset Stats (Free)", PMENU_ALIGN_LEFT, PvM_StatsMenuHandler);
-    }
+    // Display current ability levels from unified skills system
+    add_entry("=== Current Abilities ===", PMENU_ALIGN_LEFT);
+    add_entry(G_Fmt("Max Ammo: {}/10", player->client->pers.skills.max_ammo).data(),
+              PMENU_ALIGN_LEFT);
+    add_entry(G_Fmt("Vitality: {}/10", player->client->pers.skills.vitality).data(),
+              PMENU_ALIGN_LEFT);
+    add_entry(G_Fmt("Vampirism: {}/10", player->client->pers.skills.vampire).data(),
+              PMENU_ALIGN_LEFT);
+    add_entry(G_Fmt("Ammo Regen: {}/10", player->client->pers.skills.ammo_regen).data(),
+              PMENU_ALIGN_LEFT);
+    add_entry(G_Fmt("H/A Pickup: {}/5", player->client->pers.skills.ha_pickup).data(),
+              PMENU_ALIGN_LEFT);
+    add_entry(G_Fmt("Start Armor: {}/10", player->client->pers.skills.start_armor).data(),
+              PMENU_ALIGN_LEFT);
 
     add_entry("", PMENU_ALIGN_LEFT); // Separator
     add_entry("Back", PMENU_ALIGN_LEFT, PvM_StatsMenuHandler);
@@ -298,24 +281,43 @@ void PvM_CheckLevelUp(edict_t* player)
         player->client->pers.pvm_level = current_level;
         player->client->pers.skill_points++; // Grant 1 skill point per level
 
-        // Every 5 levels, auto-grant +1 vitality and +1 max ammo (free)
+        // Every 5 levels, auto-grant +1 vitality and +1 max ammo (free, not using skill points)
         bool got_free_vitality = false;
         bool got_free_max_ammo = false;
         
         if (current_level % 5 == 0)
         {
-            // Auto-grant vitality if not at cap
-            if (player->client->pers.pvm_vitality_level < VITALITY_LEVEL_CAP)
+            // Auto-grant vitality if not at cap (using unified skills system)
+            if (player->client->pers.skills.vitality < 10)
             {
-                player->client->pers.pvm_vitality_level++;
+                player->client->pers.skills.vitality++;
                 got_free_vitality = true;
+                
+                // Apply vitality bonus immediately (+10 max health)
+                int32_t health_bonus = 10;
+                player->client->pers.max_health += health_bonus;
+                player->client->resp.max_health += health_bonus;
+                player->max_health += health_bonus;
+                player->health += health_bonus; // Also heal
             }
             
-            // Auto-grant max ammo if not at cap
-            if (player->client->pers.pvm_max_ammo_level < MAX_AMMO_LEVEL_CAP)
+            // Auto-grant max ammo if not at cap (using unified skills system)
+            if (player->client->pers.skills.max_ammo < 10)
             {
-                player->client->pers.pvm_max_ammo_level++;
+                player->client->pers.skills.max_ammo++;
                 got_free_max_ammo = true;
+                
+                // Apply max ammo bonus immediately
+                player->client->pers.max_ammo[AMMO_SHELLS] += 5;
+                player->client->pers.max_ammo[AMMO_BULLETS] += 10;
+                player->client->pers.max_ammo[AMMO_ROCKETS] += 2;
+                player->client->pers.max_ammo[AMMO_CELLS] += 10;
+                player->client->pers.max_ammo[AMMO_GRENADES] += 3;
+                player->client->pers.max_ammo[AMMO_SLUGS] += 3;
+                player->client->pers.max_ammo[AMMO_MAGSLUG] += 2;
+                player->client->pers.max_ammo[AMMO_PROX] += 1;
+                player->client->pers.max_ammo[AMMO_TRAP] += 1;
+                player->client->pers.max_ammo[AMMO_TESLA] += 2;
             }
         }
 
@@ -371,11 +373,11 @@ void PvM_ApplyStatBonuses(edict_t* player)
     player->max_health += health_bonus_total;
     player->health += health_bonus_total; // Also heal
 
-    // Get stat levels
-    int32_t max_ammo_level = player->client->pers.pvm_max_ammo_level;
-    int32_t vitality_level = player->client->pers.pvm_vitality_level;
+    // Get stat levels from unified skills system
+    int32_t max_ammo_level = player->client->pers.skills.max_ammo;
+    int32_t vitality_level = player->client->pers.skills.vitality;
 
-    // Apply Max Ammo bonuses (from pvm_stats.json)
+    // Apply Max Ammo bonuses (from unified skills system)
     if (max_ammo_level > 0)
     {
         player->client->pers.max_ammo[AMMO_SHELLS] += max_ammo_level * 5;
@@ -390,7 +392,7 @@ void PvM_ApplyStatBonuses(edict_t* player)
         player->client->pers.max_ammo[AMMO_TESLA] += max_ammo_level * 2;
     }
 
-    // Apply Vitality bonuses (from pvm_stats.json)
+    // Apply Vitality bonuses (from unified skills system)
     if (vitality_level > 0)
     {
         int health_bonus = vitality_level * 10;

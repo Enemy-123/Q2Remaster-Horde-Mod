@@ -2,6 +2,8 @@
 // Licensed under the GNU General Public License 2.0.
 
 #include "g_local.h"
+#include "horde/g_character.h"
+#include "shared.h"
 
 void Svcmd_Test_f()
 {
@@ -290,6 +292,180 @@ The game can issue gi.argc() / gi.argv() commands to get the rest
 of the parameters
 =================
 */
+/*
+=================
+FindPlayerByName
+Helper function to find a player by name (partial match)
+Uses GetPlayerName for proper name retrieval from userinfo
+=================
+*/
+static edict_t* FindPlayerByName(const char* name)
+{
+	if (!name || !*name)
+		return nullptr;
+
+	// Try exact match first
+	for (int i = 0; i < game.maxclients; i++)
+	{
+		edict_t* player = g_edicts + 1 + i;
+		if (!player->inuse || !player->client)
+			continue;
+
+		const char* player_name = GetPlayerName(player);
+		if (Q_strcasecmp(player_name, name) == 0)
+			return player;
+	}
+
+	// Try partial match (case-insensitive substring)
+	for (int i = 0; i < game.maxclients; i++)
+	{
+		edict_t* player = g_edicts + 1 + i;
+		if (!player->inuse || !player->client)
+			continue;
+
+		const char* player_name = GetPlayerName(player);
+
+		// Convert both strings to lowercase and check substring
+		char lower_player_name[MAX_INFO_VALUE];
+		char lower_search_name[MAX_INFO_VALUE];
+		Q_strlcpy(lower_player_name, player_name, sizeof(lower_player_name));
+		Q_strlcpy(lower_search_name, name, sizeof(lower_search_name));
+
+		for (char* p = lower_player_name; *p; p++)
+			*p = tolower(*p);
+		for (char* p = lower_search_name; *p; p++)
+			*p = tolower(*p);
+
+		if (strstr(lower_player_name, lower_search_name))
+			return player;
+	}
+
+	return nullptr;
+}
+
+/*
+=================
+SVCmd_AddAbilityPoints_f
+Admin command: sv addabilitypoints <playername> <quantity>
+Adds ability/skill points to a player
+=================
+*/
+void SVCmd_AddAbilityPoints_f()
+{
+	if (gi.argc() < 4)
+	{
+		gi.LocClient_Print(nullptr, PRINT_HIGH, "Usage: sv addabilitypoints <playername> <quantity>\n");
+		return;
+	}
+
+	const char* player_name = gi.argv(2);
+	int quantity = atoi(gi.argv(3));
+
+	edict_t* player = FindPlayerByName(player_name);
+	if (!player)
+	{
+		gi.LocClient_Print(nullptr, PRINT_HIGH, "Player '{}' not found\n", player_name);
+		return;
+	}
+
+	player->client->pers.skill_points += quantity;
+	
+	gi.LocClient_Print(nullptr, PRINT_HIGH, "Added {} skill points to {}\n", 
+		quantity, player->client->pers.netname);
+	gi.LocClient_Print(player, PRINT_HIGH, "Admin granted you {} skill points!\n", quantity);
+	
+	// Save character data
+	Character_Save(player);
+}
+
+/*
+=================
+SVCmd_AddWeaponPoints_f
+Admin command: sv addweaponpoints <playername> <quantity>
+Adds weapon points to a player
+=================
+*/
+void SVCmd_AddWeaponPoints_f()
+{
+	if (gi.argc() < 4)
+	{
+		gi.LocClient_Print(nullptr, PRINT_HIGH, "Usage: sv addweaponpoints <playername> <quantity>\n");
+		return;
+	}
+
+	const char* player_name = gi.argv(2);
+	int quantity = atoi(gi.argv(3));
+
+	edict_t* player = FindPlayerByName(player_name);
+	if (!player)
+	{
+		gi.LocClient_Print(nullptr, PRINT_HIGH, "Player '{}' not found\n", player_name);
+		return;
+	}
+
+	player->client->pers.weapon_points += quantity;
+	
+	gi.LocClient_Print(nullptr, PRINT_HIGH, "Added {} weapon points to {}\n", 
+		quantity, player->client->pers.netname);
+	gi.LocClient_Print(player, PRINT_HIGH, "Admin granted you {} weapon points!\n", quantity);
+	
+	// Save character data
+	Character_Save(player);
+}
+
+/*
+=================
+SVCmd_ResetPlayer_f
+Admin command: sv reset <playername>
+Deletes the player's character file and resets all progress
+=================
+*/
+void SVCmd_ResetPlayer_f()
+{
+	if (gi.argc() < 3)
+	{
+		gi.LocClient_Print(nullptr, PRINT_HIGH, "Usage: sv reset <playername>\n");
+		return;
+	}
+
+	const char* player_name = gi.argv(2);
+
+	edict_t* player = FindPlayerByName(player_name);
+	if (!player)
+	{
+		gi.LocClient_Print(nullptr, PRINT_HIGH, "Player '{}' not found\n", player_name);
+		return;
+	}
+
+	// Get character file path
+	std::string file_path = Character_GetFilePath(player);
+	
+	// Delete the character file
+	if (std::remove(file_path.c_str()) == 0)
+	{
+		gi.LocClient_Print(nullptr, PRINT_HIGH, "Character file for '{}' deleted successfully\n", 
+			player->client->pers.netname);
+		
+		// Reset all character data in memory
+		player->client->pers.pvm_level = 0;
+		player->client->pers.pvm_xp = 0;
+		player->client->pers.skill_points = 0;
+		player->client->pers.weapon_points = 0;
+		
+		// Reset skills
+		memset(&player->client->pers.skills, 0, sizeof(player->client->pers.skills));
+		
+		gi.LocClient_Print(player, PRINT_HIGH, "Your character has been reset by an admin!\n");
+		
+		// Kick player to force reconnect and reload
+		gi.AddCommandString(G_Fmt("kick \"{}\"\n", player->client->pers.netname).data());
+	}
+	else
+	{
+		gi.LocClient_Print(nullptr, PRINT_HIGH, "Failed to delete character file: {}\n", file_path.c_str());
+	}
+}
+
 void ServerCommand()
 {
 	const char *cmd;
@@ -309,6 +485,12 @@ void ServerCommand()
 		SVCmd_NextMap_f();
 	else if (Q_strcasecmp(cmd, "reload_config") == 0)
 		SVCmd_ReloadConfig_f();
+	else if (Q_strcasecmp(cmd, "addabilitypoints") == 0)
+		SVCmd_AddAbilityPoints_f();
+	else if (Q_strcasecmp(cmd, "addweaponpoints") == 0)
+		SVCmd_AddWeaponPoints_f();
+	else if (Q_strcasecmp(cmd, "reset") == 0)
+		SVCmd_ResetPlayer_f();
 	// REMOVED: Asset manager commands (assetstats, assetlist, assetcleanup)
 	else
 		gi.LocClient_Print(nullptr, PRINT_HIGH, "Unknown server command \"{}\"\n", cmd);
