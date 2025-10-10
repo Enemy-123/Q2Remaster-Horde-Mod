@@ -17,8 +17,10 @@ inline void MenuFormatItemWithProgress(char* buffer, size_t buffer_size,
                                        int current, int max)
 {
     // Use tab character to separate left and right columns for fixed-position rendering
-    // Format: "  1. Vampire:\t[00/10]"
-    snprintf(buffer, buffer_size, "  %d. %s:\t[%02d/%02d]",
+    // Format: "  1. Vampire:\t[3/10]" (no padding needed, renderer handles positioning)
+    // Since the renderer splits on \t and positions each part at fixed X coords,
+    // we don't need width specifiers - just the raw numbers
+    snprintf(buffer, buffer_size, "  %d. %s:\t[%d/%d]",
              item_number,
              name,
              current,
