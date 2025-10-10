@@ -156,6 +156,9 @@ struct PhalanxConfig
 	int damage_max = 95;
 	int radius_damage = 120;
 	int damage_radius = 120;
+	int damage_addon = 3;      // Damage added per upgrade level (similar to rockets)
+	int radius_addon = 3;      // Radius damage added per upgrade level
+	int speed_addon = 25;      // Speed added per upgrade level
 };
 
 // Rogue expansion weapon configurations
@@ -172,6 +175,9 @@ struct TrackerConfig
 {
 	int damage = 140;
 	int speed = 1000;
+	int damage_addon = 1;      // Damage added per upgrade level (tick damage, smaller increment)
+	int speed_addon = 30;      // Speed added per upgrade level
+	float duration_addon = 0.2f; // Duration added per upgrade level (for tracker momentum)
 };
 
 struct ETFRifleConfig

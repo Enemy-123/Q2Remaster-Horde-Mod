@@ -3294,6 +3294,18 @@ struct player_skills_t {
 	int8_t trap_range = 0;        // 0-10: Trap throw range (GRENADE_MINSPEED/MAXSPEED)
 	int8_t trap_radius = 0;       // 0-10: Trap explosion radius (TRAP_RADIUS)
 
+	// Weapon Upgrades - Phalanx
+	int8_t phalanx_damage = 0;    // 0-10: Phalanx damage boost
+	int8_t phalanx_speed = 0;     // 0-10: Phalanx projectile speed
+	int8_t phalanx_radius = 0;    // 0-10: Phalanx explosion radius
+	bool phalanx_silent = false;  // Silent firing (no flash/noise)
+
+	// Weapon Upgrades - Disruptor (Tracker)
+	int8_t disruptor_damage = 0;   // 0-10: Disruptor tick damage
+	int8_t disruptor_speed = 0;    // 0-10: Disruptor projectile speed
+	int8_t disruptor_duration = 0; // 0-10: Tracker effect duration (for momentum/damage)
+	bool disruptor_silent = false; // Silent firing (no flash/noise)
+
 	int8_t reserved[10] = {0};
 };;
 

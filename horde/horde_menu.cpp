@@ -50,6 +50,8 @@ void OpenGLUpgradeMenu(edict_t *ent, int cursor_pos = -1);     // Forward declar
 void OpenRLUpgradeMenu(edict_t *ent, int cursor_pos = -1);     // Forward declare RL Upgrade submenu
 void OpenProxUpgradeMenu(edict_t *ent);   // Forward declare Prox Upgrade submenu
 void OpenPlasmabeamUpgradeMenu(edict_t *ent, int cursor_pos = -1); // Forward declare Plasmabeam Upgrade submenu
+void OpenPhalanxUpgradeMenu(edict_t *ent, int cursor_pos = -1);    // Forward declare Phalanx Upgrade submenu
+void OpenDisruptorUpgradeMenu(edict_t *ent, int cursor_pos = -1);  // Forward declare Disruptor Upgrade submenu
 void RespawnWeaponMenuHandler(edict_t *ent, pmenuhnd_t *p);
 void OpenAdminMenu(edict_t *ent); // Forward declare Admin menu functions
 void AdminMenuHandler(edict_t *ent, pmenuhnd_t *p);
@@ -3255,13 +3257,13 @@ void WeaponUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	}
 	else if (strcmp(arg, "phalanx") == 0)
 	{
-		// TODO: Implement Phalanx upgrade menu
-		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Phalanx upgrades not yet implemented.\n");
+		PMenu_Close(ent);
+		OpenPhalanxUpgradeMenu(ent);
 	}
 	else if (strcmp(arg, "disruptor") == 0)
 	{
-		// TODO: Implement Disruptor upgrade menu
-		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Disruptor upgrades not yet implemented.\n");
+		PMenu_Close(ent);
+		OpenDisruptorUpgradeMenu(ent);
 	}
 	else if (strcmp(arg, "tesla") == 0)
 	{
@@ -6275,6 +6277,294 @@ void TrapUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		}
 		PMenu_Close(ent);
 		OpenTrapUpgradeMenu(ent, cursor);
+	}
+	else if (strcmp(arg, "back_to_weapons") == 0)
+	{
+		PMenu_Close(ent);
+		OpenWeaponUpgradeMenu(ent);
+	}
+}
+
+/////////////////////////////////////////////
+// PHALANX UPGRADE SUBMENU
+/////////////////////////////////////////////
+
+static pmenu_t phalanx_upgrade_menu[32];
+
+void PhalanxUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p);
+
+void OpenPhalanxUpgradeMenu(edict_t *ent, int cursor_pos)
+{
+	if (!ent || !ent->client)
+		return;
+
+	if (ent->client->menu)
+		PMenu_Close(ent);
+
+	// Set menu protection
+	ent->client->menu_protected = true;
+	ent->client->menu_protection_start = level.time;
+
+	memset(phalanx_upgrade_menu, 0, sizeof(phalanx_upgrade_menu));
+	int count = 0;
+
+	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
+	{
+		if (count < 32)
+		{
+			Q_strlcpy(phalanx_upgrade_menu[count].text, text, sizeof(phalanx_upgrade_menu[count].text));
+			phalanx_upgrade_menu[count].align = align;
+			phalanx_upgrade_menu[count].SelectFunc = func;
+			if (arg)
+				Q_strlcpy(phalanx_upgrade_menu[count].text_arg1, arg, sizeof(phalanx_upgrade_menu[count].text_arg1));
+			count++;
+		}
+	};
+
+	// Calculate upgrade percentage
+	int current_upgrades = ent->client->pers.skills.phalanx_damage +
+	                       ent->client->pers.skills.phalanx_speed +
+	                       ent->client->pers.skills.phalanx_radius;
+	int max_upgrades = 30; // 3 stats * 10 max each
+	int percentage = (current_upgrades * 100) / max_upgrades;
+
+	// Title with percentage
+	char title[64];
+	snprintf(title, sizeof(title), "=== PHALANX (%d%%) ===", percentage);
+	add_entry(title, PMENU_ALIGN_CENTER);
+	add_entry("", PMENU_ALIGN_CENTER);
+
+	// Display current upgrade levels
+	char status[128];
+	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.phalanx_damage);
+	add_entry(status, PMENU_ALIGN_LEFT, PhalanxUpgradeMenuHandler, "phalanx_damage");
+
+	snprintf(status, sizeof(status), "Speed %d [10]", ent->client->pers.skills.phalanx_speed);
+	add_entry(status, PMENU_ALIGN_LEFT, PhalanxUpgradeMenuHandler, "phalanx_speed");
+
+	snprintf(status, sizeof(status), "Radius %d [10]", ent->client->pers.skills.phalanx_radius);
+	add_entry(status, PMENU_ALIGN_LEFT, PhalanxUpgradeMenuHandler, "phalanx_radius");
+
+	const char *silent_status = ent->client->pers.skills.phalanx_silent ? "ON" : "OFF";
+	snprintf(status, sizeof(status), "Silent Mode: %s", silent_status);
+	add_entry(status, PMENU_ALIGN_LEFT, PhalanxUpgradeMenuHandler, "phalanx_silent");
+
+	add_entry("", PMENU_ALIGN_CENTER);
+	add_entry("---", PMENU_ALIGN_CENTER);
+	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, PhalanxUpgradeMenuHandler, "back_to_weapons");
+
+	PMenu_Open(ent, phalanx_upgrade_menu, cursor_pos, count, nullptr, nullptr);
+}
+
+void PhalanxUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client || !p || p->cur < 0)
+	{
+		if (ent && ent->client && ent->client->menu)
+			PMenu_Close(ent);
+		return;
+	}
+
+	pmenu_t *item = &p->entries[p->cur];
+	if (!item->SelectFunc)
+		return;
+
+	const char *arg = item->text_arg1;
+
+	int cursor = p->cur; // Save cursor position for reopening
+
+	if (strcmp(arg, "phalanx_damage") == 0)
+	{
+		if (ent->client->pers.skills.phalanx_damage < 10)
+		{
+			ent->client->pers.skills.phalanx_damage++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Phalanx Damage increased to level {}!\n", ent->client->pers.skills.phalanx_damage);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Phalanx Damage is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenPhalanxUpgradeMenu(ent, cursor);
+	}
+	else if (strcmp(arg, "phalanx_speed") == 0)
+	{
+		if (ent->client->pers.skills.phalanx_speed < 10)
+		{
+			ent->client->pers.skills.phalanx_speed++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Phalanx Speed increased to level {}!\n", ent->client->pers.skills.phalanx_speed);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Phalanx Speed is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenPhalanxUpgradeMenu(ent, cursor);
+	}
+	else if (strcmp(arg, "phalanx_radius") == 0)
+	{
+		if (ent->client->pers.skills.phalanx_radius < 10)
+		{
+			ent->client->pers.skills.phalanx_radius++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Phalanx Radius increased to level {}!\n", ent->client->pers.skills.phalanx_radius);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Phalanx Radius is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenPhalanxUpgradeMenu(ent, cursor);
+	}
+	else if (strcmp(arg, "phalanx_silent") == 0)
+	{
+		ent->client->pers.skills.phalanx_silent = !ent->client->pers.skills.phalanx_silent;
+		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Phalanx Silent Mode: {}\n", ent->client->pers.skills.phalanx_silent ? "ON" : "OFF");
+		PMenu_Close(ent);
+		OpenPhalanxUpgradeMenu(ent, cursor);
+	}
+	else if (strcmp(arg, "back_to_weapons") == 0)
+	{
+		PMenu_Close(ent);
+		OpenWeaponUpgradeMenu(ent);
+	}
+}
+
+/////////////////////////////////////////////
+// DISRUPTOR UPGRADE SUBMENU
+/////////////////////////////////////////////
+
+static pmenu_t disruptor_upgrade_menu[32];
+
+void DisruptorUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p);
+
+void OpenDisruptorUpgradeMenu(edict_t *ent, int cursor_pos)
+{
+	if (!ent || !ent->client)
+		return;
+
+	if (ent->client->menu)
+		PMenu_Close(ent);
+
+	// Set menu protection
+	ent->client->menu_protected = true;
+	ent->client->menu_protection_start = level.time;
+
+	memset(disruptor_upgrade_menu, 0, sizeof(disruptor_upgrade_menu));
+	int count = 0;
+
+	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
+	{
+		if (count < 32)
+		{
+			Q_strlcpy(disruptor_upgrade_menu[count].text, text, sizeof(disruptor_upgrade_menu[count].text));
+			disruptor_upgrade_menu[count].align = align;
+			disruptor_upgrade_menu[count].SelectFunc = func;
+			if (arg)
+				Q_strlcpy(disruptor_upgrade_menu[count].text_arg1, arg, sizeof(disruptor_upgrade_menu[count].text_arg1));
+			count++;
+		}
+	};
+
+	// Calculate upgrade percentage
+	int current_upgrades = ent->client->pers.skills.disruptor_damage +
+	                       ent->client->pers.skills.disruptor_speed +
+	                       ent->client->pers.skills.disruptor_duration;
+	int max_upgrades = 30; // 3 stats * 10 max each
+	int percentage = (current_upgrades * 100) / max_upgrades;
+
+	// Title with percentage
+	char title[64];
+	snprintf(title, sizeof(title), "=== DISRUPTOR (%d%%) ===", percentage);
+	add_entry(title, PMENU_ALIGN_CENTER);
+	add_entry("", PMENU_ALIGN_CENTER);
+
+	// Display current upgrade levels
+	char status[128];
+	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.disruptor_damage);
+	add_entry(status, PMENU_ALIGN_LEFT, DisruptorUpgradeMenuHandler, "disruptor_damage");
+
+	snprintf(status, sizeof(status), "Speed %d [10]", ent->client->pers.skills.disruptor_speed);
+	add_entry(status, PMENU_ALIGN_LEFT, DisruptorUpgradeMenuHandler, "disruptor_speed");
+
+	snprintf(status, sizeof(status), "Duration %d [10]", ent->client->pers.skills.disruptor_duration);
+	add_entry(status, PMENU_ALIGN_LEFT, DisruptorUpgradeMenuHandler, "disruptor_duration");
+
+	const char *silent_status = ent->client->pers.skills.disruptor_silent ? "ON" : "OFF";
+	snprintf(status, sizeof(status), "Silent Mode: %s", silent_status);
+	add_entry(status, PMENU_ALIGN_LEFT, DisruptorUpgradeMenuHandler, "disruptor_silent");
+
+	add_entry("", PMENU_ALIGN_CENTER);
+	add_entry("---", PMENU_ALIGN_CENTER);
+	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, DisruptorUpgradeMenuHandler, "back_to_weapons");
+
+	PMenu_Open(ent, disruptor_upgrade_menu, cursor_pos, count, nullptr, nullptr);
+}
+
+void DisruptorUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client || !p || p->cur < 0)
+	{
+		if (ent && ent->client && ent->client->menu)
+			PMenu_Close(ent);
+		return;
+	}
+
+	pmenu_t *item = &p->entries[p->cur];
+	if (!item->SelectFunc)
+		return;
+
+	const char *arg = item->text_arg1;
+
+	int cursor = p->cur; // Save cursor position for reopening
+
+	if (strcmp(arg, "disruptor_damage") == 0)
+	{
+		if (ent->client->pers.skills.disruptor_damage < 10)
+		{
+			ent->client->pers.skills.disruptor_damage++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Disruptor Damage increased to level {}!\n", ent->client->pers.skills.disruptor_damage);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Disruptor Damage is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenDisruptorUpgradeMenu(ent, cursor);
+	}
+	else if (strcmp(arg, "disruptor_speed") == 0)
+	{
+		if (ent->client->pers.skills.disruptor_speed < 10)
+		{
+			ent->client->pers.skills.disruptor_speed++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Disruptor Speed increased to level {}!\n", ent->client->pers.skills.disruptor_speed);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Disruptor Speed is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenDisruptorUpgradeMenu(ent, cursor);
+	}
+	else if (strcmp(arg, "disruptor_duration") == 0)
+	{
+		if (ent->client->pers.skills.disruptor_duration < 10)
+		{
+			ent->client->pers.skills.disruptor_duration++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Disruptor Duration increased to level {}!\n", ent->client->pers.skills.disruptor_duration);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Disruptor Duration is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		OpenDisruptorUpgradeMenu(ent, cursor);
+	}
+	else if (strcmp(arg, "disruptor_silent") == 0)
+	{
+		ent->client->pers.skills.disruptor_silent = !ent->client->pers.skills.disruptor_silent;
+		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Disruptor Silent Mode: {}\n", ent->client->pers.skills.disruptor_silent ? "ON" : "OFF");
+		PMenu_Close(ent);
+		OpenDisruptorUpgradeMenu(ent, cursor);
 	}
 	else if (strcmp(arg, "back_to_weapons") == 0)
 	{
