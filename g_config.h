@@ -474,8 +474,8 @@ struct MapsConfig
 // Power cubes currency configuration
 struct PowerCubesConfig
 {
+	int cubes_per_ammopack = 25;      // Power cubes gained per ammopack pickup
 	int cubes_per_shard = 5;      // Power cubes gained per armor shard pickup
-	int cubes_per_ammopack = 25;  // Power cubes gained per ammo pack pickup
 	bool use_bullets_max = true;  // Use bullets max ammo as part of capacity calculation
 	bool use_cells_max = true;    // Use cells max ammo as part of capacity calculation
 };
