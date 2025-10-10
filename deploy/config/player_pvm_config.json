@@ -325,5 +325,12 @@
         "interval_ms": 5000
       }
     }
+  },
+
+  "// ==================== POWER CUBES REGENERATION ====================": "Passive power cubes regeneration skill",
+  "power_cubes_regen": {
+    "comment": "PC Regen skill - regenerates power cubes over time (default level 1 in PvM mode)",
+    "base_regen_time": 5.0,
+    "cubes_per_regen": 5
   }
 }
