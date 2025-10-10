@@ -131,7 +131,11 @@ else if (Q_strcasecmp(cmd, "fireball") == 0)
     Cmd_Fireball_f(ent);
 ```
 
-//then dont forget to edit character.cpp to add fireball saving into characters
+//then dont forget to edit character.cpp to add fireball saving into g_character.cpp
+root["stats"]["skills"]["fireball"] = player->client->pers.skills.fireball;     
+if (skills.isMember("fireball") && skills["fireball"].isInt())
+ player->client->pers.skills.fireball = static_cast<int8_t>(skills["fireball"].asInt());
+
 
 ### Menu Display
 **MenuFormatItemWithProgress** automatically formats multi-level abilities with `[X/MAX]` progress indicator when the menu reads from `GetUpgradeDefinitions()`. No extra menu code needed - the system handles it automatically in `horde/horde_menu.cpp::CreateAbilitiesMenu()`.

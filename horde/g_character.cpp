@@ -237,6 +237,8 @@ bool Character_Load(edict_t* player)
                 player->client->pers.skills.sentry_upgrade = skills["sentry_upgrade"].asBool();
             if (skills.isMember("tesla_chain") && skills["tesla_chain"].isBool())
                 player->client->pers.skills.tesla_chain = skills["tesla_chain"].asBool();
+            if (skills.isMember("fireball") && skills["fireball"].isInt())
+                player->client->pers.skills.fireball = static_cast<int8_t>(skills["fireball"].asInt());
             // Load free bonuses from milestones (permanent, not resetable)
             if (skills.isMember("free_vitality") && skills["free_vitality"].isInt())
                 player->client->pers.skills.free_vitality = static_cast<int8_t>(skills["free_vitality"].asInt());
@@ -517,6 +519,7 @@ bool Character_Save(edict_t* player)
     root["stats"]["skills"]["armor_vampirism"] = player->client->pers.skills.armor_vampirism;
     root["stats"]["skills"]["sentry_upgrade"] = player->client->pers.skills.sentry_upgrade;
     root["stats"]["skills"]["tesla_chain"] = player->client->pers.skills.tesla_chain;
+    root["stats"]["skills"]["fireball"] = player->client->pers.skills.fireball;
     // Save free bonuses from milestones (permanent, not resetable)
     root["stats"]["skills"]["free_vitality"] = player->client->pers.skills.free_vitality;
     root["stats"]["skills"]["free_max_ammo"] = player->client->pers.skills.free_max_ammo;
