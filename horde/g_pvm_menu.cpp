@@ -292,8 +292,9 @@ void PvM_CheckLevelUp(edict_t* player)
             if (player->client->pers.skills.vitality < 10)
             {
                 player->client->pers.skills.vitality++;
+                player->client->pers.skills.free_vitality++;  // Track as free bonus
                 got_free_vitality = true;
-                
+
                 // Apply vitality bonus immediately (+10 max health)
                 int32_t health_bonus = 10;
                 player->client->pers.max_health += health_bonus;
@@ -301,23 +302,24 @@ void PvM_CheckLevelUp(edict_t* player)
                 player->max_health += health_bonus;
                 player->health += health_bonus; // Also heal
             }
-            
+
             // Auto-grant max ammo if not at cap (using unified skills system)
             if (player->client->pers.skills.max_ammo < 10)
             {
                 player->client->pers.skills.max_ammo++;
+                player->client->pers.skills.free_max_ammo++;  // Track as free bonus
                 got_free_max_ammo = true;
-                
+
                 // Apply max ammo bonus immediately
-                player->client->pers.max_ammo[AMMO_SHELLS] += 5;
-                player->client->pers.max_ammo[AMMO_BULLETS] += 10;
-                player->client->pers.max_ammo[AMMO_ROCKETS] += 2;
-                player->client->pers.max_ammo[AMMO_CELLS] += 10;
-                player->client->pers.max_ammo[AMMO_GRENADES] += 3;
-                player->client->pers.max_ammo[AMMO_SLUGS] += 3;
-                player->client->pers.max_ammo[AMMO_MAGSLUG] += 2;
-                player->client->pers.max_ammo[AMMO_PROX] += 1;
-                player->client->pers.max_ammo[AMMO_TRAP] += 1;
+                player->client->pers.max_ammo[AMMO_SHELLS] += 10;
+                player->client->pers.max_ammo[AMMO_BULLETS] += 25;
+                player->client->pers.max_ammo[AMMO_ROCKETS] += 10;
+                player->client->pers.max_ammo[AMMO_CELLS] += 25;
+                player->client->pers.max_ammo[AMMO_GRENADES] += 10;
+                player->client->pers.max_ammo[AMMO_SLUGS] += 10;
+                player->client->pers.max_ammo[AMMO_MAGSLUG] += 15;
+                player->client->pers.max_ammo[AMMO_PROX] += 10;
+                player->client->pers.max_ammo[AMMO_TRAP] += 2;
                 player->client->pers.max_ammo[AMMO_TESLA] += 2;
             }
         }

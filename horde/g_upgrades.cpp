@@ -294,14 +294,15 @@ void ResetAllSkills(edict_t* player) {
     if (!player || !player->client)
         return;
 
-    // Calculate total points to refund
+    // Calculate total points to refund (excluding free bonuses from milestones)
     int32_t total_points = 0;
     total_points += player->client->pers.skills.vampire;
     total_points += player->client->pers.skills.ammo_regen;
-    total_points += player->client->pers.skills.vitality;
+    // For vitality and max_ammo, subtract free bonuses to only refund manually-allocated points
+    total_points += player->client->pers.skills.vitality - player->client->pers.skills.free_vitality;
     total_points += player->client->pers.skills.ha_pickup;
     total_points += player->client->pers.skills.start_armor;
-    total_points += player->client->pers.skills.max_ammo;
+    total_points += player->client->pers.skills.max_ammo - player->client->pers.skills.free_max_ammo;
     total_points += player->client->pers.skills.auto_haste ? 1 : 0;
     total_points += player->client->pers.skills.armor_vampirism ? 1 : 0;
     total_points += player->client->pers.skills.sentry_upgrade ? 1 : 0;
@@ -312,17 +313,19 @@ void ResetAllSkills(edict_t* player) {
         return;
     }
 
-    // Reset all skills
+    // Reset all skills (but preserve free bonuses from milestones)
     player->client->pers.skills.vampire = 0;
     player->client->pers.skills.ammo_regen = 0;
-    player->client->pers.skills.vitality = 0;
+    // Reset vitality and max_ammo to their free bonus levels (permanent milestone bonuses)
+    player->client->pers.skills.vitality = player->client->pers.skills.free_vitality;
     player->client->pers.skills.ha_pickup = 0;
     player->client->pers.skills.start_armor = 0;
-    player->client->pers.skills.max_ammo = 0;
+    player->client->pers.skills.max_ammo = player->client->pers.skills.free_max_ammo;
     player->client->pers.skills.auto_haste = false;
     player->client->pers.skills.armor_vampirism = false;
     player->client->pers.skills.sentry_upgrade = false;
     player->client->pers.skills.tesla_chain = false;
+    // Note: free_vitality and free_max_ammo are NOT reset - they're permanent
 
     // Refund all points
     player->client->pers.skill_points += total_points;

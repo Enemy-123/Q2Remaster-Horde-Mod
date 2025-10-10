@@ -3162,6 +3162,10 @@ struct player_skills_t {
 	int8_t start_armor = 0;       // 0-10: Spawn armor (10 per level)
 	int8_t max_ammo = 0;          // 0-10: Max ammo capacity
 
+	// Free bonuses from leveling milestones (every 5 levels) - permanent, not resetable
+	int8_t free_vitality = 0;     // Free vitality points from level milestones
+	int8_t free_max_ammo = 0;     // Free max ammo points from level milestones
+
 	// Single-level abilities (boolean flags)
 	bool auto_haste = false;      // Quad/dual-fire extension
 
