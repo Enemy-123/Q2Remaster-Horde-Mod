@@ -173,30 +173,70 @@ void PMenu_Do_Update(edict_t* ent)
 		const vec3_t item_pos = menu_base + title_offset + (item_spacing * static_cast<float>(i));
 		sb.yv(item_pos.y);
 
-		const char* loc_func = "loc_string";
-		float x_pos;
+		// Check if this is a two-column item (contains tab separator)
+		const char* tab_pos = strchr(t, '\t');
 
-		switch (p->align) {
-		case PMENU_ALIGN_CENTER:
-			x_pos = 0;
-			loc_func = "loc_cstring";
-			break;
-		case PMENU_ALIGN_RIGHT:
-			x_pos = menu_base.x + 228;
-			loc_func = "loc_rstring";
-			break;
-		default: // PMENU_ALIGN_LEFT
-			x_pos = menu_base.x + 32;
-			break;
+		if (tab_pos && p->align == PMENU_ALIGN_LEFT)
+		{
+			// Two-column layout: split at tab and render each part at fixed X positions
+			// Left part: skill name at standard left position
+			// Right part: progress indicator at fixed right column
+
+			// Extract left part (before tab)
+			char left_part[64];
+			size_t left_len = tab_pos - t;
+			if (left_len >= sizeof(left_part))
+				left_len = sizeof(left_part) - 1;
+			strncpy(left_part, t, left_len);
+			left_part[left_len] = '\0';
+
+			// Extract right part (after tab)
+			const char* right_part = tab_pos + 1;
+
+			// Render left part at standard left position
+			const float left_x = menu_base.x + 32;
+			sb.xv(left_x);
+			sb.sb << "loc_string";
+			if (hnd->cur == i || alt)
+				sb.sb << '2';
+			sb.sb << " 1 \"" << left_part << "\" \"" << p->text_arg1 << "\" ";
+
+			// Render right part at fixed right column position
+			const float right_x = menu_base.x + 180; // Adjust this value to move the column left/right
+			sb.xv(right_x);
+			sb.sb << "loc_string";
+			if (hnd->cur == i || alt)
+				sb.sb << '2';
+			sb.sb << " 1 \"" << right_part << "\" \"\" ";
 		}
+		else
+		{
+			// Standard single-column rendering
+			const char* loc_func = "loc_string";
+			float x_pos;
 
-		sb.xv(x_pos);
-		sb.sb << loc_func;
+			switch (p->align) {
+			case PMENU_ALIGN_CENTER:
+				x_pos = 0;
+				loc_func = "loc_cstring";
+				break;
+			case PMENU_ALIGN_RIGHT:
+				x_pos = menu_base.x + 228;
+				loc_func = "loc_rstring";
+				break;
+			default: // PMENU_ALIGN_LEFT
+				x_pos = menu_base.x + 32;
+				break;
+			}
 
-		if (hnd->cur == i || alt)
-			sb.sb << '2';
+			sb.xv(x_pos);
+			sb.sb << loc_func;
 
-		sb.sb << " 1 \"" << t << "\" \"" << p->text_arg1 << "\" ";
+			if (hnd->cur == i || alt)
+				sb.sb << '2';
+
+			sb.sb << " 1 \"" << t << "\" \"" << p->text_arg1 << "\" ";
+		}
 
 		// Draw cursor for selected item
 		if (hnd->cur == i)

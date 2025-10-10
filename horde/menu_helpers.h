@@ -6,72 +6,54 @@
 #include <cstring>
 
 // Menu alignment configuration
-constexpr int MENU_NAME_WIDTH = 13;    // Width for "Name:" after padding (aligns brackets nicely)
 constexpr int MENU_TEXT_MAX = 64;      // Max text buffer size for menu items
 
-// Utility function to pad a string with spaces to a target length (like Vortex)
-inline void padRight(char* str, int target_length) {
-	for (int i = strlen(str); i < target_length; ++i)
-		str[i] = ' ';
-	str[target_length] = '\0';
-}
-
-// Simple sprintf-based formatting for menu items with aligned indicators
-constexpr int MENU_NAME_COLUMN_WIDTH = 14;
 // Format a menu item with numbered prefix and progress indicator
-// Example: "  1. Vampire:        [ 3/10]" (left-aligned like Vortex)
-// Uses %2d formatting for perfect 2-digit alignment
+// Uses tab separator (\t) between name and indicator for fixed-column rendering
+// Example: "  1. Vampire:\t[03/10]"
+// The renderer in p_ctf_menu.cpp splits on \t and renders each part at fixed X positions
 inline void MenuFormatItemWithProgress(char* buffer, size_t buffer_size,
                                        int item_number, const char* name,
                                        int current, int max)
 {
-    // A temporary buffer for the name plus the colon
-    char name_with_colon[MENU_TEXT_MAX];
-    snprintf(name_with_colon, sizeof(name_with_colon), "%s:", name);
-
-    // Use the powerful printf specifier to handle all alignment in one go!
-    // %-*.s is a special syntax that lets us pass the width as an argument.
-    snprintf(buffer, buffer_size, "  %2d. %-*.*s [%02d/%02d]",
+    // Use tab character to separate left and right columns for fixed-position rendering
+    // Format: "  1. Vampire:\t[00/10]"
+    snprintf(buffer, buffer_size, "  %d. %s:\t[%02d/%02d]",
              item_number,
-             MENU_NAME_COLUMN_WIDTH, // The minimum width (for padding)
-             MENU_NAME_COLUMN_WIDTH, // The maximum width (for truncating)
-             name_with_colon,        // The string to format
+             name,
              current,
              max);
 }
 // Format a menu item with numbered prefix and [OWNED] indicator
-// Example: "  1. Vampire:        [OWNED]" (left-aligned like Vortex)
+// Uses tab separator for fixed-column rendering
+// Example: "  1. Vampire:\t[OWNED]"
 inline void MenuFormatItemWithOwned(char* buffer, size_t buffer_size,
                                     int item_number, const char* name)
 {
-	char padded_name[MENU_TEXT_MAX];
-	snprintf(padded_name, sizeof(padded_name), "%s:", name);
-	padRight(padded_name, MENU_NAME_WIDTH);
-	snprintf(buffer, buffer_size, "  %2d. %s [OWNED]", item_number, padded_name);
+	// Use tab character to separate left and right columns
+	snprintf(buffer, buffer_size, "  %d. %s:\t[OWNED]", item_number, name);
 }
 
 // Format a menu item with numbered prefix and cost in points
-// Example: "  1. Speed Boost:    ( 2pts)" (left-aligned like Vortex)
+// Uses tab separator for fixed-column rendering
+// Example: "  1. Speed Boost:\t(2pts)"
 inline void MenuFormatItemWithCost(char* buffer, size_t buffer_size,
                                    int item_number, const char* name,
                                    int cost)
 {
-	char padded_name[MENU_TEXT_MAX];
-	snprintf(padded_name, sizeof(padded_name), "%s:", name);
-	padRight(padded_name, MENU_NAME_WIDTH);
-	snprintf(buffer, buffer_size, "  %2d. %s (%2dpt%s)", item_number, padded_name, cost, cost > 1 ? "s" : "");
+	// Use tab character to separate left and right columns
+	snprintf(buffer, buffer_size, "  %d. %s:\t(%dpt%s)", item_number, name, cost, cost > 1 ? "s" : "");
 }
 
 // Format a menu item with numbered prefix and custom text
-// Example: "  1. Item Name:      [CUSTOM]" (left-aligned like Vortex)
+// Uses tab separator for fixed-column rendering
+// Example: "  1. Item Name:\t[CUSTOM]"
 inline void MenuFormatItemWithCustom(char* buffer, size_t buffer_size,
                                      int item_number, const char* name,
                                      const char* right_text)
 {
-	char padded_name[MENU_TEXT_MAX];
-	snprintf(padded_name, sizeof(padded_name), "%s:", name);
-	padRight(padded_name, MENU_NAME_WIDTH);
-	snprintf(buffer, buffer_size, "  %2d. %s %s", item_number, padded_name, right_text);
+	// Use tab character to separate left and right columns
+	snprintf(buffer, buffer_size, "  %d. %s:\t%s", item_number, name, right_text);
 }
 
 // Macro versions for convenience (use the inline functions above)
