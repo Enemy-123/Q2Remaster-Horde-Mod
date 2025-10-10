@@ -3025,17 +3025,11 @@ namespace BarrelConstants {
 namespace LaserConstants {
     constexpr int32_t MAX_LASERS_ARRAY_SIZE = 16;
     inline int32_t MAX_LASERS_PER_PLAYER() { return g_config.entity_limits.max_lasers; }
-    constexpr int32_t LASER_COST = 25;
-    constexpr int32_t LASER_INITIAL_DAMAGE = 1;
-    constexpr int32_t LASER_ADDON_DAMAGE = 4;
-    constexpr int32_t LASER_INITIAL_HEALTH = 150;
-    constexpr int32_t LASER_ADDON_HEALTH = 120;
     constexpr int32_t MAX_LASER_HEALTH = 3200;
     constexpr gtime_t LASER_SPAWN_DELAY = 1_sec;
     constexpr gtime_t LASER_TIMEOUT_DELAY = 180_sec;
     constexpr gtime_t BLINK_INTERVAL = 500_ms;
     constexpr gtime_t WARNING_TIME = 10_sec;
-    constexpr float LASER_NONCLIENT_MOD = 1.0f;
     // Visual appearance constants
     constexpr uint32_t COLOR_LASER_HEALTHY = 0xf2f2f0f0;
     constexpr uint32_t COLOR_LASER_DAMAGED = 0xd0d1d2d3;
@@ -3323,7 +3317,10 @@ struct player_skills_t {
 	int8_t disruptor_duration = 0; // 0-10: Tracker effect duration (for momentum/damage)
 	bool disruptor_silent = false; // Silent firing (no flash/noise)
 
-	int8_t reserved[10] = {0};
+	// Lasers ability
+	int8_t lasers = 0;             // 0-10: Laser turret stats (health, damage)
+
+	int8_t reserved[9] = {0};
 };;
 
 // client data that stays across multiple level loads

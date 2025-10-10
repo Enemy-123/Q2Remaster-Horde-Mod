@@ -84,6 +84,16 @@ static const UpgradeDefinition UPGRADE_DEFS[] = {
         "+1 bullet dmg, +15 rocket dmg\n"
         "Max: 200 HP, 350 Armor",
         10, 1, UpgradeCategory::ABILITY, nullptr, 0
+    },
+    {
+        "lasers",
+        "Lasers",
+        "Deploy laser turrets (costs 25 cubes)\n"
+        "Base: 1 damage, 0 HP\n"
+        "Each level: +2 damage, +150 HP\n"
+        "Damage vs barrels: 50% (0.5x)\n"
+        "Max: 21 damage, 1500 HP",
+        10, 1, UpgradeCategory::ABILITY, nullptr, 0
     }
 
     // More abilities will be added here in future phases
@@ -143,6 +153,8 @@ int8_t GetSkillLevel(edict_t* player, const char* upgrade_id) {
         return player->client->pers.skills.pc_regen;
     else if (strcmp(upgrade_id, "sentrygun") == 0)
         return player->client->pers.skills.sentrygun;
+    else if (strcmp(upgrade_id, "lasers") == 0)
+        return player->client->pers.skills.lasers;
 
     return 0;
 }
@@ -241,6 +253,8 @@ bool UpgradeSkill(edict_t* player, const char* upgrade_id) {
         if (player->client->pers.skills.sentrygun == 1) {
             player->client->pers.inventory[IT_ITEM_SENTRYGUN] = 1;
         }
+    } else if (strcmp(upgrade_id, "lasers") == 0) {
+        player->client->pers.skills.lasers++;
     }
 
     return true;
@@ -357,6 +371,7 @@ void ResetAllSkills(edict_t* player) {
     // For pc_regen, subtract free bonus to only refund manually-allocated points
     total_points += player->client->pers.skills.pc_regen - player->client->pers.skills.free_pc_regen;
     total_points += player->client->pers.skills.sentrygun;
+    total_points += player->client->pers.skills.lasers;
 
     if (total_points == 0) {
         gi.LocClient_Print(player, PRINT_HIGH, nullptr, "No skills to reset!\n");
@@ -379,6 +394,7 @@ void ResetAllSkills(edict_t* player) {
     // Reset pc_regen to its free bonus level (permanent default level 1)
     player->client->pers.skills.pc_regen = player->client->pers.skills.free_pc_regen;
     player->client->pers.skills.sentrygun = 0;
+    player->client->pers.skills.lasers = 0;
     // Note: free_vitality, free_max_ammo, and free_pc_regen are NOT reset - they're permanent
 
     // Refund all points

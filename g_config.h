@@ -204,10 +204,12 @@ struct ProxMineConfig
 
 struct LaserConfig
 {
-	int health_base = 150;
-	int health_addon_per_wave = 120;
-	int damage_initial = 1;
-	int damage_addon_per_wave = 4;
+	int initial_health = 0;
+	int addon_health = 150;
+	int initial_damage = 1;
+	int addon_damage = 2;
+	float nonclient_mod = 0.5f;  // Damage multiplier for non-monster entities
+	int cost = 25;  // Power cube cost to deploy
 };
 
 struct TrapConfig

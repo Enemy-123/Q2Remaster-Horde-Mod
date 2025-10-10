@@ -70,53 +70,32 @@ void RemoveEmitterState(const edict_t* ent) {
 void laser_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod);
 void laser_beam_think(edict_t *self); // Forward declare the renamed think function
 
+// These functions are no longer used since lasers are now skill-based, not wave-based
+// Kept for reference but commented out
+/*
 static int CalculateWaveBasedLaserDamage(int wave_level)
 {
     int effective_wave_level = std::max(1, wave_level);
-    return g_config.laser.damage_initial + (g_config.laser.damage_addon_per_wave * (effective_wave_level - 1));
+    return g_config.laser.initial_damage + (g_config.laser.addon_damage * (effective_wave_level - 1));
 }
 
 static int CalculateWaveBasedLaserMaxHealth(int wave_level)
 {
     int effective_wave_level = std::max(1, wave_level);
-    return std::min(g_config.laser.health_base + (g_config.laser.health_addon_per_wave * (effective_wave_level - 1)), LaserConstants::MAX_LASER_HEALTH);
+    return std::min(g_config.laser.initial_health + (g_config.laser.addon_health * (effective_wave_level - 1)), LaserConstants::MAX_LASER_HEALTH);
 }
+*/
 
 
 // Helper function to update laser damage and health for a single player
+// Note: Lasers are now skill-based, so this function is no longer needed for wave updates
+// It's kept for potential future use but lasers don't scale with waves anymore
 static void UpdatePlayerLasers(const edict_t* player, int current_wave_level, int current_adrenaline)
 {
-    if (!player || !player->client) return;
-
-    for (int i = 0; i < LaserConstants::MAX_LASERS_PER_PLAYER(); ++i)
-    {
-        edict_t* emitter = player->client->resp.deployed_lasers[i];
-
-        // Check if the emitter and its beam are valid
-        if (!emitter || !emitter->inuse || !emitter->chain || !emitter->chain->inuse)
-            continue;
-
-        edict_t* laser_beam = emitter->chain;
-
-        // Update damage based on wave level
-        int new_damage = CalculateWaveBasedLaserDamage(current_wave_level);
-
-        // Calculate max health: wave-based + adrenaline bonus (+250 per adrenaline)
-        int wave_based_health = CalculateWaveBasedLaserMaxHealth(current_wave_level);
-        int new_max_health = wave_based_health + (current_adrenaline * 250);
-        new_max_health = std::min(new_max_health, LaserConstants::MAX_LASER_HEALTH);
-
-        laser_beam->dmg = new_damage;
-        if (new_max_health != laser_beam->max_health)
-        {
-            if (laser_beam->health > 0)
-            {
-                float health_ratio = (laser_beam->max_health > 0) ? (float)laser_beam->health / (float)laser_beam->max_health : 1.0f;
-                laser_beam->health = std::max(1, static_cast<int>(health_ratio * new_max_health));
-            }
-            laser_beam->max_health = new_max_health;
-        }
-    }
+    // Lasers are now skill-based and don't update with wave progression
+    // Stats are set once at creation based on skill level
+    // This function is kept empty for compatibility but does nothing
+    return;
 }
 
 // // Helper function to update sentry gun health for a single player
@@ -313,7 +292,7 @@ struct player_laser_pierce_t : pierce_args_t
             // Don't consume laser health when damaging barrels
             bool is_barrel = horde::IsSpecialType(tr.ent, horde::SpecialEntityTypeID::BARREL);
             if (!is_barrel) {
-                float health_drain_multiplier = (tr.ent->svflags & SVF_MONSTER) ? (horde_fog_active ? 1.3f : 1.0f) : LaserConstants::LASER_NONCLIENT_MOD;
+                float health_drain_multiplier = (tr.ent->svflags & SVF_MONSTER) ? (horde_fog_active ? 1.3f : 1.0f) : g_config.laser.nonclient_mod;
                 self->health -= static_cast<int>(damage_to_deal * health_drain_multiplier);
             }
 
@@ -603,15 +582,23 @@ void create_laser(edict_t * ent)
         return;
     }
 
+    // Check if player has the lasers skill
+    int8_t laser_level = ent->client->pers.skills.lasers;
+    if (laser_level == 0)
+    {
+        gi.LocClient_Print(ent, PRINT_HIGH, "You need to upgrade the Lasers skill first!\n");
+        return;
+    }
+
     if (ent->client->resp.num_lasers >= LaserConstants::MAX_LASERS_PER_PLAYER())
     {
         gi.LocClient_Print(ent, PRINT_HIGH, "Can't build any more lasers.\n");
         return;
     }
 
-    if (ent->client->pers.inventory[IT_AMMO_CELLS] < LaserConstants::LASER_COST)
+    if (ent->client->pers.horde_power_cubes < g_config.laser.cost)
     {
-        gi.LocClient_Print(ent, PRINT_HIGH, "Not enough cells to create a laser.\n");
+        gi.LocClient_Print(ent, PRINT_HIGH, "You need 25 cubes to build a laser!\n");
         return;
     }
 
@@ -659,6 +646,8 @@ void create_laser(edict_t * ent)
     emitter->think = emitter_think;
     emitter->nextthink = level.time + FRAME_TIME_MS;
     emitter->die = laser_die;
+    // Store laser level for idview display
+    emitter->monsterinfo.pvm_level = laser_level;
     // Set laser lifetime with adrenaline bonus (+5 seconds per adrenaline)
     gtime_t base_lifetime = LaserConstants::LASER_TIMEOUT_DELAY;
     gtime_t adrenaline_bonus = gtime_t::from_sec(ent->client->pers.adrenaline_count * 5);
@@ -684,11 +673,9 @@ void create_laser(edict_t * ent)
     beam->teammaster = ent;
     beam->owner = emitter;
     beam->s.angles = emitter->s.angles;
-    beam->dmg = CalculateWaveBasedLaserDamage(current_wave_level);
-    // Set laser max health with wave-based + adrenaline bonus (+250 per adrenaline)
-    int wave_based_health = CalculateWaveBasedLaserMaxHealth(current_wave_level);
-    int adrenaline_health_bonus = ent->client->pers.adrenaline_count * 250;
-    beam->max_health = std::min(wave_based_health + adrenaline_health_bonus, LaserConstants::MAX_LASER_HEALTH);
+    // Calculate damage and health based on skill level
+    beam->dmg = g_config.laser.initial_damage + (laser_level * g_config.laser.addon_damage);
+    beam->max_health = g_config.laser.initial_health + (laser_level * g_config.laser.addon_health);
     beam->health = beam->max_health;
     beam->die = laser_die;
     beam->think = laser_beam_think;
@@ -718,7 +705,7 @@ void create_laser(edict_t * ent)
 
     g_targetable_special_entities.push_back(emitter);
 
-    ent->client->pers.inventory[IT_AMMO_CELLS] -= LaserConstants::LASER_COST;
+    ent->client->pers.horde_power_cubes -= g_config.laser.cost;
 
     for (int i = 0; i < LaserConstants::MAX_LASERS_PER_PLAYER(); ++i) {
         if (ent->client->resp.deployed_lasers[i] == nullptr) {

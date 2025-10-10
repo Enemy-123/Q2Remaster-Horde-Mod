@@ -176,8 +176,18 @@ const char* FormatEntityInfo_Fast(edict_t* ent) {
             case horde::SpecialEntityTypeID::LASER_EMITTER: {
                 edict_t* beam = stats_source->chain;
                 int health_to_display = (beam && beam->inuse) ? beam->health : 0;
-                
-                out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {}", name, health_to_display).out;
+
+                // Get laser level from teammaster's skills
+                int laser_level = 0;
+                if (stats_source->teammaster && stats_source->teammaster->client) {
+                    laser_level = stats_source->teammaster->client->pers.skills.lasers;
+                }
+
+                out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}", name).out;
+                if (laser_level > 0) {
+                    out = fmt::format_to_n(out, static_cast<size_t>(end - out), " Lv.{}", laser_level).out;
+                }
+                out = fmt::format_to_n(out, static_cast<size_t>(end - out), "\nH: {}", health_to_display).out;
                 if (beam && beam->inuse) {
                     out = fmt::format_to_n(out, static_cast<size_t>(end - out), " DMG: {}", beam->dmg).out;
                     gtime_t time_remaining = (stats_source->timestamp > level.time) ? (stats_source->timestamp - level.time) : 0_sec;

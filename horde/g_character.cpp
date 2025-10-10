@@ -243,6 +243,8 @@ bool Character_Load(edict_t* player)
                 player->client->pers.skills.pc_regen = static_cast<int8_t>(skills["pc_regen"].asInt());
             if (skills.isMember("sentrygun") && skills["sentrygun"].isInt())
                 player->client->pers.skills.sentrygun = static_cast<int8_t>(skills["sentrygun"].asInt());
+            if (skills.isMember("lasers") && skills["lasers"].isInt())
+                player->client->pers.skills.lasers = static_cast<int8_t>(skills["lasers"].asInt());
             // Load free bonuses from milestones (permanent, not resetable)
             if (skills.isMember("free_vitality") && skills["free_vitality"].isInt())
                 player->client->pers.skills.free_vitality = static_cast<int8_t>(skills["free_vitality"].asInt());
@@ -532,6 +534,7 @@ bool Character_Save(edict_t* player)
     root["stats"]["skills"]["fireball"] = player->client->pers.skills.fireball;
     root["stats"]["skills"]["pc_regen"] = player->client->pers.skills.pc_regen;
     root["stats"]["skills"]["sentrygun"] = player->client->pers.skills.sentrygun;
+    root["stats"]["skills"]["lasers"] = player->client->pers.skills.lasers;
     // Save free bonuses from milestones (permanent, not resetable)
     root["stats"]["skills"]["free_vitality"] = player->client->pers.skills.free_vitality;
     root["stats"]["skills"]["free_max_ammo"] = player->client->pers.skills.free_max_ammo;

@@ -673,10 +673,12 @@ void Config_Load(const char* basedir)
 		if (deployables.isMember("laser") && deployables["laser"].isObject())
 		{
 			const Json::Value& l = deployables["laser"];
-			g_config.laser.health_base = GetJsonInt(l, "health_base", 150);
-			g_config.laser.health_addon_per_wave = GetJsonInt(l, "health_addon_per_wave", 120);
-			g_config.laser.damage_initial = GetJsonInt(l, "damage_initial", 1);
-			g_config.laser.damage_addon_per_wave = GetJsonInt(l, "damage_addon_per_wave", 4);
+			g_config.laser.initial_health = GetJsonInt(l, "initial_health", 0);
+			g_config.laser.addon_health = GetJsonInt(l, "addon_health", 150);
+			g_config.laser.initial_damage = GetJsonInt(l, "initial_damage", 1);
+			g_config.laser.addon_damage = GetJsonInt(l, "addon_damage", 2);
+			g_config.laser.nonclient_mod = GetJsonFloat(l, "nonclient_mod", 0.5f);
+			g_config.laser.cost = GetJsonInt(l, "cost", 25);
 		}
 
 		// Trap
