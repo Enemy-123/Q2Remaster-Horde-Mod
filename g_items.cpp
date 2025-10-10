@@ -928,9 +928,9 @@ bool Pickup_Armor(edict_t* ent, edict_t* other)
 			if (new_cubes > current_cubes)
 			{
 				other->client->pers.horde_power_cubes = new_cubes;
-				int actual_added = new_cubes - current_cubes;
-				gi.LocClient_Print(other, PRINT_HIGH, "+{} Power Cubes ({}/{})\n",
-					actual_added, new_cubes, max_capacity);
+				// int actual_added = new_cubes - current_cubes;
+				// gi.LocClient_Print(other, PRINT_HIGH, "+{} Power Cubes ({}/{})\n",
+				// 	actual_added, new_cubes, max_capacity);
 			}
 		}
 	}
