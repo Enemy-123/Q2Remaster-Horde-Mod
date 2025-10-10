@@ -39,7 +39,7 @@ void weapon_ionripper_fire(edict_t* ent)
 	int speed = g_config.ionripper.init_speed;
 	if (ent && ent->client)
 	{
-		speed += ent->client->pers.skills.ir_range * g_config.ionripper.speed_addon;
+		speed += ent->client->pers.skills.ir_speed * g_config.ionripper.speed_addon;
 	}
 
 	// Determine effect based on trails setting

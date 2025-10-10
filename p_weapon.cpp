@@ -1440,7 +1440,7 @@ void Weapon_RocketLauncher_Fire(edict_t* ent)
 	// Speed upgrade: base + (level * speed_addon)
 	int speed = g_config.rocket.speed;
 	if (ent && ent->client)
-		speed += ent->client->pers.skills.rl_range * g_config.rocket.speed_addon;
+		speed += ent->client->pers.skills.rl_speed * g_config.rocket.speed_addon;
 
 	fire_rocket(ent, start, dir, damage, speed, damage_radius, radius_damage);
 
@@ -1499,7 +1499,7 @@ void Blaster_Fire(edict_t* ent, const vec3_t& g_offset, int damage, bool hyper, 
 	if (ent && ent->client)
 	{
 		if (hyper)
-			speed += ent->client->pers.skills.hb_range * g_config.hyperblaster.speed_addon;
+			speed += ent->client->pers.skills.hb_speed * g_config.hyperblaster.speed_addon;
 		else
 			speed += ent->client->pers.skills.bl_range * g_config.blaster.speed_addon;
 	}
@@ -2434,9 +2434,9 @@ void weapon_bfg_fire(edict_t* ent)
 
 	// Calculate BFG speed with upgrade
 	int bfg_speed = g_config.bfg.speed;
-	if (ent->client && ent->client->pers.skills.bfg_range > 0)
+	if (ent->client && ent->client->pers.skills.bfg_speed > 0)
 	{
-		bfg_speed += g_config.bfg.speed_addon * ent->client->pers.skills.bfg_range;
+		bfg_speed += g_config.bfg.speed_addon * ent->client->pers.skills.bfg_speed;
 	}
 
 	vec3_t start, dir;

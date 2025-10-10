@@ -348,7 +348,7 @@ void weapon_etf_rifle_fire(edict_t* ent)
 	int speed = g_config.etfrifle.init_speed;
 	if (ent && ent->client)
 	{
-		speed += ent->client->pers.skills.etf_range * g_config.etfrifle.speed_addon;
+		speed += ent->client->pers.skills.etf_speed * g_config.etfrifle.speed_addon;
 	}
 
 	vec3_t start, dir;

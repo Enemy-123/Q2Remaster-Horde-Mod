@@ -3179,7 +3179,7 @@ struct player_skills_t {
 
 		// Weapon Upgrades - Rocket Launcher
 	int8_t rl_damage = 0;         // 0-10: Rocket damage multiplier
-	int8_t rl_range = 0;          // 0-10: Rocket range/speed
+	int8_t rl_speed = 0;          // 0-10: Rocket range/speed
 	int8_t rl_radius = 0;         // 0-10: Explosion radius
 	bool rl_trails = false;       // Disable rocket trail effects
 	bool rl_silent = false;       // Silent firing (no flash/noise)
@@ -3227,19 +3227,19 @@ struct player_skills_t {
 
 	// Weapon Upgrades - Hyperblaster
 	int8_t hb_damage = 0;         // 0-10: Hyperblaster damage (varies by config)
-	int8_t hb_range = 0;          // 0-10: Hyperblaster projectile range/speed (+40 per level)
+	int8_t hb_speed = 0;          // 0-10: Hyperblaster projectile range/speed (+40 per level)
 	bool hb_trails = false;       // Disable hyperblaster trail effects
 	bool hb_silent = false;       // Silent firing (no flash/noise)
 
 	// Weapon Upgrades - ETF Rifle
 	int8_t etf_damage = 0;        // 0-10: ETF Rifle damage (+1.25 per level)
-	int8_t etf_range = 0;         // 0-10: ETF Rifle projectile range/speed (+40 per level)
+	int8_t etf_speed = 0;         // 0-10: ETF Rifle projectile range/speed (+40 per level)
 	int8_t etf_kick = 0;          // 0-10: ETF Rifle kick/recoil (+2 per level)
 	bool etf_silent = false;      // Silent firing (no flash/noise)
 
 	// Weapon Upgrades - Ion Ripper
 	int8_t ir_damage = 0;         // 0-10: Ion Ripper damage (+2.5 per level)
-	int8_t ir_range = 0;          // 0-10: Ion Ripper projectile range/speed (+40 per level)
+	int8_t ir_speed = 0;          // 0-10: Ion Ripper projectile range/speed (+40 per level)
 	bool ir_trails = false;       // Disable Ion Ripper trail effects
 	bool ir_silent = false;       // Silent firing (no flash/noise)
 
@@ -3260,7 +3260,7 @@ struct player_skills_t {
 
 	// Weapon Upgrades - BFG10K
 	int8_t bfg_damage = 0;        // 0-10: BFG damage (+2.0 per level)
-	int8_t bfg_range = 0;         // 0-10: BFG projectile range/speed (+35 per level)
+	int8_t bfg_speed = 0;         // 0-10: BFG projectile range/speed (+35 per level)
 	int8_t bfg_duration = 0;      // 0-10: BFG effect duration (+0.05s per level)
 	bool bfg_silent = false;      // Silent firing (no flash/noise)
 
