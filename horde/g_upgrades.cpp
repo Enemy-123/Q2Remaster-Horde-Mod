@@ -7,7 +7,7 @@ static const UpgradeDefinition UPGRADE_DEFS[] = {
     // Phase 2: Core abilities
     {
         "vampire",
-        "Vampire",
+        "Vampire          ",
         "Recover health from\ndamage dealt\n"
         "Base: 5% lifesteal\n"
         "Each level: +1% lifesteal\n"
@@ -16,7 +16,7 @@ static const UpgradeDefinition UPGRADE_DEFS[] = {
     },
     {
         "ammo_regen",
-        "Ammo Regen",
+        "Ammo Regen       ",
         "Regenerate ammo over time\n"
         "+1 projectile and +5 cells/bullets\n"
         "per level\neach 5 sec"
@@ -25,7 +25,7 @@ static const UpgradeDefinition UPGRADE_DEFS[] = {
     },
     {
         "ha_pickup",
-        "H/A Pickup",
+        "H/A Pickup       ",
         "Pickup more health and armor\n"
         "Each level: +20% pickup amount\n"
         "Max at level 5: +100% pickups",
@@ -33,7 +33,7 @@ static const UpgradeDefinition UPGRADE_DEFS[] = {
     },
     {
         "start_armor",
-        "Start Armor",
+        "Start Armor      ",
         "Spawn with +10 armor per level\n"
         "Each level: +10 armor on spawn\n"
         "Max at level 10: 100 armor",
@@ -41,7 +41,7 @@ static const UpgradeDefinition UPGRADE_DEFS[] = {
     },
     {
         "vitality",
-        "Vitality",
+        "Vitality                  ",
         "Increase max health by +10\n"
         "Each level: +10 max health\n"
         "Max at level 10: +100 health",
@@ -49,7 +49,7 @@ static const UpgradeDefinition UPGRADE_DEFS[] = {
     },
     {
         "max_ammo",
-        "Max Ammo",
+        "Max Ammo         ",
         "Increase ammo capacity\n"
         "increases max ammo in general\n"
         "",
