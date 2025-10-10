@@ -743,7 +743,6 @@ argv(1) classname (e.g., monster_medic, monster_gunner)
 */
 void Cmd_Summon_f(edict_t* ent)
 {
-void Cmd_Kill_AI_f(edict_t* ent) {
 	if (!G_CheatCheck(ent)) {
 		gi.LocClient_Print(ent, PRINT_HIGH, "Cmd_Summon: Cheats Must Be Enabled!\n");
 		return;
