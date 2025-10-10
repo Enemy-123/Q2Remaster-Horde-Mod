@@ -205,6 +205,15 @@ void Use_SentryGun(edict_t* ent, gitem_t* item)
 		}
 	}
 
+	// Check power cube cost (only for non-bots in horde mode)
+	if (g_horde->integer && !(ent->svflags & SVF_BOT)) {
+		const int cost = g_config.sentrygun.cost;
+		if (ent->client->pers.horde_power_cubes < cost) {
+			gi.LocClient_Print(ent, PRINT_HIGH, "Not enough power cubes! Need {} cubes to deploy.\n", cost);
+			return;
+		}
+	}
+
 	// --- 2. Define placement constants (from old fire_sentrygun) ---
 	constexpr vec3_t SENTRY_MINS = { -12, -12, -12 };
 	constexpr vec3_t SENTRY_MAXS = { 12, 12, 12 };
@@ -307,6 +316,12 @@ void Use_SentryGun(edict_t* ent, gitem_t* item)
             }
             
             ent->client->resp.num_sentries++;
+
+            // Deduct power cubes for successful deployment (non-bots in horde mode)
+            if (g_horde->integer && !(ent->svflags & SVF_BOT)) {
+                ent->client->pers.horde_power_cubes -= g_config.sentrygun.cost;
+            }
+
             gi.LocClient_Print(ent, PRINT_HIGH, "Sentry gun deployed. You have {}/{} sentry guns.\n",
                 ent->client->resp.num_sentries, SentryConstants::MAX_SENTRIES_PER_PLAYER());
         } else {

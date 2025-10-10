@@ -3183,6 +3183,9 @@ struct player_skills_t {
 	// Free pc_regen from level start (permanent, not resettable)
 	int8_t free_pc_regen = 0;     // Free PC regen level (default 1 in horde mode)
 
+	// Sentry Guns ability
+	int8_t sentrygun = 0;         // 0-10: Sentry gun stats (health, armor, damage)
+
 	// Weapon Upgrades - Grenade Launcher
 	int8_t gl_damage = 0;         // 0-10: Grenade damage
 	int8_t gl_range = 0;          // 0-10: Grenade range/speed

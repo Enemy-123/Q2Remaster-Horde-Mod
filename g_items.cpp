@@ -474,6 +474,19 @@ bool Pickup_Bandolier(edict_t *ent, edict_t *other)
 
 bool Pickup_Pack(edict_t* ent, edict_t* other)
 {
+
+		// Award power cubes for ammopack pickup
+		if (other->client && (g_horde->integer || pvm->integer))
+		{
+			int cubes_to_add = g_config.power_cubes.cubes_per_ammopack;
+			
+			// Add cubes with capacity check
+			int current_cubes = other->client->pers.horde_power_cubes;
+			int new_cubes =(current_cubes + cubes_to_add);
+
+			other->client->pers.horde_power_cubes = new_cubes;
+		}
+
 	if (!pvm->integer)
 	{
 		G_AdjustAmmoCap(other, AMMO_BULLETS, 400);
@@ -913,25 +926,12 @@ bool Pickup_Armor(edict_t* ent, edict_t* other)
 		if (other->client && (g_horde->integer || pvm->integer))
 		{
 			int cubes_to_add = g_config.power_cubes.cubes_per_shard;
-
-			// Calculate max capacity based on bullets/cells max ammo
-			int max_capacity = 0;
-			if (g_config.power_cubes.use_bullets_max)
-				max_capacity = max(max_capacity, static_cast<int>(other->client->pers.max_ammo[AMMO_BULLETS]));
-			if (g_config.power_cubes.use_cells_max)
-				max_capacity = max(max_capacity, static_cast<int>(other->client->pers.max_ammo[AMMO_CELLS]));
-
+			
 			// Add cubes with capacity check
 			int current_cubes = other->client->pers.horde_power_cubes;
-			int new_cubes = min(current_cubes + cubes_to_add, max_capacity);
+			int new_cubes =(current_cubes + cubes_to_add);
 
-			if (new_cubes > current_cubes)
-			{
-				other->client->pers.horde_power_cubes = new_cubes;
-				// int actual_added = new_cubes - current_cubes;
-				// gi.LocClient_Print(other, PRINT_HIGH, "+{} Power Cubes ({}/{})\n",
-				// 	actual_added, new_cubes, max_capacity);
-			}
+			other->client->pers.horde_power_cubes = new_cubes;
 		}
 	}
 	// if player has no armor, just use it

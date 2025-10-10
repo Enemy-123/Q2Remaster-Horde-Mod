@@ -724,8 +724,9 @@ static void TurretFireMachinegun(edict_t* self, const vec3_t& start, const vec3_
 		return;
 	}
 
-	int base_damage = M_MACHINEGUN_DMG(self);
-	if (base_damage <= 0) base_damage = TURRET2_BULLET_DAMAGE;
+	// Calculate bullet damage based on owner's skill level
+	int base_damage = g_config.sentrygun.initial_bullet +
+	                  (self->monsterinfo.pvm_level * g_config.sentrygun.addon_bullet);
 	const int damage = static_cast<int>(CalculateDamage(self, base_damage));
 	const float spread_mult = self->monsterinfo.quadfire_time > level.time ? 0.4f : 0.7f;
 
@@ -1027,7 +1028,9 @@ static void TurretFireRocket(edict_t* self, const vec3_t& start, const vec3_t& d
 	AngleVectors(angles, nullptr, &right, &up);
 	
 	// Fire two rockets with horizontal spread using fire_rocket
-	int base_damage = M_GET_DMG_OR(self, ROCKET, 100);
+	// Calculate rocket damage based on owner's skill level
+	int base_damage = g_config.sentrygun.initial_rocket +
+	                  (self->monsterinfo.pvm_level * g_config.sentrygun.addon_rocket);
 	for (int i = 0; i < 2; i++)
 	{
 		const int damage = static_cast<int>(CalculateDamage(self, base_damage));
@@ -2377,8 +2380,22 @@ void SP_monster_sentrygun(edict_t* self)
 	self->maxs = { 12, 12, 12 };
 	self->movetype = MOVETYPE_NONE;
 
-	// Calculate health with adrenaline bonus - set both health and max_health to the same value at spawn
-	int calculated_health = CalculateSentryHealth(M_SENTRYGUN_INITIAL_HEALTH, self->owner ? self->owner->client : nullptr);
+	// Store owner's sentrygun skill level for stat scaling
+	if (self->owner && self->owner->client) {
+		self->monsterinfo.pvm_level = self->owner->client->pers.skills.sentrygun;
+	} else {
+		self->monsterinfo.pvm_level = 0;
+	}
+
+	// Calculate health based on skill level using config values
+	int base_health = g_config.sentrygun.initial_health +
+	                  (self->monsterinfo.pvm_level * g_config.sentrygun.addon_health);
+	// Apply max cap
+	if (base_health > g_config.sentrygun.max_health) {
+		base_health = g_config.sentrygun.max_health;
+	}
+	// Calculate health with adrenaline bonus
+	int calculated_health = CalculateSentryHealth(base_health, self->owner ? self->owner->client : nullptr);
 	// Power armor configuration
 	if (!st.was_key_specified("power_armor_type") && M_SENTRYGUN_POWER_ARMOR_TYPE != IT_NULL) {
 		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_SENTRYGUN_POWER_ARMOR_TYPE);
@@ -2386,9 +2403,15 @@ void SP_monster_sentrygun(edict_t* self)
 			self->monsterinfo.power_armor_power = M_SENTRYGUN_ADDON_POWER_ARMOR(self);
 	}
 
-	// Regular armor configuration
-	if (!st.was_key_specified("armor_type") && M_SENTRYGUN_INITIAL_ARMOR > 0) {
-		self->monsterinfo.armor_power = M_SENTRYGUN_ADDON_ARMOR(self);
+	// Regular armor configuration based on skill level
+	if (!st.was_key_specified("armor_type") && g_config.sentrygun.initial_armor > 0) {
+		int armor = g_config.sentrygun.initial_armor +
+		            (self->monsterinfo.pvm_level * g_config.sentrygun.addon_armor);
+		// Apply max cap
+		if (armor > g_config.sentrygun.max_armor) {
+			armor = g_config.sentrygun.max_armor;
+		}
+		self->monsterinfo.armor_power = armor;
 	}
 
 

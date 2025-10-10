@@ -241,6 +241,21 @@ struct TeslaConfig
 	float speed_addon = 30.0f; // Speed added per upgrade level
 };
 
+struct SentryGunConfig
+{
+	int initial_health = 50;
+	int addon_health = 15;
+	int initial_armor = 50;
+	int addon_armor = 30;
+	int max_health = 200;
+	int max_armor = 350;
+	int initial_bullet = 10;
+	int addon_bullet = 1;
+	int initial_rocket = 50;
+	int addon_rocket = 15;
+	int cost = 50;  // Power cube cost to deploy
+};
+
 struct DopplegangerConfig
 {
 	int time_to_live_sec = 30;
@@ -460,6 +475,7 @@ struct MapsConfig
 struct PowerCubesConfig
 {
 	int cubes_per_shard = 5;      // Power cubes gained per armor shard pickup
+	int cubes_per_ammopack = 25;  // Power cubes gained per ammo pack pickup
 	bool use_bullets_max = true;  // Use bullets max ammo as part of capacity calculation
 	bool use_cells_max = true;    // Use cells max ammo as part of capacity calculation
 };
@@ -506,6 +522,7 @@ struct GameConfig
 	LaserConfig laser;
 	TrapConfig trap;
 	TeslaConfig tesla;
+	SentryGunConfig sentrygun;
 	DopplegangerConfig doppleganger;
 
 	// Special abilities

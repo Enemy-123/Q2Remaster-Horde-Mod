@@ -1171,9 +1171,11 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 		client->pers.inventory[IT_ITEM_MENU] = 1;
 		client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
 
-		// Give non-bot players infinite sentry gun and strogg summoner in horde mode
+		// Give non-bot players sentry gun and strogg summoner in horde mode (if they have the skill)
 		if (g_horde->integer && !(ent->svflags & SVF_BOT)) {
-			client->pers.inventory[IT_ITEM_SENTRYGUN] = 1;
+			if (client->pers.skills.sentrygun > 0) {
+				client->pers.inventory[IT_ITEM_SENTRYGUN] = 1;
+			}
 			client->pers.inventory[IT_ITEM_STROGGSUMM] = 1;
 		}
 
@@ -1298,9 +1300,11 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 	client->pers.inventory[IT_ITEM_MENU] = 1;
 	client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
 
-	// Give non-bot players infinite sentry gun and strogg summoner in horde mode
+	// Give non-bot players sentry gun and strogg summoner in horde mode (if they have the skill)
 	if (g_horde->integer && !(ent->svflags & SVF_BOT)) {
-		client->pers.inventory[IT_ITEM_SENTRYGUN] = 1;
+		if (client->pers.skills.sentrygun > 0) {
+			client->pers.inventory[IT_ITEM_SENTRYGUN] = 1;
+		}
 		client->pers.inventory[IT_ITEM_STROGGSUMM] = 1;
 	}
 

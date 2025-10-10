@@ -714,6 +714,23 @@ void Config_Load(const char* basedir)
 			g_config.tesla.speed_addon = GetJsonFloat(t, "speed_addon", 30.0f);
 		}
 
+		// Sentry Gun
+		if (deployables.isMember("sentrygun") && deployables["sentrygun"].isObject())
+		{
+			const Json::Value& s = deployables["sentrygun"];
+			g_config.sentrygun.initial_health = GetJsonInt(s, "initial_health", 50);
+			g_config.sentrygun.addon_health = GetJsonInt(s, "addon_health", 15);
+			g_config.sentrygun.initial_armor = GetJsonInt(s, "initial_armor", 50);
+			g_config.sentrygun.addon_armor = GetJsonInt(s, "addon_armor", 30);
+			g_config.sentrygun.max_health = GetJsonInt(s, "max_health", 200);
+			g_config.sentrygun.max_armor = GetJsonInt(s, "max_armor", 350);
+			g_config.sentrygun.initial_bullet = GetJsonInt(s, "initial_bullet", 10);
+			g_config.sentrygun.addon_bullet = GetJsonInt(s, "addon_bullet", 1);
+			g_config.sentrygun.initial_rocket = GetJsonInt(s, "initial_rocket", 50);
+			g_config.sentrygun.addon_rocket = GetJsonInt(s, "addon_rocket", 15);
+			g_config.sentrygun.cost = GetJsonInt(s, "cost", 50);
+		}
+
 		// Doppleganger
 		if (deployables.isMember("doppleganger") && deployables["doppleganger"].isObject())
 		{
@@ -818,6 +835,7 @@ void Config_Load(const char* basedir)
 	if (root.isMember("power_cubes") && root["power_cubes"].isObject())
 	{
 		const Json::Value& pc = root["power_cubes"];
+		g_config.power_cubes.cubes_per_ammopack = GetJsonInt(pc, "cubes_per_ammopack", 25);
 		g_config.power_cubes.cubes_per_shard = GetJsonInt(pc, "cubes_per_shard", 5);
 		g_config.power_cubes.use_bullets_max = pc.get("use_bullets_max", true).asBool();
 		g_config.power_cubes.use_cells_max = pc.get("use_cells_max", true).asBool();

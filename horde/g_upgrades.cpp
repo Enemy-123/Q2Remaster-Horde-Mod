@@ -74,6 +74,16 @@ static const UpgradeDefinition UPGRADE_DEFS[] = {
         "Formula: 5sec / level\n"
         "Lvl 10: 5 cubes every 0.5s",
         10, 1, UpgradeCategory::ABILITY, nullptr, 0
+    },
+    {
+        "sentrygun",
+        "Sentry Guns",
+        "Deploy sentry guns (costs 50 cubes)\n"
+        "Base: 50 HP, 50 Armor\n"
+        "Each level: +15 HP, +30 Armor\n"
+        "+1 bullet dmg, +15 rocket dmg\n"
+        "Max: 200 HP, 350 Armor",
+        10, 1, UpgradeCategory::ABILITY, nullptr, 0
     }
 
     // More abilities will be added here in future phases
@@ -131,6 +141,8 @@ int8_t GetSkillLevel(edict_t* player, const char* upgrade_id) {
         return player->client->pers.skills.fireball;
     else if (strcmp(upgrade_id, "pc_regen") == 0)
         return player->client->pers.skills.pc_regen;
+    else if (strcmp(upgrade_id, "sentrygun") == 0)
+        return player->client->pers.skills.sentrygun;
 
     return 0;
 }
@@ -223,6 +235,12 @@ bool UpgradeSkill(edict_t* player, const char* upgrade_id) {
         player->client->pers.skills.fireball++;
     } else if (strcmp(upgrade_id, "pc_regen") == 0) {
         player->client->pers.skills.pc_regen++;
+    } else if (strcmp(upgrade_id, "sentrygun") == 0) {
+        player->client->pers.skills.sentrygun++;
+        // Give the item when first upgraded (0 -> 1)
+        if (player->client->pers.skills.sentrygun == 1) {
+            player->client->pers.inventory[IT_ITEM_SENTRYGUN] = 1;
+        }
     }
 
     return true;
@@ -338,6 +356,7 @@ void ResetAllSkills(edict_t* player) {
     total_points += player->client->pers.skills.fireball;
     // For pc_regen, subtract free bonus to only refund manually-allocated points
     total_points += player->client->pers.skills.pc_regen - player->client->pers.skills.free_pc_regen;
+    total_points += player->client->pers.skills.sentrygun;
 
     if (total_points == 0) {
         gi.LocClient_Print(player, PRINT_HIGH, nullptr, "No skills to reset!\n");
@@ -359,6 +378,7 @@ void ResetAllSkills(edict_t* player) {
     player->client->pers.skills.fireball = 0;
     // Reset pc_regen to its free bonus level (permanent default level 1)
     player->client->pers.skills.pc_regen = player->client->pers.skills.free_pc_regen;
+    player->client->pers.skills.sentrygun = 0;
     // Note: free_vitality, free_max_ammo, and free_pc_regen are NOT reset - they're permanent
 
     // Refund all points
