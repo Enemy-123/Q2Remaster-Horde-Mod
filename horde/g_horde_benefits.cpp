@@ -656,25 +656,35 @@ void PlayerShowBenefitMessage(edict_t* player, BenefitID benefit_id) {
 
 // Process wave rewards - replaces the old CheckAndApplyBenefit for point distribution
 void ProcessWaveRewards(int32_t wave) {
-    // Distribute points to all active players
+    // Distribute points to all active players (both humans and bots)
     for (auto player : active_players()) {
-        if (!player || !player->client || player->svflags & SVF_BOT) continue;
+        if (!player || !player->client) continue;
+
+        bool is_bot = (player->svflags & SVF_BOT);
 
         // Ability points every 4 waves starting from wave 4
         if (wave >= 4 && (wave % 4) == 0) {
             PlayerEarnAbilityPoints(player, 1);
-            gi.LocClient_Print(player, PRINT_HIGH, "+1 Ability Point! (Total: {})\n",
-                      player->client->pers.ability_points);
+            // Only notify human players
+            if (!is_bot) {
+                gi.LocClient_Print(player, PRINT_HIGH, "+1 Ability Point! (Total: {})\n",
+                          player->client->pers.ability_points);
+            }
         }
 
         // Weapon points every 8 waves starting from wave 8
         if (wave >= 8 && (wave % 8) == 0) {
             PlayerEarnWeaponPoints(player, 1);
-            gi.LocClient_Print(player, PRINT_HIGH, "+1 Weapon Point! (Total: {})\n",
-                      player->client->pers.weapon_points);
+            // Only notify human players
+            if (!is_bot) {
+                gi.LocClient_Print(player, PRINT_HIGH, "+1 Weapon Point! (Total: {})\n",
+                          player->client->pers.weapon_points);
+            }
         }
 
         // Check for auto-buy after earning points
+        // This will auto-purchase for bots (who have auto-buy enabled by default)
+        // Humans can also use auto-buy if they enable it
         CheckPlayerAutoBuy(player);
     }
 }

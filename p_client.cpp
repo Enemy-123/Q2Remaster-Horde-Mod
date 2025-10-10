@@ -1109,11 +1109,21 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 	const int wave = current_wave_level;
 
 	//
+	// BOT AUTO-BUY SYSTEM
+	//
+	// Bots always use auto-buy for the old benefits system
+	if (ent->svflags & SVF_BOT) {
+		client->pers.auto_buy_abilities = true;
+		client->pers.auto_buy_weapons = true;
+		client->pers.has_manually_disabled_auto_buy = false;
+	}
+
+	//
 	// LATE JOINER BENEFITS
 	//
 	if (is_late_joiner)
 	{
-		// Enable auto-buy by default
+		// Enable auto-buy by default for late joiners too
 		client->pers.auto_buy_abilities = true;
 		client->pers.auto_buy_weapons = true;
 		client->pers.has_manually_disabled_auto_buy = false;
