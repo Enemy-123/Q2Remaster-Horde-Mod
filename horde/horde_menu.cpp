@@ -3108,7 +3108,7 @@ void OpenWeaponUpgradeMenu(edict_t *ent)
 
 	// Title with page indicator
 	char title[64];
-	snprintf(title, sizeof(title), "=== WEAPON UPGRADES (Page %zu/%zu) ===", weapon_upgrade_current_page + 1, total_pages);
+	snprintf(title, sizeof(title), "Weapon upgrading (%zu/%zu)", weapon_upgrade_current_page + 1, total_pages);
 	add_entry(title, PMENU_ALIGN_CENTER);
 	add_entry("", PMENU_ALIGN_CENTER);
 
@@ -3121,9 +3121,8 @@ void OpenWeaponUpgradeMenu(edict_t *ent)
 		add_entry(all_weapons[i].name, PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, all_weapons[i].arg);
 	}
 
-	// Navigation and exit
+		// Navigation and exit
 	add_entry("", PMENU_ALIGN_CENTER);
-	add_entry("---", PMENU_ALIGN_CENTER);
 
 	if (weapon_upgrade_current_page < total_pages - 1)
 	{
@@ -3135,7 +3134,7 @@ void OpenWeaponUpgradeMenu(edict_t *ent)
 		add_entry("< Previous", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "prev_page");
 	}
 
-	add_entry("Reset All Weapon Upgrades (Free)", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "reset_weapons");
+	add_entry("Reset All Weapon (Free)", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "reset_weapons");
 	add_entry("< Back to Upgrades", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "back_to_upgrades");
 
 	PMenu_Open(ent, weapon_upgrade_menu, -1, count, nullptr, nullptr);
