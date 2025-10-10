@@ -151,10 +151,10 @@ TOUCH(PVM_BackpackTouch)(edict_t *backpack, edict_t *other, const trace_t &tr, b
     gi.sound(other, CHAN_AUTO, gi.soundindex("items/pkup.wav"), 1, ATTN_NORM, 0);
 
     // Notify player
-    const char *owner_name = backpack->message ? backpack->message : "someone";
-    gi.LocClient_Print(other, PRINT_HIGH, nullptr,
-                       "Picked up {}'s backpack ({} weapons, {} ammo types)\n",
-                       owner_name, weapons_picked, ammo_picked);
+    // const char *owner_name = backpack->message ? backpack->message : "someone";
+    // gi.LocClient_Print(other, PRINT_HIGH, nullptr,
+    //                    "Picked up {}'s backpack ({} weapons, {} ammo types)\n",
+    //                    owner_name, weapons_picked, ammo_picked);
 
     // Free backpack
     if (backpack->message)

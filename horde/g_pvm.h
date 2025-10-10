@@ -31,7 +31,7 @@ constexpr int PVM_MIN_WAVE = 1;
 bool PVM_IsValidMonster(int minWave);
 
 // PvM Random Monster Rotation
-// For PVM mode, we randomly select 10 monsters per map to avoid large precache
+// For PVM mode, we randomly select 24 ( a lot ? ) monsters per map to avoid large precache
 constexpr int PVM_RANDOM_MONSTER_COUNT = 24;
 
 // Get the list of randomly selected monsters for this map
