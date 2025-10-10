@@ -920,11 +920,23 @@
       "initial_armor": 0,
       "addon_armor": 0
     },
+    "infantry": {
+      "initial_health": 70,
+      "addon_health": 45,
+      "initial_armor": 25,
+      "addon_armor": 13
+    },
     "chick": {
       "initial_health": 50,
       "addon_health": 15,
       "initial_armor": 25,
       "addon_armor": 15
+    },
+    "chick_heat": {
+      "initial_health": 60,
+      "addon_health": 15,
+      "initial_armor": 35,
+      "addon_armor": 20
     },
     "brain": {
       "initial_health": 100,
@@ -933,7 +945,7 @@
       "addon_armor": 150
     },
     "floater": {
-      "initial_health": 50,
+      "initial_health": 55,
       "addon_health": 20,
       "initial_armor": 150,
       "addon_armor": 60
@@ -945,9 +957,9 @@
       "addon_armor": 20
     },
     "gladiator": {
-      "initial_health": 100,
+      "initial_health": 110,
       "addon_health": 25,
-      "initial_armor": 100,
+      "initial_armor": 120,
       "addon_armor": 20
     },
     "gunner": {
@@ -981,20 +993,14 @@
       "addon_armor": 0
     },
     "tank": {
-      "initial_health": 100,
-      "addon_health": 55,
-      "initial_armor": 200,
+      "initial_health": 385,
+      "addon_health": 40,
+      "initial_armor": 300,
       "addon_armor": 105
     },
-    "baron_fire": {
-      "initial_health": 0,
-      "addon_health": 2500,
-      "initial_armor": 0,
-      "addon_armor": 0
-    },
     "shambler": {
-      "initial_health": 250,
-      "addon_health": 70,
+      "initial_health": 375,
+      "addon_health": 60,
       "initial_armor": 0,
       "addon_armor": 0
     }
