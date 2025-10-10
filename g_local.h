@@ -3374,9 +3374,9 @@ struct client_persistant_t
 	int32_t weapon_points = 0;            // Points for weapon upgrades
 	int32_t admin_bonus_ability_points = 0; // Track admin-given ability points
 	int32_t admin_bonus_weapon_points = 0;  // Track admin-given weapon points
-	bool auto_buy_abilities = true;       // Auto-purchase abilities toggle (default: enabled)
-	bool auto_buy_weapons = true;         // Auto-purchase weapons toggle (default: enabled)
-	bool has_manually_disabled_auto_buy = false; // Track if player manually disabled auto-buy for refund
+	bool auto_buy_benefit_bot = true;       // Auto-purchase abilities toggle (default: enabled)
+	bool auto_buy_benefit_weapons_bot = true;         // Auto-purchase weapons toggle (default: enabled)
+	bool bot_has_manually_disabled_auto_buy = false; // Track if player manually disabled auto-buy for refund
 	uint32_t active_abilities_mask = 0;   // Bitmask of active abilities
 	uint32_t active_weapons_mask = 0;     // Bitmask of active weapon upgrades
 	uint32_t purchased_benefits_mask = 0; // All benefits ever purchased (for prerequisites)

@@ -589,12 +589,12 @@ void CheckBotAutoBuy(edict_t* player) {
     player->client->pers.last_auto_buy_check = level.time;
 
     // Auto-buy abilities if enabled and player has points
-    if (player->client->pers.auto_buy_abilities && player->client->pers.ability_points > 0) {
+    if (player->client->pers.auto_buy_benefit_bot && player->client->pers.ability_points > 0) {
         AutoBuyCategory(player, BenefitCategory::ABILITY);
     }
 
     // Auto-buy weapons if enabled and player has points
-    if (player->client->pers.auto_buy_weapons && player->client->pers.weapon_points > 0) {
+    if (player->client->pers.auto_buy_benefit_weapons_bot && player->client->pers.weapon_points > 0) {
         AutoBuyCategory(player, BenefitCategory::WEAPON);
     }
 }
@@ -734,7 +734,7 @@ void BotRefundAutoPurchasedBenefits(edict_t* player) {
     if (!player || !player->client) return;
 
     // Mark that player has manually disabled auto-buy
-    player->client->pers.has_manually_disabled_auto_buy = true;
+    player->client->pers.bot_has_manually_disabled_auto_buy = true;
 
     // Calculate how many points should have been earned by now
     int32_t waves_completed = current_wave_level;

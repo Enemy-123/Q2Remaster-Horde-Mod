@@ -1115,9 +1115,9 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 			const int wave = current_wave_level;
 
 			// Enable auto-buy for bots
-			client->pers.auto_buy_abilities = true;
-			client->pers.auto_buy_weapons = true;
-			client->pers.has_manually_disabled_auto_buy = false;
+			client->pers.auto_buy_benefit_bot = true;
+			client->pers.auto_buy_benefit_weapons_bot = true;
+			client->pers.bot_has_manually_disabled_auto_buy = false;
 
 			// Calculate XP-based bonus points for late joiner bots in PvM
 			// Give them approximately the same progression as a human player would have at this wave
@@ -1195,9 +1195,9 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 	//
 	// Bots always use auto-buy for the old benefits system
 	if (ent->svflags & SVF_BOT) {
-		client->pers.auto_buy_abilities = true;
-		client->pers.auto_buy_weapons = true;
-		client->pers.has_manually_disabled_auto_buy = false;
+		client->pers.auto_buy_benefit_bot = true;
+		client->pers.auto_buy_benefit_weapons_bot = true;
+		client->pers.bot_has_manually_disabled_auto_buy = false;
 	}
 
 	//
@@ -1207,9 +1207,9 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 	if (is_late_joiner && (ent->svflags & SVF_BOT))
 	{
 		// Enable auto-buy by default for late joiner bots
-		client->pers.auto_buy_abilities = true;
-		client->pers.auto_buy_weapons = true;
-		client->pers.has_manually_disabled_auto_buy = false;
+		client->pers.auto_buy_benefit_bot = true;
+		client->pers.auto_buy_benefit_weapons_bot = true;
+		client->pers.bot_has_manually_disabled_auto_buy = false;
 
 		// Calculate bonus points based on wave progress (bots only)
 		client->pers.ability_points = (wave >= HordeConstants::ABILITY_POINT_WAVE_INTERVAL)
