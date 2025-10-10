@@ -3369,20 +3369,21 @@ struct client_persistant_t
 	int adrenaline_count = 0;
 	
 	bool received_late_join_ammo = false; // Track if player received late-join ammo (only given once) // DOESNT WORK YET
-	// Per-player benefits system // should be used only by bots for now
-	int32_t ability_points = 0;           // Points for abilities (vampire, ammo regen, etc.)
-	int32_t weapon_points = 0;            // Points for weapon upgrades
-	int32_t admin_bonus_ability_points = 0; // Track admin-given ability points
-	int32_t admin_bonus_weapon_points = 0;  // Track admin-given weapon points
-	bool auto_buy_benefit_bot = true;       // Auto-purchase abilities toggle (default: enabled)
-	bool auto_buy_benefit_weapons_bot = true;         // Auto-purchase weapons toggle (default: enabled)
-	bool bot_has_manually_disabled_auto_buy = false; // Track if player manually disabled auto-buy for refund
-	uint32_t active_abilities_mask = 0;   // Bitmask of active abilities
-	uint32_t active_weapons_mask = 0;     // Bitmask of active weapon upgrades
-	uint32_t purchased_benefits_mask = 0; // All benefits ever purchased (for prerequisites)
-	uint32_t auto_purchased_benefits_mask = 0; // Benefits purchased via auto-buy (for refunds)
-	gtime_t last_auto_buy_check = 0_ms;   // Last time auto-buy was checked
-	BFGMode bfg_mode = BFGMode::NORMAL;   // Default to normal mode (players must upgrade)
+
+	// OLD wave-based benefits system (Horde mode only - for bots)
+	int32_t ability_points = 0;           // Points for abilities (vampire, ammo regen, etc.) - BOTS ONLY
+	int32_t weapon_points = 0;            // Points for weapon upgrades - SHARED BY BOTH HUMANS AND BOTS
+	int32_t admin_bonus_ability_points = 0; // Track admin-given ability points - BOTS ONLY
+	int32_t admin_bonus_weapon_points = 0;  // Track admin-given weapon points - BOTS ONLY
+	bool auto_buy_benefit_bot = true;       // Auto-purchase abilities toggle (default: enabled) BOTS ONLY
+	bool auto_buy_benefit_weapons_bot = true;         // Auto-purchase weapons toggle (default: enabled) BOTS ONLY
+	bool bot_has_manually_disabled_auto_buy = false; // Track if player manually disabled auto-buy for refund BOTS ONLY
+	uint32_t active_abilities_mask = 0;   // Bitmask of active abilities - BOTS ONLY
+	uint32_t active_weapons_mask = 0;     // Bitmask of active weapon upgrades - BOTS ONLY
+	uint32_t purchased_benefits_mask = 0; // All benefits ever purchased (for prerequisites) - BOTS ONLY
+	uint32_t auto_purchased_benefits_mask = 0; // Benefits purchased via auto-buy (for refunds) - BOTS ONLY
+	gtime_t last_auto_buy_check = 0_ms;   // Last time auto-buy was checked - BOTS ONLY
+	BFGMode bfg_mode = BFGMode::NORMAL;   // Default to normal mode (players must upgrade) 
 	int morph_preference = 0;              // 0=Brain (default), 1=Flyer
 
 	// Character persistence (PvM & Horde)

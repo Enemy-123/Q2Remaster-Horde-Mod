@@ -2324,11 +2324,13 @@ pmenuhnd_t *CreateHordeMenu(edict_t *ent)
 	}
 	add_entry("", PMENU_ALIGN_CENTER);
 
-	// Add Upgrade Menu with total points display
-	int total_points = ent->client->pers.ability_points + ent->client->pers.weapon_points;
-	// Use string_view directly, no need for std::string allocation
-	auto upgrade_text = G_Fmt("Upgrade Menu (Points: {})", total_points);
-	add_entry(upgrade_text.data(), PMENU_ALIGN_LEFT, HordeMenuHandler);
+	// // Add Upgrade Menu with total points display
+	// int total_points = ent->client->pers.ability_points + ent->client->pers.weapon_points;
+	// // Use string_view directly, no need for std::string allocation
+	// auto upgrade_text = G_Fmt("Upgrade Menu)", total_points);
+	// add_entry(upgrade_text.data(), PMENU_ALIGN_LEFT, HordeMenuHandler);
+
+	add_entry("Upgrade Menu", PMENU_ALIGN_LEFT, HordeMenuHandler);
 
 	add_entry("Misc Options", PMENU_ALIGN_LEFT, HordeMenuHandler);
 	add_entry("HUD Options", PMENU_ALIGN_LEFT, HordeMenuHandler);
@@ -2976,7 +2978,13 @@ pmenuhnd_t *CreateUpgradeMenu(edict_t *ent)
 
 	// Points display
 	G_FmtTo(upgrade_menu[menu_index].text, "Skill Points: {}", ent->client->pers.skill_points);
-	upgrade_menu[menu_index].align = PMENU_ALIGN_CENTER;
+	upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
+	upgrade_menu[menu_index].SelectFunc = nullptr;
+	menu_index++;
+
+		// Points display
+	G_FmtTo(upgrade_menu[menu_index].text, "Weapon Points: {}", ent->client->pers.weapon_points);
+	upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
 	upgrade_menu[menu_index].SelectFunc = nullptr;
 	menu_index++;
 
