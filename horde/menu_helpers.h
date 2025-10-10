@@ -6,7 +6,7 @@
 #include <cstring>
 
 // Menu alignment configuration
-constexpr int MENU_NAME_WIDTH = 24;    // Width for "Name:" after padding (pushes brackets to right)
+constexpr int MENU_NAME_WIDTH = 12;    // Width for "Name:" after padding (pushes brackets to right)
 constexpr int MENU_TEXT_MAX = 64;      // Max text buffer size for menu items
 
 // Utility function to pad a string with spaces to a target length (like Vortex)

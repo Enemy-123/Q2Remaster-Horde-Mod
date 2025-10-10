@@ -2651,13 +2651,7 @@ pmenuhnd_t *CreateAbilitiesMenu(edict_t *ent)
 	int menu_index = 0;
 
 	// Header
-	Q_strlcpy(abilities_menu[menu_index].text, "=== ABILITIES ===", sizeof(abilities_menu[menu_index].text));
-	abilities_menu[menu_index].align = PMENU_ALIGN_CENTER;
-	abilities_menu[menu_index].SelectFunc = nullptr;
-	menu_index++;
-
-	// Points display
-	G_FmtTo(abilities_menu[menu_index].text, "Skill Points: {}", ent->client->pers.skill_points);
+	Q_strlcpy(abilities_menu[menu_index].text, "Upgrade Ability Menu", sizeof(abilities_menu[menu_index].text));
 	abilities_menu[menu_index].align = PMENU_ALIGN_CENTER;
 	abilities_menu[menu_index].SelectFunc = nullptr;
 	menu_index++;
@@ -2731,6 +2725,12 @@ pmenuhnd_t *CreateAbilitiesMenu(edict_t *ent)
 	abilities_menu[menu_index].SelectFunc = nullptr;
 	menu_index++;
 
+		// Points display
+	G_FmtTo(abilities_menu[menu_index].text, "You have: {} points to upgrade", ent->client->pers.skill_points);
+	abilities_menu[menu_index].align = PMENU_ALIGN_CENTER;
+	abilities_menu[menu_index].SelectFunc = nullptr;
+	menu_index++;
+	
 	// Reset all skills option
 	Q_strlcpy(abilities_menu[menu_index].text, "Reset All Skills (Free)", sizeof(abilities_menu[menu_index].text));
 	abilities_menu[menu_index].align = PMENU_ALIGN_LEFT;

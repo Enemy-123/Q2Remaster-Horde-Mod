@@ -7,8 +7,8 @@ static const UpgradeDefinition UPGRADE_DEFS[] = {
     // Phase 2: Core abilities
     {
         "vampire",
-        "Vampirism",
-        "Passive: Recover health from damage dealt\n"
+        "Vampire",
+        "Recover health from\ndamage dealt\n"
         "Base: 5% lifesteal\n"
         "Each level: +1% lifesteal\n"
         "Lvl 10: 15% lifesteal\nLevel 6+ Enables Armor Vamp\n",
@@ -17,24 +17,24 @@ static const UpgradeDefinition UPGRADE_DEFS[] = {
     {
         "ammo_regen",
         "Ammo Regen",
-        "Passive: Regenerate ammo over time\n"
+        "Regenerate ammo over time\n"
         "+1 projectile and +5 cells/bullets\n"
-        "per level\n"
-        "each 5 sec",
+        "per level\neach 5 sec"
+        "",
         10, 1, UpgradeCategory::ABILITY, nullptr, 0
     },
     {
         "ha_pickup",
         "H/A Pickup",
-        "Passive: Pickup more health and armor\n"
+        "Pickup more health and armor\n"
         "Each level: +20% pickup amount\n"
         "Max at level 5: +100% pickups",
         5, 1, UpgradeCategory::ABILITY, nullptr, 0
     },
     {
         "start_armor",
-        "Starting Armor",
-        "Passive: Spawn with +10 armor per level\n"
+        "Start Armor",
+        "Spawn with +10 armor per level\n"
         "Each level: +10 armor on spawn\n"
         "Max at level 10: 100 armor",
         10, 1, UpgradeCategory::ABILITY, nullptr, 0
@@ -42,7 +42,7 @@ static const UpgradeDefinition UPGRADE_DEFS[] = {
     {
         "vitality",
         "Vitality",
-        "Passive: Increase max health by +10\n"
+        "Increase max health by +10\n"
         "Each level: +10 max health\n"
         "Max at level 10: +100 health",
         10, 1, UpgradeCategory::ABILITY, nullptr, 0
@@ -50,9 +50,9 @@ static const UpgradeDefinition UPGRADE_DEFS[] = {
     {
         "max_ammo",
         "Max Ammo",
-        "Passive: Increase ammo capacity\n"
-        "Each level increases max ammo for all weapons\n"
-        "Max at level 10: Huge ammo capacity",
+        "Increase ammo capacity\n"
+        "increases max ammo in general\n"
+        "",
         10, 1, UpgradeCategory::ABILITY, nullptr, 0
     }
 
