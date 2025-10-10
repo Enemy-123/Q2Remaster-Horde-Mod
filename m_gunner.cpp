@@ -418,7 +418,11 @@ void GunnerFire(edict_t* self)
 	{
 		// Normal mode: require visibility for all weapons
 		if (!visible(self, self->enemy))
-			return;
+		{
+			extern void gunner_stand(edict_t* self);
+		return gunner_stand(self);;
+
+		}
 		target = self->enemy->s.origin;
 	}
 
