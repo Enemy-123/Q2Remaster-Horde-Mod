@@ -3264,6 +3264,12 @@ struct player_skills_t {
 	int8_t bfg_duration = 0;      // 0-10: BFG effect duration (+0.05s per level)
 	bool bfg_silent = false;      // Silent firing (no flash/noise)
 
+	// Weapon Upgrades - 20mm Cannon (ETG)
+	int8_t etg_damage = 0;        // 0-10: 20mm Cannon damage (+2 per level)
+	int8_t etg_range = 0;         // 0-10: 20mm Cannon range (+30 per level)
+	int8_t etg_recoil = 0;        // 0-10: Recoil reduction (kick *= 1.0f - level * 0.1f)
+	bool etg_silent = false;      // Silent firing (no flash/noise)
+
 	// Weapon Upgrades - Prox Launcher
 	int8_t pl_damage = 0;         // 0-10: Prox launcher damage
 	int8_t pl_range = 0;          // 0-10: Prox launcher range

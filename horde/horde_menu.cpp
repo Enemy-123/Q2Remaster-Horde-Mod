@@ -49,7 +49,7 @@ void OpenSSGUpgradeMenu(edict_t *ent, int cursor_pos = -1);    // Forward declar
 void OpenGLUpgradeMenu(edict_t *ent, int cursor_pos = -1);     // Forward declare GL Upgrade submenu
 void OpenRLUpgradeMenu(edict_t *ent, int cursor_pos = -1);     // Forward declare RL Upgrade submenu
 void OpenProxUpgradeMenu(edict_t *ent);   // Forward declare Prox Upgrade submenu
-void OpenPlasmabeamUpgradeMenu(edict_t *ent); // Forward declare Plasmabeam Upgrade submenu
+void OpenPlasmabeamUpgradeMenu(edict_t *ent, int cursor_pos = -1); // Forward declare Plasmabeam Upgrade submenu
 void RespawnWeaponMenuHandler(edict_t *ent, pmenuhnd_t *p);
 void OpenAdminMenu(edict_t *ent); // Forward declare Admin menu functions
 void AdminMenuHandler(edict_t *ent, pmenuhnd_t *p);
@@ -3124,13 +3124,14 @@ void OpenWeaponUpgradeMenu(edict_t *ent)
 
 // Forward declarations for new weapon menus
 void OpenChainfistUpgradeMenu(edict_t *ent, int cursor_pos = -1);
-void OpenBlasterUpgradeMenu(edict_t *ent);
-void OpenHyperblasterUpgradeMenu(edict_t *ent);
+void OpenBlasterUpgradeMenu(edict_t *ent, int cursor_pos = -1);
+void OpenHyperblasterUpgradeMenu(edict_t *ent, int cursor_pos = -1);
 void OpenHGUpgradeMenu(edict_t *ent, int cursor_pos = -1);
 void OpenETFUpgradeMenu(edict_t *ent, int cursor_pos = -1);
-void OpenIonRipperUpgradeMenu(edict_t *ent);
-void OpenRailgunUpgradeMenu(edict_t *ent);
+void OpenIonRipperUpgradeMenu(edict_t *ent, int cursor_pos = -1);
+void OpenRailgunUpgradeMenu(edict_t *ent, int cursor_pos = -1);
 void OpenBFGUpgradeMenu(edict_t *ent, int cursor_pos = -1);
+void Open20mmCannonUpgradeMenu(edict_t *ent, int cursor_pos = -1);
 void OpenTeslaUpgradeMenu(edict_t *ent, int cursor_pos = -1);
 void OpenTrapUpgradeMenu(edict_t *ent, int cursor_pos = -1);
 
@@ -3249,8 +3250,8 @@ void WeaponUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	}
 	else if (strcmp(arg, "20mm_cannon") == 0)
 	{
-		// TODO: Implement 20mm Cannon upgrade menu
-		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "20mm Cannon upgrades not yet implemented.\n");
+		PMenu_Close(ent);
+		Open20mmCannonUpgradeMenu(ent);
 	}
 	else if (strcmp(arg, "phalanx") == 0)
 	{
@@ -4454,7 +4455,7 @@ static pmenu_t blaster_upgrade_menu[32];
 
 void BlasterUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p);
 
-void OpenBlasterUpgradeMenu(edict_t *ent)
+void OpenBlasterUpgradeMenu(edict_t *ent, int cursor_pos)
 {
 	if (!ent || !ent->client)
 		return;
@@ -4503,7 +4504,7 @@ void OpenBlasterUpgradeMenu(edict_t *ent)
 	add_entry("---", PMENU_ALIGN_CENTER);
 	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, BlasterUpgradeMenuHandler, "back_to_weapons");
 
-	PMenu_Open(ent, blaster_upgrade_menu, -1, count, nullptr, nullptr);
+	PMenu_Open(ent, blaster_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
 
 void BlasterUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
@@ -4533,7 +4534,7 @@ void BlasterUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Blaster Damage is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenBlasterUpgradeMenu(ent);
+		OpenBlasterUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "bl_range") == 0)
 	{
@@ -4547,21 +4548,21 @@ void BlasterUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Blaster Speed is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenBlasterUpgradeMenu(ent);
+		OpenBlasterUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "bl_trails") == 0)
 	{
 		ent->client->pers.skills.bl_trails = !ent->client->pers.skills.bl_trails;
 		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Blaster Trails: {}\n", ent->client->pers.skills.bl_trails ? "DISABLED" : "ENABLED");
 		PMenu_Close(ent);
-		OpenBlasterUpgradeMenu(ent);
+		OpenBlasterUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "bl_silent") == 0)
 	{
 		ent->client->pers.skills.bl_silent = !ent->client->pers.skills.bl_silent;
 		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Blaster Silent Mode: {}\n", ent->client->pers.skills.bl_silent ? "ON" : "OFF");
 		PMenu_Close(ent);
-		OpenBlasterUpgradeMenu(ent);
+		OpenBlasterUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "back_to_weapons") == 0)
 	{
@@ -4578,7 +4579,7 @@ static pmenu_t hyperblaster_upgrade_menu[32];
 
 void HyperblasterUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p);
 
-void OpenHyperblasterUpgradeMenu(edict_t *ent)
+void OpenHyperblasterUpgradeMenu(edict_t *ent, int cursor_pos)
 {
 	if (!ent || !ent->client)
 		return;
@@ -4627,7 +4628,7 @@ void OpenHyperblasterUpgradeMenu(edict_t *ent)
 	add_entry("---", PMENU_ALIGN_CENTER);
 	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, HyperblasterUpgradeMenuHandler, "back_to_weapons");
 
-	PMenu_Open(ent, hyperblaster_upgrade_menu, -1, count, nullptr, nullptr);
+	PMenu_Open(ent, hyperblaster_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
 
 void HyperblasterUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
@@ -4657,7 +4658,7 @@ void HyperblasterUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Hyperblaster Damage is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenHyperblasterUpgradeMenu(ent);
+		OpenHyperblasterUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "hb_range") == 0)
 	{
@@ -4671,21 +4672,21 @@ void HyperblasterUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Hyperblaster Speed is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenHyperblasterUpgradeMenu(ent);
+		OpenHyperblasterUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "hb_trails") == 0)
 	{
 		ent->client->pers.skills.hb_trails = !ent->client->pers.skills.hb_trails;
 		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Hyperblaster Trails: {}\n", ent->client->pers.skills.hb_trails ? "DISABLED" : "ENABLED");
 		PMenu_Close(ent);
-		OpenHyperblasterUpgradeMenu(ent);
+		OpenHyperblasterUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "hb_silent") == 0)
 	{
 		ent->client->pers.skills.hb_silent = !ent->client->pers.skills.hb_silent;
 		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Hyperblaster Silent Mode: {}\n", ent->client->pers.skills.hb_silent ? "ON" : "OFF");
 		PMenu_Close(ent);
-		OpenHyperblasterUpgradeMenu(ent);
+		OpenHyperblasterUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "back_to_weapons") == 0)
 	{
@@ -4832,7 +4833,7 @@ static pmenu_t ionripper_upgrade_menu[32];
 
 void IonRipperUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p);
 
-void OpenIonRipperUpgradeMenu(edict_t *ent)
+void OpenIonRipperUpgradeMenu(edict_t *ent, int cursor_pos)
 {
 	if (!ent || !ent->client)
 		return;
@@ -4881,7 +4882,7 @@ void OpenIonRipperUpgradeMenu(edict_t *ent)
 	add_entry("---", PMENU_ALIGN_CENTER);
 	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, IonRipperUpgradeMenuHandler, "back_to_weapons");
 
-	PMenu_Open(ent, ionripper_upgrade_menu, -1, count, nullptr, nullptr);
+	PMenu_Open(ent, ionripper_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
 
 void IonRipperUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
@@ -4911,7 +4912,7 @@ void IonRipperUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Ion Ripper Damage is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenIonRipperUpgradeMenu(ent);
+		OpenIonRipperUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "ir_range") == 0)
 	{
@@ -4925,21 +4926,21 @@ void IonRipperUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Ion Ripper Speed is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenIonRipperUpgradeMenu(ent);
+		OpenIonRipperUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "ir_trails") == 0)
 	{
 		ent->client->pers.skills.ir_trails = !ent->client->pers.skills.ir_trails;
 		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Ion Ripper Trails: {}\n", ent->client->pers.skills.ir_trails ? "OFF" : "ON");
 		PMenu_Close(ent);
-		OpenIonRipperUpgradeMenu(ent);
+		OpenIonRipperUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "ir_silent") == 0)
 	{
 		ent->client->pers.skills.ir_silent = !ent->client->pers.skills.ir_silent;
 		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Ion Ripper Silent Mode: {}\n", ent->client->pers.skills.ir_silent ? "ON" : "OFF");
 		PMenu_Close(ent);
-		OpenIonRipperUpgradeMenu(ent);
+		OpenIonRipperUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "back_to_weapons") == 0)
 	{
@@ -4956,7 +4957,7 @@ static pmenu_t railgun_upgrade_menu[32];
 
 void RailgunUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p);
 
-void OpenRailgunUpgradeMenu(edict_t *ent)
+void OpenRailgunUpgradeMenu(edict_t *ent, int cursor_pos)
 {
 	if (!ent || !ent->client)
 		return;
@@ -4996,10 +4997,6 @@ void OpenRailgunUpgradeMenu(edict_t *ent)
 	snprintf(status, sizeof(status), "Pierce %d [10]", ent->client->pers.skills.rg_pierce);
 	add_entry(status, PMENU_ALIGN_LEFT, RailgunUpgradeMenuHandler, "rg_pierce");
 
-	const char *trails_status = ent->client->pers.skills.rg_trails ? "OFF" : "ON";
-	snprintf(status, sizeof(status), "Trails: %s", trails_status);
-	add_entry(status, PMENU_ALIGN_LEFT, RailgunUpgradeMenuHandler, "rg_trails");
-
 	const char *silent_status = ent->client->pers.skills.rg_silent ? "ON" : "OFF";
 	snprintf(status, sizeof(status), "Silent Mode: %s", silent_status);
 	add_entry(status, PMENU_ALIGN_LEFT, RailgunUpgradeMenuHandler, "rg_silent");
@@ -5008,7 +5005,7 @@ void OpenRailgunUpgradeMenu(edict_t *ent)
 	add_entry("---", PMENU_ALIGN_CENTER);
 	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, RailgunUpgradeMenuHandler, "back_to_weapons");
 
-	PMenu_Open(ent, railgun_upgrade_menu, -1, count, nullptr, nullptr);
+	PMenu_Open(ent, railgun_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
 
 void RailgunUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
@@ -5038,7 +5035,7 @@ void RailgunUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Railgun Damage is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenRailgunUpgradeMenu(ent);
+		OpenRailgunUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "rg_burn") == 0)
 	{
@@ -5052,7 +5049,7 @@ void RailgunUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Railgun Burn is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenRailgunUpgradeMenu(ent);
+		OpenRailgunUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "rg_pierce") == 0)
 	{
@@ -5066,21 +5063,14 @@ void RailgunUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Railgun Pierce is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenRailgunUpgradeMenu(ent);
-	}
-	else if (strcmp(arg, "rg_trails") == 0)
-	{
-		ent->client->pers.skills.rg_trails = !ent->client->pers.skills.rg_trails;
-		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Railgun Trails: {}\n", ent->client->pers.skills.rg_trails ? "OFF" : "ON");
-		PMenu_Close(ent);
-		OpenRailgunUpgradeMenu(ent);
+		OpenRailgunUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "rg_silent") == 0)
 	{
 		ent->client->pers.skills.rg_silent = !ent->client->pers.skills.rg_silent;
 		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Railgun Silent Mode: {}\n", ent->client->pers.skills.rg_silent ? "ON" : "OFF");
 		PMenu_Close(ent);
-		OpenRailgunUpgradeMenu(ent);
+		OpenRailgunUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "back_to_weapons") == 0)
 	{
@@ -5251,6 +5241,136 @@ void BFGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 }
 
 /////////////////////////////////////////////
+// 20MM CANNON (ETG) UPGRADE SUBMENU
+/////////////////////////////////////////////
+
+static pmenu_t etg_upgrade_menu[32];
+
+void ETGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p);
+
+void Open20mmCannonUpgradeMenu(edict_t *ent, int cursor_pos)
+{
+	if (!ent || !ent->client)
+		return;
+
+	if (ent->client->menu)
+		PMenu_Close(ent);
+
+	ent->client->menu_protected = true;
+	ent->client->menu_protection_start = level.time;
+
+	memset(etg_upgrade_menu, 0, sizeof(etg_upgrade_menu));
+	int count = 0;
+
+	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
+	{
+		if (count < 32)
+		{
+			Q_strlcpy(etg_upgrade_menu[count].text, text, sizeof(etg_upgrade_menu[count].text));
+			etg_upgrade_menu[count].align = align;
+			etg_upgrade_menu[count].SelectFunc = func;
+			if (arg)
+				Q_strlcpy(etg_upgrade_menu[count].text_arg1, arg, sizeof(etg_upgrade_menu[count].text_arg1));
+			count++;
+		}
+	};
+
+	add_entry("=== 20MM CANNON ===", PMENU_ALIGN_CENTER);
+	add_entry("", PMENU_ALIGN_CENTER);
+
+	char status[128];
+	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.etg_damage);
+	add_entry(status, PMENU_ALIGN_LEFT, ETGUpgradeMenuHandler, "etg_damage");
+
+	snprintf(status, sizeof(status), "Range %d [10]", ent->client->pers.skills.etg_range);
+	add_entry(status, PMENU_ALIGN_LEFT, ETGUpgradeMenuHandler, "etg_range");
+
+	snprintf(status, sizeof(status), "Recoil Reduction %d [10]", ent->client->pers.skills.etg_recoil);
+	add_entry(status, PMENU_ALIGN_LEFT, ETGUpgradeMenuHandler, "etg_recoil");
+
+	const char *silent_status = ent->client->pers.skills.etg_silent ? "ON" : "OFF";
+	snprintf(status, sizeof(status), "Silent Mode: %s", silent_status);
+	add_entry(status, PMENU_ALIGN_LEFT, ETGUpgradeMenuHandler, "etg_silent");
+
+	add_entry("", PMENU_ALIGN_CENTER);
+	add_entry("---", PMENU_ALIGN_CENTER);
+	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, ETGUpgradeMenuHandler, "back_to_weapons");
+
+	PMenu_Open(ent, etg_upgrade_menu, cursor_pos, count, nullptr, nullptr);
+}
+
+void ETGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client || !p || p->cur < 0)
+	{
+		if (ent && ent->client && ent->client->menu)
+			PMenu_Close(ent);
+		return;
+	}
+
+	pmenu_t *item = &p->entries[p->cur];
+	if (!item->SelectFunc)
+		return;
+
+	const char *arg = item->text_arg1;
+
+	if (strcmp(arg, "etg_damage") == 0)
+	{
+		if (ent->client->pers.skills.etg_damage < 10)
+		{
+			ent->client->pers.skills.etg_damage++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "20mm Cannon Damage increased to level {}!\n", ent->client->pers.skills.etg_damage);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "20mm Cannon Damage is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		Open20mmCannonUpgradeMenu(ent, p->cur);
+	}
+	else if (strcmp(arg, "etg_range") == 0)
+	{
+		if (ent->client->pers.skills.etg_range < 10)
+		{
+			ent->client->pers.skills.etg_range++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "20mm Cannon Range increased to level {}!\n", ent->client->pers.skills.etg_range);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "20mm Cannon Range is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		Open20mmCannonUpgradeMenu(ent, p->cur);
+	}
+	else if (strcmp(arg, "etg_recoil") == 0)
+	{
+		if (ent->client->pers.skills.etg_recoil < 10)
+		{
+			ent->client->pers.skills.etg_recoil++;
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "20mm Cannon Recoil Reduction increased to level {}!\n", ent->client->pers.skills.etg_recoil);
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "20mm Cannon Recoil Reduction is already at maximum level!\n");
+		}
+		PMenu_Close(ent);
+		Open20mmCannonUpgradeMenu(ent, p->cur);
+	}
+	else if (strcmp(arg, "etg_silent") == 0)
+	{
+		ent->client->pers.skills.etg_silent = !ent->client->pers.skills.etg_silent;
+		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "20mm Cannon Silent Mode: {}\n", ent->client->pers.skills.etg_silent ? "ON" : "OFF");
+		PMenu_Close(ent);
+		Open20mmCannonUpgradeMenu(ent, p->cur);
+	}
+	else if (strcmp(arg, "back_to_weapons") == 0)
+	{
+		PMenu_Close(ent);
+		OpenWeaponUpgradeMenu(ent);
+	}
+}
+
+/////////////////////////////////////////////
 // PLASMABEAM UPGRADE SUBMENU
 /////////////////////////////////////////////
 
@@ -5258,7 +5378,7 @@ static pmenu_t plasmabeam_upgrade_menu[32];
 
 void PlasmabeamUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p);
 
-void OpenPlasmabeamUpgradeMenu(edict_t *ent)
+void OpenPlasmabeamUpgradeMenu(edict_t *ent, int cursor_pos)
 {
 	if (!ent || !ent->client)
 		return;
@@ -5306,7 +5426,7 @@ void OpenPlasmabeamUpgradeMenu(edict_t *ent)
 	add_entry("---", PMENU_ALIGN_CENTER);
 	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, PlasmabeamUpgradeMenuHandler, "back_to_weapons");
 
-	PMenu_Open(ent, plasmabeam_upgrade_menu, -1, count, nullptr, nullptr);
+	PMenu_Open(ent, plasmabeam_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
 
 void PlasmabeamUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
@@ -5336,7 +5456,7 @@ void PlasmabeamUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Plasmabeam Damage is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenPlasmabeamUpgradeMenu(ent);
+		OpenPlasmabeamUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "pb_burn") == 0)
 	{
@@ -5350,7 +5470,7 @@ void PlasmabeamUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Plasmabeam Burn is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenPlasmabeamUpgradeMenu(ent);
+		OpenPlasmabeamUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "pb_pierce") == 0)
 	{
@@ -5364,14 +5484,14 @@ void PlasmabeamUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Plasmabeam Pierce is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenPlasmabeamUpgradeMenu(ent);
+		OpenPlasmabeamUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "pb_silent") == 0)
 	{
 		ent->client->pers.skills.pb_silent = !ent->client->pers.skills.pb_silent;
 		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Plasmabeam Silent Mode: {}\n", ent->client->pers.skills.pb_silent ? "ON" : "OFF");
 		PMenu_Close(ent);
-		OpenPlasmabeamUpgradeMenu(ent);
+		OpenPlasmabeamUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "back_to_weapons") == 0)
 	{

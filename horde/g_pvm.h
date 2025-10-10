@@ -24,7 +24,7 @@ void PVM_GiveRespawnWeapon(edict_t* player);
 
 // PvM Monster Spawning
 // Get minimum wave for PvM monster spawning (starts at wave 8)
-constexpr int PVM_MIN_WAVE = 8;
+constexpr int PVM_MIN_WAVE = 1;
 
 // Check if a monster type is valid for PvM mode
 // (only monsters from wave 8+ to limit precaching)
@@ -32,7 +32,7 @@ bool PVM_IsValidMonster(int minWave);
 
 // PvM Random Monster Rotation
 // For PVM mode, we randomly select 10 monsters per map to avoid large precache
-constexpr int PVM_RANDOM_MONSTER_COUNT = 17;
+constexpr int PVM_RANDOM_MONSTER_COUNT = 24;
 
 // Get the list of randomly selected monsters for this map
 // Returns nullptr if PVM is not active or list not initialized

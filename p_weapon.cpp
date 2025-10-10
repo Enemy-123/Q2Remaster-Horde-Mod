@@ -2307,6 +2307,22 @@ void weapon_20mm_fire(edict_t* ent)
 {
 	int damage = g_config.cannon20mm.damage;
 	int kick = g_config.cannon20mm.kick;
+	int range = g_config.cannon20mm.range;
+
+	// Apply skill upgrades (players only)
+	if (ent->client)
+	{
+		damage += ent->client->pers.skills.etg_damage * 2;  // +2 damage per level
+		range += ent->client->pers.skills.etg_range * 30;   // +30 range per level
+
+		// Recoil reduction: kick *= (1.0f - level * 0.1f)
+		if (ent->client->pers.skills.etg_recoil > 0)
+		{
+			float recoil_multiplier = 1.0f - (ent->client->pers.skills.etg_recoil * 0.1f);
+			if (recoil_multiplier < 0.0f) recoil_multiplier = 0.0f;
+			kick = static_cast<int>(kick * recoil_multiplier);
+		}
+	}
 
 	// Check if player is grounded or in water
 	if (!ent->groundentity && !ent->waterlevel)
@@ -2325,7 +2341,7 @@ void weapon_20mm_fire(edict_t* ent)
 	vec3_t start, dir;
 	P_ProjectSource(ent, ent->client->v_angle, { 0, 7, -8 }, start, dir, true);
 	G_LagCompensate(ent, start, dir);
-	fire_20mm(ent, start, dir, damage, kick, g_config.cannon20mm.range, MOD_CANNON);
+	fire_20mm(ent, start, dir, damage, kick, range, MOD_CANNON);
 	G_UnLagCompensate();
 
 	// Apply recoil - push player backward
