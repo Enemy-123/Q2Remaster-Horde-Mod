@@ -51,12 +51,12 @@ void weapon_tesla_fire(edict_t* ent, bool held)
 	P_ProjectSource(ent, { max(-62.5f, ent->client->v_angle[0]), ent->client->v_angle[1], ent->client->v_angle[2] }, { 0, 0, -22 }, start, dir);
 
 	// Calculate throw speed with range upgrade
-	float minspeed = TESLA_MINSPEED;
-	float maxspeed = TESLA_MAXSPEED;
+	float minspeed = g_config.tesla.minspeed;
+	float maxspeed = g_config.tesla.maxspeed;
 	if (ent && ent->client)
 	{
-		// Range upgrade adds 30 per level to both min and max speed
-		float range_bonus = ent->client->pers.skills.tesla_range * 30.0f;
+		// Range upgrade adds speed_addon per level to both min and max speed
+		float range_bonus = ent->client->pers.skills.tesla_range * g_config.tesla.speed_addon;
 		minspeed += range_bonus;
 		maxspeed += range_bonus;
 	}
@@ -344,11 +344,11 @@ void weapon_etf_rifle_fire(edict_t* ent)
 	else
 		offset = { 15, 6, -8 };
 
-	// Apply ETF Rifle speed upgrade: +40 per level
-	int speed = 1450;
+	// Apply ETF Rifle speed upgrade
+	int speed = g_config.etfrifle.init_speed;
 	if (ent && ent->client)
 	{
-		speed += ent->client->pers.skills.etf_range * 40;
+		speed += ent->client->pers.skills.etf_range * g_config.etfrifle.speed_addon;
 	}
 
 	vec3_t start, dir;

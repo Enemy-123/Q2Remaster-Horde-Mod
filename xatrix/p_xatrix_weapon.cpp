@@ -35,11 +35,11 @@ void weapon_ionripper_fire(edict_t* ent)
 
 	P_AddWeaponKick(ent, ent->client->v_forward * -3, { -3.f, 0.f, 0.f });
 
-	// Apply Ion Ripper speed upgrade: +40 per level
-	int speed = 900;
+	// Apply Ion Ripper speed upgrade
+	int speed = g_config.ionripper.init_speed;
 	if (ent && ent->client)
 	{
-		speed += ent->client->pers.skills.ir_range * 40;
+		speed += ent->client->pers.skills.ir_range * g_config.ionripper.speed_addon;
 	}
 
 	// Determine effect based on trails setting
@@ -198,12 +198,12 @@ void weapon_trap_fire(edict_t* ent, bool held)
 	P_ProjectSource(ent, { max(-62.5f, ent->client->v_angle[0]), ent->client->v_angle[1], ent->client->v_angle[2] }, { 8, 0, -8 }, start, dir);
 
 	// Calculate throw speed with range upgrade
-	float minspeed = TRAP_MINSPEED;
-	float maxspeed = TRAP_MAXSPEED;
+	float minspeed = g_config.trap.minspeed;
+	float maxspeed = g_config.trap.maxspeed;
 	if (ent && ent->client)
 	{
-		// Range upgrade adds 30 per level to both min and max speed
-		float range_bonus = ent->client->pers.skills.trap_range * 30.0f;
+		// Range upgrade adds speed_addon per level to both min and max speed
+		float range_bonus = ent->client->pers.skills.trap_range * g_config.trap.speed_addon;
 		minspeed += range_bonus;
 		maxspeed += range_bonus;
 	}

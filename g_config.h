@@ -30,6 +30,7 @@ struct BlasterConfig
 	int damage_max = 18;
 	int speed = 1300;
 	int bounces = 5;
+	int speed_addon = 40;  // Speed added per upgrade level
 };
 
 struct HyperBlasterConfig
@@ -38,6 +39,7 @@ struct HyperBlasterConfig
 	int damage_max = 18;
 	int speed = 1700;
 	int bounces = 3;
+	int speed_addon = 40;  // Speed added per upgrade level
 };
 
 struct ShotgunConfig
@@ -85,6 +87,9 @@ struct GrenadeConfig
 {
 	int damage = 125;
 	float radius_offset = 40.0f;  // radius = damage + radius_offset
+	float minspeed = 600.0f;  // Min throw speed for hand grenade
+	float maxspeed = 900.0f;  // Max throw speed for hand grenade
+	float speed_addon = 30.0f;  // Speed added per upgrade level
 };
 
 struct GrenadeLauncherConfig
@@ -94,6 +99,7 @@ struct GrenadeLauncherConfig
 	float radius_normal = 155.0f;
 	float radius_napalm = 135.0f;
 	int speed = 1200;
+	int speed_addon = 30;  // Speed added per upgrade level
 };
 
 struct RocketLauncherConfig
@@ -104,6 +110,7 @@ struct RocketLauncherConfig
 	int radius = 125;
 	int damage_addon = 3;      // Damage added per upgrade level (was 3.5 hardcoded)
 	int radius_addon = 3;      // Radius damage added per upgrade level (was 3.5 hardcoded)
+	int speed_addon = 28;      // Speed added per upgrade level
 };
 
 struct RailgunConfig
@@ -120,6 +127,7 @@ struct Cannon20mmConfig
 	int kick = 35;
 	int range = 650;
 	int recoil_force = 500;
+	int range_addon = 30;  // Range added per upgrade level
 };
 
 struct BFGConfig
@@ -138,6 +146,8 @@ struct IonRipperConfig
 {
 	int damage = 50;
 	int damage_addon = 2;  // Damage added per upgrade level (was 2.5 hardcoded)
+	int init_speed = 900;  // Initial projectile speed
+	int speed_addon = 40;  // Speed added per upgrade level
 };
 
 struct PhalanxConfig
@@ -169,6 +179,8 @@ struct ETFRifleConfig
 	int kick_normal = 3;
 	int kick_homing = 75;
 	int damage_addon = 1;  // Damage added per upgrade level (was 1.0 hardcoded, comment said 1.25)
+	int init_speed = 1450;  // Initial projectile speed
+	int speed_addon = 40;   // Speed added per upgrade level
 };
 
 // Deployable configurations
@@ -194,8 +206,9 @@ struct LaserConfig
 
 struct TrapConfig
 {
-	int speed_min = 500;
-	int speed_max = 900;
+	float minspeed = 500.0f;   // Min throw speed
+	float maxspeed = 900.0f;   // Max throw speed
+	float speed_addon = 30.0f; // Speed added per upgrade level
 	int timer_sec = 5;
 	float pull_radius = 400.0f;
 	float pull_speed_monster = 210.0f;
@@ -217,6 +230,9 @@ struct TeslaConfig
 	int explosion_radius = 200;
 	int knockback = 8;
 	int damage_addon = 0;  // Damage added per upgrade level (currently uses multiplier from skill system)
+	float minspeed = 600.0f;   // Min throw speed
+	float maxspeed = 900.0f;   // Max throw speed
+	float speed_addon = 30.0f; // Speed added per upgrade level
 };
 
 struct DopplegangerConfig

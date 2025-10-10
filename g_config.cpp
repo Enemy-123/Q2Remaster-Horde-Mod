@@ -466,6 +466,7 @@ void Config_Load(const char* basedir)
 			g_config.blaster.damage_max = GetJsonInt(w, "damage_max", 42);
 			g_config.blaster.speed = GetJsonInt(w, "speed", 1300);
 			g_config.blaster.bounces = GetJsonInt(w, "bounces", 5);
+			g_config.blaster.speed_addon = GetJsonInt(w, "speed_addon", 40);
 		}
 
 		// Hyperblaster
@@ -476,6 +477,7 @@ void Config_Load(const char* basedir)
 			g_config.hyperblaster.damage_max = GetJsonInt(w, "damage_max", 18);
 			g_config.hyperblaster.speed = GetJsonInt(w, "speed", 1700);
 			g_config.hyperblaster.bounces = GetJsonInt(w, "bounces", 3);
+			g_config.hyperblaster.speed_addon = GetJsonInt(w, "speed_addon", 40);
 		}
 
 		// Shotgun
@@ -533,6 +535,9 @@ void Config_Load(const char* basedir)
 			const Json::Value& w = weapons["grenade"];
 			g_config.grenade.damage = GetJsonInt(w, "damage", 125);
 			g_config.grenade.radius_offset = GetJsonFloat(w, "radius_offset", 40.0f);
+			g_config.grenade.minspeed = GetJsonFloat(w, "minspeed", 600.0f);
+			g_config.grenade.maxspeed = GetJsonFloat(w, "maxspeed", 900.0f);
+			g_config.grenade.speed_addon = GetJsonFloat(w, "speed_addon", 30.0f);
 		}
 
 		// Grenade Launcher
@@ -544,6 +549,7 @@ void Config_Load(const char* basedir)
 			g_config.grenadelauncher.radius_normal = GetJsonFloat(w, "radius_normal", 155.0f);
 			g_config.grenadelauncher.radius_napalm = GetJsonFloat(w, "radius_napalm", 135.0f);
 			g_config.grenadelauncher.speed = GetJsonInt(w, "speed", 1200);
+			g_config.grenadelauncher.speed_addon = GetJsonInt(w, "speed_addon", 30);
 		}
 
 		// Rocket Launcher
@@ -556,6 +562,7 @@ void Config_Load(const char* basedir)
 			g_config.rocket.radius = GetJsonInt(w, "radius", 125);
 			g_config.rocket.damage_addon = GetJsonInt(w, "damage_addon", 3);
 			g_config.rocket.radius_addon = GetJsonInt(w, "radius_addon", 3);
+			g_config.rocket.speed_addon = GetJsonInt(w, "speed_addon", 28);
 		}
 
 		// Railgun
@@ -576,6 +583,7 @@ void Config_Load(const char* basedir)
 			g_config.cannon20mm.kick = GetJsonInt(w, "kick", 35);
 			g_config.cannon20mm.range = GetJsonInt(w, "range", 650);
 			g_config.cannon20mm.recoil_force = GetJsonInt(w, "recoil_force", 500);
+			g_config.cannon20mm.range_addon = GetJsonInt(w, "range_addon", 30);
 		}
 
 		// BFG
@@ -597,6 +605,8 @@ void Config_Load(const char* basedir)
 			const Json::Value& w = weapons["ionripper"];
 			g_config.ionripper.damage = GetJsonInt(w, "damage", 50);
 			g_config.ionripper.damage_addon = GetJsonInt(w, "damage_addon", 2);
+			g_config.ionripper.init_speed = GetJsonInt(w, "init_speed", 900);
+			g_config.ionripper.speed_addon = GetJsonInt(w, "speed_addon", 40);
 		}
 
 		// Phalanx (Xatrix)
@@ -635,6 +645,8 @@ void Config_Load(const char* basedir)
 			g_config.etfrifle.kick_normal = GetJsonInt(w, "kick_normal", 3);
 			g_config.etfrifle.kick_homing = GetJsonInt(w, "kick_homing", 75);
 			g_config.etfrifle.damage_addon = GetJsonInt(w, "damage_addon", 1);
+			g_config.etfrifle.init_speed = GetJsonInt(w, "init_speed", 1450);
+			g_config.etfrifle.speed_addon = GetJsonInt(w, "speed_addon", 40);
 		}
 	}
 
@@ -671,8 +683,9 @@ void Config_Load(const char* basedir)
 		if (deployables.isMember("trap") && deployables["trap"].isObject())
 		{
 			const Json::Value& t = deployables["trap"];
-			g_config.trap.speed_min = GetJsonInt(t, "speed_min", 500);
-			g_config.trap.speed_max = GetJsonInt(t, "speed_max", 900);
+			g_config.trap.minspeed = GetJsonFloat(t, "minspeed", 500.0f);
+			g_config.trap.maxspeed = GetJsonFloat(t, "maxspeed", 900.0f);
+			g_config.trap.speed_addon = GetJsonFloat(t, "speed_addon", 30.0f);
 			g_config.trap.timer_sec = GetJsonInt(t, "timer_sec", 5);
 			g_config.trap.pull_radius = GetJsonFloat(t, "pull_radius", 400.0f);
 			g_config.trap.pull_speed_monster = GetJsonFloat(t, "pull_speed_monster", 210.0f);
@@ -696,6 +709,9 @@ void Config_Load(const char* basedir)
 			g_config.tesla.explosion_radius = GetJsonInt(t, "explosion_radius", 200);
 			g_config.tesla.knockback = GetJsonInt(t, "knockback", 8);
 			g_config.tesla.damage_addon = GetJsonInt(t, "damage_addon", 0);
+			g_config.tesla.minspeed = GetJsonFloat(t, "minspeed", 600.0f);
+			g_config.tesla.maxspeed = GetJsonFloat(t, "maxspeed", 900.0f);
+			g_config.tesla.speed_addon = GetJsonFloat(t, "speed_addon", 30.0f);
 		}
 
 		// Doppleganger

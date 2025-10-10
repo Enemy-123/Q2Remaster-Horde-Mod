@@ -1095,12 +1095,12 @@ void weapon_grenade_fire(edict_t* ent, bool held)
 	P_ProjectSource(ent, { max(-62.5f, ent->client->v_angle[0]), ent->client->v_angle[1], ent->client->v_angle[2] }, { 2, 0, -14 }, start, dir);
 
 	// Calculate throw speed with range upgrade
-	float minspeed = GRENADE_MINSPEED;
-	float maxspeed = GRENADE_MAXSPEED;
+	float minspeed = g_config.grenade.minspeed;
+	float maxspeed = g_config.grenade.maxspeed;
 	if (ent && ent->client)
 	{
-		// Range upgrade adds 30 per level to both min and max speed
-		float range_bonus = ent->client->pers.skills.hg_range * 30.0f;
+		// Range upgrade adds speed_addon per level to both min and max speed
+		float range_bonus = ent->client->pers.skills.hg_range * g_config.grenade.speed_addon;
 		minspeed += range_bonus;
 		maxspeed += range_bonus;
 	}
@@ -1366,10 +1366,10 @@ void weapon_grenadelauncher_fire(edict_t* ent)
 
 	P_AddWeaponKick(ent, ent->client->v_forward * -2, { -1.f, 0.f, 0.f });
 
-	// Speed upgrade: initial 600 + (level * 30)
+	// Speed upgrade: initial speed + (level * speed_addon)
 	int speed = g_config.grenadelauncher.speed;
 	if (ent && ent->client)
-		speed += ent->client->pers.skills.gl_range * 30;
+		speed += ent->client->pers.skills.gl_range * g_config.grenadelauncher.speed_addon;
 
 	fire_grenade(ent, start, dir, damage, speed, 2.5_sec, radius, (crandom_open() * 10.0f), (200 + crandom_open() * 10.0f), false);
 
@@ -1437,10 +1437,10 @@ void Weapon_RocketLauncher_Fire(edict_t* ent)
 	vec3_t start, dir;
 	P_ProjectSource(ent, ent->client->v_angle, { 8, 8, -8 }, start, dir);
 
-	// Speed upgrade: base + (level * 28)
+	// Speed upgrade: base + (level * speed_addon)
 	int speed = g_config.rocket.speed;
 	if (ent && ent->client)
-		speed += ent->client->pers.skills.rl_range * 28;
+		speed += ent->client->pers.skills.rl_range * g_config.rocket.speed_addon;
 
 	fire_rocket(ent, start, dir, damage, speed, damage_radius, radius_damage);
 
@@ -1499,9 +1499,9 @@ void Blaster_Fire(edict_t* ent, const vec3_t& g_offset, int damage, bool hyper, 
 	if (ent && ent->client)
 	{
 		if (hyper)
-			speed += ent->client->pers.skills.hb_range * 40;
+			speed += ent->client->pers.skills.hb_range * g_config.hyperblaster.speed_addon;
 		else
-			speed += ent->client->pers.skills.bl_range * 40;
+			speed += ent->client->pers.skills.bl_range * g_config.blaster.speed_addon;
 	}
 
 	//left hb / right blaster
@@ -2312,7 +2312,7 @@ void weapon_20mm_fire(edict_t* ent)
 	if (ent->client)
 	{
 		damage += ent->client->pers.skills.etg_damage * 2;  // +2 damage per level
-		range += ent->client->pers.skills.etg_range * 30;   // +30 range per level
+		range += ent->client->pers.skills.etg_range * g_config.cannon20mm.range_addon;
 
 		// Recoil reduction: kick *= (1.0f - level * 0.1f)
 		if (ent->client->pers.skills.etg_recoil > 0)
