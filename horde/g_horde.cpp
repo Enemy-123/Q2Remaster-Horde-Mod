@@ -4229,12 +4229,12 @@ static void DisplayWaveMessage(gtime_t duration = 5_sec)
 	static const std::array<const char *, 8> messages = {
 		"Horde Menu available upon opening Inventory or using TURTLE on POWERUP WHEEL\n\nMAKE THEM PAY!\n",
 		"Welcome to Hell.\n\nUse FlipOff <Key> looking at walls to spawn lasers (cost: 25 cubes, yeah cubes)\n",
-		"Teslas/Traps can now be placed on walls and ceilings!\n\nUse them wisely!",
-		"Adrenalines will improve traps/teslas duration",
-		"Improved Traps!\n\nTraps are ready again after 5sec of eating a strogg!",
-		"Check Menu -> Upgrading for the new stuff!",
-		"New Power Cubes system! pickup armor shards/ammo packs\n Or upgrade PC Regen !",
-		"You can choose your own path on upgrades, check Horde Menu!"};
+		"Teslas/Traps can now be placed on walls and ceilings!\n\nUse them wisely!\n",
+		"Adrenalines will improve traps/teslas duration\n",
+		"Improved Traps!\n\nTraps are ready again after 5sec of eating a strogg!\n",
+		"Check Menu -> Upgrading for the new stuff!\n",
+		"New Power Cubes system! pickup armor shards/ammo packs\n Or upgrade PC Regen !\n",
+		"You can choose your own path on upgrades, check Horde Menu!\n"};
 
 	// Usar distribución uniforme con mt_rand
 	std::uniform_int_distribution<size_t> dist(0, messages.size() - 1);
