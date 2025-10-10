@@ -358,6 +358,16 @@ void Cmd_Fireball_f(edict_t* ent)
 	if (!ent || !ent->client)
 		return;
 
+	// Get player's fireball skill level
+	int8_t fireball_level = ent->client->pers.skills.fireball;
+
+	// Check if player has the fireball skill
+	if (fireball_level == 0)
+	{
+		gi.LocClient_Print(ent, PRINT_HIGH, "You need to upgrade the Fireball skill first!\n");
+		return;
+	}
+
 	// Get player's aim direction
 	vec3_t forward, right, up;
 	AngleVectors(ent->client->v_angle, forward, right, up);
@@ -370,10 +380,18 @@ void Cmd_Fireball_f(edict_t* ent)
 	// Normalize aiming vector
 	vec3_t aimdir = forward.normalized();
 
-	// Get damage values (similar to monsters)
-	int damage = 45;  // Base damage
-	float damage_radius = 190.0f;  // Explosion radius
-	int speed = 1200;  // Projectile speed
+	// Calculate damage based on skill level and config values
+	// Base: initial_damage, Each level adds: addon_damage
+	int damage = g_config.fireball.initial_damage + (fireball_level * g_config.fireball.addon_damage);
+
+	// Calculate radius based on skill level and config values
+	// Base: initial_radius, Each level adds: addon_radius
+	float damage_radius = static_cast<float>(g_config.fireball.initial_radius + (fireball_level * g_config.fireball.addon_radius));
+
+	// Calculate speed based on skill level and config values
+	// Base: initial_speed, Each level adds: addon_speed
+	int speed = g_config.fireball.initial_speed + (fireball_level * g_config.fireball.addon_speed);
+
 	int flames = 5;  // Number of flame entities spawned on explosion
 	int flame_damage = 12;  // Damage per flame
 

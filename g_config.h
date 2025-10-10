@@ -263,6 +263,17 @@ struct BombSpellConfig
 	int carpet_width = 200;
 };
 
+// Fireball configuration
+struct FireballConfig
+{
+	int initial_damage = 50;
+	int addon_damage = 25;
+	int initial_radius = 100;
+	float addon_radius = 2.5f;
+	int initial_speed = 650;
+	int addon_speed = 35;
+};
+
 // Hook configuration (offhand hook system from hook.cpp)
 struct HookConfig
 {
@@ -483,6 +494,7 @@ struct GameConfig
 
 	// Special abilities
 	BombSpellConfig bomb_spell;
+	FireballConfig fireball;
 
 	// Hook and Grapple
 	HookConfig hook;

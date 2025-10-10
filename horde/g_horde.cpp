@@ -2907,9 +2907,9 @@ void Horde_PreInit()
 	{
 		// deathmatch->integer == 1;
 		dm_monsters = gi.cvar("dm_monsters", "0", CVAR_SERVERINFO);
-
+		
 		gi.Com_Print("Initializing Horde mode settings...\n");
-
+		gi.cvar_forceset("g_instagib", "1");
 		// Configuración de tiempo y límites
 		gi.cvar_forceset("deathmatch", "1");
 		gi.cvar_forceset("coop", "0");
@@ -2981,6 +2981,8 @@ void Horde_PreInit()
 		// Mensaje de confirmación
 		gi.Com_Print("Horde mode initialized successfully.\n");
 	}
+	else if (pvm->integer > 0)
+	gi.cvar_forceset("g_instagib", "0");
 }
 
 void VerifyAndAdjustBots()

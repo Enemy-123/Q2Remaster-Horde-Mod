@@ -3174,6 +3174,9 @@ struct player_skills_t {
 	bool sentry_upgrade = false;  // Sentry improvements
 	bool tesla_chain = false;     // Tesla chain lightning
 
+	// Fireball ability
+	int8_t fireball = 0;          // 0-10: Fireball (damage, radius, speed)
+
 	// Weapon Upgrades - Grenade Launcher
 	int8_t gl_damage = 0;         // 0-10: Grenade damage
 	int8_t gl_range = 0;          // 0-10: Grenade range/speed

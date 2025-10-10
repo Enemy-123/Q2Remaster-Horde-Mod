@@ -744,6 +744,18 @@ void Config_Load(const char* basedir)
 			g_config.bomb_spell.step_size = GetJsonInt(b, "step_size", 96);
 			g_config.bomb_spell.carpet_width = GetJsonInt(b, "carpet_width", 200);
 		}
+
+		// Fireball
+		if (abilities.isMember("fireball") && abilities["fireball"].isObject())
+		{
+			const Json::Value& f = abilities["fireball"];
+			g_config.fireball.initial_damage = GetJsonInt(f, "initial_damage", 50);
+			g_config.fireball.addon_damage = GetJsonInt(f, "addon_damage", 25);
+			g_config.fireball.initial_radius = GetJsonInt(f, "initial_radius", 80);
+			g_config.fireball.addon_radius = GetJsonFloat(f, "addon_radius", 2.5f);
+			g_config.fireball.initial_speed = GetJsonInt(f, "initial_speed", 650);
+			g_config.fireball.addon_speed = GetJsonInt(f, "addon_speed", 35);
+		}
 	}
 
 	// Load hook config
