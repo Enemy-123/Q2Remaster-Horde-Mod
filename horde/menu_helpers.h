@@ -28,7 +28,7 @@ inline void MenuFormatItemWithProgress(char* buffer, size_t buffer_size,
 	char padded_name[MENU_TEXT_MAX];
 	snprintf(padded_name, sizeof(padded_name), "%s:", name);
 	padRight(padded_name, MENU_NAME_WIDTH);
-	snprintf(buffer, buffer_size, "  %d. %s [%02d/%02d]", item_number, padded_name, current, max);
+	snprintf(buffer, buffer_size, "  %d. %s[%02d/%02d]", item_number, padded_name, current, max);
 }
 
 // Format a menu item with numbered prefix and [OWNED] indicator
