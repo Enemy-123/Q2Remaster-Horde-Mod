@@ -3177,6 +3177,12 @@ struct player_skills_t {
 	// Fireball ability
 	int8_t fireball = 0;          // 0-10: Fireball (damage, radius, speed)
 
+	// Power Cubes Regeneration ability
+	int8_t pc_regen = 0;          // 0-10: Power cubes regeneration rate
+
+	// Free pc_regen from level start (permanent, not resettable)
+	int8_t free_pc_regen = 0;     // Free PC regen level (default 1 in horde mode)
+
 	// Weapon Upgrades - Grenade Launcher
 	int8_t gl_damage = 0;         // 0-10: Grenade damage
 	int8_t gl_range = 0;          // 0-10: Grenade range/speed
@@ -3350,6 +3356,7 @@ struct client_persistant_t
 
 	// Horde power cubes currency system
 	int32_t horde_power_cubes; // Currency for horde mode features (gained from armor shards)
+	float pc_regen_time;       // Time tracker for power cubes regeneration
 
 	int32_t game_help1changed, game_help2changed;
 	int32_t helpchanged; // flash F1 icon if non 0, play sound

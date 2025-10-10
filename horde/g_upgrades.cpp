@@ -64,6 +64,16 @@ static const UpgradeDefinition UPGRADE_DEFS[] = {
         ""
         "",
         10, 1, UpgradeCategory::ABILITY, nullptr, 0
+    },
+    {
+        "pc_regen",
+        "PC Regen",
+        "Passive power cubes regeneration\n"
+        "Base: 5 cubes every 5 seconds\n"
+        "Each level: faster regen\n"
+        "Formula: 5sec / level\n"
+        "Lvl 10: 5 cubes every 0.5s",
+        10, 1, UpgradeCategory::ABILITY, nullptr, 0
     }
 
     // More abilities will be added here in future phases
@@ -119,6 +129,8 @@ int8_t GetSkillLevel(edict_t* player, const char* upgrade_id) {
         return player->client->pers.skills.tesla_chain ? 1 : 0;
     else if (strcmp(upgrade_id, "fireball") == 0)
         return player->client->pers.skills.fireball;
+    else if (strcmp(upgrade_id, "pc_regen") == 0)
+        return player->client->pers.skills.pc_regen;
 
     return 0;
 }
@@ -209,6 +221,8 @@ bool UpgradeSkill(edict_t* player, const char* upgrade_id) {
         player->client->pers.skills.tesla_chain = true;
     } else if (strcmp(upgrade_id, "fireball") == 0) {
         player->client->pers.skills.fireball++;
+    } else if (strcmp(upgrade_id, "pc_regen") == 0) {
+        player->client->pers.skills.pc_regen++;
     }
 
     return true;
@@ -322,6 +336,8 @@ void ResetAllSkills(edict_t* player) {
     total_points += player->client->pers.skills.sentry_upgrade ? 1 : 0;
     total_points += player->client->pers.skills.tesla_chain ? 1 : 0;
     total_points += player->client->pers.skills.fireball;
+    // For pc_regen, subtract free bonus to only refund manually-allocated points
+    total_points += player->client->pers.skills.pc_regen - player->client->pers.skills.free_pc_regen;
 
     if (total_points == 0) {
         gi.LocClient_Print(player, PRINT_HIGH, nullptr, "No skills to reset!\n");
@@ -341,7 +357,9 @@ void ResetAllSkills(edict_t* player) {
     player->client->pers.skills.sentry_upgrade = false;
     player->client->pers.skills.tesla_chain = false;
     player->client->pers.skills.fireball = 0;
-    // Note: free_vitality and free_max_ammo are NOT reset - they're permanent
+    // Reset pc_regen to its free bonus level (permanent default level 1)
+    player->client->pers.skills.pc_regen = player->client->pers.skills.free_pc_regen;
+    // Note: free_vitality, free_max_ammo, and free_pc_regen are NOT reset - they're permanent
 
     // Refund all points
     player->client->pers.skill_points += total_points;

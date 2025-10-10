@@ -1367,7 +1367,17 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	if (client->pers.pvm_level == 0)
 	{
 		client->pers.horde_power_cubes = 0;
+
+		// Initialize PC Regen to level 1 by default in horde/PvM modes (non-resettable)
+		if (g_horde->integer || pvm->integer)
+		{
+			client->pers.skills.free_pc_regen = 1;
+			client->pers.skills.pc_regen = 1;
+		}
 	}
+
+	// Initialize pc_regen_time on each spawn
+	client->pers.pc_regen_time = 0.0f;
 
 	//
 	// BLASTER AMMO INITIALIZATION (Vortex-style)
@@ -4258,6 +4268,66 @@ bool HandleMenuMovement(edict_t* ent, usercmd_t* menu_ucmd)
 	return false;
 }
 
+//
+// THINK_POWERCUBESREGEN - Power Cubes Regeneration (from Vortex mod)
+//
+// Regenerates power cubes over time based on player's pc_regen skill level
+// Formula: regen_time = base_regen_time / pc_regen_level
+// Example: Level 1 = 5 cubes every 5 seconds, Level 10 = 5 cubes every 0.5 seconds
+//
+void Think_PowerCubesRegen(edict_t* ent)
+{
+	if (!ent || !ent->client)
+		return;
+
+	// Get player's PC regen skill level
+	int8_t pc_regen_level = ent->client->pers.skills.pc_regen;
+
+	// Exit if player has no PC regen skill
+	if (pc_regen_level <= 0)
+		return;
+
+	// Only regenerate in horde or PvM modes
+	if (!g_horde->integer && !pvm->integer)
+		return;
+
+	// Accumulate time using FRAME_TIME_S (time per frame in seconds)
+	ent->client->pers.pc_regen_time += FRAME_TIME_S.seconds();
+
+	// Calculate regeneration interval: base_regen_time / level
+	// Example: 5.0 / 1 = 5 seconds, 5.0 / 10 = 0.5 seconds
+	float regen_interval = g_config.power_cubes_regen.base_regen_time / static_cast<float>(pc_regen_level);
+
+	// Calculate max capacity based on bullets/cells max ammo
+	int max_capacity = 0;
+	if (g_config.power_cubes.use_bullets_max)
+		max_capacity = max(max_capacity, static_cast<int>(ent->client->pers.max_ammo[AMMO_BULLETS]));
+	if (g_config.power_cubes.use_cells_max)
+		max_capacity = max(max_capacity, static_cast<int>(ent->client->pers.max_ammo[AMMO_CELLS]));
+
+	// Process regeneration ticks (similar to Vortex's while loop)
+	while (ent->client->pers.pc_regen_time >= regen_interval)
+	{
+		// Check if we have room for more cubes
+		if (ent->client->pers.horde_power_cubes < max_capacity)
+		{
+			// Add cubes (default 5 per tick)
+			ent->client->pers.horde_power_cubes += g_config.power_cubes_regen.cubes_per_regen;
+
+			// Cap at max capacity
+			if (ent->client->pers.horde_power_cubes > max_capacity)
+				ent->client->pers.horde_power_cubes = max_capacity;
+
+			// Ensure non-negative
+			if (ent->client->pers.horde_power_cubes < 0)
+				ent->client->pers.horde_power_cubes = 0;
+		}
+
+		// Subtract the regen interval from accumulated time
+		ent->client->pers.pc_regen_time -= regen_interval;
+	}
+}
+
 void ClientThink(edict_t* ent, usercmd_t* ucmd)
 {
 	gclient_t* client;
@@ -5365,6 +5435,9 @@ void ClientBeginServerFrame(edict_t* ent)
 	// add player trail so monsters can follow
 	if (!deathmatch->integer || g_horde->integer || pvm->integer || G_IsCooperative())
 		PlayerTrail_Add(ent);
+
+	// Regenerate power cubes based on player's pc_regen skill level
+	Think_PowerCubesRegen(ent);
 
 	client->latched_buttons = BUTTON_NONE;
 }

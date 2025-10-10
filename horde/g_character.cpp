@@ -239,11 +239,15 @@ bool Character_Load(edict_t* player)
                 player->client->pers.skills.tesla_chain = skills["tesla_chain"].asBool();
             if (skills.isMember("fireball") && skills["fireball"].isInt())
                 player->client->pers.skills.fireball = static_cast<int8_t>(skills["fireball"].asInt());
+            if (skills.isMember("pc_regen") && skills["pc_regen"].isInt())
+                player->client->pers.skills.pc_regen = static_cast<int8_t>(skills["pc_regen"].asInt());
             // Load free bonuses from milestones (permanent, not resetable)
             if (skills.isMember("free_vitality") && skills["free_vitality"].isInt())
                 player->client->pers.skills.free_vitality = static_cast<int8_t>(skills["free_vitality"].asInt());
             if (skills.isMember("free_max_ammo") && skills["free_max_ammo"].isInt())
                 player->client->pers.skills.free_max_ammo = static_cast<int8_t>(skills["free_max_ammo"].asInt());
+            if (skills.isMember("free_pc_regen") && skills["free_pc_regen"].isInt())
+                player->client->pers.skills.free_pc_regen = static_cast<int8_t>(skills["free_pc_regen"].asInt());
         }
 
         // Load power cubes currency
@@ -524,9 +528,11 @@ bool Character_Save(edict_t* player)
     root["stats"]["skills"]["sentry_upgrade"] = player->client->pers.skills.sentry_upgrade;
     root["stats"]["skills"]["tesla_chain"] = player->client->pers.skills.tesla_chain;
     root["stats"]["skills"]["fireball"] = player->client->pers.skills.fireball;
+    root["stats"]["skills"]["pc_regen"] = player->client->pers.skills.pc_regen;
     // Save free bonuses from milestones (permanent, not resetable)
     root["stats"]["skills"]["free_vitality"] = player->client->pers.skills.free_vitality;
     root["stats"]["skills"]["free_max_ammo"] = player->client->pers.skills.free_max_ammo;
+    root["stats"]["skills"]["free_pc_regen"] = player->client->pers.skills.free_pc_regen;
 
     // Save power cubes currency
     root["stats"]["horde_power_cubes"] = player->client->pers.horde_power_cubes;

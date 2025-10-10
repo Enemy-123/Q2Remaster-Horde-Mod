@@ -823,6 +823,14 @@ void Config_Load(const char* basedir)
 		g_config.power_cubes.use_cells_max = pc.get("use_cells_max", true).asBool();
 	}
 
+	// Load power cubes regeneration config
+	if (root.isMember("power_cubes_regen") && root["power_cubes_regen"].isObject())
+	{
+		const Json::Value& pcr = root["power_cubes_regen"];
+		g_config.power_cubes_regen.base_regen_time = GetJsonFloat(pcr, "base_regen_time", 5.0f);
+		g_config.power_cubes_regen.cubes_per_regen = GetJsonInt(pcr, "cubes_per_regen", 5);
+	}
+
 	gi.Com_PrintFmt("Config: Successfully loaded {}\n", config_filename);
 	gi.Com_PrintFmt("Config: Entity limits - Sentries: {}, Lasers: {}, Teslas: {}, Barrels: {}, Prox: {}, Traps: {}, Summons: {}\n",
 		g_config.entity_limits.max_sentries,

@@ -464,6 +464,14 @@ struct PowerCubesConfig
 	bool use_cells_max = true;    // Use cells max ammo as part of capacity calculation
 };
 
+
+// Power cubes regeneration configuration
+struct PowerCubesRegenConfig
+{
+	float base_regen_time = 5.0f; // Base time (in seconds) between regenerations (at level 1)
+	int cubes_per_regen = 5;      // Power cubes gained per regeneration tick
+};
+
 // Master configuration structure
 struct GameConfig
 {
@@ -513,6 +521,7 @@ struct GameConfig
 
 	// Power cubes currency
 	PowerCubesConfig power_cubes;
+	PowerCubesRegenConfig power_cubes_regen;
 
 	// Global monster weapons (base values)
 	GlobalWeaponDamage global_weapon_damage;
