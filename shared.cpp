@@ -582,6 +582,9 @@ const char* GetDisplayName(const edict_t* ent) {
 	return base_lifetime + gtime_t::from_sec(adrenaline_bonus_seconds);
 }
 
+// Forward declaration
+void ApplyPvMLevelScaling(edict_t* monster);
+
 // 12:  bonus flag application
 void ApplyMonsterBonusFlags(edict_t* monster)
 {
@@ -593,6 +596,27 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 	// Apply level-based scaling (PvM leveling system)
 	// Set monster's level to the lowest player level
 	monster->monsterinfo.pvm_level = g_lowest_player_level;
+
+	// Apply centralized PvM level scaling for ALL monsters
+	// This ensures monsters get level-scaled health/armor even if their spawn functions haven't been updated
+	ApplyPvMLevelScaling(monster);
+
+	// Fix armor conflict: if monster has both armor and power_armor, keep only the highest value
+	if (monster->monsterinfo.armor_power > 0 && monster->monsterinfo.power_armor_power > 0)
+	{
+		if (monster->monsterinfo.armor_power > monster->monsterinfo.power_armor_power)
+		{
+			// Regular armor is higher, remove power armor
+			monster->monsterinfo.power_armor_power = 0;
+			monster->monsterinfo.power_armor_type = IT_NULL;
+		}
+		else
+		{
+			// Power armor is higher or equal, remove regular armor
+			monster->monsterinfo.armor_power = 0;
+			monster->monsterinfo.armor_type = IT_NULL;
+		}
+	}
 
 	// Use base_health for power armor calculation to avoid double-scaling issues
 	// base_health is set before any bonus multipliers are applied
@@ -671,6 +695,61 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 	}
 
 	gi.linkentity(monster);
+}
+
+// Apply centralized PvM level scaling for monsters
+// This ensures ALL monsters get level-based health/armor scaling
+// even if their individual spawn functions haven't been updated yet
+void ApplyPvMLevelScaling(edict_t* monster)
+{
+	if (!monster || !monster->inuse)
+		return;
+
+	// Skip bosses - they have special scaling
+	if (monster->monsterinfo.IS_BOSS)
+		return;
+
+	// Get monster type and classname
+	uint8_t type_id = monster->monsterinfo.monster_type_id;
+	const char* classname = horde::MonsterTypeRegistry::GetClassname(static_cast<horde::MonsterTypeID>(type_id));
+	
+	if (!classname || strncmp(classname, "monster_", 8) != 0)
+		return;
+
+	// Extract monster name without "monster_" prefix
+	const char* monster_name = classname + 8;
+
+	// Try to get level-based scaling config
+	const MonsterLevelScaling* level_scaling = GetMonsterLevelScaling(monster_name);
+	if (!level_scaling)
+		return; // No level scaling config for this monster
+
+	// Get monster config for the health/armor scale multipliers
+	const MonsterStatsConfig* config = GetMonsterConfig(type_id);
+	if (!config)
+		return;
+
+	// Apply level-based health scaling
+	int scaled_health = level_scaling->initial_health + (g_lowest_player_level * level_scaling->addon_health);
+	scaled_health = static_cast<int>(scaled_health * config->health_scale);
+	monster->health = scaled_health;
+	monster->max_health = scaled_health;
+
+	// Apply level-based armor scaling (if monster has regular armor configured)
+	if (config->armor_power > 0 && monster->monsterinfo.armor_power > 0)
+	{
+		int scaled_armor = level_scaling->initial_armor + (g_lowest_player_level * level_scaling->addon_armor);
+		scaled_armor = static_cast<int>(scaled_armor * config->armor_scale);
+		monster->monsterinfo.armor_power = scaled_armor;
+	}
+
+	// Apply level-based armor scaling to power armor (if monster has power armor configured)
+	if (config->power_armor_power > 0 && monster->monsterinfo.power_armor_power > 0)
+	{
+		int scaled_armor = level_scaling->initial_armor + (g_lowest_player_level * level_scaling->addon_armor);
+		scaled_armor = static_cast<int>(scaled_armor * config->power_armor_scale);
+		monster->monsterinfo.power_armor_power = scaled_armor;
+	}
 }
 
 // 13:  boss minimum calculations with LUT

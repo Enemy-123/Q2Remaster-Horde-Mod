@@ -610,20 +610,6 @@ void SP_monster_gladiator(edict_t* self)
 		}
 		self->mass = 350;
 
-		// Power armor
-	if (!st.was_key_specified("power_armor_type") && M_GLADIATOR_POWER_ARMOR_TYPE != IT_NULL) {
-		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_GLADIATOR_POWER_ARMOR_TYPE);
-		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = M_GLADIATOR_ADDON_POWER_ARMOR(self);
-	}
-
-		// Armor
-	if (!st.was_key_specified("armor_type") && M_GLADIATOR_INITIAL_ARMOR > 0) {
-		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
-		if (!st.was_key_specified("armor_power"))
-			self->monsterinfo.armor_power = M_GLADIATOR_ADDON_ARMOR(self);
-	}
-
 		self->s.skinnum = 2;
 		self->s.effects = EF_TRACKER;
 		self->monsterinfo.weapon_sound = gi.soundindex("weapons/phaloop.wav");
@@ -640,20 +626,6 @@ void SP_monster_gladiator(edict_t* self)
 		}
 		self->mass = 350;
 
-		// Power armor
-	if (!st.was_key_specified("power_armor_type") && M_GLADIATOR_POWER_ARMOR_TYPE != IT_NULL) {
-		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_GLADIATOR_POWER_ARMOR_TYPE);
-		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = M_GLADIATOR_ADDON_POWER_ARMOR(self);
-	}
-
-		// Armor
-	if (!st.was_key_specified("armor_type") && M_GLADIATOR_INITIAL_ARMOR > 0) {
-		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
-		if (!st.was_key_specified("armor_power"))
-			self->monsterinfo.armor_power = M_GLADIATOR_ADDON_ARMOR(self);
-	}
-
 		self->s.skinnum = 2;
 		self->monsterinfo.weapon_sound = gi.soundindex("weapons/phaloop.wav");
 		break;
@@ -669,22 +641,31 @@ void SP_monster_gladiator(edict_t* self)
 		}
 		self->mass = 400;
 
-	// Power armor configuration
-	if (!st.was_key_specified("power_armor_type") && M_GLADIATOR_POWER_ARMOR_TYPE != IT_NULL) {
-		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_GLADIATOR_POWER_ARMOR_TYPE);
-		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = M_GLADIATOR_ADDON_POWER_ARMOR(self);
-	}
-
-	// Regular armor configuration
-	if (!st.was_key_specified("armor_type") && M_GLADIATOR_INITIAL_ARMOR > 0) {
-		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
-		if (!st.was_key_specified("armor_power"))
-			self->monsterinfo.armor_power = M_GLADIATOR_ADDON_ARMOR(self);
-	}
-
 		self->monsterinfo.weapon_sound = gi.soundindex("weapons/rg_hum.wav");
 		break;
+	}
+
+	// Armor setup based on actual monster_type_id (not hardcoded GLADIATOR)
+	// This ensures each variant gets the correct armor type from its JSON config
+	uint8_t type_id = self->monsterinfo.monster_type_id;
+	
+	// Get armor configuration dynamically based on monster_type_id
+	int base_armor = GetMonsterBaseArmor(type_id);
+	int base_power_armor = GetMonsterBasePowerArmor(type_id);
+	item_id_t power_armor_type = static_cast<item_id_t>(GetMonsterPowerArmorType(type_id));
+
+	// Set power armor if configured
+	if (!st.was_key_specified("power_armor_type") && power_armor_type != IT_NULL) {
+		self->monsterinfo.power_armor_type = power_armor_type;
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = GetMonsterScaledPowerArmor(type_id, current_wave_level, self->monsterinfo.IS_BOSS);
+	}
+
+	// Set regular armor if configured
+	if (!st.was_key_specified("armor_type") && base_armor > 0) {
+		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (!st.was_key_specified("armor_power"))
+			self->monsterinfo.armor_power = GetMonsterScaledArmor(type_id, current_wave_level, self->monsterinfo.IS_BOSS);
 	}
 
 	// Monster AI/behavior functions
@@ -720,56 +701,16 @@ void SP_monster_gladiator(edict_t* self)
 */
 void SP_monster_gladb(edict_t* self)
 {
-	const spawn_temp_t &st = ED_GetSpawnTemp();
-
 	self->style = 1;
-	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GLADIATOR_B);	SP_monster_gladiator(self);
-
-	// Power armor
-	if (!st.was_key_specified("power_armor_type") && M_GLADIATOR_POWER_ARMOR_TYPE != IT_NULL) {
-		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_GLADIATOR_POWER_ARMOR_TYPE);
-		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = M_GLADIATOR_ADDON_POWER_ARMOR(self);
-	}
-
-	// Armor
-	if (!st.was_key_specified("armor_type") && M_GLADIATOR_INITIAL_ARMOR > 0) {
-		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
-		if (!st.was_key_specified("armor_power"))
-			self->monsterinfo.armor_power = M_GLADIATOR_ADDON_ARMOR(self);
-	}
-
-	if (g_horde && g_horde->integer && current_wave_level > 0) {
-		self->health = M_GLADIATOR_ADDON_HEALTH(self);
-	} else {
-		self->health = static_cast<int>(M_GLADIATOR_INITIAL_HEALTH * st.health_multiplier);
-	}
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GLADIATOR_B);
+	SP_monster_gladiator(self);
+	// All armor and health configuration is handled by SP_monster_gladiator's switch statement
 }
 
 void SP_monster_gladc(edict_t* self)
 {
-	const spawn_temp_t &st = ED_GetSpawnTemp();
-
 	self->style = 3;
-	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GLADIATOR_C);	SP_monster_gladiator(self);
-
-	// Power armor
-	if (!st.was_key_specified("power_armor_type") && M_GLADIATOR_POWER_ARMOR_TYPE != IT_NULL) {
-		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_GLADIATOR_POWER_ARMOR_TYPE);
-		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = M_GLADIATOR_ADDON_POWER_ARMOR(self);
-	}
-
-	// Armor
-	if (!st.was_key_specified("armor_type") && M_GLADIATOR_INITIAL_ARMOR > 0) {
-		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
-		if (!st.was_key_specified("armor_power"))
-			self->monsterinfo.armor_power = M_GLADIATOR_ADDON_ARMOR(self);
-	}
-
-	if (g_horde && g_horde->integer && current_wave_level > 0) {
-		self->health = M_GLADIATOR_ADDON_HEALTH(self);
-	} else {
-		self->health = static_cast<int>(M_GLADIATOR_INITIAL_HEALTH * st.health_multiplier);
-	}
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GLADIATOR_C);
+	SP_monster_gladiator(self);
+	// All armor and health configuration is handled by SP_monster_gladiator's switch statement
 }

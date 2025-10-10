@@ -946,7 +946,7 @@
     },
     "gladiator": {
       "initial_health": 100,
-      "addon_health": 10,
+      "addon_health": 25,
       "initial_armor": 100,
       "addon_armor": 20
     },
@@ -982,7 +982,7 @@
     },
     "tank": {
       "initial_health": 100,
-      "addon_health": 65,
+      "addon_health": 55,
       "initial_armor": 200,
       "addon_armor": 105
     },
@@ -994,7 +994,7 @@
     },
     "shambler": {
       "initial_health": 250,
-      "addon_health": 125,
+      "addon_health": 70,
       "initial_armor": 0,
       "addon_armor": 0
     }
