@@ -76,11 +76,11 @@ static const char *GetSentryTypeName(sentrytype_t type)
 	switch (type)
 	{
 	case SENTRY_HEATBEAM:
-		return "Beam/Phalanx";
+		return "Beams";
 	case SENTRY_MACHINEGUN:
-		return "Mg/Rocket";
+		return "Bullets";
 	case SENTRY_FLECHETTE:
-		return "Flech/Grenade";
+		return "Flechettes";
 	case SENTRY_RANDOM: // fallthrough
 	default:
 		return "Random";
@@ -1383,25 +1383,19 @@ void MiscMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		// Message handled internally, menu should close.
 	}
 	// **** Check Special Wave selection ****
-	else if (strncmp(selected_text, "Special key [L]", strlen("Special key [L]")) == 0)
+	else if (strstr(selected_text, "Special key [L]") != nullptr)
 	{
 		HordeMenu_SpecialWave(ent, p); // Call the dedicated handler
 		shouldCloseMenu = false;	   // Don't close, HordeMenu_SpecialWave will reopen Misc Menu
 	}
 	// **** Check Sentry Type selection ****
-	else if (strncmp(selected_text, "Sentry Type:", strlen("Sentry Type:")) == 0)
+	else if (strstr(selected_text, "Sentry Type") != nullptr)
 	{
 		HordeMenu_SentryChoice(ent, p); // Call the dedicated handler
 		shouldCloseMenu = false;		// Don't close, HordeMenu_SentryChoice will reopen Misc Menu
 	}
-	// **** Check BFG Mode selection ****
-	else if (strncmp(selected_text, "BFG Mode:", strlen("BFG Mode:")) == 0)
-	{
-		HordeMenu_BFGMode(ent, p); // Call the dedicated handler
-		shouldCloseMenu = false;   // Don't close, HordeMenu_BFGMode will reopen Misc Menu
-	}
 	// **** Check Beta: Strogg preference selection ****
-	else if (strncmp(selected_text, "[Beta] Strogg", strlen("[Beta] Strogg")) == 0)
+	else if (strstr(selected_text, "[Beta] Strogg") != nullptr)
 	{
 		HordeMenu_StroggPreference(ent, p); // Call the preference handler
 		shouldCloseMenu = false;			// Don't close, will reopen Misc Menu
@@ -1663,18 +1657,17 @@ void OpenMiscMenu(edict_t *ent, int cursor_position)
 	add_entry("*Misc Options*", PMENU_ALIGN_CENTER);
 	add_entry("", PMENU_ALIGN_CENTER); // Separator
 
+	// Track item numbers for consistent formatting
+	int item_num = 1;
+	char buffer[128];
+
 	// --- Special Wave Selection ---
-	add_entry(G_Fmt("Special key [L]: [{}]", GetSpecialWaveName(g_special_key->integer)).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
+	MenuFormatItemWithCustom(buffer, sizeof(buffer), item_num++, "Special key [L]", GetSpecialWaveName(g_special_key->integer));
+	add_entry(buffer, PMENU_ALIGN_LEFT, MiscMenuHandler);
 
 	// --- Sentry Gun Choice ---
-	add_entry(G_Fmt("Sentry Type: [{}]", GetSentryTypeName(ent->client->pers.sentry_gun_choice)).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
-
-	// --- BFG Mode Selection (only if player has BFG upgrades) ---
-	bool has_bfg_upgrades = BotHasBenefit(ent, BenefitID::BFG_SLIDE) || BotHasBenefit(ent, BenefitID::BFG_GRAV_PULL);
-	if (has_bfg_upgrades)
-	{
-		add_entry(G_Fmt("BFG Mode: [{}]", GetBFGModeName(ent->client->pers.bfg_mode)).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
-	}
+	MenuFormatItemWithCustom(buffer, sizeof(buffer), item_num++, "Sentry Type", GetSentryTypeName(ent->client->pers.sentry_gun_choice));
+	add_entry(buffer, PMENU_ALIGN_LEFT, MiscMenuHandler);
 
 	// --- Conditional Remove Options (MODIFIED) ---
 
@@ -1730,7 +1723,8 @@ void OpenMiscMenu(edict_t *ent, int cursor_position)
 
 	// --- STROGG OPTIONS (Prominent placement near bottom) ---
 	// --- Beta: Strogg Preference Selection (always visible) ---
-	add_entry(G_Fmt("[Beta] Strogg [{}]", GetMorphTypeName(ent->client->pers.morph_preference)).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
+	MenuFormatItemWithCustom(buffer, sizeof(buffer), item_num++, "[Beta] Strogg", GetMorphTypeName(ent->client->pers.morph_preference));
+	add_entry(buffer, PMENU_ALIGN_LEFT, MiscMenuHandler);
 
 	// --- Stroggification Command (morph/unmorph) ---
 	if (IsMorphed(ent))
@@ -1798,18 +1792,22 @@ pmenuhnd_t *CreateHUDMenu(edict_t *ent)
 		entries[count++].SelectFunc = nullptr;
 	}
 
-	// ID Toggle using G_FmtTo
+	// ID Toggle using MenuFormatItemWithCustom
+	int item_num = 1;
+	char status_buffer[16];
 	if (count < HUD_MENU_MAX_ENTRIES)
 	{
-		G_FmtTo(entries[count].text, "Enable/Disable ID [{}]", ent->client->pers.id_state ? "ON" : "OFF");
+		snprintf(status_buffer, sizeof(status_buffer), "[%s]", ent->client->pers.id_state ? "ON" : "OFF");
+		MenuFormatItemWithCustom(entries[count].text, sizeof(entries[count].text), item_num++, "Enable/Disable ID", status_buffer);
 		entries[count].align = PMENU_ALIGN_LEFT;
 		entries[count++].SelectFunc = HUDMenuHandler;
 	}
 
-	// ID-DMG Toggle using G_FmtTo
+	// ID-DMG Toggle using MenuFormatItemWithCustom
 	if (count < HUD_MENU_MAX_ENTRIES)
 	{
-		G_FmtTo(entries[count].text, "Enable/Disable ID-DMG [{}]", ent->client->pers.iddmg_state ? "ON" : "OFF");
+		snprintf(status_buffer, sizeof(status_buffer), "[%s]", ent->client->pers.iddmg_state ? "ON" : "OFF");
+		MenuFormatItemWithCustom(entries[count].text, sizeof(entries[count].text), item_num++, "Enable/Disable ID-DMG", status_buffer);
 		entries[count].align = PMENU_ALIGN_LEFT;
 		entries[count++].SelectFunc = HUDMenuHandler;
 	}
