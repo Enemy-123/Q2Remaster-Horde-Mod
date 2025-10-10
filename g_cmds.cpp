@@ -368,6 +368,17 @@ void Cmd_Fireball_f(edict_t* ent)
 		return;
 	}
 
+	// Check power cube cost
+	const int cost = g_config.fireball.cost;
+	if (ent->client->pers.horde_power_cubes < cost)
+	{
+		gi.LocClient_Print(ent, PRINT_HIGH, "Not enough power cubes! Need {} cubes to cast fireball.\n", cost);
+		return;
+	}
+
+	// Deduct power cubes
+	ent->client->pers.horde_power_cubes -= cost;
+
 	// Get player's aim direction
 	vec3_t forward, right, up;
 	AngleVectors(ent->client->v_angle, forward, right, up);

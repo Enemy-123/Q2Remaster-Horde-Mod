@@ -119,32 +119,32 @@ static void UpdatePlayerLasers(const edict_t* player, int current_wave_level, in
     }
 }
 
-// Helper function to update sentry gun health for a single player
-static void UpdatePlayerSentryGuns(const edict_t* player)
-{
-    if (!player || !player->client) return;
+// // Helper function to update sentry gun health for a single player
+// static void UpdatePlayerSentryGuns(const edict_t* player)
+// {
+//     if (!player || !player->client) return;
 
-    for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER(); ++i)
-    {
-        edict_t* sentry = player->client->resp.deployed_sentries[i];
+//     for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER(); ++i)
+//     {
+//         edict_t* sentry = player->client->resp.deployed_sentries[i];
 
-        if (!sentry || !sentry->inuse)
-            continue;
+//         if (!sentry || !sentry->inuse)
+//             continue;
 
-        // Calculate new max health with current adrenaline count
-        int base_health = 125; // Base sentry health from SP_monster_sentrygun
-        int new_max_health = CalculateSentryHealth(base_health, player->client);
+//         // Calculate new max health with current adrenaline count
+//         int base_health = 125; // Base sentry health from SP_monster_sentrygun
+//         int new_max_health = CalculateSentryHealth(base_health, player->client);
 
-        // Only update max_health, leave current health untouched
-        if (new_max_health != sentry->max_health)
-        {
-            sentry->max_health = new_max_health;
+//         // Only update max_health, leave current health untouched
+//         if (new_max_health != sentry->max_health)
+//         {
+//             sentry->max_health = new_max_health;
 
-            // Update power armor accordingly (40% of max health)
-            sentry->monsterinfo.power_armor_power = static_cast<int>(round(sentry->max_health * 0.4f));
-        }
-    }
-}
+//             // Update power armor accordingly (40% of max health)
+//             sentry->monsterinfo.power_armor_power = static_cast<int>(round(sentry->max_health * 0.4f));
+//         }
+//     }
+// }
 
 // Helper function to update tesla mine lifetimes for a single player
 static void UpdatePlayerTeslaMines(const edict_t* player)
@@ -214,7 +214,7 @@ void G_UpdateAdrenalineBasedDeployables(int current_wave_level)
 
         // Update other deployables only when adrenaline changes
         if (should_update_adrenaline) {
-            UpdatePlayerSentryGuns(player);
+          //  UpdatePlayerSentryGuns(player);
             UpdatePlayerTeslaMines(player);
 
             // NOTE: Traps should NOT have their lifetime updated after creation

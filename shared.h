@@ -91,7 +91,7 @@ constexpr int ADRENALINE_HEALTH_BONUS = 5;
 constexpr float VECTOR_LENGTH_SQ_EPSILON = 0.0001f * 0.0001f;
 
 // Adrenaline bonus calculation functions
-int CalculateSentryHealth(int base_health, gclient_t* owner_client);
+//int CalculateSentryHealth(int base_health, gclient_t* owner_client);
 gtime_t CalculateDeployableLifetime(gtime_t base_lifetime, gclient_t* owner_client);
 
 [[nodiscard]] constexpr bool IsFirstThreeWaves(int32_t wave_level) noexcept {

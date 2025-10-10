@@ -83,17 +83,8 @@ static inline void HandleSentryRegeneration(edict_t* self, sentry_state_t* state
 		}
 	}
 
-	// Regenerate 5% power armor
-	if (self->monsterinfo.power_armor_type != IT_NULL) {
-		int max_power_armor = static_cast<int>(round(self->max_health * 0.4f));
-		int armor_regen = (int)(max_power_armor * 0.05f);
-		if (armor_regen > 0) {
-			self->monsterinfo.power_armor_power += armor_regen;
-			if (self->monsterinfo.power_armor_power > max_power_armor) {
-				self->monsterinfo.power_armor_power = max_power_armor;
-			}
-		}
-	}
+	// Power armor regeneration disabled for skill-based sentries
+	// All armor is now handled by regular armor based on skill level
 
 	state->last_regeneration_time = level.time;
 }
@@ -2401,14 +2392,9 @@ void SP_monster_sentrygun(edict_t* self)
 	if (base_health > g_config.sentrygun.max_health) {
 		base_health = g_config.sentrygun.max_health;
 	}
-	// Calculate health with adrenaline bonus
-	int calculated_health = CalculateSentryHealth(base_health, self->owner ? self->owner->client : nullptr);
-	// Power armor configuration
-	if (!st.was_key_specified("power_armor_type") && M_SENTRYGUN_POWER_ARMOR_TYPE != IT_NULL) {
-		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_SENTRYGUN_POWER_ARMOR_TYPE);
-		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = M_SENTRYGUN_ADDON_POWER_ARMOR(self);
-	}
+
+	// Power armor is disabled for skill-based sentrygun to avoid using monsters.json values
+	// All armor scaling is now handled by regular armor based on skill level below
 
 	// Regular armor configuration based on skill level
 	if (!st.was_key_specified("armor_type") && g_config.sentrygun.initial_armor > 0) {
@@ -2421,9 +2407,9 @@ void SP_monster_sentrygun(edict_t* self)
 		self->monsterinfo.armor_power = armor;
 	}
 
-
-	self->health = calculated_health;
-	self->max_health = calculated_health;
+	// Set health to calculated base_health (no adrenaline bonus)
+	self->health = base_health;
+	self->max_health = base_health;
 
 	// self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 	// self->monsterinfo.power_armor_power = static_cast<int>(round(self->max_health * 0.4f));

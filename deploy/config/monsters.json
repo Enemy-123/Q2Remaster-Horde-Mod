@@ -108,18 +108,6 @@
   "// ============================================================================ 4": "",
 
   "monsters": {
-    "sentrygun": {
-      "health": 120,
-      "power_armor_power": 40,
-      "power_armor_type": "screen",
-      "damage_scale": 1.2,
-      "weapon_damage": {
-        "grenade": 120,
-        "rocket": 100,
-        "plasma": 100
-      }
-    },
-
     "turret": {
       "health": 100,
       "armor_power": 40,

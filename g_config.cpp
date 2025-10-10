@@ -781,6 +781,7 @@ void Config_Load(const char* basedir)
 			g_config.fireball.addon_radius = GetJsonFloat(f, "addon_radius", 2.5f);
 			g_config.fireball.initial_speed = GetJsonInt(f, "initial_speed", 650);
 			g_config.fireball.addon_speed = GetJsonInt(f, "addon_speed", 35);
+			g_config.fireball.cost = GetJsonInt(f, "cost", 15);
 		}
 	}
 

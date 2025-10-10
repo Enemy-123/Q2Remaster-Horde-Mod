@@ -296,6 +296,7 @@ struct FireballConfig
 	float addon_radius = 2.5f;
 	int initial_speed = 650;
 	int addon_speed = 35;
+	int cost = 15;  // Power cube cost per fireball
 };
 
 // Hook configuration (offhand hook system from hook.cpp)
