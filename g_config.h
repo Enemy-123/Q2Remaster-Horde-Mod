@@ -456,6 +456,14 @@ struct MapsConfig
 	std::array<MapOverrideConfig, 64> map_overrides;  // 64 = horde::MapID::MAX_MAPS
 };
 
+// Power cubes currency configuration
+struct PowerCubesConfig
+{
+	int cubes_per_shard = 5;      // Power cubes gained per armor shard pickup
+	bool use_bullets_max = true;  // Use bullets max ammo as part of capacity calculation
+	bool use_cells_max = true;    // Use cells max ammo as part of capacity calculation
+};
+
 // Master configuration structure
 struct GameConfig
 {
@@ -502,6 +510,9 @@ struct GameConfig
 
 	// Ammo regeneration
 	AmmoRegenConfig ammo_regen;
+
+	// Power cubes currency
+	PowerCubesConfig power_cubes;
 
 	// Global monster weapons (base values)
 	GlobalWeaponDamage global_weapon_damage;

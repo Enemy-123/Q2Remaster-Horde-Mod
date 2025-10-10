@@ -903,11 +903,36 @@ bool Pickup_Armor(edict_t* ent, edict_t* other)
 				shard_amount = (int)(shard_amount * multiplier);
 			}
 		}
-		
+
 		if (!old_armor_index)
 			other->client->pers.inventory[IT_ARMOR_JACKET] = shard_amount;
 		else
 			other->client->pers.inventory[old_armor_index] += shard_amount;
+
+		// Award power cubes for armor shard pickup
+		if (other->client && (g_horde->integer || pvm->integer))
+		{
+			int cubes_to_add = g_config.power_cubes.cubes_per_shard;
+
+			// Calculate max capacity based on bullets/cells max ammo
+			int max_capacity = 0;
+			if (g_config.power_cubes.use_bullets_max)
+				max_capacity = max(max_capacity, other->client->pers.max_ammo[AMMO_BULLETS]);
+			if (g_config.power_cubes.use_cells_max)
+				max_capacity = max(max_capacity, other->client->pers.max_ammo[AMMO_CELLS]);
+
+			// Add cubes with capacity check
+			int current_cubes = other->client->pers.horde_power_cubes;
+			int new_cubes = min(current_cubes + cubes_to_add, max_capacity);
+
+			if (new_cubes > current_cubes)
+			{
+				other->client->pers.horde_power_cubes = new_cubes;
+				int actual_added = new_cubes - current_cubes;
+				gi.LocClient_Print(other, PRINT_HIGH, "+{} Power Cubes ({}/{})\n",
+					actual_added, new_cubes, max_capacity);
+			}
+		}
 	}
 	// if player has no armor, just use it
 	else if (!old_armor_index)

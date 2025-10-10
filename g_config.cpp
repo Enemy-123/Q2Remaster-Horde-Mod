@@ -814,6 +814,15 @@ void Config_Load(const char* basedir)
 		}
 	}
 
+	// Load power cubes config
+	if (root.isMember("power_cubes") && root["power_cubes"].isObject())
+	{
+		const Json::Value& pc = root["power_cubes"];
+		g_config.power_cubes.cubes_per_shard = GetJsonInt(pc, "cubes_per_shard", 5);
+		g_config.power_cubes.use_bullets_max = pc.get("use_bullets_max", true).asBool();
+		g_config.power_cubes.use_cells_max = pc.get("use_cells_max", true).asBool();
+	}
+
 	gi.Com_PrintFmt("Config: Successfully loaded {}\n", config_filename);
 	gi.Com_PrintFmt("Config: Entity limits - Sentries: {}, Lasers: {}, Teslas: {}, Barrels: {}, Prox: {}, Traps: {}, Summons: {}\n",
 		g_config.entity_limits.max_sentries,
