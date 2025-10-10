@@ -743,8 +743,11 @@ argv(1) classname (e.g., monster_medic, monster_gunner)
 */
 void Cmd_Summon_f(edict_t* ent)
 {
-	// if (!G_CheatCheck(ent))
-	// 	return;
+void Cmd_Kill_AI_f(edict_t* ent) {
+	if (!G_CheatCheck(ent)) {
+		gi.LocClient_Print(ent, PRINT_HIGH, "Cmd_Summon: Cheats Must Be Enabled!\n");
+		return;
+	}
 
 	const char* classname = gi.argv(1);
 	if (!classname || !*classname)
@@ -1325,35 +1328,42 @@ extern bool allowWaveAdvance;
 Cmd_Kill_AI_f
 =================
 */
-void Cmd_Kill_AI_f(edict_t* ent) {
-	if (!G_CheatCheck(ent)) {
-		gi.LocClient_Print(ent, PRINT_HIGH, "Kill_AI: Cheats Must Be Enabled!\n");
+void Cmd_Kill_AI_f(edict_t *ent)
+{
+
+	unsigned int playerNum = P_GetLobbyUserNum(ent);
+	if (!playerNum == 0)
+	{
+		gi.LocClient_Print(ent, PRINT_HIGH, "Kill_AI: Only Host can do this evil trick!\n");
 		return;
 	}
 
 	// except the one we're looking at...
-	edict_t* looked_at = nullptr;
+	edict_t *looked_at = nullptr;
 
-	vec3_t start = ent->s.origin + vec3_t{ 0.f, 0.f, (float)ent->viewheight };
+	vec3_t start = ent->s.origin + vec3_t{0.f, 0.f, (float)ent->viewheight};
 	vec3_t end = start + ent->client->v_forward * 1024.f;
 
 	// Using MASK_MONSTERSOLID is slightly better for targeting monsters
 	looked_at = gi.traceline(start, end, ent, MASK_MONSTERSOLID).ent;
 
 	const int numEdicts = globals.num_edicts;
-	for (int edictIdx = 1; edictIdx < numEdicts; ++edictIdx) {
-		edict_t* edict = &g_edicts[edictIdx];
-		if (!edict->inuse || edict == looked_at) {
+	for (int edictIdx = 1; edictIdx < numEdicts; ++edictIdx)
+	{
+		edict_t *edict = &g_edicts[edictIdx];
+		if (!edict->inuse || edict == looked_at)
+		{
 			continue;
 		}
 
-		if ((edict->svflags & SVF_MONSTER) == 0) {
+		if ((edict->svflags & SVF_MONSTER) == 0)
+		{
 			continue;
 		}
 
 		// Dañar severamente al AI
 		if (!edict->deadflag && (!(edict->monsterinfo.team == CTF_TEAM1)))
-			T_Damage(edict, ent, ent, { 0, 0, 1 }, edict->s.origin, { 0, 0, 1 }, 99999, 99999, DAMAGE_NO_PROTECTION, MOD_BFG_BLAST);
+			T_Damage(edict, ent, ent, {0, 0, 1}, edict->s.origin, {0, 0, 1}, 99999, 99999, DAMAGE_NO_PROTECTION, MOD_BFG_BLAST);
 	}
 
 	gi.LocClient_Print(ent, PRINT_HIGH, "Kill_AI: All AI Were Severely Purged...\n");
