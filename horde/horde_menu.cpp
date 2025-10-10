@@ -5946,6 +5946,10 @@ void OpenTeslaUpgradeMenu(edict_t *ent, int cursor_pos)
 	snprintf(status, sizeof(status), "Radius %d [10]", ent->client->pers.skills.tesla_radius);
 	add_entry(status, PMENU_ALIGN_LEFT, TeslaUpgradeMenuHandler, "tesla_radius");
 
+	const char *chain_status = ent->client->pers.skills.tesla_chain ? "ON" : "OFF";
+	snprintf(status, sizeof(status), "Chain Lightning: %s", chain_status);
+	add_entry(status, PMENU_ALIGN_LEFT, TeslaUpgradeMenuHandler, "tesla_chain");
+
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("---", PMENU_ALIGN_CENTER);
 	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, TeslaUpgradeMenuHandler, "back_to_weapons");
@@ -6009,6 +6013,13 @@ void TeslaUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		{
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Tesla Radius is already at maximum level!\n");
 		}
+		PMenu_Close(ent);
+		OpenTeslaUpgradeMenu(ent, cursor);
+	}
+	else if (strcmp(arg, "tesla_chain") == 0)
+	{
+		ent->client->pers.skills.tesla_chain = !ent->client->pers.skills.tesla_chain;
+		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Tesla Chain Lightning: {}\n", ent->client->pers.skills.tesla_chain ? "ON" : "OFF");
 		PMenu_Close(ent);
 		OpenTeslaUpgradeMenu(ent, cursor);
 	}

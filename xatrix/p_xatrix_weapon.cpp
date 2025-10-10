@@ -192,15 +192,24 @@ constexpr float TRAP_MAXSPEED = 900.f;
 
 void weapon_trap_fire(edict_t* ent, bool held)
 {
-	int	  speed;
-
 	vec3_t start, dir;
 	// Paril: kill sideways angle on grenades
 	// limit upwards angle so you don't throw behind you
 	P_ProjectSource(ent, { max(-62.5f, ent->client->v_angle[0]), ent->client->v_angle[1], ent->client->v_angle[2] }, { 8, 0, -8 }, start, dir);
 
+	// Calculate throw speed with range upgrade
+	float minspeed = TRAP_MINSPEED;
+	float maxspeed = TRAP_MAXSPEED;
+	if (ent && ent->client)
+	{
+		// Range upgrade adds 30 per level to both min and max speed
+		float range_bonus = ent->client->pers.skills.trap_range * 30.0f;
+		minspeed += range_bonus;
+		maxspeed += range_bonus;
+	}
+
 	gtime_t timer = ent->client->grenade_time - level.time;
-	speed = static_cast<int>(ent->health <= 0 ? TRAP_MINSPEED : min(TRAP_MINSPEED + (TRAP_TIMER - timer).seconds() * ((TRAP_MAXSPEED - TRAP_MINSPEED) / TRAP_TIMER.seconds()), TRAP_MAXSPEED));
+	int speed = static_cast<int>(ent->health <= 0 ? minspeed : min(minspeed + (TRAP_TIMER - timer).seconds() * ((maxspeed - minspeed) / TRAP_TIMER.seconds()), maxspeed));
 
 	ent->client->grenade_time = 0_ms;
 

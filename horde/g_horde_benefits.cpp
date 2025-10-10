@@ -442,7 +442,8 @@ bool PlayerHasNapalmGL(edict_t* player) {
 }
 
 bool PlayerHasTeslaChainLightning(edict_t* player) {
-    return PlayerHasBenefit(player, BenefitID::TESLA_CHAIN_LIGHTNING);
+    return PlayerHasBenefit(player, BenefitID::TESLA_CHAIN_LIGHTNING) ||
+           (player && player->client && player->client->pers.skills.tesla_chain);
 }
 
 // BFG mode helpers

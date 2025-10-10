@@ -1094,8 +1094,19 @@ void weapon_grenade_fire(edict_t* ent, bool held)
 	// limit upwards angle so you don't throw behind you
 	P_ProjectSource(ent, { max(-62.5f, ent->client->v_angle[0]), ent->client->v_angle[1], ent->client->v_angle[2] }, { 2, 0, -14 }, start, dir);
 
+	// Calculate throw speed with range upgrade
+	float minspeed = GRENADE_MINSPEED;
+	float maxspeed = GRENADE_MAXSPEED;
+	if (ent && ent->client)
+	{
+		// Range upgrade adds 30 per level to both min and max speed
+		float range_bonus = ent->client->pers.skills.hg_range * 30.0f;
+		minspeed += range_bonus;
+		maxspeed += range_bonus;
+	}
+
 	gtime_t const timer = ent->client->grenade_time - level.time;
-	speed = static_cast<int>(ent->health <= 0 ? GRENADE_MINSPEED : min(GRENADE_MINSPEED + (GRENADE_TIMER - timer).seconds() * ((GRENADE_MAXSPEED - GRENADE_MINSPEED) / GRENADE_TIMER.seconds()), GRENADE_MAXSPEED));
+	speed = static_cast<int>(ent->health <= 0 ? minspeed : min(minspeed + (GRENADE_TIMER - timer).seconds() * ((maxspeed - minspeed) / GRENADE_TIMER.seconds()), maxspeed));
 
 	ent->client->grenade_time = 0_ms;
 

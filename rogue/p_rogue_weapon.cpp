@@ -5,6 +5,11 @@
 #include "../m_player.h"
 #include "../horde/g_horde_benefits.h"
 
+// Tesla constants
+constexpr gtime_t TESLA_TIMER = 3_sec;
+constexpr float TESLA_MINSPEED = 600.f;
+constexpr float TESLA_MAXSPEED = 900.f;
+
 void weapon_prox_fire(edict_t* ent)
 {
 	vec3_t start, dir;
@@ -45,8 +50,19 @@ void weapon_tesla_fire(edict_t* ent, bool held)
 	// limit upwards angle so you don't throw behind you
 	P_ProjectSource(ent, { max(-62.5f, ent->client->v_angle[0]), ent->client->v_angle[1], ent->client->v_angle[2] }, { 0, 0, -22 }, start, dir);
 
+	// Calculate throw speed with range upgrade
+	float minspeed = TESLA_MINSPEED;
+	float maxspeed = TESLA_MAXSPEED;
+	if (ent && ent->client)
+	{
+		// Range upgrade adds 30 per level to both min and max speed
+		float range_bonus = ent->client->pers.skills.tesla_range * 30.0f;
+		minspeed += range_bonus;
+		maxspeed += range_bonus;
+	}
+
 	gtime_t const timer = ent->client->grenade_time - level.time;
-	int	  const speed = static_cast<int>(ent->health <= 0 ? GRENADE_MINSPEED : min(GRENADE_MINSPEED + (GRENADE_TIMER - timer).seconds() * ((GRENADE_MAXSPEED - GRENADE_MINSPEED) / GRENADE_TIMER.seconds()), GRENADE_MAXSPEED));
+	int	  const speed = static_cast<int>(ent->health <= 0 ? minspeed : min(minspeed + (TESLA_TIMER - timer).seconds() * ((maxspeed - minspeed) / TESLA_TIMER.seconds()), maxspeed));
 
 	ent->client->grenade_time = 0_ms;
 

@@ -3280,7 +3280,8 @@ struct player_skills_t {
 	// Weapon Upgrades - Tesla
 	int8_t tesla_damage = 0;      // 0-10: Tesla damage (affects TESLA_DAMAGE)
 	int8_t tesla_range = 0;       // 0-10: Tesla throw range (GRENADE_MINSPEED/MAXSPEED)
-	int8_t tesla_radius = 0;      // 0-10: Tesla explosion radius (TESLA_DAMAGE_RADIUS)
+	int8_t tesla_radius = 0;      // 0-10: Tesla explosion radius (TESLA_DAMAGE_RADIUS and chain radius)
+	// Note: tesla_chain toggle is in the Talents section above (line 3170)
 
 	// Weapon Upgrades - Trap
 	int8_t trap_damage = 0;       // 0-10: Trap explosion damage (g_config.trap.explosion_damage)
