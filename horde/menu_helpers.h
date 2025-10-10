@@ -6,7 +6,7 @@
 #include <cstring>
 
 // Menu alignment configuration
-constexpr int MENU_NAME_WIDTH = 12;    // Width for "Name:" after padding (pushes brackets to right)
+constexpr int MENU_NAME_WIDTH = 13;    // Width for "Name:" after padding (aligns brackets nicely)
 constexpr int MENU_TEXT_MAX = 64;      // Max text buffer size for menu items
 
 // Utility function to pad a string with spaces to a target length (like Vortex)
@@ -19,7 +19,7 @@ inline void padRight(char* str, int target_length) {
 // Simple sprintf-based formatting for menu items with aligned indicators
 
 // Format a menu item with numbered prefix and progress indicator
-// Example: "  1. Vampirism:      [ 3/10]" (right-aligned with left padding)
+// Example: "  1. Vampire:        [ 3/10]" (left-aligned like Vortex)
 // Uses %2d formatting for perfect 2-digit alignment
 inline void MenuFormatItemWithProgress(char* buffer, size_t buffer_size,
                                        int item_number, const char* name,
@@ -32,7 +32,7 @@ inline void MenuFormatItemWithProgress(char* buffer, size_t buffer_size,
 }
 
 // Format a menu item with numbered prefix and [OWNED] indicator
-// Example: "  1. Vampirism:      [OWNED]" (right-aligned with left padding)
+// Example: "  1. Vampire:        [OWNED]" (left-aligned like Vortex)
 inline void MenuFormatItemWithOwned(char* buffer, size_t buffer_size,
                                     int item_number, const char* name)
 {
@@ -43,7 +43,7 @@ inline void MenuFormatItemWithOwned(char* buffer, size_t buffer_size,
 }
 
 // Format a menu item with numbered prefix and cost in points
-// Example: "  1. Speed Boost:    ( 2pts)" (right-aligned with left padding)
+// Example: "  1. Speed Boost:    ( 2pts)" (left-aligned like Vortex)
 inline void MenuFormatItemWithCost(char* buffer, size_t buffer_size,
                                    int item_number, const char* name,
                                    int cost)
@@ -55,7 +55,7 @@ inline void MenuFormatItemWithCost(char* buffer, size_t buffer_size,
 }
 
 // Format a menu item with numbered prefix and custom text
-// Example: "  1. Item Name:      [CUSTOM]" (right-aligned with left padding)
+// Example: "  1. Item Name:      [CUSTOM]" (left-aligned like Vortex)
 inline void MenuFormatItemWithCustom(char* buffer, size_t buffer_size,
                                      int item_number, const char* name,
                                      const char* right_text)

@@ -2707,7 +2707,7 @@ pmenuhnd_t *CreateAbilitiesMenu(edict_t *ent)
 		}
 
 		Q_strlcpy(abilities_menu[menu_index].text_arg1, defs[i].id, sizeof(abilities_menu[menu_index].text_arg1));
-		abilities_menu[menu_index].align = PMENU_ALIGN_RIGHT;
+		abilities_menu[menu_index].align = PMENU_ALIGN_LEFT;
 		menu_index++;
 		item_number++;
 		has_abilities = true;
