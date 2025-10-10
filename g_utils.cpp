@@ -387,7 +387,7 @@ void G_InitEdict(edict_t* e)
 	// Restore ONLY the flags that identify the entity as a player or bot.
 	// This prevents inheriting dangerous state like SVF_MONSTER or SVF_NOCLIENT from a reused slot.
 	e->svflags = saved_svflags & (SVF_PLAYER | SVF_BOT);
-	
+
 	// ROGUE
 	// FIXME -
 	//   this fixes a bug somewhere that is setting "nextthink" for an entity that has

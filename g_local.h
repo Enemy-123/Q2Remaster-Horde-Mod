@@ -3364,7 +3364,7 @@ struct client_persistant_t
 	int adrenaline_count = 0;
 	
 	bool received_late_join_ammo = false; // Track if player received late-join ammo (only given once) // DOESNT WORK YET
-	// Per-player benefits system
+	// Per-player benefits system // should be used only by bots for now
 	int32_t ability_points = 0;           // Points for abilities (vampire, ammo regen, etc.)
 	int32_t weapon_points = 0;            // Points for weapon upgrades
 	int32_t admin_bonus_ability_points = 0; // Track admin-given ability points

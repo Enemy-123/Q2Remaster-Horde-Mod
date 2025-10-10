@@ -69,7 +69,7 @@ void CheckAndApplyBenefit(int32_t wave);
 bool has_benefit(BenefitID id) noexcept;
 void mark_benefit_obtained(BenefitID id) noexcept;
 std::string GetActiveBonusesString(); // Declaration for the function used in horde_menu.cpp
-std::string GetPlayerActiveBonusesString(edict_t* player); // Per-player version of GetActiveBonusesString
+//std::string GetPlayerActiveBonusesString(edict_t* player); // Per-player version of GetActiveBonusesString
 
 // Per-player benefit functions
 bool PlayerHasBenefit(edict_t* player, BenefitID benefit_id);

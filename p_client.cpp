@@ -1132,8 +1132,11 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 				"Late join bonus: {} ability points, {} weapon points awarded based on current wave!\n",
 				client->pers.ability_points, client->pers.weapon_points);
 
-			// Trigger auto-buy immediately for late joiners
-			CheckPlayerAutoBuy(ent);
+			// Trigger auto-buy immediately for late joiner bots only
+			// (Human players use the upgrade menu system instead)
+			if (ent->svflags & SVF_BOT) {
+				CheckPlayerAutoBuy(ent);
+			}
 		}
 	}
 

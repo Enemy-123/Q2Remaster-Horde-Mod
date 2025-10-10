@@ -5680,12 +5680,12 @@ public:
 				"if 25 xv -140 yv 3 picn {} endif \n", horde_dogtag_path));
 
 			// Get the new, safely-limited active bonuses string
-			std::string activeBonuses = GetPlayerActiveBonusesString(const_cast<edict_t *>(ent));
-			if (!activeBonuses.empty())
-			{
-				layout_builder.append(fmt::format(
-					"if 0 xv 208 yv 8 string \"{}\" endif \n", activeBonuses));
-			}
+			//std::string activeBonuses = GetPlayerActiveBonusesString(const_cast<edict_t *>(ent));
+			// if (!activeBonuses.empty())
+			// {
+			// 	layout_builder.append(fmt::format(
+			// 		"if 0 xv 208 yv 8 string \"{}\" endif \n", activeBonuses));
+			// }
 		}
 		else
 		{
