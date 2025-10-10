@@ -49,7 +49,7 @@ void OpenSGUpgradeMenu(edict_t *ent, int cursor_pos = -1);     // Forward declar
 void OpenSSGUpgradeMenu(edict_t *ent, int cursor_pos = -1);    // Forward declare SSG Upgrade submenu
 void OpenGLUpgradeMenu(edict_t *ent, int cursor_pos = -1);     // Forward declare GL Upgrade submenu
 void OpenRLUpgradeMenu(edict_t *ent, int cursor_pos = -1);     // Forward declare RL Upgrade submenu
-void OpenProxUpgradeMenu(edict_t *ent);   // Forward declare Prox Upgrade submenu
+void OpenProxUpgradeMenu(edict_t *ent, int cursor_pos = -1);   // Forward declare Prox Upgrade submenu
 void OpenPlasmabeamUpgradeMenu(edict_t *ent, int cursor_pos = -1); // Forward declare Plasmabeam Upgrade submenu
 void OpenPhalanxUpgradeMenu(edict_t *ent, int cursor_pos = -1);    // Forward declare Phalanx Upgrade submenu
 void OpenDisruptorUpgradeMenu(edict_t *ent, int cursor_pos = -1);  // Forward declare Disruptor Upgrade submenu
@@ -3440,23 +3440,25 @@ void OpenRLUpgradeMenu(edict_t *ent, int cursor_pos)
 	add_entry(title, PMENU_ALIGN_CENTER);
 	add_entry("", PMENU_ALIGN_CENTER);
 
-	// Display current upgrade levels
+	// Display current upgrade levels using MenuFormatItemWithProgress
 	char status[128];
-	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.rl_damage);
+	int item_num = 1;
+
+	MenuFormatItemWithProgress(status, sizeof(status), item_num++, "Damage", ent->client->pers.skills.rl_damage, 10);
 	add_entry(status, PMENU_ALIGN_LEFT, RLUpgradeMenuHandler, "rl_damage");
 
-	snprintf(status, sizeof(status), "Speed %d [10]", ent->client->pers.skills.rl_speed);
+	MenuFormatItemWithProgress(status, sizeof(status), item_num++, "Speed", ent->client->pers.skills.rl_speed, 10);
 	add_entry(status, PMENU_ALIGN_LEFT, RLUpgradeMenuHandler, "rl_speed");
 
-	snprintf(status, sizeof(status), "Radius %d [10]", ent->client->pers.skills.rl_radius);
+	MenuFormatItemWithProgress(status, sizeof(status), item_num++, "Radius", ent->client->pers.skills.rl_radius, 10);
 	add_entry(status, PMENU_ALIGN_LEFT, RLUpgradeMenuHandler, "rl_radius");
 
 	const char *trails_status = ent->client->pers.skills.rl_trails ? "ON" : "OFF";
-	snprintf(status, sizeof(status), "No Trails: %s", trails_status);
+	MenuFormatItemWithCustom(status, sizeof(status), item_num++, "No Trails", trails_status);
 	add_entry(status, PMENU_ALIGN_LEFT, RLUpgradeMenuHandler, "rl_trails");
 
 	const char *silent_status = ent->client->pers.skills.rl_silent ? "ON" : "OFF";
-	snprintf(status, sizeof(status), "Silent Mode: %s", silent_status);
+	MenuFormatItemWithCustom(status, sizeof(status), item_num++, "Silent Mode", silent_status);
 	add_entry(status, PMENU_ALIGN_LEFT, RLUpgradeMenuHandler, "rl_silent");
 
 	add_entry("", PMENU_ALIGN_CENTER);
@@ -3617,27 +3619,29 @@ void OpenGLUpgradeMenu(edict_t *ent, int cursor_pos)
 	add_entry(title, PMENU_ALIGN_CENTER);
 	add_entry("", PMENU_ALIGN_CENTER);
 
-	// Display current upgrade levels
+	// Display current upgrade levels using MenuFormatItemWithProgress
 	char status[128];
-	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.gl_damage);
+	int item_num = 1;
+
+	MenuFormatItemWithProgress(status, sizeof(status), item_num++, "Damage", ent->client->pers.skills.gl_damage, 10);
 	add_entry(status, PMENU_ALIGN_LEFT, GLUpgradeMenuHandler, "gl_damage");
 
-	snprintf(status, sizeof(status), "Range %d [10]", ent->client->pers.skills.gl_range);
+	MenuFormatItemWithProgress(status, sizeof(status), item_num++, "Range", ent->client->pers.skills.gl_range, 10);
 	add_entry(status, PMENU_ALIGN_LEFT, GLUpgradeMenuHandler, "gl_range");
 
-	snprintf(status, sizeof(status), "Radius %d [10]", ent->client->pers.skills.gl_radius);
+	MenuFormatItemWithProgress(status, sizeof(status), item_num++, "Radius", ent->client->pers.skills.gl_radius, 10);
 	add_entry(status, PMENU_ALIGN_LEFT, GLUpgradeMenuHandler, "gl_radius");
 
 	const char *trails_status = ent->client->pers.skills.gl_trails ? "ON" : "OFF";
-	snprintf(status, sizeof(status), "No Trails: %s", trails_status);
+	MenuFormatItemWithCustom(status, sizeof(status), item_num++, "No Trails", trails_status);
 	add_entry(status, PMENU_ALIGN_LEFT, GLUpgradeMenuHandler, "gl_trails");
 
 	const char *silent_status = ent->client->pers.skills.gl_silent ? "ON" : "OFF";
-	snprintf(status, sizeof(status), "Silent Mode: %s", silent_status);
+	MenuFormatItemWithCustom(status, sizeof(status), item_num++, "Silent Mode", silent_status);
 	add_entry(status, PMENU_ALIGN_LEFT, GLUpgradeMenuHandler, "gl_silent");
 
 	const char *bouncy_status = ent->client->pers.skills.gl_bouncy ? "ON" : "OFF";
-	snprintf(status, sizeof(status), "Bouncy Grenades: %s", bouncy_status);
+	MenuFormatItemWithCustom(status, sizeof(status), item_num++, "Bouncy Grenades", bouncy_status);
 	add_entry(status, PMENU_ALIGN_LEFT, GLUpgradeMenuHandler, "gl_bouncy");
 
 	add_entry("", PMENU_ALIGN_CENTER);
@@ -3808,23 +3812,25 @@ void OpenMGUpgradeMenu(edict_t *ent, int cursor_pos)
 	add_entry(title, PMENU_ALIGN_CENTER);
 	add_entry("", PMENU_ALIGN_CENTER);
 
-	// Display current upgrade levels
+	// Display current upgrade levels using MenuFormatItemWithProgress
 	char status[128];
-	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.mg_damage);
+	int item_num = 1;
+
+	MenuFormatItemWithProgress(status, sizeof(status), item_num++, "Damage", ent->client->pers.skills.mg_damage, 10);
 	add_entry(status, PMENU_ALIGN_LEFT, MGUpgradeMenuHandler, "mg_damage");
 
-	snprintf(status, sizeof(status), "Pierce %d [10]", ent->client->pers.skills.mg_pierce);
+	MenuFormatItemWithProgress(status, sizeof(status), item_num++, "Pierce", ent->client->pers.skills.mg_pierce, 10);
 	add_entry(status, PMENU_ALIGN_LEFT, MGUpgradeMenuHandler, "mg_pierce");
 
-	snprintf(status, sizeof(status), "Tracers %d [10]", ent->client->pers.skills.mg_tracers);
+	MenuFormatItemWithProgress(status, sizeof(status), item_num++, "Tracers", ent->client->pers.skills.mg_tracers, 10);
 	add_entry(status, PMENU_ALIGN_LEFT, MGUpgradeMenuHandler, "mg_tracers");
 
 	const char *spread_status = ent->client->pers.skills.mg_spread ? "ON" : "OFF";
-	snprintf(status, sizeof(status), "Reduced Spread: %s", spread_status);
+	MenuFormatItemWithCustom(status, sizeof(status), item_num++, "Reduced Spread", spread_status);
 	add_entry(status, PMENU_ALIGN_LEFT, MGUpgradeMenuHandler, "mg_spread");
 
 	const char *silent_status = ent->client->pers.skills.mg_silent ? "ON" : "OFF";
-	snprintf(status, sizeof(status), "Silent Mode: %s", silent_status);
+	MenuFormatItemWithCustom(status, sizeof(status), item_num++, "Silent Mode", silent_status);
 	add_entry(status, PMENU_ALIGN_LEFT, MGUpgradeMenuHandler, "mg_silent");
 
 	add_entry("", PMENU_ALIGN_CENTER);
@@ -3988,23 +3994,25 @@ void OpenCGUpgradeMenu(edict_t *ent, int cursor_pos)
 	add_entry(title, PMENU_ALIGN_CENTER);
 	add_entry("", PMENU_ALIGN_CENTER);
 
-	// Display current upgrade levels
+	// Display current upgrade levels using MenuFormatItemWithProgress
 	char status[128];
-	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.cg_damage);
+	int item_num = 1;
+
+	MenuFormatItemWithProgress(status, sizeof(status), item_num++, "Damage", ent->client->pers.skills.cg_damage, 10);
 	add_entry(status, PMENU_ALIGN_LEFT, CGUpgradeMenuHandler, "cg_damage");
 
-	snprintf(status, sizeof(status), "Spin %d [10]", ent->client->pers.skills.cg_spin);
+	MenuFormatItemWithProgress(status, sizeof(status), item_num++, "Spin", ent->client->pers.skills.cg_spin, 10);
 	add_entry(status, PMENU_ALIGN_LEFT, CGUpgradeMenuHandler, "cg_spin");
 
-	snprintf(status, sizeof(status), "Tracers %d [10]", ent->client->pers.skills.cg_tracers);
+	MenuFormatItemWithProgress(status, sizeof(status), item_num++, "Tracers", ent->client->pers.skills.cg_tracers, 10);
 	add_entry(status, PMENU_ALIGN_LEFT, CGUpgradeMenuHandler, "cg_tracers");
 
 	const char *spread_status = ent->client->pers.skills.cg_spread ? "ON" : "OFF";
-	snprintf(status, sizeof(status), "Reduced Spread: %s", spread_status);
+	MenuFormatItemWithCustom(status, sizeof(status), item_num++, "Reduced Spread", spread_status);
 	add_entry(status, PMENU_ALIGN_LEFT, CGUpgradeMenuHandler, "cg_spread");
 
 	const char *silent_status = ent->client->pers.skills.cg_silent ? "ON" : "OFF";
-	snprintf(status, sizeof(status), "Silent Mode: %s", silent_status);
+	MenuFormatItemWithCustom(status, sizeof(status), item_num++, "Silent Mode", silent_status);
 	add_entry(status, PMENU_ALIGN_LEFT, CGUpgradeMenuHandler, "cg_silent");
 
 	add_entry("", PMENU_ALIGN_CENTER);
@@ -4161,9 +4169,11 @@ void OpenSGUpgradeMenu(edict_t *ent, int cursor_pos)
 	add_entry(title, PMENU_ALIGN_CENTER);
 	add_entry("", PMENU_ALIGN_CENTER);
 
-	// Display current upgrade levels
+	// Display current upgrade levels using MenuFormatItemWithProgress
 	char status[128];
-	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.sg_damage);
+	int item_num = 1;
+
+	MenuFormatItemWithProgress(status, sizeof(status), item_num++, "Damage", ent->client->pers.skills.sg_damage, 10);
 	add_entry(status, PMENU_ALIGN_LEFT, [](edict_t *ent, pmenuhnd_t *p) {
 		if (ent->client->pers.skills.sg_damage < 10) {
 			if (ent->client->pers.weapon_points >= 1)
@@ -4183,7 +4193,7 @@ void OpenSGUpgradeMenu(edict_t *ent, int cursor_pos)
 		OpenSGUpgradeMenu(ent);
 	}, "sg_damage");
 
-	snprintf(status, sizeof(status), "Strike %d [10]", ent->client->pers.skills.sg_strike);
+	MenuFormatItemWithProgress(status, sizeof(status), item_num++, "Strike", ent->client->pers.skills.sg_strike, 10);
 	add_entry(status, PMENU_ALIGN_LEFT, [](edict_t *ent, pmenuhnd_t *p) {
 		if (ent->client->pers.skills.sg_strike < 10) {
 			if (ent->client->pers.weapon_points >= 1)
@@ -4203,7 +4213,7 @@ void OpenSGUpgradeMenu(edict_t *ent, int cursor_pos)
 		OpenSGUpgradeMenu(ent);
 	}, "sg_strike");
 
-	snprintf(status, sizeof(status), "Pellets %d [10]", ent->client->pers.skills.sg_pellets);
+	MenuFormatItemWithProgress(status, sizeof(status), item_num++, "Pellets", ent->client->pers.skills.sg_pellets, 10);
 	add_entry(status, PMENU_ALIGN_LEFT, [](edict_t *ent, pmenuhnd_t *p) {
 		if (ent->client->pers.skills.sg_pellets < 10) {
 			if (ent->client->pers.weapon_points >= 1)
@@ -4569,7 +4579,7 @@ static pmenu_t prox_upgrade_menu[32];
 
 void ProxUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p);
 
-void OpenProxUpgradeMenu(edict_t *ent)
+void OpenProxUpgradeMenu(edict_t *ent, int cursor_pos)
 {
 	if (!ent || !ent->client)
 		return;
@@ -4610,34 +4620,36 @@ void OpenProxUpgradeMenu(edict_t *ent)
 	add_entry(title, PMENU_ALIGN_CENTER);
 	add_entry("", PMENU_ALIGN_CENTER);
 
-	// Display current upgrade levels
+	// Display current upgrade levels using MenuFormatItemWithProgress
 	char status[128];
-	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.pl_damage);
+	int item_num = 1;
+
+	MenuFormatItemWithProgress(status, sizeof(status), item_num++, "Damage", ent->client->pers.skills.pl_damage, 10);
 	add_entry(status, PMENU_ALIGN_LEFT, ProxUpgradeMenuHandler, "pl_damage");
 
-	snprintf(status, sizeof(status), "Range %d [10]", ent->client->pers.skills.pl_range);
+	MenuFormatItemWithProgress(status, sizeof(status), item_num++, "Range", ent->client->pers.skills.pl_range, 10);
 	add_entry(status, PMENU_ALIGN_LEFT, ProxUpgradeMenuHandler, "pl_range");
 
-	snprintf(status, sizeof(status), "Radius %d [10]", ent->client->pers.skills.pl_radius);
+	MenuFormatItemWithProgress(status, sizeof(status), item_num++, "Radius", ent->client->pers.skills.pl_radius, 10);
 	add_entry(status, PMENU_ALIGN_LEFT, ProxUpgradeMenuHandler, "pl_radius");
 
 	const char *trails_status = ent->client->pers.skills.pl_trails ? "ON" : "OFF";
-	snprintf(status, sizeof(status), "No Trails: %s", trails_status);
+	MenuFormatItemWithCustom(status, sizeof(status), item_num++, "No Trails", trails_status);
 	add_entry(status, PMENU_ALIGN_LEFT, ProxUpgradeMenuHandler, "pl_trails");
 
 	const char *silent_status = ent->client->pers.skills.pl_silent ? "ON" : "OFF";
-	snprintf(status, sizeof(status), "Silent Mode: %s", silent_status);
+	MenuFormatItemWithCustom(status, sizeof(status), item_num++, "Silent Mode", silent_status);
 	add_entry(status, PMENU_ALIGN_LEFT, ProxUpgradeMenuHandler, "pl_silent");
 
 	const char *improved_status = ent->client->pers.skills.pl_improved_traps ? "ON" : "OFF";
-	snprintf(status, sizeof(status), "Improved Traps: %s", improved_status);
+	MenuFormatItemWithCustom(status, sizeof(status), item_num++, "Improved Traps", improved_status);
 	add_entry(status, PMENU_ALIGN_LEFT, ProxUpgradeMenuHandler, "pl_improved_traps");
 
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("---", PMENU_ALIGN_CENTER);
 	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, ProxUpgradeMenuHandler, "back_to_weapons");
 
-	PMenu_Open(ent, prox_upgrade_menu, -1, count, nullptr, nullptr);
+	PMenu_Open(ent, prox_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
 
 void ProxUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
