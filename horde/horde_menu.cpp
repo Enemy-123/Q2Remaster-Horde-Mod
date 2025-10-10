@@ -13,6 +13,7 @@
 #include "g_pvm_menu.h"    // For PvM stats menu
 #include "g_upgrades.h"    // For new skill/upgrade system
 #include "g_character.h"   // For Character_Save
+#include "menu_helpers.h"  // For menu formatting helpers
 
 // Declaration for P_GetLobbyUserNum (defined in p_client.cpp)
 extern unsigned int P_GetLobbyUserNum(const edict_t *player);
@@ -2672,6 +2673,7 @@ pmenuhnd_t *CreateAbilitiesMenu(edict_t *ent)
 	size_t def_count = GetUpgradeDefinitionCount();
 
 	bool has_abilities = false;
+	int item_number = 1;  // Start numbering from 1
 	for (size_t i = 0; i < def_count && menu_index < 25; ++i)
 	{
 		if (defs[i].category != UpgradeCategory::ABILITY)
@@ -2679,7 +2681,6 @@ pmenuhnd_t *CreateAbilitiesMenu(edict_t *ent)
 
 		int8_t current_level = GetSkillLevel(ent, defs[i].id);
 		int8_t max_level = defs[i].max_level;
-		bool can_upgrade = CanUpgrade(ent, defs[i].id);
 
 		// Show ability with current level
 		if (max_level == 1)
@@ -2687,27 +2688,32 @@ pmenuhnd_t *CreateAbilitiesMenu(edict_t *ent)
 			// Boolean ability (owned or not)
 			if (current_level > 0)
 			{
-				G_FmtTo(abilities_menu[menu_index].text, "  {} [OWNED]", defs[i].name);
+				MenuFormatItemWithOwned(abilities_menu[menu_index].text,
+				                        sizeof(abilities_menu[menu_index].text),
+				                        item_number, defs[i].name);
 				abilities_menu[menu_index].SelectFunc = AbilitiesMenuHandler; // Allow viewing details
 			}
 			else
 			{
-				G_FmtTo(abilities_menu[menu_index].text, "{} {} [{}pt]",
-					can_upgrade ? ">" : " ", defs[i].name, defs[i].cost_per_level);
+				MenuFormatItemWithCost(abilities_menu[menu_index].text,
+				                       sizeof(abilities_menu[menu_index].text),
+				                       item_number, defs[i].name, defs[i].cost_per_level);
 				abilities_menu[menu_index].SelectFunc = AbilitiesMenuHandler; // Allow viewing details
 			}
 		}
 		else
 		{
-			// Multi-level ability - remove "1pt" suffix and keep [X/Y] aligned
-			G_FmtTo(abilities_menu[menu_index].text, "{} {} [{}/{}]",
-				can_upgrade ? ">" : " ", defs[i].name, current_level, max_level);
+			// Multi-level ability - use progress indicator [X/Y]
+			MenuFormatItemWithProgress(abilities_menu[menu_index].text,
+			                           sizeof(abilities_menu[menu_index].text),
+			                           item_number, defs[i].name, current_level, max_level);
 			abilities_menu[menu_index].SelectFunc = AbilitiesMenuHandler; // Always allow selection to view details
 		}
 
 		Q_strlcpy(abilities_menu[menu_index].text_arg1, defs[i].id, sizeof(abilities_menu[menu_index].text_arg1));
-		abilities_menu[menu_index].align = PMENU_ALIGN_LEFT;
+		abilities_menu[menu_index].align = PMENU_ALIGN_RIGHT;
 		menu_index++;
+		item_number++;
 		has_abilities = true;
 	}
 
@@ -2869,8 +2875,9 @@ pmenuhnd_t *CreateWeaponsMenu(edict_t *ent)
 		bool can_afford = ent->client->pers.weapon_points >= cost;
 
 		// Available to purchase
-		G_FmtTo(weapons_menu[menu_index].text,
-				"{} {} ({} pt{})", can_afford ? ">" : " ", g_benefitsData.names[i], cost, cost > 1 ? "s" : "");
+		MenuFormatItemWithCost(weapons_menu[menu_index].text,
+		                       sizeof(weapons_menu[menu_index].text),
+		                       can_afford, g_benefitsData.names[i], cost);
 		weapons_menu[menu_index].align = PMENU_ALIGN_LEFT;
 		if (can_afford)
 		{
