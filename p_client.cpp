@@ -1107,6 +1107,33 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 	// PvM Mode: Skip old wave-based bonus system entirely (uses XP/level system instead)
 	if (IsPvMMode())
 	{
+		// Bots in PvM mode: Give them skill/weapon points based on current wave
+		// (Since bots can't use upgrade menus, they auto-buy with these points)
+		const bool is_late_joiner = !client->pers.received_late_join_ammo;
+		if ((ent->svflags & SVF_BOT) && is_late_joiner)
+		{
+			const int wave = current_wave_level;
+
+			// Enable auto-buy for bots
+			client->pers.auto_buy_abilities = true;
+			client->pers.auto_buy_weapons = true;
+			client->pers.has_manually_disabled_auto_buy = false;
+
+			// Calculate XP-based bonus points for late joiner bots in PvM
+			// Give them approximately the same progression as a human player would have at this wave
+			// Rough estimate: 1 level per wave, 1 skill point + 4 weapon points per level
+			int estimated_level = wave;
+			client->pers.skill_points = estimated_level;
+			client->pers.weapon_points = estimated_level * 4;
+
+			if (client->pers.skill_points > 0 || client->pers.weapon_points > 0)
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH,
+					"Bot late join bonus (PvM): {} skill points, {} weapon points\n",
+					client->pers.skill_points, client->pers.weapon_points);
+			}
+		}
+
 		// Set base health (100) - vitality bonus will be added by PvM_ApplyStatBonuses
 		client->pers.max_health = client->resp.max_health = ent->max_health = 100;
 
@@ -1144,6 +1171,15 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 		client->pers.inventory[IT_ITEM_MENU] = 1;
 		client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
 
+		// Trigger auto-buy for late joiner bots after inventory is set up
+		if ((ent->svflags & SVF_BOT) && is_late_joiner)
+		{
+			if (client->pers.skill_points > 0 || client->pers.weapon_points > 0)
+			{
+				CheckBotAutoBuy(ent);
+			}
+		}
+
 		return;
 	}
 
@@ -1166,15 +1202,16 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 
 	//
 	// LATE JOINER BENEFITS (Bots only in non-PvM mode)
+	// Human players use the upgrade menu and don't get automatic bonuses
 	//
-	if (is_late_joiner)
+	if (is_late_joiner && (ent->svflags & SVF_BOT))
 	{
-		// Enable auto-buy by default for late joiners too
+		// Enable auto-buy by default for late joiner bots
 		client->pers.auto_buy_abilities = true;
 		client->pers.auto_buy_weapons = true;
 		client->pers.has_manually_disabled_auto_buy = false;
 
-		// Calculate bonus points based on wave progress
+		// Calculate bonus points based on wave progress (bots only)
 		client->pers.ability_points = (wave >= HordeConstants::ABILITY_POINT_WAVE_INTERVAL)
 			? (wave / HordeConstants::ABILITY_POINT_WAVE_INTERVAL) : 0;
 
@@ -1188,11 +1225,8 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 				"Late join bonus: {} ability points, {} weapon points awarded based on current wave!\n",
 				client->pers.ability_points, client->pers.weapon_points);
 
-			// Trigger auto-buy immediately for late joiner bots only
-			// (Human players use the upgrade menu system instead)
-			if (ent->svflags & SVF_BOT) {
-				CheckBotAutoBuy(ent);
-			}
+			// Trigger auto-buy immediately for late joiner bots
+			CheckBotAutoBuy(ent);
 		}
 	}
 
