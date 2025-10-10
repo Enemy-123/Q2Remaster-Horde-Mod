@@ -450,7 +450,11 @@ void Use_StroggSummon_Impl(edict_t* ent, gitem_t* item)
 
 		// Check if spawn succeeded by checking if count increased
 		if (ent->client->resp.num_summons > prev_count) {
-			ent->client->pers.inventory[item->id]--;
+			// Only consume the item if NOT in horde mode OR player is a bot
+			// Non-bot players get infinite uses in horde mode
+			if (!g_horde->integer || (ent->svflags & SVF_BOT)) {
+				ent->client->pers.inventory[item->id]--;
+			}
 			// Message already printed by fire_strogg_summoner
 		} else {
 			gi.Client_Print(ent, PRINT_HIGH, "Strogg summoning failed.\n");

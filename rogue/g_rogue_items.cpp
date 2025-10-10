@@ -300,7 +300,12 @@ void Use_SentryGun(edict_t* ent, gitem_t* item)
                 }
             }
 
-            ent->client->pers.inventory[item->id]--;
+            // Only consume the item if in horde mode AND player is a bot
+            // Non-bot players get infinite uses in horde mode
+            if (!g_horde->integer || (ent->svflags & SVF_BOT)) {
+                ent->client->pers.inventory[item->id]--;
+            }
+            
             ent->client->resp.num_sentries++;
             gi.LocClient_Print(ent, PRINT_HIGH, "Sentry gun deployed. You have {}/{} sentry guns.\n",
                 ent->client->resp.num_sentries, SentryConstants::MAX_SENTRIES_PER_PLAYER());
@@ -323,6 +328,10 @@ bool Pickup_SentryGun(edict_t* ent, edict_t* other)
 {
 	int quantity;
 
+	// In horde mode, non-bot players already have infinite sentry guns, no need to pick up
+	if (g_horde->integer && !(other->svflags & SVF_BOT))
+		return false;
+
 	// if (!G_IsDeathmatch()) // item is DM only
 	// 	return false;
 	quantity = other->client->pers.inventory[ent->item->id];
@@ -342,6 +351,10 @@ bool Pickup_StroggSumm(edict_t* ent, edict_t* other)
 {
 	int quantity;
 	int max_quantity;
+
+	// In horde mode, non-bot players already have infinite strogg summoners, no need to pick up
+	if (g_horde->integer && !(other->svflags & SVF_BOT))
+		return false;
 
 	quantity = other->client->pers.inventory[ent->item->id];
 	
