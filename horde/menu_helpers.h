@@ -28,7 +28,7 @@ inline void MenuFormatItemWithProgress(char* buffer, size_t buffer_size,
 	char padded_name[MENU_TEXT_MAX];
 	snprintf(padded_name, sizeof(padded_name), "%s:", name);
 	padRight(padded_name, MENU_NAME_WIDTH);
-	snprintf(buffer, buffer_size, "  %d. %s [%2d/%2d]", item_number, padded_name, current, max);
+	snprintf(buffer, buffer_size, "  %2d. %s [%2d/%2d]", item_number, padded_name, current, max);
 }
 
 // Format a menu item with numbered prefix and [OWNED] indicator
@@ -39,7 +39,7 @@ inline void MenuFormatItemWithOwned(char* buffer, size_t buffer_size,
 	char padded_name[MENU_TEXT_MAX];
 	snprintf(padded_name, sizeof(padded_name), "%s:", name);
 	padRight(padded_name, MENU_NAME_WIDTH);
-	snprintf(buffer, buffer_size, "  %d. %s [OWNED]", item_number, padded_name);
+	snprintf(buffer, buffer_size, "  %2d. %s [OWNED]", item_number, padded_name);
 }
 
 // Format a menu item with numbered prefix and cost in points
@@ -51,7 +51,7 @@ inline void MenuFormatItemWithCost(char* buffer, size_t buffer_size,
 	char padded_name[MENU_TEXT_MAX];
 	snprintf(padded_name, sizeof(padded_name), "%s:", name);
 	padRight(padded_name, MENU_NAME_WIDTH);
-	snprintf(buffer, buffer_size, "  %d. %s (%2dpt%s)", item_number, padded_name, cost, cost > 1 ? "s" : "");
+	snprintf(buffer, buffer_size, "  %2d. %s (%2dpt%s)", item_number, padded_name, cost, cost > 1 ? "s" : "");
 }
 
 // Format a menu item with numbered prefix and custom text
@@ -63,7 +63,7 @@ inline void MenuFormatItemWithCustom(char* buffer, size_t buffer_size,
 	char padded_name[MENU_TEXT_MAX];
 	snprintf(padded_name, sizeof(padded_name), "%s:", name);
 	padRight(padded_name, MENU_NAME_WIDTH);
-	snprintf(buffer, buffer_size, "  %d. %s %s", item_number, padded_name, right_text);
+	snprintf(buffer, buffer_size, "  %2d. %s %s", item_number, padded_name, right_text);
 }
 
 // Macro versions for convenience (use the inline functions above)
