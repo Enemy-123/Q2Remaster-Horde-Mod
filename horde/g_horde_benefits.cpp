@@ -263,14 +263,14 @@ std::string GetActiveBonusesString() {
 //     std::vector<std::string_view> active_bonuses;
 //     active_bonuses.reserve(bonus_mappings.size());
 
-//     bool has_vampire_upgraded = PlayerHasBenefit(player, BenefitID::VAMPIRE_UPGRADED);
+//     bool has_vampire_upgraded = BotHasBenefit(player, BenefitID::VAMPIRE_UPGRADED);
 
 //     for (size_t i = 0; i < BenefitsDataSoA::NUM_BENEFITS; ++i) {
 //         BenefitID id = static_cast<BenefitID>(i);
 //         if (id == BenefitID::VAMPIRE && has_vampire_upgraded) {
 //             continue;
 //         }
-//         if (PlayerHasBenefit(player, id)) {
+//         if (BotHasBenefit(player, id)) {
 //             for(const auto& mapping : bonus_mappings) {
 //                 if (strcmp(g_benefitsData.names[i], mapping.benefit_name.data()) == 0) {
 //                     active_bonuses.push_back(mapping.short_name);
@@ -310,7 +310,7 @@ std::string GetActiveBonusesString() {
 // --- Per-Player Benefit System Implementation ---
 
 // Check if player has a specific benefit
-bool PlayerHasBenefit(edict_t* player, BenefitID benefit_id) {
+bool BotHasBenefit(edict_t* player, BenefitID benefit_id) {
     if (!player || !player->client || !player->svflags & SVF_BOT) return false;
 
     // Disable benefits for non-bots (for testing the new skill system)
@@ -334,19 +334,19 @@ bool PlayerHasBenefit(edict_t* player, BenefitID benefit_id) {
 }
 
 // Check if player has ability (category check)
-bool PlayerHasAbility(edict_t* player, BenefitID ability_id) {
+bool BotHasAbility(edict_t* player, BenefitID ability_id) {
     if (g_benefitsData.categories[static_cast<size_t>(ability_id)] != BenefitCategory::ABILITY) {
         return false;
     }
-    return PlayerHasBenefit(player, ability_id);
+    return BotHasBenefit(player, ability_id);
 }
 
 // Check if player has weapon upgrade (category check)
-bool PlayerHasWeaponUpgrade(edict_t* player, BenefitID weapon_id) {
+bool BotHasWeaponUpgrade(edict_t* player, BenefitID weapon_id) {
     if (g_benefitsData.categories[static_cast<size_t>(weapon_id)] != BenefitCategory::WEAPON) {
         return false;
     }
-    return PlayerHasBenefit(player, weapon_id);
+    return BotHasBenefit(player, weapon_id);
 }
 
 // Activate benefit for player
@@ -400,59 +400,59 @@ void PlayerDeactivateBenefit(edict_t* player, BenefitID benefit_id) {
 }
 
 // Specific benefit helpers (replace global cvar checks)
-bool PlayerHasVampire(edict_t* player) {
-    return PlayerHasBenefit(player, BenefitID::VAMPIRE) ||
-           PlayerHasBenefit(player, BenefitID::VAMPIRE_UPGRADED);
+bool BotHasVampire(edict_t* player) {
+    return BotHasBenefit(player, BenefitID::VAMPIRE) ||
+           BotHasBenefit(player, BenefitID::VAMPIRE_UPGRADED);
 }
 
-bool PlayerHasAmmoRegen(edict_t* player) {
-    return PlayerHasBenefit(player, BenefitID::AMMO_REGEN);
+bool BotHasAmmoRegen(edict_t* player) {
+    return BotHasBenefit(player, BenefitID::AMMO_REGEN);
 }
 
-bool PlayerHasAutoHaste(edict_t* player) {
-    return PlayerHasBenefit(player, BenefitID::AUTO_HASTE);
+bool BotHasAutoHaste(edict_t* player) {
+    return BotHasBenefit(player, BenefitID::AUTO_HASTE);
 }
 
-bool PlayerHasStartArmor(edict_t* player) {
-    return PlayerHasBenefit(player, BenefitID::START_ARMOR);
+bool BotHasStartArmor(edict_t* player) {
+    return BotHasBenefit(player, BenefitID::START_ARMOR);
 }
 
-bool PlayerHasHAPickup(edict_t* player) {
-    return PlayerHasBenefit(player, BenefitID::HA_PICKUP);
+bool BotHasHAPickup(edict_t* player) {
+    return BotHasBenefit(player, BenefitID::HA_PICKUP);
 }
 
-bool PlayerHasTracedBullets(edict_t* player) {
-    return PlayerHasBenefit(player, BenefitID::TRACED_BULLETS);
+bool BotHasTracedBullets(edict_t* player) {
+    return BotHasBenefit(player, BenefitID::TRACED_BULLETS);
 }
 
-bool PlayerHasEnergyShells(edict_t* player) {
-    return PlayerHasBenefit(player, BenefitID::ENERGY_SHELLS);
+bool BotHasEnergyShells(edict_t* player) {
+    return BotHasBenefit(player, BenefitID::ENERGY_SHELLS);
 }
 
-bool PlayerHasClusterProx(edict_t* player) {
-    return PlayerHasBenefit(player, BenefitID::CLUSTER_PROX);
+bool BotHasClusterProx(edict_t* player) {
+    return BotHasBenefit(player, BenefitID::CLUSTER_PROX);
 }
 
-bool PlayerHasPiercingPlasma(edict_t* player) {
-    return PlayerHasBenefit(player, BenefitID::PIERCING_PLASMA);
+bool BotHasPiercingPlasma(edict_t* player) {
+    return BotHasBenefit(player, BenefitID::PIERCING_PLASMA);
 }
 
-bool PlayerHasNapalmGL(edict_t* player) {
-    return PlayerHasBenefit(player, BenefitID::NAPALM_GRENADES);
+bool BotHasNapalmGL(edict_t* player) {
+    return BotHasBenefit(player, BenefitID::NAPALM_GRENADES);
 }
 
-bool PlayerHasTeslaChainLightning(edict_t* player) {
-    return PlayerHasBenefit(player, BenefitID::TESLA_CHAIN_LIGHTNING) ||
+bool BotHasTeslaChainLightning(edict_t* player) {
+    return BotHasBenefit(player, BenefitID::TESLA_CHAIN_LIGHTNING) ||
            (player && player->client && player->client->pers.skills.tesla_chain);
 }
 
 // BFG mode helpers
-bool PlayerHasBFGSlide(edict_t* player) {
+bool BotHasBFGSlide(edict_t* player) {
     if (!player || !player->client) return false; // Default to normal mode
     return player->client->pers.bfg_mode >= BFGMode::SLIDE;
 }
 
-bool PlayerHasBFGPull(edict_t* player) {
+bool BotHasBFGPull(edict_t* player) {
     if (!player || !player->client) return false;
     return player->client->pers.bfg_mode == BFGMode::GRAV_PULL;
 }
@@ -547,7 +547,7 @@ static void AutoBuyCategory(edict_t* player, BenefitCategory category) {
         size_t i = static_cast<size_t>(benefit_id);
 
         // Skip if already owned
-        if (PlayerHasBenefit(player, benefit_id)) continue;
+        if (BotHasBenefit(player, benefit_id)) continue;
 
         // Set costs based on benefit type
         int32_t cost = 1; // Default cost
@@ -565,7 +565,7 @@ static void AutoBuyCategory(edict_t* player, BenefitCategory category) {
 
         // Check prerequisites
         auto prereq = g_benefitsData.prerequisites[i];
-        if (prereq != BenefitID::NONE && !PlayerHasBenefit(player, prereq)) {
+        if (prereq != BenefitID::NONE && !BotHasBenefit(player, prereq)) {
             continue;
         }
 
@@ -610,7 +610,7 @@ bool PlayerPurchaseBenefit(edict_t* player, BenefitID benefit_id, int32_t cost) 
     }
 
     // Check if already owned
-    if (PlayerHasBenefit(player, benefit_id)) {
+    if (BotHasBenefit(player, benefit_id)) {
         gi.LocClient_Print(player, PRINT_HIGH, "Already owned!\n");
         return false;
     }
@@ -620,7 +620,7 @@ bool PlayerPurchaseBenefit(edict_t* player, BenefitID benefit_id, int32_t cost) 
 
     // Check prerequisites
     auto prereq = g_benefitsData.prerequisites[static_cast<size_t>(benefit_id)];
-    if (prereq != BenefitID::NONE && !PlayerHasBenefit(player, prereq)) {
+    if (prereq != BenefitID::NONE && !BotHasBenefit(player, prereq)) {
         const char* prereq_name = g_benefitsData.names[static_cast<size_t>(prereq)];
         gi.LocClient_Print(player, PRINT_HIGH, "Requires {} first!\n", prereq_name);
         return false;

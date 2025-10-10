@@ -43,7 +43,7 @@ void MiscMenuHandler(edict_t *ent, pmenuhnd_t *p);
 void OpenRespawnWeaponMenu(edict_t *ent); // Forward declare Respawn Weapon menu
 void OpenWeaponUpgradeMenu(edict_t *ent); // Forward declare Weapon Upgrade menu
 void OpenMGUpgradeMenu(edict_t *ent, int cursor_pos = -1);     // Forward declare MG Upgrade submenu
-void OpenCGUpgradeMenu(edict_t *ent, int cursor_pos = -1);     // Forward declare CG Upgrade submenu
+void OpenCGUpgradeMenu(edict_t *ent, int cursor_pos = -1);     // Forward declare CG Upgrade submenu (already has cursor support)
 void OpenSGUpgradeMenu(edict_t *ent, int cursor_pos = -1);     // Forward declare SG Upgrade submenu
 void OpenSSGUpgradeMenu(edict_t *ent, int cursor_pos = -1);    // Forward declare SSG Upgrade submenu
 void OpenGLUpgradeMenu(edict_t *ent, int cursor_pos = -1);     // Forward declare GL Upgrade submenu
@@ -1234,8 +1234,8 @@ void HordeMenu_BFGMode(edict_t *ent, pmenuhnd_t *p)
 	}
 
 	// Check what modes are available
-	bool has_slide = PlayerHasBenefit(ent, BenefitID::BFG_SLIDE);
-	bool has_pull = PlayerHasBenefit(ent, BenefitID::BFG_GRAV_PULL);
+	bool has_slide = BotHasBenefit(ent, BenefitID::BFG_SLIDE);
+	bool has_pull = BotHasBenefit(ent, BenefitID::BFG_GRAV_PULL);
 
 	// If no upgrades, can't change mode
 	if (!has_slide && !has_pull)
@@ -1454,8 +1454,8 @@ void RespawnWeaponMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		return;
 	}
 
-	// Handle "Back to Main Menu"
-	if (strcmp(selected_text, "Back to Main Menu") == 0)
+	// Handle "< Back" or "Back to Main Menu"
+	if (strcmp(selected_text, "< Back") == 0 || strcmp(selected_text, "Back to Main Menu") == 0)
 	{
 		respawn_weapon_current_page = 0; // Reset to first page
 		PMenu_Close(ent);
@@ -1617,8 +1617,8 @@ void OpenRespawnWeaponMenu(edict_t *ent)
 		add_entry("", PMENU_ALIGN_CENTER);
 	}
 
-	// Back to main menu
-	add_entry("Back to Main Menu", PMENU_ALIGN_LEFT, RespawnWeaponMenuHandler);
+	// Back to main menu (always show, with "< Back" label)
+	add_entry("< Back", PMENU_ALIGN_LEFT, RespawnWeaponMenuHandler);
 
 	PMenu_Open(ent, respawn_weapon_menu, -1, count, nullptr, nullptr);
 }
@@ -1669,7 +1669,7 @@ void OpenMiscMenu(edict_t *ent, int cursor_position)
 	add_entry(G_Fmt("Sentry Type: [{}]", GetSentryTypeName(ent->client->pers.sentry_gun_choice)).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
 
 	// --- BFG Mode Selection (only if player has BFG upgrades) ---
-	bool has_bfg_upgrades = PlayerHasBenefit(ent, BenefitID::BFG_SLIDE) || PlayerHasBenefit(ent, BenefitID::BFG_GRAV_PULL);
+	bool has_bfg_upgrades = BotHasBenefit(ent, BenefitID::BFG_SLIDE) || BotHasBenefit(ent, BenefitID::BFG_GRAV_PULL);
 	if (has_bfg_upgrades)
 	{
 		add_entry(G_Fmt("BFG Mode: [{}]", GetBFGModeName(ent->client->pers.bfg_mode)).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
@@ -2698,9 +2698,9 @@ pmenuhnd_t *CreateAbilitiesMenu(edict_t *ent)
 		}
 		else
 		{
-			// Multi-level ability
-			G_FmtTo(abilities_menu[menu_index].text, "{} {} [{}/{}] {}pt",
-				can_upgrade ? ">" : " ", defs[i].name, current_level, max_level, defs[i].cost_per_level);
+			// Multi-level ability - remove "1pt" suffix and keep [X/Y] aligned
+			G_FmtTo(abilities_menu[menu_index].text, "{} {} [{}/{}]",
+				can_upgrade ? ">" : " ", defs[i].name, current_level, max_level);
 			abilities_menu[menu_index].SelectFunc = AbilitiesMenuHandler; // Always allow selection to view details
 		}
 
@@ -2840,7 +2840,7 @@ pmenuhnd_t *CreateWeaponsMenu(edict_t *ent)
 			continue;
 
 		BenefitID benefit_id = static_cast<BenefitID>(i);
-		bool owned = PlayerHasBenefit(ent, benefit_id);
+		bool owned = BotHasBenefit(ent, benefit_id);
 
 		// Skip if already owned - cleaner menu
 		if (owned)
@@ -2857,7 +2857,7 @@ pmenuhnd_t *CreateWeaponsMenu(edict_t *ent)
 
 		// Check prerequisites
 		auto prereq = g_benefitsData.prerequisites[i];
-		bool prereq_met = (prereq == BenefitID::NONE) || PlayerHasBenefit(ent, prereq);
+		bool prereq_met = (prereq == BenefitID::NONE) || BotHasBenefit(ent, prereq);
 
 		// Don't show if prerequisite not met - cleaner menu
 		if (!prereq_met)
@@ -3119,6 +3119,7 @@ void OpenWeaponUpgradeMenu(edict_t *ent)
 		add_entry("< Previous", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "prev_page");
 	}
 
+	add_entry("Reset All Weapon Upgrades (Free)", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "reset_weapons");
 	add_entry("< Back to Upgrades", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "back_to_upgrades");
 
 	PMenu_Open(ent, weapon_upgrade_menu, -1, count, nullptr, nullptr);
@@ -3275,6 +3276,95 @@ void WeaponUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		PMenu_Close(ent);
 		OpenTrapUpgradeMenu(ent);
 	}
+	else if (strcmp(arg, "reset_weapons") == 0)
+	{
+		// Reset all weapon skill upgrades and refund points
+		auto& skills = ent->client->pers.skills;
+		int32_t refunded_points = 0;
+
+		// Count and reset all weapon skills
+		refunded_points += skills.mg_damage + skills.mg_pierce + skills.mg_tracers;
+		skills.mg_damage = skills.mg_pierce = skills.mg_tracers = 0;
+		skills.mg_spread = skills.mg_silent = false;
+
+		refunded_points += skills.cg_damage + skills.cg_spin + skills.cg_tracers;
+		skills.cg_damage = skills.cg_spin = skills.cg_tracers = 0;
+		skills.cg_spread = skills.cg_silent = false;
+
+		refunded_points += skills.sg_damage + skills.sg_strike + skills.sg_pellets;
+		skills.sg_damage = skills.sg_strike = skills.sg_pellets = 0;
+		skills.sg_spread = skills.sg_silent = skills.sg_energized = false;
+
+		refunded_points += skills.ssg_damage + skills.ssg_strike + skills.ssg_pellets;
+		skills.ssg_damage = skills.ssg_strike = skills.ssg_pellets = 0;
+		skills.ssg_spread = skills.ssg_silent = skills.ssg_energized = false;
+
+		refunded_points += skills.rl_damage + skills.rl_radius + skills.rl_speed;
+		skills.rl_damage = skills.rl_radius = skills.rl_speed = 0;
+		skills.rl_trails = skills.rl_silent = false;
+
+		refunded_points += skills.gl_damage + skills.gl_range + skills.gl_radius;
+		skills.gl_damage = skills.gl_range = skills.gl_radius = 0;
+		skills.gl_trails = skills.gl_silent = skills.gl_bouncy = false;
+
+		refunded_points += skills.hg_damage + skills.hg_range + skills.hg_radius_damage;
+		skills.hg_damage = skills.hg_range = skills.hg_radius_damage = 0;
+
+		refunded_points += skills.hb_damage + skills.hb_speed;
+		skills.hb_damage = skills.hb_speed = 0;
+		skills.hb_trails = skills.hb_silent = false;
+
+		refunded_points += skills.rg_damage + skills.rg_burn + skills.rg_pierce;
+		skills.rg_damage = skills.rg_burn = skills.rg_pierce = 0;
+		skills.rg_trails = skills.rg_silent = false;
+
+		refunded_points += skills.bfg_damage + skills.bfg_speed + skills.bfg_duration;
+		skills.bfg_damage = skills.bfg_speed = skills.bfg_duration = 0;
+		skills.bfg_silent = false;
+
+		refunded_points += skills.cf_damage + skills.cf_range;
+		skills.cf_damage = skills.cf_range = 0;
+		skills.cf_silent = false;
+
+		refunded_points += skills.etf_damage + skills.etf_speed + skills.etf_kick;
+		skills.etf_damage = skills.etf_speed = skills.etf_kick = 0;
+		skills.etf_silent = false;
+
+		refunded_points += skills.ir_damage + skills.ir_speed;
+		skills.ir_damage = skills.ir_speed = 0;
+		skills.ir_silent = false;
+
+		refunded_points += skills.pb_damage + skills.pb_burn + skills.pb_pierce;
+		skills.pb_damage = skills.pb_burn = skills.pb_pierce = 0;
+		skills.pb_silent = false;
+
+		refunded_points += skills.phalanx_damage + skills.phalanx_radius + skills.phalanx_speed;
+		skills.phalanx_damage = skills.phalanx_radius = skills.phalanx_speed = 0;
+		skills.phalanx_silent = false;
+
+		refunded_points += skills.disruptor_damage + skills.disruptor_speed + skills.disruptor_duration;
+		skills.disruptor_damage = skills.disruptor_speed = skills.disruptor_duration = 0;
+		skills.disruptor_silent = false;
+
+		refunded_points += skills.tesla_damage + skills.tesla_range + skills.tesla_radius;
+		skills.tesla_damage = skills.tesla_range = skills.tesla_radius = 0;
+		skills.tesla_chain = false;
+
+		refunded_points += skills.trap_damage + skills.trap_range + skills.trap_radius;
+		skills.trap_damage = skills.trap_range = skills.trap_radius = 0;
+
+		refunded_points += skills.pl_damage + skills.pl_range + skills.pl_radius;
+		skills.pl_damage = skills.pl_range = skills.pl_radius = 0;
+		skills.pl_trails = skills.pl_silent = skills.pl_improved_traps = false;
+
+		// Refund the points
+		ent->client->pers.weapon_points += refunded_points;
+
+		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "All weapon upgrades reset! {} weapon points refunded.\n", refunded_points);
+
+		PMenu_Close(ent);
+		OpenWeaponUpgradeMenu(ent);
+	}
 	else if (strcmp(arg, "back_to_upgrades") == 0)
 	{
 		weapon_upgrade_current_page = 0; // Reset to first page
@@ -3377,8 +3467,16 @@ void RLUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.rl_damage < 10)
 		{
-			ent->client->pers.skills.rl_damage++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.rl_damage++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Rocket Launcher Damage increased to level {}!\n", ent->client->pers.skills.rl_damage);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -3391,8 +3489,16 @@ void RLUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.rl_speed < 10)
 		{
-			ent->client->pers.skills.rl_speed++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.rl_speed++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Rocket Launcher Speed increased to level {}!\n", ent->client->pers.skills.rl_speed);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -3405,8 +3511,16 @@ void RLUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.rl_radius < 10)
 		{
-			ent->client->pers.skills.rl_radius++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.rl_radius++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Rocket Launcher Radius Damage increased to level {}!\n", ent->client->pers.skills.rl_radius);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -3536,8 +3650,16 @@ void GLUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.gl_damage < 10)
 		{
-			ent->client->pers.skills.gl_damage++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.gl_damage++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Grenade Launcher Damage increased to level {}!\n", ent->client->pers.skills.gl_damage);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -3550,8 +3672,16 @@ void GLUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.gl_range < 10)
 		{
-			ent->client->pers.skills.gl_range++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.gl_range++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Grenade Launcher Range increased to level {}!\n", ent->client->pers.skills.gl_range);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -3564,8 +3694,16 @@ void GLUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.gl_radius < 10)
 		{
-			ent->client->pers.skills.gl_radius++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.gl_radius++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Grenade Launcher Radius Damage increased to level {}!\n", ent->client->pers.skills.gl_radius);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -3697,8 +3835,16 @@ void MGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.mg_damage < 10)
 		{
-			ent->client->pers.skills.mg_damage++;
-			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Machinegun Damage increased to level {}!\n", ent->client->pers.skills.mg_damage);
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.mg_damage++;
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Machinegun Damage increased to level {}!\n", ent->client->pers.skills.mg_damage);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -3711,8 +3857,16 @@ void MGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.mg_pierce < 10)
 		{
-			ent->client->pers.skills.mg_pierce++;
-			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Machinegun Pierce increased to level {}!\n", ent->client->pers.skills.mg_pierce);
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.mg_pierce++;
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Machinegun Pierce increased to level {}!\n", ent->client->pers.skills.mg_pierce);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -3725,8 +3879,16 @@ void MGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.mg_tracers < 10)
 		{
-			ent->client->pers.skills.mg_tracers++;
-			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Machinegun Tracers increased to level {}!\n", ent->client->pers.skills.mg_tracers);
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.mg_tracers++;
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Machinegun Tracers increased to level {}!\n", ent->client->pers.skills.mg_tracers);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -3853,57 +4015,81 @@ void CGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.cg_damage < 10)
 		{
-			ent->client->pers.skills.cg_damage++;
-			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Chaingun Damage increased to level {}!\n", ent->client->pers.skills.cg_damage);
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.cg_damage++;
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Chaingun Damage increased to level {}!\n", ent->client->pers.skills.cg_damage);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Chaingun Damage is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenCGUpgradeMenu(ent);
+		OpenCGUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "cg_spin") == 0)
 	{
 		if (ent->client->pers.skills.cg_spin < 10)
 		{
-			ent->client->pers.skills.cg_spin++;
-			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Chaingun Spin increased to level {}!\n", ent->client->pers.skills.cg_spin);
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.cg_spin++;
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Chaingun Spin increased to level {}!\n", ent->client->pers.skills.cg_spin);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Chaingun Spin is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenCGUpgradeMenu(ent);
+		OpenCGUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "cg_tracers") == 0)
 	{
 		if (ent->client->pers.skills.cg_tracers < 10)
 		{
-			ent->client->pers.skills.cg_tracers++;
-			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Chaingun Tracers increased to level {}!\n", ent->client->pers.skills.cg_tracers);
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.cg_tracers++;
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Chaingun Tracers increased to level {}!\n", ent->client->pers.skills.cg_tracers);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Chaingun Tracers is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenCGUpgradeMenu(ent);
+		OpenCGUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "cg_spread") == 0)
 	{
 		ent->client->pers.skills.cg_spread = !ent->client->pers.skills.cg_spread;
 		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Chaingun Reduced Spread: {}\n", ent->client->pers.skills.cg_spread ? "ON" : "OFF");
 		PMenu_Close(ent);
-		OpenCGUpgradeMenu(ent);
+		OpenCGUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "cg_silent") == 0)
 	{
 		ent->client->pers.skills.cg_silent = !ent->client->pers.skills.cg_silent;
 		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Chaingun Silent Mode: {}\n", ent->client->pers.skills.cg_silent ? "ON" : "OFF");
 		PMenu_Close(ent);
-		OpenCGUpgradeMenu(ent);
+		OpenCGUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "back_to_weapons") == 0)
 	{
@@ -3962,8 +4148,16 @@ void OpenSGUpgradeMenu(edict_t *ent, int cursor_pos)
 	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.sg_damage);
 	add_entry(status, PMENU_ALIGN_LEFT, [](edict_t *ent, pmenuhnd_t *p) {
 		if (ent->client->pers.skills.sg_damage < 10) {
-			ent->client->pers.skills.sg_damage++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.sg_damage++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Shotgun Damage increased to level {}!\n", ent->client->pers.skills.sg_damage);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		} else {
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Shotgun Damage is already at maximum level!\n");
 		}
@@ -3974,8 +4168,16 @@ void OpenSGUpgradeMenu(edict_t *ent, int cursor_pos)
 	snprintf(status, sizeof(status), "Strike %d [10]", ent->client->pers.skills.sg_strike);
 	add_entry(status, PMENU_ALIGN_LEFT, [](edict_t *ent, pmenuhnd_t *p) {
 		if (ent->client->pers.skills.sg_strike < 10) {
-			ent->client->pers.skills.sg_strike++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.sg_strike++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Shotgun Strike increased to level {}!\n", ent->client->pers.skills.sg_strike);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		} else {
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Shotgun Strike is already at maximum level!\n");
 		}
@@ -3986,8 +4188,16 @@ void OpenSGUpgradeMenu(edict_t *ent, int cursor_pos)
 	snprintf(status, sizeof(status), "Pellets %d [10]", ent->client->pers.skills.sg_pellets);
 	add_entry(status, PMENU_ALIGN_LEFT, [](edict_t *ent, pmenuhnd_t *p) {
 		if (ent->client->pers.skills.sg_pellets < 10) {
-			ent->client->pers.skills.sg_pellets++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.sg_pellets++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Shotgun Pellets increased to level {}!\n", ent->client->pers.skills.sg_pellets);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		} else {
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Shotgun Pellets is already at maximum level!\n");
 		}
@@ -4082,8 +4292,16 @@ void OpenSSGUpgradeMenu(edict_t *ent, int cursor_pos)
 	snprintf(status, sizeof(status), "Damage %d [10]", ent->client->pers.skills.ssg_damage);
 	add_entry(status, PMENU_ALIGN_LEFT, [](edict_t *ent, pmenuhnd_t *p) {
 		if (ent->client->pers.skills.ssg_damage < 10) {
-			ent->client->pers.skills.ssg_damage++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.ssg_damage++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Super Shotgun Damage increased to level {}!\n", ent->client->pers.skills.ssg_damage);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		} else {
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Super Shotgun Damage is already at maximum level!\n");
 		}
@@ -4094,8 +4312,16 @@ void OpenSSGUpgradeMenu(edict_t *ent, int cursor_pos)
 	snprintf(status, sizeof(status), "Strike %d [10]", ent->client->pers.skills.ssg_strike);
 	add_entry(status, PMENU_ALIGN_LEFT, [](edict_t *ent, pmenuhnd_t *p) {
 		if (ent->client->pers.skills.ssg_strike < 10) {
-			ent->client->pers.skills.ssg_strike++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.ssg_strike++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Super Shotgun Strike increased to level {}!\n", ent->client->pers.skills.ssg_strike);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		} else {
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Super Shotgun Strike is already at maximum level!\n");
 		}
@@ -4106,8 +4332,16 @@ void OpenSSGUpgradeMenu(edict_t *ent, int cursor_pos)
 	snprintf(status, sizeof(status), "Pellets %d [10]", ent->client->pers.skills.ssg_pellets);
 	add_entry(status, PMENU_ALIGN_LEFT, [](edict_t *ent, pmenuhnd_t *p) {
 		if (ent->client->pers.skills.ssg_pellets < 10) {
-			ent->client->pers.skills.ssg_pellets++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.ssg_pellets++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Super Shotgun Pellets increased to level {}!\n", ent->client->pers.skills.ssg_pellets);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		} else {
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Super Shotgun Pellets is already at maximum level!\n");
 		}
@@ -4240,8 +4474,16 @@ void HGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.hg_damage < 10)
 		{
-			ent->client->pers.skills.hg_damage++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.hg_damage++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Hand Grenade Damage increased to level {}!\n", ent->client->pers.skills.hg_damage);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -4254,8 +4496,16 @@ void HGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.hg_range < 10)
 		{
-			ent->client->pers.skills.hg_range++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.hg_range++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Hand Grenade Range increased to level {}!\n", ent->client->pers.skills.hg_range);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -4268,8 +4518,16 @@ void HGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.hg_radius_damage < 10)
 		{
-			ent->client->pers.skills.hg_radius_damage++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.hg_radius_damage++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Hand Grenade Radius Damage increased to level {}!\n", ent->client->pers.skills.hg_radius_damage);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -4383,8 +4641,16 @@ void ProxUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.pl_damage < 10)
 		{
-			ent->client->pers.skills.pl_damage++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.pl_damage++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Prox Launcher Damage increased to level {}!\n", ent->client->pers.skills.pl_damage);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -4397,8 +4663,16 @@ void ProxUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.pl_range < 10)
 		{
-			ent->client->pers.skills.pl_range++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.pl_range++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Prox Launcher Range increased to level {}!\n", ent->client->pers.skills.pl_range);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -4411,8 +4685,16 @@ void ProxUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.pl_radius < 10)
 		{
-			ent->client->pers.skills.pl_radius++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.pl_radius++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Prox Launcher Radius Damage increased to level {}!\n", ent->client->pers.skills.pl_radius);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -4528,8 +4810,16 @@ void BlasterUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.bl_damage < 10)
 		{
-			ent->client->pers.skills.bl_damage++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.bl_damage++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Blaster Damage increased to level {}!\n", ent->client->pers.skills.bl_damage);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -4542,8 +4832,16 @@ void BlasterUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.bl_speed < 10)
 		{
-			ent->client->pers.skills.bl_speed++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.bl_speed++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Blaster Speed increased to level {}!\n", ent->client->pers.skills.bl_speed);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -4652,8 +4950,16 @@ void HyperblasterUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.hb_damage < 10)
 		{
-			ent->client->pers.skills.hb_damage++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.hb_damage++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Hyperblaster Damage increased to level {}!\n", ent->client->pers.skills.hb_damage);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -4666,8 +4972,16 @@ void HyperblasterUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.hb_speed < 10)
 		{
-			ent->client->pers.skills.hb_speed++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.hb_speed++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Hyperblaster Speed increased to level {}!\n", ent->client->pers.skills.hb_speed);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -4775,8 +5089,16 @@ void ETFUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.etf_damage < 10)
 		{
-			ent->client->pers.skills.etf_damage++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.etf_damage++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "ETF Rifle Damage increased to level {}!\n", ent->client->pers.skills.etf_damage);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -4789,8 +5111,16 @@ void ETFUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.etf_speed < 10)
 		{
-			ent->client->pers.skills.etf_speed++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.etf_speed++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "ETF Rifle Speed increased to level {}!\n", ent->client->pers.skills.etf_speed);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -4803,8 +5133,16 @@ void ETFUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.etf_kick < 10)
 		{
-			ent->client->pers.skills.etf_kick++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.etf_kick++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "ETF Rifle Kick increased to level {}!\n", ent->client->pers.skills.etf_kick);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -4906,8 +5244,16 @@ void IonRipperUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.ir_damage < 10)
 		{
-			ent->client->pers.skills.ir_damage++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.ir_damage++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Ion Ripper Damage increased to level {}!\n", ent->client->pers.skills.ir_damage);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -4920,8 +5266,16 @@ void IonRipperUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.ir_speed < 10)
 		{
-			ent->client->pers.skills.ir_speed++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.ir_speed++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Ion Ripper Speed increased to level {}!\n", ent->client->pers.skills.ir_speed);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -5029,8 +5383,16 @@ void RailgunUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.rg_damage < 10)
 		{
-			ent->client->pers.skills.rg_damage++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.rg_damage++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Railgun Damage increased to level {}!\n", ent->client->pers.skills.rg_damage);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -5043,8 +5405,16 @@ void RailgunUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.rg_burn < 10)
 		{
-			ent->client->pers.skills.rg_burn++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.rg_burn++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Railgun Burn increased to level {}!\n", ent->client->pers.skills.rg_burn);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -5057,8 +5427,16 @@ void RailgunUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.rg_pierce < 10)
 		{
-			ent->client->pers.skills.rg_pierce++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.rg_pierce++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Railgun Pierce increased to level {}!\n", ent->client->pers.skills.rg_pierce);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -5169,8 +5547,16 @@ void BFGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.bfg_damage < 10)
 		{
-			ent->client->pers.skills.bfg_damage++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.bfg_damage++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "BFG10K Damage increased to level {}!\n", ent->client->pers.skills.bfg_damage);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -5183,8 +5569,16 @@ void BFGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.bfg_speed < 10)
 		{
-			ent->client->pers.skills.bfg_speed++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.bfg_speed++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "BFG10K Speed increased to level {}!\n", ent->client->pers.skills.bfg_speed);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -5197,8 +5591,16 @@ void BFGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.bfg_duration < 10)
 		{
-			ent->client->pers.skills.bfg_duration++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.bfg_duration++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "BFG10K Duration increased to level {}!\n", ent->client->pers.skills.bfg_duration);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -5320,8 +5722,16 @@ void ETGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.cannon20mm_damage < 10)
 		{
-			ent->client->pers.skills.cannon20mm_damage++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.cannon20mm_damage++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "20mm Cannon Damage increased to level {}!\n", ent->client->pers.skills.cannon20mm_damage);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -5334,8 +5744,16 @@ void ETGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.cannon20mm_range < 10)
 		{
-			ent->client->pers.skills.cannon20mm_range++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.cannon20mm_range++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "20mm Cannon Range increased to level {}!\n", ent->client->pers.skills.cannon20mm_range);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -5348,8 +5766,16 @@ void ETGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.cannon20mm_recoil < 10)
 		{
-			ent->client->pers.skills.cannon20mm_recoil++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.cannon20mm_recoil++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "20mm Cannon Recoil Reduction increased to level {}!\n", ent->client->pers.skills.cannon20mm_recoil);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -5450,8 +5876,16 @@ void PlasmabeamUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.pb_damage < 10)
 		{
-			ent->client->pers.skills.pb_damage++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.pb_damage++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Plasmabeam Damage increased to level {}!\n", ent->client->pers.skills.pb_damage);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -5464,8 +5898,16 @@ void PlasmabeamUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.pb_burn < 10)
 		{
-			ent->client->pers.skills.pb_burn++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.pb_burn++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Plasmabeam Burn increased to level {}!\n", ent->client->pers.skills.pb_burn);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -5478,8 +5920,16 @@ void PlasmabeamUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.pb_pierce < 10)
 		{
-			ent->client->pers.skills.pb_pierce++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.pb_pierce++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Plasmabeam Pierce increased to level {} ({}% chance)!\n", ent->client->pers.skills.pb_pierce, ent->client->pers.skills.pb_pierce * 4);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -5970,8 +6420,16 @@ void ChainfistUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.cf_damage < 10)
 		{
-			ent->client->pers.skills.cf_damage++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.cf_damage++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Chainfist Damage increased to level {}!\n", ent->client->pers.skills.cf_damage);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -5984,8 +6442,16 @@ void ChainfistUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.cf_range < 10)
 		{
-			ent->client->pers.skills.cf_range++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.cf_range++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Chainfist Range increased to level {}!\n", ent->client->pers.skills.cf_range);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -6100,8 +6566,16 @@ void TeslaUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.tesla_damage < 10)
 		{
-			ent->client->pers.skills.tesla_damage++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.tesla_damage++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Tesla Damage increased to level {}!\n", ent->client->pers.skills.tesla_damage);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -6114,8 +6588,16 @@ void TeslaUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.tesla_range < 10)
 		{
-			ent->client->pers.skills.tesla_range++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.tesla_range++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Tesla Range increased to level {}!\n", ent->client->pers.skills.tesla_range);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -6128,8 +6610,16 @@ void TeslaUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.tesla_radius < 10)
 		{
-			ent->client->pers.skills.tesla_radius++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.tesla_radius++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Tesla Radius increased to level {}!\n", ent->client->pers.skills.tesla_radius);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -6240,8 +6730,16 @@ void TrapUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.trap_damage < 10)
 		{
-			ent->client->pers.skills.trap_damage++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.trap_damage++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Trap Damage increased to level {}!\n", ent->client->pers.skills.trap_damage);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -6254,8 +6752,16 @@ void TrapUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.trap_range < 10)
 		{
-			ent->client->pers.skills.trap_range++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.trap_range++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Trap Range increased to level {}!\n", ent->client->pers.skills.trap_range);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -6268,8 +6774,16 @@ void TrapUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.trap_radius < 10)
 		{
-			ent->client->pers.skills.trap_radius++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.trap_radius++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Trap Radius increased to level {}!\n", ent->client->pers.skills.trap_radius);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -6377,8 +6891,16 @@ void PhalanxUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.phalanx_damage < 10)
 		{
-			ent->client->pers.skills.phalanx_damage++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.phalanx_damage++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Phalanx Damage increased to level {}!\n", ent->client->pers.skills.phalanx_damage);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -6391,8 +6913,16 @@ void PhalanxUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.phalanx_speed < 10)
 		{
-			ent->client->pers.skills.phalanx_speed++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.phalanx_speed++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Phalanx Speed increased to level {}!\n", ent->client->pers.skills.phalanx_speed);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -6405,8 +6935,16 @@ void PhalanxUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.phalanx_radius < 10)
 		{
-			ent->client->pers.skills.phalanx_radius++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.phalanx_radius++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Phalanx Radius increased to level {}!\n", ent->client->pers.skills.phalanx_radius);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -6521,8 +7059,16 @@ void DisruptorUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.disruptor_damage < 10)
 		{
-			ent->client->pers.skills.disruptor_damage++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.disruptor_damage++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Disruptor Damage increased to level {}!\n", ent->client->pers.skills.disruptor_damage);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -6535,8 +7081,16 @@ void DisruptorUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.disruptor_speed < 10)
 		{
-			ent->client->pers.skills.disruptor_speed++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.disruptor_speed++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Disruptor Speed increased to level {}!\n", ent->client->pers.skills.disruptor_speed);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{
@@ -6549,8 +7103,16 @@ void DisruptorUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		if (ent->client->pers.skills.disruptor_duration < 10)
 		{
-			ent->client->pers.skills.disruptor_duration++;
+			if (ent->client->pers.weapon_points >= 1)
+			{
+				ent->client->pers.weapon_points--;
+				ent->client->pers.skills.disruptor_duration++;
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Disruptor Duration increased to level {}!\n", ent->client->pers.skills.disruptor_duration);
+			}
+			else
+			{
+				gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Not enough weapon points!\n");
+			}
 		}
 		else
 		{

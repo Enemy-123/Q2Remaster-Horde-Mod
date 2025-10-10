@@ -300,8 +300,12 @@ void tesla_chain_lightning(edict_t *self, const tesla_target *tesla_victims, int
 	if (!self || num_victims <= 0)
 		return;
 
-	// Check if the tesla owner has the Tesla Chain Lightning benefit
-	if (!self->teammaster || !self->teammaster->client || !PlayerHasTeslaChainLightning(self->teammaster))
+	// Check if the tesla owner has the Tesla Chain Lightning upgrade
+	if (!self->teammaster || !self->teammaster->client)
+		return;
+
+	// Only enable chain lightning if bot benefit OR player skill is enabled (like gl_bouncy)
+	if (!BotHasTeslaChainLightning(self->teammaster) && !self->teammaster->client->pers.skills.tesla_chain)
 		return;
 
 	// Process each victim that was attacked by the tesla

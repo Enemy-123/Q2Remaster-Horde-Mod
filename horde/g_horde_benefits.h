@@ -72,29 +72,29 @@ std::string GetActiveBonusesString(); // Declaration for the function used in ho
 //std::string GetPlayerActiveBonusesString(edict_t* player); // Per-player version of GetActiveBonusesString
 
 // Per-player benefit functions
-bool PlayerHasBenefit(edict_t* player, BenefitID benefit_id);
-bool PlayerHasAbility(edict_t* player, BenefitID ability_id);
-bool PlayerHasWeaponUpgrade(edict_t* player, BenefitID weapon_id);
+bool BotHasBenefit(edict_t* player, BenefitID benefit_id);
+bool BotHasAbility(edict_t* player, BenefitID ability_id);
+bool BotHasWeaponUpgrade(edict_t* player, BenefitID weapon_id);
 void PlayerActivateBenefit(edict_t* player, BenefitID benefit_id);
 void PlayerDeactivateBenefit(edict_t* player, BenefitID benefit_id);
 
 // Specific benefit helpers (replace global cvar checks)
-bool PlayerHasVampire(edict_t* player);
-bool PlayerHasAmmoRegen(edict_t* player);
-bool PlayerHasAutoHaste(edict_t* player);
-bool PlayerHasStartArmor(edict_t* player);
+bool BotHasVampire(edict_t* player);
+bool BotHasAmmoRegen(edict_t* player);
+bool BotHasAutoHaste(edict_t* player);
+bool BotHasStartArmor(edict_t* player);
 
-bool PlayerHasHAPickup(edict_t* player);
-bool PlayerHasTracedBullets(edict_t* player);
-bool PlayerHasEnergyShells(edict_t* player);
-bool PlayerHasClusterProx(edict_t* player);
-bool PlayerHasPiercingPlasma(edict_t* player);
-bool PlayerHasNapalmGL(edict_t* player);
-bool PlayerHasTeslaChainLightning(edict_t* player);
+bool BotHasHAPickup(edict_t* player);
+bool BotHasTracedBullets(edict_t* player);
+bool BotHasEnergyShells(edict_t* player);
+bool BotHasClusterProx(edict_t* player);
+bool BotHasPiercingPlasma(edict_t* player);
+bool BotHasNapalmGL(edict_t* player);
+bool BotHasTeslaChainLightning(edict_t* player);
 
 // BFG mode helpers
-bool PlayerHasBFGSlide(edict_t* player);
-bool PlayerHasBFGPull(edict_t* player);
+bool BotHasBFGSlide(edict_t* player);
+bool BotHasBFGPull(edict_t* player);
 BFGMode PlayerGetBFGMode(edict_t* player);
 void PlayerSetBFGMode(edict_t* player, BFGMode mode);
 

@@ -315,7 +315,7 @@ static void Prox_ExplodeReal(edict_t *ent, edict_t *other, vec3_t normal)
 	}
 
 	// Check if the owner (player who fired) has the cluster prox upgrade
-	if (ent->owner && ent->owner->client && (PlayerHasClusterProx(ent->owner) || ent->owner->client->pers.skills.pl_improved_traps))
+	if (ent->owner && ent->owner->client && (BotHasClusterProx(ent->owner) || ent->owner->client->pers.skills.pl_improved_traps))
 	{
 		SpawnClusterGrenades(ent, explosion_origin, ent->dmg);
 	}
@@ -1146,7 +1146,7 @@ static void fire_beams(edict_t *self, const vec3_t &start, const vec3_t &aimdir,
 	float pierce_chance = 0.0f;
 	if (self && self->client)
 	{
-		if (PlayerHasPiercingPlasma(self))
+		if (BotHasPiercingPlasma(self))
 		{
 			pierce_chance = 1.0f; // Benefit gives 100% pierce
 		}

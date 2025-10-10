@@ -639,7 +639,7 @@ void fire_shotgun(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int 
 {
 	// Check if player has energy shells upgrade (global benefit or weapon-specific)
 	// Use mod.id to determine which weapon is firing
-	bool use_energy = PlayerHasEnergyShells(self);
+	bool use_energy = BotHasEnergyShells(self);
 	if (self->client)
 	{
 		if (mod.id == MOD_SHOTGUN && self->client->pers.skills.sg_energized)
@@ -1179,7 +1179,7 @@ void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir,
 	grenade->classname = "grenade";
 	grenade->s.modelindex = gi.modelindex("models/objects/grenade/tris.md2");
 
-	const bool use_bouncy = (!(self->svflags & SVF_MONSTER) && self->client && (PlayerHasNapalmGL(self) || self->client->pers.skills.gl_bouncy));
+	const bool use_bouncy = (!(self->svflags & SVF_MONSTER) && self->client && (BotHasNapalmGL(self) || self->client->pers.skills.gl_bouncy));
 
 	if (use_bouncy) {
 		// --- NEW Cluster-Bouncy Grenade Behavior ---
@@ -1915,7 +1915,7 @@ int calculate_bfg_range(const edict_t* self)
 		// Monster-owned BFG has shorter range
 		range = BFG_MONSTER_RANGE;
 	}
-	else if (PlayerHasBFGPull(self->owner)) {
+	else if (BotHasBFGPull(self->owner)) {
 		// Player-owned BFG with pull enabled has longer range
 		range = BFG_PLAYER_RANGE;
 	}
@@ -2039,7 +2039,7 @@ THINK(bfg_think) (edict_t* self) -> void
 	const int bfgrange_squared = bfgrange * bfgrange;
 
 	// Determine if pulling should be applied
-	const bool should_pull = PlayerHasBFGPull(self->owner);
+	const bool should_pull = BotHasBFGPull(self->owner);
 
 	// Cache origin for performance
 	const vec3_t self_origin = self->s.origin;
@@ -2144,7 +2144,7 @@ THINK(bfg_think) (edict_t* self) -> void
 	}
 
 	// Calculate next think time based on game mode
-	const gtime_t next_think_time = PlayerHasBFGSlide(self->owner) ?
+	const gtime_t next_think_time = BotHasBFGSlide(self->owner) ?
 		FRAME_TIME_MS * 1.6 :  // Slightly faster for slide mode
 		FRAME_TIME_MS * 2.5;   // Slightly slower for normal mode
 
@@ -2175,7 +2175,7 @@ TOUCH(bfg_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_t
 		PlayerNoise(self->owner, self->s.origin, PNOISE_IMPACT);
 
 	// Handle sliding mode
-	if (PlayerHasBFGSlide(self->owner)) {
+	if (BotHasBFGSlide(self->owner)) {
 		// Set expiry timestamp if not already set
 		if (self->timestamp == 0_ms) {
 			// Apply BFG duration upgrade to wall-stick time
@@ -2267,7 +2267,7 @@ void fire_bfg(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage,
 	bfg->s.origin = start;
 	bfg->s.angles = vectoangles(dir);
 	bfg->velocity = dir * speed;
-	bfg->movetype = PlayerHasBFGSlide(self) ? MOVETYPE_SLIDE : MOVETYPE_FLYMISSILE;
+	bfg->movetype = BotHasBFGSlide(self) ? MOVETYPE_SLIDE : MOVETYPE_FLYMISSILE;
 	bfg->clipmask = MASK_PROJECTILE;
 	bfg->svflags = SVF_PROJECTILE;
 

@@ -872,7 +872,7 @@ static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_dama
 }
 
 static void HandleAutoHaste(edict_t* attacker, const edict_t* targ, int damage) {
-	if (!PlayerHasAutoHaste(attacker) || !attacker || !attacker->client ||
+	if (!BotHasAutoHaste(attacker) || !attacker || !attacker->client ||
 		attacker->client->quadfire_time >= level.time ||
 		damage <= 0 || (attacker->health < 1 && targ->health < 1)) {
 		return;
@@ -899,10 +899,10 @@ int calculate_health_stolen(edict_t* attacker, int base_health_stolen) {
 	if (it != WEAPON_MULTIPLIERS.end()) {
 		multiplier = it->multiplier;
 
-		if (weapon_id == IT_WEAPON_MACHINEGUN && PlayerHasTracedBullets(attacker)) {
+		if (weapon_id == IT_WEAPON_MACHINEGUN && BotHasTracedBullets(attacker)) {
 			multiplier = 0.5f;
 		}
-		else if (weapon_id == IT_WEAPON_GLAUNCHER && PlayerHasNapalmGL(attacker)) {
+		else if (weapon_id == IT_WEAPON_GLAUNCHER && BotHasNapalmGL(attacker)) {
 			multiplier *= 0.5f;
 		}
 	}
@@ -1275,7 +1275,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 			vec3_t kvel;
 
 			// Skip mass calculation for BFG pull
-			if (PlayerHasBFGPull(attacker) && mod.id == MOD_BFG_LASER) {
+			if (BotHasBFGPull(attacker) && mod.id == MOD_BFG_LASER) {
 				kvel = normalized_dir * (500.0f * knockback / 50);
 			}
 			else {

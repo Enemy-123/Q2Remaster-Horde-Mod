@@ -29,7 +29,7 @@ void weapon_prox_fire(edict_t* ent)
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
 	G_RemoveAmmo(ent);
-	if (PlayerHasClusterProx(ent) || (ent->client && ent->client->pers.skills.pl_improved_traps))
+	if (BotHasClusterProx(ent) || (ent->client && ent->client->pers.skills.pl_improved_traps))
 	{
 		G_RemoveAmmo(ent, 3);
 	}
