@@ -19,8 +19,8 @@ inline void padRight(char* str, int target_length) {
 // Simple sprintf-based formatting for menu items with aligned indicators
 
 // Format a menu item with numbered prefix and progress indicator
-// Example: "  1. Vampire:        [ 3/10]" (left-aligned like Vortex)
-// Uses %2d formatting for perfect 2-digit alignment
+// Example: "  1. Vampire:   [03/10]" (left-aligned like Vortex)
+// Uses %02d formatting for zero-padded 2-digit alignment
 inline void MenuFormatItemWithProgress(char* buffer, size_t buffer_size,
                                        int item_number, const char* name,
                                        int current, int max)
@@ -28,7 +28,7 @@ inline void MenuFormatItemWithProgress(char* buffer, size_t buffer_size,
 	char padded_name[MENU_TEXT_MAX];
 	snprintf(padded_name, sizeof(padded_name), "%s:", name);
 	padRight(padded_name, MENU_NAME_WIDTH);
-	snprintf(buffer, buffer_size, "  %2d. %s [%2d/%2d]", item_number, padded_name, current, max);
+	snprintf(buffer, buffer_size, "  %d. %s [%02d/%02d]", item_number, padded_name, current, max);
 }
 
 // Format a menu item with numbered prefix and [OWNED] indicator
