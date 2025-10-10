@@ -165,77 +165,77 @@ void CheckAndApplyBenefit(const int32_t wave) {
     mark_benefit_obtained(selected_id);
 }
 
-struct BonusMapping {
-	std::string_view benefit_name;
-	std::string_view display_text; // The full name for menus
-	std::string_view short_name;   // The shorter name for the scoreboard
-};
+// struct BonusMapping {
+// 	std::string_view benefit_name;
+// 	std::string_view display_text; // The full name for menus
+// 	std::string_view short_name;   // The shorter name for the scoreboard
+// };
 
 
-// Definition for the function used in horde_menu.cpp
-std::string GetActiveBonusesString() {
-    // This function can remain here as it's a higher-level utility
-    // that depends on the core benefit system.
-    // ... (implementation from your horde_menu.cpp)
-    // ...
-    // NOTE: You will need to move the implementation of this function
-    // from horde_menu.cpp to here.
+// // Definition for the function used in horde_menu.cpp
+// std::string GetActiveBonusesString() {
+//     // This function can remain here as it's a higher-level utility
+//     // that depends on the core benefit system.
+//     // ... (implementation from your horde_menu.cpp)
+//     // ...
+//     // NOTE: You will need to move the implementation of this function
+//     // from horde_menu.cpp to here.
     
-    // Define mappings from internal names to display names
-	static const std::array<BonusMapping, 12> bonus_mappings = { {
-		{"vampire upgraded", "Health & Armor Vampirism"},
-		{"vampire", "Health Vampirism"},
-		{"ammo regen", "Ammo Regen"},
-		{"start armor", "Starting Armor"},
-		{"auto haste", "Auto-Haste"},
-		{"Tesla Chain Lightning", "Tesla Chain Lightning"},
-		{"Cluster Prox", "Upgraded Prox Launcher"},
-		{"Traced Bullets", "Traced-Energy Bullets"},
-		{"Napalm GL", "Napalm-Grenade Launcher"},
-		{"BFG Gravity Pull", "BFG Grav-Pull Lasers"},
-		{"Piercing Plasma", "Piercing Plasma-Beam"},
-		{"Energy Shells", "Energy Shells"}
-	} };
+//     // Define mappings from internal names to display names
+// 	static const std::array<BonusMapping, 12> bonus_mappings = { {
+// 		{"vampire upgraded", "Health & Armor Vampirism"},
+// 		{"vampire", "Health Vampirism"},
+// 		{"ammo regen", "Ammo Regen"},
+// 		{"start armor", "Starting Armor"},
+// 		{"auto haste", "Auto-Haste"},
+// 		{"Tesla Chain Lightning", "Tesla Chain Lightning"},
+// 		{"Cluster Prox", "Upgraded Prox Launcher"},
+// 		{"Traced Bullets", "Traced-Energy Bullets"},
+// 		{"Napalm GL", "Napalm-Grenade Launcher"},
+// 		{"BFG Gravity Pull", "BFG Grav-Pull Lasers"},
+// 		{"Piercing Plasma", "Piercing Plasma-Beam"},
+// 		{"Energy Shells", "Energy Shells"}
+// 	} };
 
-    std::vector<std::string_view> active_bonuses;
-	active_bonuses.reserve(bonus_mappings.size());
+//     std::vector<std::string_view> active_bonuses;
+// 	active_bonuses.reserve(bonus_mappings.size());
 
-    bool has_vampire_upgraded = has_benefit(BenefitID::VAMPIRE_UPGRADED);
+//     bool has_vampire_upgraded = has_benefit(BenefitID::VAMPIRE_UPGRADED);
 
-    for (size_t i = 0; i < BenefitsDataSoA::NUM_BENEFITS; ++i) {
-        BenefitID id = static_cast<BenefitID>(i);
-        if (id == BenefitID::VAMPIRE && has_vampire_upgraded) {
-            continue; // Skip base vampire if upgraded is active
-        }
-        if (has_benefit(id)) {
-            // Find the corresponding display text
-            for(const auto& mapping : bonus_mappings) {
-                if (strcmp(g_benefitsData.names[i], mapping.benefit_name.data()) == 0) {
-                    active_bonuses.push_back(mapping.display_text);
-                    break;
-                }
-            }
-        }
-    }
+//     for (size_t i = 0; i < BenefitsDataSoA::NUM_BENEFITS; ++i) {
+//         BenefitID id = static_cast<BenefitID>(i);
+//         if (id == BenefitID::VAMPIRE && has_vampire_upgraded) {
+//             continue; // Skip base vampire if upgraded is active
+//         }
+//         if (has_benefit(id)) {
+//             // Find the corresponding display text
+//             for(const auto& mapping : bonus_mappings) {
+//                 if (strcmp(g_benefitsData.names[i], mapping.benefit_name.data()) == 0) {
+//                     active_bonuses.push_back(mapping.display_text);
+//                     break;
+//                 }
+//             }
+//         }
+//     }
 
-    if (active_bonuses.empty()) {
-		return "";
-	}
+//     if (active_bonuses.empty()) {
+// 		return "";
+// 	}
 
-    // Use your StringBuilder or std::string to format the result
-    std::string result;
-    result.reserve(active_bonuses.size() * 30);
+//     // Use your StringBuilder or std::string to format the result
+//     std::string result;
+//     result.reserve(active_bonuses.size() * 30);
 
-	for (size_t i = 0; i < active_bonuses.size(); ++i) {
-		result += "* ";
-		result += active_bonuses[i];
-		if (i < active_bonuses.size() - 1) {
-			result += "\n";
-		}
-	}
+// 	for (size_t i = 0; i < active_bonuses.size(); ++i) {
+// 		result += "* ";
+// 		result += active_bonuses[i];
+// 		if (i < active_bonuses.size() - 1) {
+// 			result += "\n";
+// 		}
+// 	}
 
-	return result;
-}
+// 	return result;
+// }
 
 // Get active bonuses string for a specific player (per-player version)
 // std::string GetPlayerActiveBonusesString(edict_t* player) {
