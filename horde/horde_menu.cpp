@@ -2215,6 +2215,7 @@ void HordeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	// Set Respawn Weapon
 	else if (strcmp(selected_text, "Set Respawn Weapon") == 0)
 	{
+		respawn_weapon_current_page = 0; // Reset to first page when opening from main menu
 		OpenRespawnWeaponMenu(ent);
 		shouldCloseMenu = false;
 	}
