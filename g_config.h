@@ -446,10 +446,20 @@ struct MonsterStatsConfig
 
 };
 
+// Monster level scaling configuration (level-based progression)
+struct MonsterLevelScaling
+{
+	int initial_health = 100;
+	int addon_health = 10;
+	int initial_armor = 0;
+	int addon_armor = 0;
+};
+
 // Monsters configuration - maps MonsterTypeID to stats
 struct MonstersConfig
 {
 	std::unordered_map<uint8_t, MonsterStatsConfig> monsters;
+	std::unordered_map<std::string, MonsterLevelScaling> level_scaling;
 };
 
 // Map-specific override configuration
@@ -611,3 +621,10 @@ bool GetGridEnabledForMap(horde::MapID mapId);
 bool GetGridEnabledForMap(const char* mapname);  // Convenience overload
 bool GetLoadentEnabledForMap(horde::MapID mapId);
 bool GetLoadentEnabledForMap(const char* mapname);  // Convenience overload
+
+// Monster level scaling helpers
+const MonsterLevelScaling* GetMonsterLevelScaling(const char* monster_name);
+void GetMonsterLevelScaledStats(const char* monster_name, int32_t pvm_level, int& out_health, int& out_armor);
+
+// Global variable for lowest player level (updated periodically in Horde_RunFrame)
+extern int32_t g_lowest_player_level;

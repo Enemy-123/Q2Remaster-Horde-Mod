@@ -6532,6 +6532,33 @@ void Horde_RunFrame()
 	CleanupSpawnPointCache();
 	CheckAndReduceSpawnCooldowns();
 
+	// Update lowest player level periodically (every 2 seconds)
+	static gtime_t last_player_level_check = 0_sec;
+	if (currentTime >= last_player_level_check + 2_sec)
+	{
+		last_player_level_check = currentTime;
+
+		// Find the lowest pvm_level among all players
+		int32_t lowest_level = INT32_MAX;
+		bool found_player = false;
+
+		for (int i = 0; i < game.maxclients; i++)
+		{
+			edict_t* player = &g_edicts[1 + i];
+			if (!player->inuse || !player->client)
+				continue;
+
+			found_player = true;
+			if (player->client->pers.pvm_level < lowest_level)
+			{
+				lowest_level = player->client->pers.pvm_level;
+			}
+		}
+
+		// Update global variable
+		g_lowest_player_level = found_player ? lowest_level : 0;
+	}
+
 	// Check if retaliation mode has timed out
 	if (g_spawn_system.special_spawn_state.type == SpecialSpawnType::Retaliation && currentTime >= g_horde_retaliation_end_time) {
 		g_spawn_system.special_spawn_state.clear();

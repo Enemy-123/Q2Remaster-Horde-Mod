@@ -590,6 +590,10 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
+	// Apply level-based scaling (PvM leveling system)
+	// Set monster's level to the lowest player level
+	monster->monsterinfo.pvm_level = g_lowest_player_level;
+
 	// Use base_health for power armor calculation to avoid double-scaling issues
 	// base_health is set before any bonus multipliers are applied
 	if (monster->monsterinfo.bonus_flags != BF_NONE && (!(monster->monsterinfo.bonus_flags & BF_FRIENDLY))) {
