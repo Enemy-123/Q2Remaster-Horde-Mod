@@ -36,13 +36,13 @@ const struct benefit_source_t {
 
 // --- Compile-time transformation function ---
 // This should also ONLY exist in the .cpp file.
-constexpr BenefitsDataSoA create_benefits_soa() {
-    BenefitsDataSoA soa_data{};
+constexpr BotsBonusesSoA create_benefits_soa() {
+    BotsBonusesSoA soa_data{};
     soa_data.prerequisites.fill(BenefitID::NONE);
 
     for (const auto& src : BENEFITS_SRC) {
         size_t index = static_cast<size_t>(src.id);
-        if (index < soa_data.NUM_BENEFITS) {
+        if (index < soa_data.NUM_BOTSBONUS) {
             soa_data.names[index] = src.name;
             soa_data.center_msgs[index] = src.center_msg;
             soa_data.chat_msgs[index] = src.chat_msg;
@@ -60,7 +60,7 @@ constexpr BenefitsDataSoA create_benefits_soa() {
 
 // --- The single global instance of our  data ---
 // This is the DEFINITION.
-const BenefitsDataSoA g_benefitsData = create_benefits_soa();
+const BotsBonusesSoA g_BotsBonuses = create_benefits_soa();
 
 // --- Global state variable DEFINITIONS ---
 uint32_t obtained_benefits_mask = 0;
@@ -90,11 +90,11 @@ static inline bool is_benefit_eligible(BenefitID id, int32_t wave) noexcept {
     if (has_benefit(id)) {
         return false;
     }
-    if (wave < g_benefitsData.min_levels[index] ||
-       (g_benefitsData.max_levels[index] != -1 && wave > g_benefitsData.max_levels[index])) {
+    if (wave < g_BotsBonuses.min_levels[index] ||
+       (g_BotsBonuses.max_levels[index] != -1 && wave > g_BotsBonuses.max_levels[index])) {
         return false;
     }
-    if (!has_benefit(g_benefitsData.prerequisites[index])) {
+    if (!has_benefit(g_BotsBonuses.prerequisites[index])) {
         return false;
     }
     return true;
@@ -105,8 +105,8 @@ static void apply_benefit(BenefitID id) {
     size_t index = static_cast<size_t>(id);
 
     // Legacy global system - mostly replaced by per-player system
-    gi.LocBroadcast_Print(PRINT_CENTER, g_benefitsData.center_msgs[index]);
-    gi.LocBroadcast_Print(PRINT_CHAT, g_benefitsData.chat_msgs[index]);
+    gi.LocBroadcast_Print(PRINT_CENTER, g_BotsBonuses.center_msgs[index]);
+    gi.LocBroadcast_Print(PRINT_CHAT, g_BotsBonuses.chat_msgs[index]);
 
     // Keep vampire level tracking for backward compatibility
     if (id == BenefitID::VAMPIRE)
@@ -124,7 +124,7 @@ void ResetBenefits() noexcept {
     // Global cvars no longer used - benefits are per-player now
 }
 
-void CheckAndApplyBenefit(const int32_t wave) {
+void CheckBotAndApplyBenefit(const int32_t wave) {
     if (wave % 4 != 0)
         return;
 
@@ -132,16 +132,16 @@ void CheckAndApplyBenefit(const int32_t wave) {
         BenefitID id;
         float weight;
     };
-    std::array<eligible_benefit_t, BenefitsDataSoA::NUM_BENEFITS> eligible_benefits;
+    std::array<eligible_benefit_t, BotsBonusesSoA::NUM_BOTSBONUS> eligible_benefits;
     size_t eligible_count = 0;
     float total_weight = 0.0f;
 
-    for (size_t i = 0; i < BenefitsDataSoA::NUM_BENEFITS; ++i) {
+    for (size_t i = 0; i < BotsBonusesSoA::NUM_BOTSBONUS; ++i) {
         BenefitID current_id = static_cast<BenefitID>(i);
         if (is_benefit_eligible(current_id, wave)) {
             eligible_benefits[eligible_count].id = current_id;
-            eligible_benefits[eligible_count].weight = g_benefitsData.weights[i];
-            total_weight += g_benefitsData.weights[i];
+            eligible_benefits[eligible_count].weight = g_BotsBonuses.weights[i];
+            total_weight += g_BotsBonuses.weights[i];
             eligible_count++;
         }
     }
@@ -202,7 +202,7 @@ void CheckAndApplyBenefit(const int32_t wave) {
 
 //     bool has_vampire_upgraded = has_benefit(BenefitID::VAMPIRE_UPGRADED);
 
-//     for (size_t i = 0; i < BenefitsDataSoA::NUM_BENEFITS; ++i) {
+//     for (size_t i = 0; i < BotsBonusesSoA::NUM_BOTSBONUS; ++i) {
 //         BenefitID id = static_cast<BenefitID>(i);
 //         if (id == BenefitID::VAMPIRE && has_vampire_upgraded) {
 //             continue; // Skip base vampire if upgraded is active
@@ -210,7 +210,7 @@ void CheckAndApplyBenefit(const int32_t wave) {
 //         if (has_benefit(id)) {
 //             // Find the corresponding display text
 //             for(const auto& mapping : bonus_mappings) {
-//                 if (strcmp(g_benefitsData.names[i], mapping.benefit_name.data()) == 0) {
+//                 if (strcmp(g_BotsBonuses.names[i], mapping.benefit_name.data()) == 0) {
 //                     active_bonuses.push_back(mapping.display_text);
 //                     break;
 //                 }
@@ -265,14 +265,14 @@ void CheckAndApplyBenefit(const int32_t wave) {
 
 //     bool has_vampire_upgraded = BotHasBenefit(player, BenefitID::VAMPIRE_UPGRADED);
 
-//     for (size_t i = 0; i < BenefitsDataSoA::NUM_BENEFITS; ++i) {
+//     for (size_t i = 0; i < BotsBonusesSoA::NUM_BOTSBONUS; ++i) {
 //         BenefitID id = static_cast<BenefitID>(i);
 //         if (id == BenefitID::VAMPIRE && has_vampire_upgraded) {
 //             continue;
 //         }
 //         if (BotHasBenefit(player, id)) {
 //             for(const auto& mapping : bonus_mappings) {
-//                 if (strcmp(g_benefitsData.names[i], mapping.benefit_name.data()) == 0) {
+//                 if (strcmp(g_BotsBonuses.names[i], mapping.benefit_name.data()) == 0) {
 //                     active_bonuses.push_back(mapping.short_name);
 //                     break;
 //                 }
@@ -318,7 +318,7 @@ bool BotHasBenefit(edict_t* player, BenefitID benefit_id) {
         return false;
     }
 
-    auto category = g_benefitsData.categories[static_cast<size_t>(benefit_id)];
+    auto category = g_BotsBonuses.categories[static_cast<size_t>(benefit_id)];
     uint32_t mask = (category == BenefitCategory::ABILITY) ?
                     player->client->pers.active_abilities_mask :
                     player->client->pers.active_weapons_mask;
@@ -335,7 +335,7 @@ bool BotHasBenefit(edict_t* player, BenefitID benefit_id) {
 
 // Check if player has ability (category check)
 bool BotHasAbility(edict_t* player, BenefitID ability_id) {
-    if (g_benefitsData.categories[static_cast<size_t>(ability_id)] != BenefitCategory::ABILITY) {
+    if (g_BotsBonuses.categories[static_cast<size_t>(ability_id)] != BenefitCategory::ABILITY) {
         return false;
     }
     return BotHasBenefit(player, ability_id);
@@ -343,17 +343,17 @@ bool BotHasAbility(edict_t* player, BenefitID ability_id) {
 
 // Check if player has weapon upgrade (category check)
 bool BotHasWeaponUpgrade(edict_t* player, BenefitID weapon_id) {
-    if (g_benefitsData.categories[static_cast<size_t>(weapon_id)] != BenefitCategory::WEAPON) {
+    if (g_BotsBonuses.categories[static_cast<size_t>(weapon_id)] != BenefitCategory::WEAPON) {
         return false;
     }
     return BotHasBenefit(player, weapon_id);
 }
 
 // Activate benefit for player
-void PlayerActivateBenefit(edict_t* player, BenefitID benefit_id) {
+void BotActivateBenefit(edict_t* player, BenefitID benefit_id) {
     if (!player || !player->client) return;
 
-    auto category = g_benefitsData.categories[static_cast<size_t>(benefit_id)];
+    auto category = g_BotsBonuses.categories[static_cast<size_t>(benefit_id)];
     uint32_t* mask = (category == BenefitCategory::ABILITY) ?
                      &player->client->pers.active_abilities_mask :
                      &player->client->pers.active_weapons_mask;
@@ -381,10 +381,10 @@ void PlayerActivateBenefit(edict_t* player, BenefitID benefit_id) {
 }
 
 // Deactivate benefit for player
-void PlayerDeactivateBenefit(edict_t* player, BenefitID benefit_id) {
+void BotDeactivateBenefit(edict_t* player, BenefitID benefit_id) {
     if (!player || !player->client) return;
 
-    auto category = g_benefitsData.categories[static_cast<size_t>(benefit_id)];
+    auto category = g_BotsBonuses.categories[static_cast<size_t>(benefit_id)];
     uint32_t* mask = (category == BenefitCategory::ABILITY) ?
                      &player->client->pers.active_abilities_mask :
                      &player->client->pers.active_weapons_mask;
@@ -468,20 +468,20 @@ void PlayerSetBFGMode(edict_t* player, BFGMode mode) {
 }
 
 // Point management
-void PlayerEarnAbilityPoints(edict_t* player, int32_t points) {
+void BotEarnAbilityPoints(edict_t* player, int32_t points) {
     if (!player || !player->client) return;
     player->client->pers.ability_points += points;
 }
 
-void PlayerEarnWeaponPoints(edict_t* player, int32_t points) {
+void BotEarnWeaponPoints(edict_t* player, int32_t points) {
     if (!player || !player->client) return;
     player->client->pers.weapon_points += points;
 }
 
-bool PlayerCanAffordBenefit(edict_t* player, BenefitID benefit_id, int32_t cost) {
+bool BotCanAffordBenefit(edict_t* player, BenefitID benefit_id, int32_t cost) {
     if (!player || !player->client || !player->svflags & SVF_BOT) return false;
 
-    auto category = g_benefitsData.categories[static_cast<size_t>(benefit_id)];
+    auto category = g_BotsBonuses.categories[static_cast<size_t>(benefit_id)];
     int32_t available_points = (category == BenefitCategory::ABILITY) ?
                                player->client->pers.ability_points :
                                player->client->pers.weapon_points;
@@ -489,10 +489,10 @@ bool PlayerCanAffordBenefit(edict_t* player, BenefitID benefit_id, int32_t cost)
     return available_points >= cost;
 }
 
-void PlayerSpendPoints(edict_t* player, BenefitID benefit_id, int32_t cost) {
+void BotSpendPoints(edict_t* player, BenefitID benefit_id, int32_t cost) {
     if (!player || !player->client || !player->svflags & SVF_BOT) return;
 
-    auto category = g_benefitsData.categories[static_cast<size_t>(benefit_id)];
+    auto category = g_BotsBonuses.categories[static_cast<size_t>(benefit_id)];
     int32_t* points = (category == BenefitCategory::ABILITY) ?
                       &player->client->pers.ability_points :
                       &player->client->pers.weapon_points;
@@ -560,25 +560,25 @@ static void AutoBuyCategory(edict_t* player, BenefitCategory category) {
         if (*points < cost) continue;
 
         // Check wave requirements (for auto-buy only)
-        int32_t min_wave = g_benefitsData.min_levels[i];
+        int32_t min_wave = g_BotsBonuses.min_levels[i];
         if (current_wave_level < min_wave) continue;
 
         // Check prerequisites
-        auto prereq = g_benefitsData.prerequisites[i];
+        auto prereq = g_BotsBonuses.prerequisites[i];
         if (prereq != BenefitID::NONE && !BotHasBenefit(player, prereq)) {
             continue;
         }
 
         // Purchase the benefit
-        if (PlayerPurchaseBenefit(player, benefit_id, cost)) {
+        if (BotPurchaseBenefit(player, benefit_id, cost)) {
             player->client->pers.auto_purchased_benefits_mask |= (1u << static_cast<uint8_t>(benefit_id));
-          //  gi.LocClient_Print(player, PRINT_HIGH, "Auto-upgrade: {}\n", g_benefitsData.names[i]);
+          //  gi.LocClient_Print(player, PRINT_HIGH, "Auto-upgrade: {}\n", g_BotsBonuses.names[i]);
         }
     }
 }
 
 // Auto-buy system implementation
-void CheckPlayerAutoBuy(edict_t* player) {
+void CheckBotAutoBuy(edict_t* player) {
     if (!player || !player->client) return;
 
     // Check if enough time has passed since last auto-buy check
@@ -600,11 +600,11 @@ void CheckPlayerAutoBuy(edict_t* player) {
 }
 
 // Benefit purchasing with per-player messages
-bool PlayerPurchaseBenefit(edict_t* player, BenefitID benefit_id, int32_t cost) {
+bool BotPurchaseBenefit(edict_t* player, BenefitID benefit_id, int32_t cost) {
     if (!player || !player->client || !player->svflags & SVF_BOT) return false;
 
     // Check if player can afford it
-    if (!PlayerCanAffordBenefit(player, benefit_id, cost)) {
+    if (!BotCanAffordBenefit(player, benefit_id, cost)) {
         gi.LocClient_Print(player, PRINT_HIGH, "Not enough points!\n");
         return false;
     }
@@ -619,17 +619,17 @@ bool PlayerPurchaseBenefit(edict_t* player, BenefitID benefit_id, int32_t cost) 
     // Wave requirements are only enforced for auto-buy
 
     // Check prerequisites
-    auto prereq = g_benefitsData.prerequisites[static_cast<size_t>(benefit_id)];
+    auto prereq = g_BotsBonuses.prerequisites[static_cast<size_t>(benefit_id)];
     if (prereq != BenefitID::NONE && !BotHasBenefit(player, prereq)) {
-        const char* prereq_name = g_benefitsData.names[static_cast<size_t>(prereq)];
+        const char* prereq_name = g_BotsBonuses.names[static_cast<size_t>(prereq)];
         gi.LocClient_Print(player, PRINT_HIGH, "Requires {} first!\n", prereq_name);
         return false;
     }
 
     // Purchase the benefit
-    PlayerSpendPoints(player, benefit_id, cost);
-    PlayerActivateBenefit(player, benefit_id);
-    PlayerShowBenefitMessage(player, benefit_id);
+    BotSpendPoints(player, benefit_id, cost);
+    BotActivateBenefit(player, benefit_id);
+    BotShowBenefitMessage(player, benefit_id);
 
     // Special handling for BFG upgrades - set default mode
     if (benefit_id == BenefitID::BFG_GRAV_PULL) {
@@ -642,19 +642,19 @@ bool PlayerPurchaseBenefit(edict_t* player, BenefitID benefit_id, int32_t cost) 
 }
 
 // Show benefit message to specific player only
-void PlayerShowBenefitMessage(edict_t* player, BenefitID benefit_id) {
+void BotShowBenefitMessage(edict_t* player, BenefitID benefit_id) {
     if (!player || !player->client) return;
 
     size_t index = static_cast<size_t>(benefit_id);
 
     // Send center print message (big screen message)
-    gi.LocCenter_Print(player, "{}", g_benefitsData.center_msgs[index]);
+    gi.LocCenter_Print(player, "{}", g_BotsBonuses.center_msgs[index]);
 
     // Send chat message
-    gi.LocClient_Print(player, PRINT_HIGH, "{}\n", g_benefitsData.chat_msgs[index]);
+    gi.LocClient_Print(player, PRINT_HIGH, "{}\n", g_BotsBonuses.chat_msgs[index]);
 }
 
-// Process wave rewards - replaces the old CheckAndApplyBenefit for point distribution
+// Process wave rewards - replaces the old CheckBotAndApplyBenefit for point distribution
 void ProcessWaveRewards(int32_t wave) {
     // Distribute points to all active players (both humans and bots)
     for (auto player : active_players()) {
@@ -664,7 +664,7 @@ void ProcessWaveRewards(int32_t wave) {
 
         // Ability points every 4 waves starting from wave 4
         if (wave >= 4 && (wave % 4) == 0) {
-            PlayerEarnAbilityPoints(player, 1);
+            BotEarnAbilityPoints(player, 1);
             // Only notify human players
             if (!is_bot) {
                 gi.LocClient_Print(player, PRINT_HIGH, "+1 Ability Point! (Total: {})\n",
@@ -674,7 +674,7 @@ void ProcessWaveRewards(int32_t wave) {
 
         // Weapon points every 8 waves starting from wave 8
         if (wave >= 8 && (wave % 8) == 0) {
-            PlayerEarnWeaponPoints(player, 1);
+            BotEarnWeaponPoints(player, 1);
             // Only notify human players
             if (!is_bot) {
                 gi.LocClient_Print(player, PRINT_HIGH, "+1 Weapon Point! (Total: {})\n",
@@ -685,12 +685,12 @@ void ProcessWaveRewards(int32_t wave) {
         // Check for auto-buy after earning points
         // This will auto-purchase for bots (who have auto-buy enabled by default)
         // Humans can also use auto-buy if they enable it
-        CheckPlayerAutoBuy(player);
+        CheckBotAutoBuy(player);
     }
 }
 
 // Restore all player points by clearing all benefits
-void PlayerRestoreAllPoints(edict_t* player) {
+void BotRestoreAllBonusPoints(edict_t* player) {
     if (!player || !player->client) return;
 
     // Calculate how many points should have been earned by current wave
@@ -730,7 +730,7 @@ void PlayerRestoreAllPoints(edict_t* player) {
 }
 
 // Refund all auto-purchased benefits when player manually disables auto-buy
-void PlayerRefundAutoPurchasedBenefits(edict_t* player) {
+void BotRefundAutoPurchasedBenefits(edict_t* player) {
     if (!player || !player->client) return;
 
     // Mark that player has manually disabled auto-buy
@@ -755,9 +755,9 @@ void PlayerRefundAutoPurchasedBenefits(edict_t* player) {
     int32_t purchased_ability_count = 0;
     int32_t purchased_weapon_count = 0;
 
-    for (size_t i = 0; i < BenefitsDataSoA::NUM_BENEFITS; ++i) {
+    for (size_t i = 0; i < BotsBonusesSoA::NUM_BOTSBONUS; ++i) {
         if (player->client->pers.purchased_benefits_mask & (1u << i)) {
-            if (g_benefitsData.categories[i] == BenefitCategory::ABILITY) {
+            if (g_BotsBonuses.categories[i] == BenefitCategory::ABILITY) {
                 purchased_ability_count++;
             } else {
                 purchased_weapon_count++;

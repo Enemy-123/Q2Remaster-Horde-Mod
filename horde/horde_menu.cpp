@@ -2776,12 +2776,12 @@ void WeaponsMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		const char *benefit_name = item->text_arg1 + 7; // Skip "weapon_" prefix
 
 		// Find benefit by name
-		for (size_t i = 0; i < BenefitsDataSoA::NUM_BENEFITS; ++i)
+		for (size_t i = 0; i < BotsBonusesSoA::NUM_BOTSBONUS; ++i)
 		{
-			if (g_benefitsData.categories[i] != BenefitCategory::WEAPON)
+			if (g_BotsBonuses.categories[i] != BenefitCategory::WEAPON)
 				continue;
 
-			if (strcmp(g_benefitsData.names[i], benefit_name) == 0)
+			if (strcmp(g_BotsBonuses.names[i], benefit_name) == 0)
 			{
 				BenefitID benefit_id = static_cast<BenefitID>(i);
 
@@ -2792,7 +2792,7 @@ void WeaponsMenuHandler(edict_t *ent, pmenuhnd_t *p)
 					cost = 3;
 				}
 
-				if (PlayerPurchaseBenefit(ent, benefit_id, cost))
+				if (BotPurchaseBenefit(ent, benefit_id, cost))
 				{
 					// Refresh menu to show updated state
 					PMenu_Close(ent);
@@ -2841,9 +2841,9 @@ pmenuhnd_t *CreateWeaponsMenu(edict_t *ent)
 
 	// List weapon benefits (only show available ones)
 	bool has_available = false;
-	for (size_t i = 0; i < BenefitsDataSoA::NUM_BENEFITS && menu_index < 25; ++i)
+	for (size_t i = 0; i < BotsBonusesSoA::NUM_BOTSBONUS && menu_index < 25; ++i)
 	{
-		if (g_benefitsData.categories[i] != BenefitCategory::WEAPON)
+		if (g_BotsBonuses.categories[i] != BenefitCategory::WEAPON)
 			continue;
 
 		BenefitID benefit_id = static_cast<BenefitID>(i);
@@ -2863,7 +2863,7 @@ pmenuhnd_t *CreateWeaponsMenu(edict_t *ent)
 		}
 
 		// Check prerequisites
-		auto prereq = g_benefitsData.prerequisites[i];
+		auto prereq = g_BotsBonuses.prerequisites[i];
 		bool prereq_met = (prereq == BenefitID::NONE) || BotHasBenefit(ent, prereq);
 
 		// Don't show if prerequisite not met - cleaner menu
@@ -2877,13 +2877,13 @@ pmenuhnd_t *CreateWeaponsMenu(edict_t *ent)
 		// Available to purchase
 		MenuFormatItemWithCost(weapons_menu[menu_index].text,
 		                       sizeof(weapons_menu[menu_index].text),
-		                       can_afford, g_benefitsData.names[i], cost);
+		                       can_afford, g_BotsBonuses.names[i], cost);
 		weapons_menu[menu_index].align = PMENU_ALIGN_LEFT;
 		if (can_afford)
 		{
 			weapons_menu[menu_index].SelectFunc = WeaponsMenuHandler;
 			snprintf(weapons_menu[menu_index].text_arg1, sizeof(weapons_menu[menu_index].text_arg1),
-					 "weapon_%s", g_benefitsData.names[i]);
+					 "weapon_%s", g_BotsBonuses.names[i]);
 		}
 		else
 		{

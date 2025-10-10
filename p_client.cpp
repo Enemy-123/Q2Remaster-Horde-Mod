@@ -1145,7 +1145,7 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 			// Trigger auto-buy immediately for late joiner bots only
 			// (Human players use the upgrade menu system instead)
 			if (ent->svflags & SVF_BOT) {
-				CheckPlayerAutoBuy(ent);
+				CheckBotAutoBuy(ent);
 			}
 		}
 	}
