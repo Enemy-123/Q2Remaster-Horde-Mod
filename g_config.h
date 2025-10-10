@@ -249,11 +249,20 @@ struct SentryGunConfig
 	int addon_armor = 30;
 	int max_health = 200;
 	int max_armor = 350;
-	int initial_bullet = 10;
-	int addon_bullet = 1;
-	int initial_rocket = 50;
-	int addon_rocket = 15;
-	int cost = 50;  // Power cube cost to deploy
+	// Weapon damage scaling
+	int initial_bullet = 10;      // Machinegun base damage
+	int addon_bullet = 1;         // Machinegun damage per level
+	int initial_heatbeam = 10;    // Heatbeam base damage
+	int addon_heatbeam = 1;       // Heatbeam damage per level
+	int initial_flechette = 10;   // Flechette base damage
+	int addon_flechette = 1;      // Flechette damage per level
+	int initial_rocket = 50;      // Rocket base damage
+	int addon_rocket = 15;        // Rocket damage per level
+	int initial_plasma = 50;      // Plasma base damage
+	int addon_plasma = 15;        // Plasma damage per level
+	int initial_grenade = 50;     // Grenade base damage
+	int addon_grenade = 15;       // Grenade damage per level
+	int cost = 50;                // Power cube cost to deploy
 };
 
 struct DopplegangerConfig

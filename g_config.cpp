@@ -724,10 +724,19 @@ void Config_Load(const char* basedir)
 			g_config.sentrygun.addon_armor = GetJsonInt(s, "addon_armor", 30);
 			g_config.sentrygun.max_health = GetJsonInt(s, "max_health", 200);
 			g_config.sentrygun.max_armor = GetJsonInt(s, "max_armor", 350);
+			// Weapon damage configs
 			g_config.sentrygun.initial_bullet = GetJsonInt(s, "initial_bullet", 10);
 			g_config.sentrygun.addon_bullet = GetJsonInt(s, "addon_bullet", 1);
+			g_config.sentrygun.initial_heatbeam = GetJsonInt(s, "initial_heatbeam", 10);
+			g_config.sentrygun.addon_heatbeam = GetJsonInt(s, "addon_heatbeam", 1);
+			g_config.sentrygun.initial_flechette = GetJsonInt(s, "initial_flechette", 10);
+			g_config.sentrygun.addon_flechette = GetJsonInt(s, "addon_flechette", 1);
 			g_config.sentrygun.initial_rocket = GetJsonInt(s, "initial_rocket", 50);
 			g_config.sentrygun.addon_rocket = GetJsonInt(s, "addon_rocket", 15);
+			g_config.sentrygun.initial_plasma = GetJsonInt(s, "initial_plasma", 50);
+			g_config.sentrygun.addon_plasma = GetJsonInt(s, "addon_plasma", 15);
+			g_config.sentrygun.initial_grenade = GetJsonInt(s, "initial_grenade", 50);
+			g_config.sentrygun.addon_grenade = GetJsonInt(s, "addon_grenade", 15);
 			g_config.sentrygun.cost = GetJsonInt(s, "cost", 50);
 		}
 

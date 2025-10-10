@@ -706,8 +706,9 @@ static void TurretFireHeatbeam(edict_t* self, const vec3_t& start, const vec3_t&
 		return; // Stop immediately if the target is invalid.
 	}
 
-	int base_damage = M_HEATBEAM_DMG(self);
-	if (base_damage <= 0) base_damage = TURRET2_BLASTER_DAMAGE;
+	// Calculate heatbeam damage based on owner's skill level
+	int base_damage = g_config.sentrygun.initial_heatbeam +
+	                  (self->monsterinfo.pvm_level * g_config.sentrygun.addon_heatbeam);
 	const int damage = static_cast<int>(CalculateDamage(self, base_damage));
 	// Fire heatbeam with continuous flag - let the heatbeam entity handle persistence
 	monster_fire_heatbeam(self, start, dir, vec3_origin, damage, 10, MZ2_WIDOW2_BEAM_SWEEP_1);
@@ -1138,7 +1139,9 @@ static void TurretFirePlasma(edict_t* self, const vec3_t& start, const vec3_t& d
 		fire_dir = safe_normalized(fire_dir);
 	}
 
-	int base_damage = M_GET_DMG_OR(self, PLASMA, 100);
+	// Calculate plasma damage based on owner's skill level
+	int base_damage = g_config.sentrygun.initial_plasma +
+	                  (self->monsterinfo.pvm_level * g_config.sentrygun.addon_plasma);
 	const int damage = static_cast<int>(CalculateDamage(self, base_damage));
 	// Changed to use self instead of self->owner to make sentry solid
 	fire_plasma(self, start, fire_dir, damage, projectileSpeed, 120, damage);
@@ -1202,7 +1205,9 @@ static void TurretFireFlechette(edict_t* self, const vec3_t& start, const vec3_t
 		aim_dir += right * (crandom() * 0.01f);
 		aim_dir.normalize();
 	}
-	int base_damage = M_GET_DMG_OR(self, FLECHETTE, 6);
+	// Calculate flechette damage based on owner's skill level
+	int base_damage = g_config.sentrygun.initial_flechette +
+	                  (self->monsterinfo.pvm_level * g_config.sentrygun.addon_flechette);
 	const int damage = static_cast<int>(CalculateDamage(self, base_damage));
 	const float spread_energymult = self->monsterinfo.quadfire_time > level.time ? 0.8f : 1.6f;
 
@@ -1318,7 +1323,9 @@ static void TurretFireGrenade(edict_t* self, const vec3_t& start, const vec3_t& 
 	}
 
 	// Fire grenade with calculated parameters
-	int base_damage = M_GET_DMG_OR(self, GRENADE, 120);
+	// Calculate grenade damage based on owner's skill level
+	int base_damage = g_config.sentrygun.initial_grenade +
+	                  (self->monsterinfo.pvm_level * g_config.sentrygun.addon_grenade);
 	const int damage = static_cast<int>(CalculateDamage(self, base_damage));
 	fire_grenade(self, muzzle_pos, fire_dir, damage, speed, 3_sec, 0,
 		crandom_open() * 5.0f, // Add slight spin
