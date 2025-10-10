@@ -1420,9 +1420,9 @@ void Weapon_RocketLauncher_Fire(edict_t* ent)
 	// Apply weapon upgrades from player skills
 	if (ent && ent->client)
 	{
-		// Damage upgrade: base + (level * 3.5)
-		damage += static_cast<int>(ent->client->pers.skills.rl_damage * 3.5f);
-		radius_damage += static_cast<int>(ent->client->pers.skills.rl_damage * 3.5f);
+		// Damage upgrade: base + (level * addon)
+		damage += ent->client->pers.skills.rl_damage * g_config.rocket.damage_addon;
+		radius_damage += ent->client->pers.skills.rl_damage * g_config.rocket.radius_addon;
 
 		// Radius upgrade: base + (level * 2.5)
 		damage_radius += ent->client->pers.skills.rl_radius * 2.5f;
@@ -2253,10 +2253,9 @@ void weapon_railgun_fire(edict_t* ent)
 	}
 
 	// Apply railgun damage upgrade
-	constexpr int RAILGUN_ADDON_DAMAGE = 8;
 	if (ent->client && ent->client->pers.skills.rg_damage > 0)
 	{
-		damage += RAILGUN_ADDON_DAMAGE * ent->client->pers.skills.rg_damage;
+		damage += g_config.railgun.damage_addon * ent->client->pers.skills.rg_damage;
 	}
 
 	if (is_quad)
@@ -2406,10 +2405,9 @@ void weapon_bfg_fire(edict_t* ent)
 		damage = g_config.bfg.damage;
 
 	// Apply BFG damage upgrade
-	constexpr float BFG10K_ADDON_DAMAGE = 2.0f;
 	if (ent->client && ent->client->pers.skills.bfg_damage > 0)
 	{
-		damage += static_cast<int>(BFG10K_ADDON_DAMAGE * ent->client->pers.skills.bfg_damage);
+		damage += g_config.bfg.damage_addon * ent->client->pers.skills.bfg_damage;
 	}
 
 	// Handle muzzle flash for standard BFG charge-up (unless silent mode)
@@ -2435,12 +2433,10 @@ void weapon_bfg_fire(edict_t* ent)
 		damage *= damage_multiplier;
 
 	// Calculate BFG speed with upgrade
-	constexpr int BFG10K_INITIAL_SPEED = 650;
-	constexpr int BFG10K_ADDON_SPEED = 35;
-	int bfg_speed = BFG10K_INITIAL_SPEED;
+	int bfg_speed = g_config.bfg.speed;
 	if (ent->client && ent->client->pers.skills.bfg_range > 0)
 	{
-		bfg_speed += BFG10K_ADDON_SPEED * ent->client->pers.skills.bfg_range;
+		bfg_speed += g_config.bfg.speed_addon * ent->client->pers.skills.bfg_range;
 	}
 
 	vec3_t start, dir;

@@ -293,10 +293,10 @@ void weapon_etf_rifle_fire(edict_t* ent)
 	else
 		damage = irandom(9, 13);
 
-	// Apply ETF Rifle damage upgrade: +1.25 per level
+	// Apply ETF Rifle damage upgrade
 	if (ent && ent->client)
 	{
-		damage += static_cast<int>(ent->client->pers.skills.etf_damage * 1.f);
+		damage += ent->client->pers.skills.etf_damage * g_config.etfrifle.damage_addon;
 	}
 
 	if (!(ent->client->buttons & BUTTON_ATTACK))
@@ -440,10 +440,10 @@ void Heatbeam_Fire(edict_t* ent)
 	else
 		kick = g_config.plasmabeam.kick_singleplayer;
 
-	// Apply Plasmabeam damage upgrade: +1 per level
+	// Apply Plasmabeam damage upgrade
 	if (ent && ent->client)
 	{
-		damage += ent->client->pers.skills.pb_damage;
+		damage += ent->client->pers.skills.pb_damage * g_config.plasmabeam.damage_addon;
 	}
 
 	if (is_quad)

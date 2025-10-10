@@ -102,6 +102,8 @@ struct RocketLauncherConfig
 	int damage_max = 120;
 	int speed = 1230;
 	int radius = 125;
+	int damage_addon = 3;      // Damage added per upgrade level (was 3.5 hardcoded)
+	int radius_addon = 3;      // Radius damage added per upgrade level (was 3.5 hardcoded)
 };
 
 struct RailgunConfig
@@ -109,7 +111,8 @@ struct RailgunConfig
 	int damage = 150;
 	int damage_horde = 225;
 	int kick = 285;
-};
+	int damage_addon = 8;  // Damage added per upgrade level
+};;
 
 struct Cannon20mmConfig
 {
@@ -123,15 +126,18 @@ struct BFGConfig
 {
 	int damage = 700;
 	float radius = 1000.0f;
-	int speed = 600;
+	int speed = 650;  // Initial speed (was hardcoded as BFG10K_INITIAL_SPEED)
 	int ammo_normal = 50;
 	int ammo_slide = 25;
-};
+	int damage_addon = 2;   // Damage added per upgrade level
+	int speed_addon = 35;   // Speed added per upgrade level
+};;
 
 // Xatrix expansion weapon configurations
 struct IonRipperConfig
 {
 	int damage = 50;
+	int damage_addon = 2;  // Damage added per upgrade level (was 2.5 hardcoded)
 };
 
 struct PhalanxConfig
@@ -149,6 +155,7 @@ struct PlasmaBeamConfig
 	int damage_singleplayer = 135;
 	int kick = 3;
 	int kick_singleplayer = 3;
+	int damage_addon = 1;  // Damage added per upgrade level (was hardcoded +1)
 };
 
 struct TrackerConfig
@@ -161,6 +168,7 @@ struct ETFRifleConfig
 {
 	int kick_normal = 3;
 	int kick_homing = 75;
+	int damage_addon = 1;  // Damage added per upgrade level (was 1.0 hardcoded, comment said 1.25)
 };
 
 // Deployable configurations
@@ -173,6 +181,7 @@ struct ProxMineConfig
 	int time_delay_ms = 350;
 	float damage_open_multiplier = 1.5f;
 	float bound_size = 96.0f;
+	int damage_addon = 0;  // Damage added per upgrade level (currently no player skill addon)
 };
 
 struct LaserConfig
@@ -207,6 +216,7 @@ struct TeslaConfig
 	int explosion_damage_multiplier = 50;
 	int explosion_radius = 200;
 	int knockback = 8;
+	int damage_addon = 0;  // Damage added per upgrade level (currently uses multiplier from skill system)
 };
 
 struct DopplegangerConfig

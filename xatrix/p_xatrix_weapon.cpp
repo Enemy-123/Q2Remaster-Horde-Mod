@@ -18,10 +18,10 @@ void weapon_ionripper_fire(edict_t* ent)
 	else
 		damage = g_config.ionripper.damage;
 
-	// Apply Ion Ripper damage upgrade: +2.5 per level
+	// Apply Ion Ripper damage upgrade
 	if (ent && ent->client)
 	{
-		damage += static_cast<int>(ent->client->pers.skills.ir_damage * 2.5f);
+		damage += ent->client->pers.skills.ir_damage * g_config.ionripper.damage_addon;
 	}
 
 	if (is_quad)

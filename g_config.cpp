@@ -554,6 +554,8 @@ void Config_Load(const char* basedir)
 			g_config.rocket.damage_max = GetJsonInt(w, "damage_max", 120);
 			g_config.rocket.speed = GetJsonInt(w, "speed", 1230);
 			g_config.rocket.radius = GetJsonInt(w, "radius", 125);
+			g_config.rocket.damage_addon = GetJsonInt(w, "damage_addon", 3);
+			g_config.rocket.radius_addon = GetJsonInt(w, "radius_addon", 3);
 		}
 
 		// Railgun
@@ -563,6 +565,7 @@ void Config_Load(const char* basedir)
 			g_config.railgun.damage = GetJsonInt(w, "damage", 150);
 			g_config.railgun.damage_horde = GetJsonInt(w, "damage_horde", 225);
 			g_config.railgun.kick = GetJsonInt(w, "kick", 285);
+			g_config.railgun.damage_addon = GetJsonInt(w, "damage_addon", 8);
 		}
 
 		// 20mm Cannon
@@ -581,9 +584,11 @@ void Config_Load(const char* basedir)
 			const Json::Value& w = weapons["bfg"];
 			g_config.bfg.damage = GetJsonInt(w, "damage", 700);
 			g_config.bfg.radius = GetJsonFloat(w, "radius", 1000.0f);
-			g_config.bfg.speed = GetJsonInt(w, "speed", 600);
+			g_config.bfg.speed = GetJsonInt(w, "speed", 650);
 			g_config.bfg.ammo_normal = GetJsonInt(w, "ammo_normal", 50);
 			g_config.bfg.ammo_slide = GetJsonInt(w, "ammo_slide", 25);
+			g_config.bfg.damage_addon = GetJsonInt(w, "damage_addon", 2);
+			g_config.bfg.speed_addon = GetJsonInt(w, "speed_addon", 35);
 		}
 
 		// Ion Ripper (Xatrix)
@@ -591,6 +596,7 @@ void Config_Load(const char* basedir)
 		{
 			const Json::Value& w = weapons["ionripper"];
 			g_config.ionripper.damage = GetJsonInt(w, "damage", 50);
+			g_config.ionripper.damage_addon = GetJsonInt(w, "damage_addon", 2);
 		}
 
 		// Phalanx (Xatrix)
@@ -611,6 +617,7 @@ void Config_Load(const char* basedir)
 			g_config.plasmabeam.damage_singleplayer = GetJsonInt(w, "damage_singleplayer", 135);
 			g_config.plasmabeam.kick = GetJsonInt(w, "kick", 3);
 			g_config.plasmabeam.kick_singleplayer = GetJsonInt(w, "kick_singleplayer", 3);
+			g_config.plasmabeam.damage_addon = GetJsonInt(w, "damage_addon", 1);
 		}
 
 		// Tracker / Disintegrator (Rogue)
@@ -627,6 +634,7 @@ void Config_Load(const char* basedir)
 			const Json::Value& w = weapons["etfrifle"];
 			g_config.etfrifle.kick_normal = GetJsonInt(w, "kick_normal", 3);
 			g_config.etfrifle.kick_homing = GetJsonInt(w, "kick_homing", 75);
+			g_config.etfrifle.damage_addon = GetJsonInt(w, "damage_addon", 1);
 		}
 	}
 
@@ -646,6 +654,7 @@ void Config_Load(const char* basedir)
 			g_config.prox_mine.time_delay_ms = GetJsonInt(p, "time_delay_ms", 350);
 			g_config.prox_mine.damage_open_multiplier = GetJsonFloat(p, "damage_open_multiplier", 1.5f);
 			g_config.prox_mine.bound_size = GetJsonFloat(p, "bound_size", 96.0f);
+			g_config.prox_mine.damage_addon = GetJsonInt(p, "damage_addon", 0);
 		}
 
 		// Laser
@@ -686,6 +695,7 @@ void Config_Load(const char* basedir)
 			g_config.tesla.explosion_damage_multiplier = GetJsonInt(t, "explosion_damage_multiplier", 50);
 			g_config.tesla.explosion_radius = GetJsonInt(t, "explosion_radius", 200);
 			g_config.tesla.knockback = GetJsonInt(t, "knockback", 8);
+			g_config.tesla.damage_addon = GetJsonInt(t, "damage_addon", 0);
 		}
 
 		// Doppleganger
