@@ -233,6 +233,7 @@ namespace ObituaryMessages {
 		case MOD_HG_SPLASH:
 		case MOD_G_SPLASH:       return "$g_mod_self_grenade_splash";
 		case MOD_R_SPLASH:       return "$g_mod_self_rocket_splash";
+		case MOD_SHRAPNEL:       return "{0} was killed by their own barrel shrapnel\n";
 		case MOD_BFG_BLAST:      return "$g_mod_self_bfg_blast";
 		case MOD_TRAP:           return "$g_mod_self_trap";
 		case MOD_DOPPLE_EXPLODE: return "$g_mod_self_dopple_explode";
@@ -283,6 +284,7 @@ namespace ObituaryMessages {
 		case MOD_DOPPLE_HUNTER:    return "$g_mod_kill_dopple_hunter";
 		case MOD_GRAPPLE:          return "$g_mod_kill_grapple";
 		case MOD_HOOK:             return "{0} was disemboweled by {1}'s hook.\n";
+		case MOD_SHRAPNEL:         return "{0} was shredded by {1}'s barrel shrapnel\n";
 		default:                   return "$g_mod_kill_generic";
 		}
 	}
@@ -339,6 +341,7 @@ namespace ObituaryMessages {
 		case MOD_LAVA:           return "{0} joins the lava gods\n";
 		case MOD_EXPLOSIVE:
 		case MOD_BARREL:         return "$g_mod_generic_explosive";
+		case MOD_SHRAPNEL:       return "{0} was shredded by shrapnel\n";
 		case MOD_EXIT:           return "$g_mod_generic_exit";
 		case MOD_TARGET_LASER:   return "{0} saw the light!\n";
 		case MOD_TARGET_BLASTER: return "$g_mod_generic_blaster";

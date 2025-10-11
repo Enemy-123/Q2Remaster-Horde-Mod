@@ -37,6 +37,8 @@ void barrel_burn(edict_t* self);
 void barrel_remove(edict_t* self);
 void barrel_think(edict_t* self);
 void remove_barrels(edict_t* ent);
+void shrapnel_touch(edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self);
+void fire_shrapnel(edict_t* self, const char* modelname, float speed, const vec3_t& origin, int dmg);
 
 // Helper function to clean up barrel tracking for a player
 static void barrel_cleanup_tracking(edict_t* barrel)
@@ -196,6 +198,86 @@ THINK(barrel_burn)(edict_t* self) -> void
     self->nextthink = level.time + FRAME_TIME_S;
 }
 
+// *************************
+// SHRAPNEL - Damaging debris from barrel explosions
+// *************************
+
+// Touch handler for shrapnel - damages enemies on contact
+TOUCH(shrapnel_touch)(edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
+{
+    // Hit sky or invalid creator - remove shrapnel
+    if ((tr.surface && (tr.surface->flags & SURF_SKY)) || !self->owner || !self->owner->inuse)
+    {
+        G_FreeEdict(self);
+        return;
+    }
+
+    // Check if we can damage this target (team-safe damage check)
+    if (other->takedamage && CanDamage(other, self))
+    {
+        // Deal damage to the target
+        T_Damage(other, self, self->owner, self->velocity, self->s.origin,
+                 tr.plane.normal, self->dmg, 0, DAMAGE_NONE, MOD_SHRAPNEL);
+
+        // Play hit sound
+        gi.sound(other, CHAN_WEAPON, gi.soundindex("misc/fhit3.wav"), 1, ATTN_NORM, 0);
+
+        // Remove shrapnel after hitting a target
+        G_FreeEdict(self);
+    }
+}
+
+// Spawn a shrapnel entity
+void fire_shrapnel(edict_t* self, const char* modelname, float speed, const vec3_t& origin, int dmg)
+{
+    edict_t* chunk = G_Spawn();
+
+    // Set position
+    chunk->s.origin = origin;
+
+    // Set model
+    gi.setmodel(chunk, modelname);
+
+    // Random velocity based on speed multiplier
+    vec3_t v;
+    v[0] = 100 * crandom();
+    v[1] = 100 * crandom();
+    v[2] = 100 + 150 * frandom();  // More upward bias
+
+    // Combine self velocity with random direction * speed
+    chunk->velocity = self->velocity + (v * speed);
+
+    // Small bounding box for collision
+    chunk->mins = { -4, -4, -2 };
+    chunk->maxs = { 4, 4, 2 };
+
+    // Physics setup
+    chunk->movetype = MOVETYPE_BOUNCE;
+    chunk->solid = SOLID_BBOX;
+    chunk->clipmask = MASK_PROJECTILE;
+
+    // Random spin
+    chunk->avelocity[0] = frandom(600);
+    chunk->avelocity[1] = frandom(600);
+    chunk->avelocity[2] = frandom(600);
+
+    // Auto-remove after 5-10 seconds
+    chunk->think = G_FreeEdict;
+    chunk->nextthink = level.time + random_time(5_sec, 10_sec);
+
+    // Setup entity properties
+    chunk->s.frame = 0;
+    chunk->flags = FL_NONE;
+    chunk->classname = "shrapnel";
+    chunk->dmg = dmg;
+    chunk->touch = shrapnel_touch;
+
+    // Track the barrel owner (chain) for damage attribution
+    chunk->owner = self->chain ? self->chain : self;
+
+    gi.linkentity(chunk);
+}
+
 // Find and trigger chain explosions
 void barrel_chain_explosions(edict_t* self)
 {
@@ -250,6 +332,57 @@ THINK(barrel_explode)(edict_t* self) -> void
         { 4, "models/objects/debris3/tris.md2", GIB_METALLIC | GIB_DEBRIS },
         { 8, "models/objects/debris2/tris.md2", GIB_METALLIC | GIB_DEBRIS }
     });
+
+    // Throw damaging shrapnel (similar to Vortex mod)
+    vec3_t start = self->s.origin;
+    vec3_t org;
+    float spd;
+
+    // Small chunks (4-6 pieces)
+    spd = 2.0f * damage / 200.0f;
+    int small_count = irandom(4, 7);  // 4-6 inclusive
+    for (int i = 0; i < small_count; i++)
+    {
+        // Randomize starting origin within barrel bbox
+        org[0] = start[0] + crandom() * (self->maxs[0] - self->mins[0] - 8);
+        org[1] = start[1] + crandom() * (self->maxs[1] - self->mins[1] - 8);
+        org[2] = start[2] + frandom(2, 38);
+        fire_shrapnel(self, "models/objects/debris2/tris.md2", spd, org, damage);
+    }
+
+    // Big chunks (2-3 pieces)
+    spd = 1.5f * damage / 200.0f;
+    int big_count = irandom(2, 4);  // 2-3 inclusive
+    for (int i = 0; i < big_count; i++)
+    {
+        org[0] = start[0] + crandom() * (self->maxs[0] - self->mins[0] - 8);
+        org[1] = start[1] + crandom() * (self->maxs[1] - self->mins[1] - 8);
+        org[2] = start[2] + frandom(2, 38);
+        fire_shrapnel(self, "models/objects/debris1/tris.md2", spd, org, damage);
+    }
+
+    // Bottom corner chunks (4 pieces from corners)
+    spd = 1.75f * damage / 200.0f;
+    vec3_t adjusted_absmin = self->absmin + vec3_t{8, 8, 2};  // Adjust for shrapnel bbox
+
+    // Corner 1
+    fire_shrapnel(self, "models/objects/debris3/tris.md2", spd, adjusted_absmin, damage);
+
+    // Corner 2
+    org = adjusted_absmin;
+    org[0] += (self->maxs[0] - self->mins[0]);
+    fire_shrapnel(self, "models/objects/debris3/tris.md2", spd, org, damage);
+
+    // Corner 3
+    org = adjusted_absmin;
+    org[1] += (self->maxs[1] - self->mins[1]);
+    fire_shrapnel(self, "models/objects/debris3/tris.md2", spd, org, damage);
+
+    // Corner 4
+    org = adjusted_absmin;
+    org[0] += (self->maxs[0] - self->mins[0]);
+    org[1] += (self->maxs[1] - self->mins[1]);
+    fire_shrapnel(self, "models/objects/debris3/tris.md2", spd, org, damage);
 
     // Chain explosions
     barrel_chain_explosions(self);
