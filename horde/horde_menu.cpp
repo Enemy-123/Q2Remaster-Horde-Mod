@@ -1626,7 +1626,7 @@ void RespawnWeaponMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	}
 
 	// Handle "< Back" or "Back to Main Menu"
-	if (strcmp(selected_text, "< Back") == 0 || strcmp(selected_text, "Back to Main Menu") == 0)
+	if (strcmp(selected_text, "Back") == 0 || strcmp(selected_text, "Back to Main Menu") == 0)
 	{
 		respawn_weapon_current_page = 0; // Reset to first page
 		PMenu_Close(ent);
@@ -1635,7 +1635,7 @@ void RespawnWeaponMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	}
 
 	// Handle "Next >"
-	if (strcmp(selected_text, "Next >") == 0)
+	if (strcmp(selected_text, "Next") == 0)
 	{
 		respawn_weapon_current_page++;
 		PMenu_Close(ent);
@@ -1644,7 +1644,7 @@ void RespawnWeaponMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	}
 
 	// Handle "< Previous"
-	if (strcmp(selected_text, "< Previous") == 0)
+	if (strcmp(selected_text, "Previous") == 0)
 	{
 		if (respawn_weapon_current_page > 0)
 		{
@@ -2870,8 +2870,8 @@ pmenuhnd_t *CreateAbilitiesMenu(edict_t *ent)
 			total_abilities++;
 	}
 
-	// Pagination settings (8 items per page to ensure navigation visibility)
-	constexpr size_t abilities_per_page = 7;
+	// Pagination settings (8 items per page)
+	constexpr size_t abilities_per_page = 8;
 	size_t total_pages = (total_abilities + abilities_per_page - 1) / abilities_per_page;
 
 	// Wrap page number
@@ -2884,11 +2884,10 @@ pmenuhnd_t *CreateAbilitiesMenu(edict_t *ent)
 
 	// Header
 	add_entry("Upgrade Ability Menu", PMENU_ALIGN_CENTER);
-	add_entry("", PMENU_ALIGN_CENTER);
-
+	add_entry("", PMENU_ALIGN_LEFT);
 	// Display abilities for current page
 	size_t ability_counter = 0;
-	int item_number = 1;
+	int item_number = static_cast<int>(start_index) + 1;  // Continue numbering across pages
 	bool has_abilities = false;
 
 	for (size_t i = 0; i < def_count; ++i)
@@ -2915,50 +2914,37 @@ pmenuhnd_t *CreateAbilitiesMenu(edict_t *ent)
 		ability_counter++;
 	}
 
-	// Fill remaining ability slots if we have fewer than 8 abilities on this page
-	for (size_t i = end_index - start_index; i < abilities_per_page; ++i)
-	{
-		add_entry("", PMENU_ALIGN_CENTER);
-	}
-
 	if (!has_abilities)
 	{
 		add_entry("No abilities available", PMENU_ALIGN_CENTER);
 	}
 
-	// Separator
-	add_entry("", PMENU_ALIGN_CENTER);
-	add_entry("---", PMENU_ALIGN_CENTER);
-
 	// Points display with green highlighting
 	char points_text[64];
 	G_FmtTo(points_text, "*You have: {} points", ent->client->pers.skill_points);
-	add_entry(points_text, PMENU_ALIGN_CENTER);
+	add_entry("", PMENU_ALIGN_LEFT);
+	add_entry("", PMENU_ALIGN_LEFT);
+	add_entry("", PMENU_ALIGN_LEFT);
+	add_entry("", PMENU_ALIGN_LEFT);
 
-	// Separator
-	add_entry("---", PMENU_ALIGN_CENTER);
-
-	// Reset all skills option
-	add_entry("Reset All Skills (Free)", PMENU_ALIGN_LEFT, AbilitiesMenuHandler, "reset_skills");
-
-	// // Separator
-	// add_entry("", PMENU_ALIGN_CENTER);
-
-	// Navigation at the bottom
+	// Navigation buttons (before reset)
 	// Previous page button (only if not on first page)
 	if (abilities_current_page > 0)
 	{
-		add_entry("< Previous Page", PMENU_ALIGN_LEFT, AbilitiesMenuHandler, "prev_page");
+		add_entry("Previous Page", PMENU_ALIGN_LEFT, AbilitiesMenuHandler, "prev_page");
 	}
 
 	// Next page button (only if not on last page)
 	if (abilities_current_page < total_pages - 1)
 	{
-		add_entry("Next Page >", PMENU_ALIGN_LEFT, AbilitiesMenuHandler, "next_page");
+		add_entry("Next Page", PMENU_ALIGN_LEFT, AbilitiesMenuHandler, "next_page");
 	}
 
+
 	// Back to upgrade menu (always visible)
-	add_entry("< Back to Main Menu", PMENU_ALIGN_LEFT, AbilitiesMenuHandler, "back_to_upgrade");
+	add_entry("Back to Main Menu", PMENU_ALIGN_LEFT, AbilitiesMenuHandler, "back_to_upgrade");
+	// Reset all skills option (moved after navigation)
+	add_entry("Reset All Skills (Free)", PMENU_ALIGN_LEFT, AbilitiesMenuHandler, "reset_skills");
 
 	return PMenu_Open(ent, abilities_menu, 0, menu_index, nullptr, nullptr);
 }
