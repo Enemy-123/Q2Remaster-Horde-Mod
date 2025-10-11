@@ -2176,8 +2176,8 @@ void HordeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		CTFObserver(ent);
 		shouldCloseMenu = false; // CTFObserver might handle closing
 	}
-	// Check for "Upgrade Menu"
-	else if (strncmp(selected_text, "Upgrade Menu", 12) == 0)
+	// Check for "Upgrade Menu" (with or without highlighting)
+	else if (strncmp(selected_text, "Upgrade Menu", 12) == 0 || strncmp(selected_text, "*Upgrade Menu", 13) == 0)
 	{
 		shouldCloseMenu = true; // Close main menu first
 		PMenu_Close(ent);		// Close now before opening upgrade menu
@@ -2325,13 +2325,16 @@ pmenuhnd_t *CreateHordeMenu(edict_t *ent)
 	}
 	add_entry("", PMENU_ALIGN_CENTER);
 
-	// // Add Upgrade Menu with total points display
-	// int total_points = ent->client->pers.ability_points + ent->client->pers.weapon_points;
-	// // Use string_view directly, no need for std::string allocation
-	// auto upgrade_text = G_Fmt("Upgrade Menu)", total_points);
-	// add_entry(upgrade_text.data(), PMENU_ALIGN_LEFT, HordeMenuHandler);
-
-	add_entry("Upgrade Menu", PMENU_ALIGN_LEFT, HordeMenuHandler);
+	// Highlight Upgrade Menu if player has available skill points
+	int total_points = ent->client->pers.ability_points + ent->client->pers.weapon_points;
+	if (total_points >= 1)
+	{
+		add_entry("*Upgrade Menu", PMENU_ALIGN_LEFT, HordeMenuHandler);
+	}
+	else
+	{
+		add_entry("Upgrade Menu", PMENU_ALIGN_LEFT, HordeMenuHandler);
+	}
 
 	add_entry("Misc Options", PMENU_ALIGN_LEFT, HordeMenuHandler);
 	add_entry("HUD Options", PMENU_ALIGN_LEFT, HordeMenuHandler);
