@@ -2904,24 +2904,8 @@ pmenuhnd_t *CreateAbilitiesMenu(edict_t *ent)
 
 			char item_text[64];
 
-			// Show ability with current level
-			if (max_level == 1)
-			{
-				// Boolean ability (owned or not)
-				if (current_level > 0)
-				{
-					MenuFormatItemWithOwned(item_text, sizeof(item_text), item_number, defs[i].name);
-				}
-				else
-				{
-					MenuFormatItemWithCost(item_text, sizeof(item_text), item_number, defs[i].name, defs[i].cost_per_level);
-				}
-			}
-			else
-			{
-				// Multi-level ability - use progress indicator [X/Y]
-				MenuFormatItemWithProgress(item_text, sizeof(item_text), item_number, defs[i].name, current_level, max_level);
-			}
+		// Always use progress indicator [X/Y] for all abilities
+        MenuFormatItemWithProgress(item_text, sizeof(item_text), item_number, defs[i].name, current_level, max_level);
 
 			add_entry(item_text, PMENU_ALIGN_LEFT, AbilitiesMenuHandler, defs[i].id);
 			item_number++;
@@ -2948,7 +2932,7 @@ pmenuhnd_t *CreateAbilitiesMenu(edict_t *ent)
 
 	// Points display with green highlighting
 	char points_text[64];
-	G_FmtTo(points_text, "*You have: {} points to upgrade", ent->client->pers.skill_points);
+	G_FmtTo(points_text, "*You have: {} points", ent->client->pers.skill_points);
 	add_entry(points_text, PMENU_ALIGN_CENTER);
 
 	// Separator
@@ -6407,26 +6391,22 @@ public:
 
 	void addTeamScore()
 	{
-		const char *horde_dogtag_path = "/tags/etqw_strogg.png";
-		// Display Strogg team icon (uses stat 26 = STAT_CTF_TEAM2_HEADER, right side)
-		layout_builder.append(fmt::format(
-			"xv -140 yv 3 picn {} ", horde_dogtag_path));
-
 		if (!level.intermissiontime)
 		{
+			// Normal game display
+			layout_builder.append("if 25 xv -90 yv 10 dogtag endif \n");
 
-			// Get the new, safely-limited active bonuses string
-			//std::string activeBonuses = GetPlayerActiveBonusesString(const_cast<edict_t *>(ent));
-			// if (!activeBonuses.empty())
-			// {
-			// 	layout_builder.append(fmt::format(
-			// 		"if 0 xv 208 yv 8 string \"{}\" endif \n", activeBonuses));
-			// }
+			layout_builder.append(
+				"if 0 xv 208 yv 8 string \"{}\" endif \n");
 		}
 		else
 		{
-			// Intermission screen - display Strogg team icon (uses stat 26 = STAT_CTF_TEAM2_HEADER, right side)
-			layout_builder.append("if 26 xv 208 yv 8 pic 25 endif ");
+			// Intermission display
+			layout_builder.append(fmt::format(
+				"if 25 xv -90 yv 10 dogtag endif "
+				"if 25 xv 205 yv 8 pic 25 endif "
+				"if 0 xv 70 yv -20 19 endif \n",
+				total_score, team_players.size()));
 		}
 	}
 
