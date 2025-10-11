@@ -71,18 +71,18 @@ static const UpgradeDefinition UPGRADE_DEFS[] = {
         "Passive power cubes regeneration\n"
         "Base: 5 cubes every 5 seconds\n"
         "Each level: faster regen\n"
-        "Formula: 5sec / level\n"
-        "Lvl 10: 5 cubes every 0.5s",
+        ""
+        "",
         10, 1, UpgradeCategory::ABILITY, nullptr, 0
     },
     {
         "sentrygun",
         "Sentry Guns",
         "Deploy sentry guns (costs 50 cubes)\n"
-        "Base: 50 HP, 50 Armor\n"
-        "Each level: +15 HP, +30 Armor\n"
-        "+1 bullet dmg, +15 rocket dmg\n"
-        "Max: 200 HP, 350 Armor",
+        ""
+        ""
+        ""
+        "",
         10, 1, UpgradeCategory::ABILITY, nullptr, 0
     },
     {
@@ -91,8 +91,8 @@ static const UpgradeDefinition UPGRADE_DEFS[] = {
         "Deploy laser turrets (costs 25 cubes)\n"
         "Base: 1 damage, 0 HP\n"
         "Each level: +2 damage, +150 HP\n"
-        "Damage vs barrels: 50% (0.5x)\n"
-        "Max: 21 damage, 1500 HP",
+        ""
+        "",
         10, 1, UpgradeCategory::ABILITY, nullptr, 0
     },
     {
@@ -100,9 +100,29 @@ static const UpgradeDefinition UPGRADE_DEFS[] = {
         "Monster Summon",
         "Summon monsters to fight for you\n"
         "Spawn cost: 25 cubes\n"
-        "Upkeep: -1 PC regen per monster alive\n"
-        "Base: 100 HP, 0 Armor\n"
-        "Each level: +50 HP, +25 Armor",
+        "Upkeep: 5 cubes/sec per monster alive\n"
+        "requires pc regen\n"
+        "also unlocks cmd: monstercommand",
+        10, 1, UpgradeCategory::ABILITY, nullptr, 0
+    },
+    {
+        "teleport_fwd",
+        "Teleport Fwd",
+        "Unlock forward teleportation\n"
+        "Usage: teleport_fwd command\n"
+        "Cost: 25 cubes per use\n"
+        "Teleports you forward in your aim direction",
+        1, 1, UpgradeCategory::ABILITY, nullptr, 0
+    },
+    {
+        "exploding_barrel",
+        "Barrels",
+        "Spawn exploding barrels\n"
+        "Usage: barrel command\n"
+        "Cost: 20 cubes per barrel\n"
+        "Base: 100 damage, 30 HP\n"
+        "Each level: +40 damage\n"
+        "Max: 460 damage at level 10",
         10, 1, UpgradeCategory::ABILITY, nullptr, 0
     }
 
@@ -167,6 +187,10 @@ int8_t GetSkillLevel(edict_t* player, const char* upgrade_id) {
         return player->client->pers.skills.lasers;
     else if (strcmp(upgrade_id, "monster_summon") == 0)
         return player->client->pers.skills.monster_summon;
+    else if (strcmp(upgrade_id, "teleport_fwd") == 0)
+        return player->client->pers.skills.teleport_fwd ? 1 : 0;
+    else if (strcmp(upgrade_id, "exploding_barrel") == 0)
+        return player->client->pers.skills.exploding_barrel;
 
     return 0;
 }
@@ -273,6 +297,10 @@ bool UpgradeSkill(edict_t* player, const char* upgrade_id) {
         if (player->client->pers.skills.monster_summon == 1) {
             player->client->pers.inventory[IT_ITEM_STROGGSUMM] = 1;
         }
+    } else if (strcmp(upgrade_id, "teleport_fwd") == 0) {
+        player->client->pers.skills.teleport_fwd = true;
+    } else if (strcmp(upgrade_id, "exploding_barrel") == 0) {
+        player->client->pers.skills.exploding_barrel++;
     }
 
     return true;
@@ -391,6 +419,8 @@ void ResetAllSkills(edict_t* player) {
     total_points += player->client->pers.skills.sentrygun;
     total_points += player->client->pers.skills.lasers;
     total_points += player->client->pers.skills.monster_summon;
+    total_points += player->client->pers.skills.teleport_fwd ? 1 : 0;
+    total_points += player->client->pers.skills.exploding_barrel;
 
     if (total_points == 0) {
         gi.LocClient_Print(player, PRINT_HIGH, nullptr, "No skills to reset!\n");
@@ -415,6 +445,8 @@ void ResetAllSkills(edict_t* player) {
     player->client->pers.skills.sentrygun = 0;
     player->client->pers.skills.lasers = 0;
     player->client->pers.skills.monster_summon = 0;
+    player->client->pers.skills.teleport_fwd = false;
+    player->client->pers.skills.exploding_barrel = 0;
     // Note: free_vitality, free_max_ammo, and free_pc_regen are NOT reset - they're permanent
 
     // Refund all points

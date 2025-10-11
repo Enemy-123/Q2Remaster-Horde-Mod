@@ -69,6 +69,21 @@ void Cmd_TeleportForward_f(edict_t* ent)
     if (!ent->inuse || ent->health <= 0)
         return;
 
+    // Check if player has the teleport_fwd skill
+    if (!ent->client->pers.skills.teleport_fwd)
+    {
+        gi.LocClient_Print(ent, PRINT_HIGH, "You need to unlock Teleport Forward skill first!\n");
+        return;
+    }
+
+    // Check if player has enough power cubes
+    constexpr int32_t TELEPORT_CUBE_COST = 25;
+    if (ent->client->pers.horde_power_cubes < TELEPORT_CUBE_COST)
+    {
+        gi.LocClient_Print(ent, PRINT_HIGH, "Need {} power cubes to teleport (you have {})\n", TELEPORT_CUBE_COST, ent->client->pers.horde_power_cubes);
+        return;
+    }
+
     // Check if player is spectating or menu protected
     if (ClientIsSpectating(ent->client))
     {
@@ -116,6 +131,9 @@ void Cmd_TeleportForward_f(edict_t* ent)
         // Is this a valid position?
         if (!(tr.contents & MASK_SHOT) && !(gi.pointcontents(end) & MASK_SHOT) && !tr.allsolid)
         {
+            // Deduct power cubes
+            ent->client->pers.horde_power_cubes -= TELEPORT_CUBE_COST;
+
             // Teleport successful!
             ent->s.event = EV_PLAYER_TELEPORT;
             ent->s.origin = end;

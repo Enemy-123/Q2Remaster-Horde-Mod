@@ -3165,6 +3165,7 @@ struct player_skills_t {
 
 	// Single-level abilities (boolean flags)
 	bool auto_haste = false;      // Quad/dual-fire extension
+	bool teleport_fwd = false;    // Forward teleportation unlock
 
 	// Talents (advanced unlocks with prerequisites)
 	bool armor_vampirism = false; // Requires vampire >= 5
@@ -3188,6 +3189,9 @@ struct player_skills_t {
 
 	// Monster Summon ability
 	int8_t monster_summon = 0;    // 0-10: Summon monsters (health, armor, upkeep cost)
+
+	// Exploding Barrel ability
+	int8_t exploding_barrel = 0;  // 0-10: Exploding barrel (damage scaling)
 
 	// Weapon Upgrades - Grenade Launcher
 	int8_t gl_damage = 0;         // 0-10: Grenade damage

@@ -301,6 +301,17 @@ struct FireballConfig
 	int cost = 15;  // Power cube cost per fireball
 };
 
+// Exploding Barrel configuration
+struct ExplodingBarrelConfig
+{
+	int initial_health = 30;
+	int addon_health = 0;      // No health scaling per level
+	int initial_damage = 100;
+	int addon_damage = 40;     // +40 damage per level
+	int cost = 20;             // Power cube cost per spawn
+	int max_count = 4;         // Max active barrels
+};
+
 // Monster Summon configuration
 struct SummonConfig
 {
@@ -563,6 +574,7 @@ struct GameConfig
 	// Special abilities
 	BombSpellConfig bomb_spell;
 	FireballConfig fireball;
+	ExplodingBarrelConfig exploding_barrel;
 	SummonConfig summon;
 
 	// Hook and Grapple

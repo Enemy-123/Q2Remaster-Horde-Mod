@@ -818,6 +818,18 @@ void Config_Load(const char* basedir)
 			g_config.fireball.cost = GetJsonInt(f, "cost", 15);
 		}
 
+		// Exploding Barrel
+		if (abilities.isMember("exploding_barrel") && abilities["exploding_barrel"].isObject())
+		{
+			const Json::Value& eb = abilities["exploding_barrel"];
+			g_config.exploding_barrel.initial_health = GetJsonInt(eb, "initial_health", 30);
+			g_config.exploding_barrel.addon_health = GetJsonInt(eb, "addon_health", 0);
+			g_config.exploding_barrel.initial_damage = GetJsonInt(eb, "initial_damage", 100);
+			g_config.exploding_barrel.addon_damage = GetJsonInt(eb, "addon_damage", 40);
+			g_config.exploding_barrel.cost = GetJsonInt(eb, "cost", 20);
+			g_config.exploding_barrel.max_count = GetJsonInt(eb, "max_count", 4);
+		}
+
 		// Monster Summon
 		if (abilities.isMember("summon") && abilities["summon"].isObject())
 		{

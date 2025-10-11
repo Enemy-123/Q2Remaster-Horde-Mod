@@ -710,10 +710,18 @@ edict_t* fire_barrel(edict_t* self, const vec3_t& start, const vec3_t& aimdir)
         if (self->client->pers.health <= 0)
             return nullptr;
 
-        // Check if at limit before deploying
-        if (self->client->resp.num_barrels >= BarrelConstants::MAX_BARRELS_PER_PLAYER())
+        // Check if player has enough power cubes
+        if (self->client->pers.horde_power_cubes < g_config.exploding_barrel.cost)
         {
-            gi.LocClient_Print(self, PRINT_HIGH, "You have reached the barrel limit.\n");
+            gi.LocClient_Print(self, PRINT_HIGH, "Need {} power cubes to spawn barrel (you have {})\n",
+                             g_config.exploding_barrel.cost, self->client->pers.horde_power_cubes);
+            return nullptr;
+        }
+
+        // Check if at limit before deploying
+        if (self->client->resp.num_barrels >= g_config.exploding_barrel.max_count)
+        {
+            gi.LocClient_Print(self, PRINT_HIGH, "You have reached the barrel limit ({} max).\n", g_config.exploding_barrel.max_count);
             return nullptr;
         }
     }
@@ -756,11 +764,19 @@ edict_t* fire_barrel(edict_t* self, const vec3_t& start, const vec3_t& aimdir)
     }
 
     barrel->touch = barrel_land;
-    barrel->health = BarrelConstants::BARREL_BASE_HEALTH;
+
+    // Calculate health and damage based on config and skill level
+    int8_t barrel_level = 0;
+    if (self && self->client)
+        barrel_level = self->client->pers.skills.exploding_barrel;
+
+    barrel->health = g_config.exploding_barrel.initial_health +
+                     (barrel_level * g_config.exploding_barrel.addon_health);
     barrel->takedamage = true;
     barrel->pain = barrel_pain;
     barrel->die = barrel_die;
-    barrel->dmg = BarrelConstants::BARREL_BASE_DAMAGE;
+    barrel->dmg = g_config.exploding_barrel.initial_damage +
+                  (barrel_level * g_config.exploding_barrel.addon_damage);
     barrel->classname = "horde_barrel";
     barrel->special_type_id = static_cast<uint8_t>(horde::SpecialEntityTypeID::BARREL);
     barrel->flags |= (FL_DAMAGEABLE | FL_TRAP);
@@ -774,6 +790,9 @@ edict_t* fire_barrel(edict_t* self, const vec3_t& start, const vec3_t& aimdir)
     // Track the barrel
     if (self->client)
     {
+        // Deduct power cubes
+        self->client->pers.horde_power_cubes -= g_config.exploding_barrel.cost;
+
         // Find an empty slot in the tracking array
         for (int i = 0; i < BarrelConstants::MAX_BARRELS_ARRAY_SIZE; i++)
         {
@@ -922,6 +941,14 @@ void Cmd_Barrel_f(edict_t* ent)
     // Check if player is menu protected
     if (IsPlayerMenuProtected(ent)) {
         gi.LocClient_Print(ent, PRINT_HIGH, "You cannot use this while in a menu.\n");
+        return;
+    }
+
+    // Check if player has the exploding_barrel skill
+    int8_t barrel_level = ent->client->pers.skills.exploding_barrel;
+    if (barrel_level == 0)
+    {
+        gi.LocClient_Print(ent, PRINT_HIGH, "You need to upgrade the Exploding Barrel skill first!\n");
         return;
     }
 
