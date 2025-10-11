@@ -5,7 +5,7 @@
 #include "../g_local.h" // Include base types like edict_t, gclient_t, gtime_t, etc. BEFORE they are used here.
 
 constexpr const char* CTF_VERSION_STRING = "1.52";
-constexpr size_t MAX_CTF_STAT_LENGTH = 8192;  // Increased from 1024 to support more players in scoreboard
+constexpr size_t MAX_CTF_STAT_LENGTH = 1024;  // Increased from 1024 to support more players in scoreboard
 // --- Enums Moved from g_ctf.cpp ---
 
 enum ctfteam_t

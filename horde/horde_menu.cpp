@@ -6392,9 +6392,9 @@ public:
 		void addTeamScore()
 	{
 		const char *horde_dogtag_path = "/tags/etqw_strogg.png";
-		// Display Strogg team icon (uses stat 26 = STAT_CTF_TEAM2_HEADER, right side)
+		// Display Strogg team icon - MUST wrap in if/endif to prevent unmatched statements
 		layout_builder.append(fmt::format(
-			"xv -140 yv 3 picn {} ", horde_dogtag_path));
+			"if 0 xv -140 yv 3 picn {} endif \n", horde_dogtag_path));
 
 		if (!level.intermissiontime)
 		{
@@ -6410,7 +6410,7 @@ public:
 		else
 		{
 			// Intermission screen - display Strogg team icon (uses stat 26 = STAT_CTF_TEAM2_HEADER, right side)
-			layout_builder.append("if 26 xv 208 yv 8 pic 25 endif ");
+			layout_builder.append("if 26 xv 208 yv 8 pic 25 endif \n");
 		}
 	}
 
@@ -6548,6 +6548,47 @@ public:
 	{
 		return layout_builder.str();
 	}
+
+	/**
+	 * @brief Safely truncates layout string to ensure no unmatched if/endif blocks
+	 * @param layout The layout string to truncate
+	 * @param max_length Maximum length to truncate to
+	 * @return Safely truncated layout string
+	 */
+	static std::string safeTruncateLayout(const std::string& layout, size_t max_length)
+	{
+		if (layout.size() <= max_length)
+			return layout;
+
+		// Find the last complete "endif" before max_length
+		std::string truncated = layout.substr(0, max_length);
+
+		// Search backwards for the last "endif"
+		size_t last_endif = truncated.rfind("endif");
+
+		if (last_endif != std::string::npos)
+		{
+			// Include the "endif" and any trailing whitespace/newline
+			size_t cut_pos = last_endif + 5; // 5 = length of "endif"
+
+			// Skip any trailing whitespace after endif
+			while (cut_pos < truncated.size() &&
+			       (truncated[cut_pos] == ' ' || truncated[cut_pos] == '\n'))
+			{
+				cut_pos++;
+			}
+
+			truncated = truncated.substr(0, cut_pos);
+		}
+		else
+		{
+			// No endif found, return empty to be safe
+			gi.Com_Print("WARNING: No complete endif found in truncated scoreboard layout\n");
+			truncated.clear();
+		}
+
+		return truncated;
+	}
 };
 
 /**
@@ -6573,18 +6614,16 @@ void HordeScoreboardMessage(edict_t *ent, edict_t *killer)
 	// Get final layout string
 	std::string final_layout = layout.build();
 
-	// Ensure we don't exceed layout size limits
+	// Ensure we don't exceed layout size limits with SAFE truncation
 	if (final_layout.size() >= MAX_CTF_STAT_LENGTH)
 	{
-		// Safe resize with exception handling
-		try
+		// Use smart truncation to prevent cutting off mid-if/endif block
+		final_layout = ScoreboardLayout::safeTruncateLayout(final_layout, MAX_CTF_STAT_LENGTH - 1);
+
+		if (developer && developer->integer)
 		{
-			final_layout.resize(MAX_CTF_STAT_LENGTH - 1);
-		}
-		catch (const std::bad_alloc &)
-		{
-			gi.Com_Print("ERROR: Failed to resize scoreboard layout\n");
-			final_layout = "ERROR: Memory allocation failed";
+			gi.Com_PrintFmt("Scoreboard truncated from {} to {} bytes\n",
+				layout.build().size(), final_layout.size());
 		}
 	}
 
