@@ -4025,6 +4025,7 @@ struct edict_t
 	// Store original attacker info for projectiles (when owner dies before projectile hits)
 	uint8_t projectile_attacker_type_id; // monster type id if attacker was monster
 	bool projectile_was_player_attacker; // true if attacker was a player
+	int projectile_attacker_level; // pvm_level of monster attacker (for obituary)
 
 	// Proximity grid optimization: track which cells this entity occupies
 	// Stored as int8_t to save memory (max 127 cells, we have 16x16=256 but entities span max 4)

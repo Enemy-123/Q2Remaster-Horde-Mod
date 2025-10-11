@@ -409,7 +409,16 @@ static void HandleMonsterKillObituary(edict_t* self, edict_t* attacker, const mo
 {
 	const char* monster_name = ObituaryMessages::GetMonsterDisplayName(attacker);
 	const char* message = ObituaryMessages::GetMonsterKillMessage(mod.id);
-	gi.LocBroadcast_Print(PRINT_MEDIUM, message, self->client->pers.netname, monster_name);
+
+	// Include monster level in death message
+	int monster_level = attacker->monsterinfo.pvm_level;
+	if (monster_level > 0) {
+		gi.LocBroadcast_Print(PRINT_MEDIUM, "{} was killed by a level {} {}\n",
+			self->client->pers.netname, monster_level, monster_name);
+	} else {
+		gi.LocBroadcast_Print(PRINT_MEDIUM, message, self->client->pers.netname, monster_name);
+	}
+
 	self->enemy = attacker;
 }
 
@@ -418,7 +427,16 @@ static void HandleDeadMonsterProjectileObituary(edict_t* self, edict_t* inflicto
 {
 	const char* monster_name = ObituaryMessages::GetMonsterNameFromProjectile(inflictor);
 	const char* message = ObituaryMessages::GetMonsterKillMessage(mod.id);
-	gi.LocBroadcast_Print(PRINT_MEDIUM, message, self->client->pers.netname, monster_name);
+
+	// Include monster level in death message if available
+	int monster_level = inflictor->projectile_attacker_level;
+	if (monster_level > 0) {
+		gi.LocBroadcast_Print(PRINT_MEDIUM, "{} was killed by a level {} {}\n",
+			self->client->pers.netname, monster_level, monster_name);
+	} else {
+		gi.LocBroadcast_Print(PRINT_MEDIUM, message, self->client->pers.netname, monster_name);
+	}
+
 	self->enemy = nullptr;
 }
 

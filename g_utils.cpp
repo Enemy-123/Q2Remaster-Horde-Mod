@@ -954,11 +954,13 @@ void SetProjectileAttackerInfo(edict_t* projectile, edict_t* attacker)
 	{
 		projectile->projectile_was_player_attacker = true;
 		projectile->projectile_attacker_type_id = 0;
+		projectile->projectile_attacker_level = 0;
 	}
 	else if (attacker->svflags & SVF_MONSTER)
 	{
 		projectile->projectile_was_player_attacker = false;
 		projectile->projectile_attacker_type_id = attacker->monsterinfo.monster_type_id;
+		projectile->projectile_attacker_level = attacker->monsterinfo.pvm_level;
 	}
 }
 
