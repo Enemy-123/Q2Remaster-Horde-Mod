@@ -268,8 +268,9 @@ bool PVM_IsValidMonster(int minWave)
 // Add monster types here that should never appear in PVM mode
 static const std::vector<horde::MonsterTypeID> g_pvm_excluded_monsters = {
     // Example exclusions (uncomment to exclude):
-    // horde::MonsterTypeID::BOSS2_64,           // Too large/problematic
-    // horde::MonsterTypeID::BOSS2_MINI,         // Boss variant
+    horde::MonsterTypeID::JANITOR2,        // Special fog wave boss
+    horde::MonsterTypeID::JANITOR,        // Special fog wave boss
+    horde::MonsterTypeID::TANK_COMMANDER,        // Special fog wave boss
     horde::MonsterTypeID::TANK_64,        // Special fog wave boss
     horde::MonsterTypeID::GEKKKL,             // Special fog wave boss
     horde::MonsterTypeID::FLOATER_TRACKER,     // way too hateable

@@ -962,18 +962,18 @@ void SP_monster_makron(edict_t* self)
 
 	// --- REFACTORED ---
 	// This logic will be run *after* the ID has been potentially overridden by the KL spawner.
-	// So we check the ID here.
+	// Override with variant-specific config values from monsters.json
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::MAKRON_KL)) {
 		if (!st.was_key_specified("power_armor_type"))
-			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
+			self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_MAKRON_KL_POWER_ARMOR_TYPE);
 		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = 700;
+			self->monsterinfo.power_armor_power = M_MAKRON_KL_ADDON_POWER_ARMOR(self);
 	}
 	else if (horde::IsMonsterType(self, horde::MonsterTypeID::MAKRON)) { // Explicitly check for base Makron
-		if (!st.was_key_specified("power_armor_type"))
+		if (!st.was_key_specified("armor_type"))
 			self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
-		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.armor_power = 700;
+		if (!st.was_key_specified("armor_power"))
+			self->monsterinfo.armor_power = M_MAKRON_ADDON_ARMOR(self);
 	}
 
 	if (g_horde->integer && !self->monsterinfo.IS_BOSS) {

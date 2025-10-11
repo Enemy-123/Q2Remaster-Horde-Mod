@@ -630,7 +630,17 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 	// This ensures monsters get level-scaled health/armor even if their spawn functions haven't been updated
 	ApplyPvMLevelScaling(monster);
 
+	// Use base_health for power armor calculation to avoid double-scaling issues
+	// base_health is set before any bonus multipliers are applied
+	if (monster->monsterinfo.bonus_flags != BF_NONE && (!(monster->monsterinfo.bonus_flags & BF_FRIENDLY))) {
+		if (!st.was_key_specified("power_armor_power"))
+			monster->monsterinfo.power_armor_power = static_cast<int>(round(monster->monsterinfo.base_health * BONUS_POWER_ARMOR_RATIO));
+		if (!st.was_key_specified("power_armor_type"))
+			monster->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
+	}
+
 	// Fix armor conflict: if monster has both armor and power_armor, keep only the highest value
+	// THIS MUST RUN AFTER BONUS MONSTER POWER ARMOR IS ADDED (above)
 	if (monster->monsterinfo.armor_power > 0 && monster->monsterinfo.power_armor_power > 0)
 	{
 		if (monster->monsterinfo.armor_power > monster->monsterinfo.power_armor_power)
@@ -645,15 +655,6 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 			monster->monsterinfo.armor_power = 0;
 			monster->monsterinfo.armor_type = IT_NULL;
 		}
-	}
-
-	// Use base_health for power armor calculation to avoid double-scaling issues
-	// base_health is set before any bonus multipliers are applied
-	if (monster->monsterinfo.bonus_flags != BF_NONE && (!(monster->monsterinfo.bonus_flags & BF_FRIENDLY))) {
-		if (!st.was_key_specified("power_armor_power"))
-			monster->monsterinfo.power_armor_power = static_cast<int>(round(monster->monsterinfo.base_health * BONUS_POWER_ARMOR_RATIO));
-		if (!st.was_key_specified("power_armor_type"))
-			monster->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 	}
 
 	if (monster->monsterinfo.isfriendlyspawn) {
