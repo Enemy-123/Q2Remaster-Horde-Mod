@@ -13,8 +13,9 @@
 // Global config instance
 GameConfig g_config;
 
-// Global variable for lowest player level (updated periodically in Horde_RunFrame)
+// Global variables for player levels (updated periodically in Horde_RunFrame)
 int32_t g_lowest_player_level = 0;
+int32_t g_highest_player_level = 0;
 
 // Helper function to safely get int from JSON
 static int GetJsonInt(const Json::Value& json, const char* key, int defaultValue)

@@ -1225,13 +1225,13 @@ void AwardKillXP(edict_t* attacker, edict_t* monster)
 	if (!monster || !(monster->svflags & SVF_MONSTER)) return;
 
 	// Base XP from monster
-	int32_t base_xp = (!IsPvMMode() ? 2 : 4); // Default for standard monsters
+	int32_t base_xp = (!IsPvMMode() ? 1 : 2); // Default for standard monsters
 
 	// Scale by monster type/difficulty
 	if (monster->monsterinfo.IS_BOSS)
-		base_xp = 300;
+		base_xp = 10;
 	else if (monster->monsterinfo.bonus_flags & BF_CHAMPION)
-		base_xp = 20;
+		base_xp = 7;
 
 	// // Scale by current wave level (+2 XP per level)
 	// base_xp += current_wave_level * 2;
@@ -6532,33 +6532,39 @@ void Horde_RunFrame()
 	CleanupSpawnPointCache();
 	CheckAndReduceSpawnCooldowns();
 
-	// Update lowest player level periodically (every 2 seconds)
+// Update lowest and highest player level periodically (every 2 seconds)
 	static gtime_t last_player_level_check = 0_sec;
 	if (currentTime >= last_player_level_check + 2_sec)
 	{
 		last_player_level_check = currentTime;
 
-		// Find the lowest pvm_level among all players
+		// Find the lowest and highest pvm_level among all active players
 		int32_t lowest_level = INT32_MAX;
+		int32_t highest_level = INT32_MIN;
 		bool found_player = false;
 
-		for (int i = 0; i < game.maxclients; i++)
+		for (const auto* player : active_players_no_spect())
 		{
-			edict_t* player = &g_edicts[1 + i];
-			if (!player->inuse || !player->client)
+			if (!player || !player->client)
 				continue;
 
 			found_player = true;
-			if (player->client->pers.pvm_level < lowest_level)
+			int32_t player_level = player->client->pers.pvm_level;
+
+			if (player_level < lowest_level)
 			{
-				lowest_level = player->client->pers.pvm_level;
+				lowest_level = player_level;
+			}
+			if (player_level > highest_level)
+			{
+				highest_level = player_level;
 			}
 		}
 
-		// Update global variable
+		// Update global variables
 		g_lowest_player_level = found_player ? lowest_level : 0;
+		g_highest_player_level = found_player ? highest_level : 0;
 	}
-
 	// Check if retaliation mode has timed out
 	if (g_spawn_system.special_spawn_state.type == SpecialSpawnType::Retaliation && currentTime >= g_horde_retaliation_end_time) {
 		g_spawn_system.special_spawn_state.clear();

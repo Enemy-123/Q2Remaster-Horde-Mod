@@ -593,9 +593,34 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
-	// Apply level-based scaling (PvM leveling system)
-	// Set monster's level to the lowest player level
-	monster->monsterinfo.pvm_level = g_lowest_player_level;
+	// Apply level-based scaling (PvM leveling system with level-gap difficulty scaling)
+	// When there's a level gap, spawn harder monsters prioritizing lower-level ones for accessibility
+	if (g_lowest_player_level < g_highest_player_level)
+	{
+		// Calculate the level gap between highest and lowest players
+		int32_t level_gap = g_highest_player_level - g_lowest_player_level;
+
+		// If gap is significant (>= 3 levels), increase difficulty by spawning more varied-level monsters
+		// This results in ~30% harder spawns overall while still prioritizing lower levels
+		float higher_level_chance = (level_gap >= 3) ? 0.50f : 0.20f;
+
+		if (frandom() < higher_level_chance)
+		{
+			// Random level between lowest and highest (inclusive)
+			// Prioritizes lower levels to help struggling players
+			monster->monsterinfo.pvm_level = irandom(g_lowest_player_level, g_highest_player_level + 1);
+		}
+		else
+		{
+			// Use lowest player level to maintain accessibility
+			monster->monsterinfo.pvm_level = g_lowest_player_level;
+		}
+	}
+	else
+	{
+		// All players are same level, use that level
+		monster->monsterinfo.pvm_level = g_lowest_player_level;
+	}
 
 	// Apply centralized PvM level scaling for ALL monsters
 	// This ensures monsters get level-scaled health/armor even if their spawn functions haven't been updated
@@ -730,18 +755,9 @@ void ApplyPvMLevelScaling(edict_t* monster)
 		return;
 
 	// Determine which level to use for scaling
-	// For summoned/friendly monsters with pvm_level set, use that instead of lowest player level
-	int scaling_level;
-	if ((monster->monsterinfo.bonus_flags & BF_FRIENDLY) && monster->monsterinfo.pvm_level > 0)
-	{
-		// Use the monster's assigned pvm_level (from player's monster_summon skill)
-		scaling_level = monster->monsterinfo.pvm_level;
-	}
-	else
-	{
-		// Use global lowest player level for enemy monsters
-		scaling_level = g_lowest_player_level;
-	}
+	// Use the monster's pvm_level that was assigned in ApplyMonsterBonusFlags
+	// This ensures level-gap scaling works correctly (monsters assigned higher levels get scaled properly)
+	int scaling_level = monster->monsterinfo.pvm_level;
 
 	// Apply level-based health scaling
 	int scaled_health = level_scaling->initial_health + (scaling_level * level_scaling->addon_health);

@@ -998,10 +998,10 @@
       "addon_armor": 40
     },
     "gunner": {
-      "initial_health": 50,
+      "initial_health": 90,
       "addon_health": 25,
-      "initial_armor": 50,
-      "addon_armor": 15
+      "initial_armor": 65,
+      "addon_armor": 35
     },
     "gunner_vanilla": {
       "initial_health": 75,
@@ -1011,9 +1011,9 @@
     },
     "hover": {
       "initial_health": 50,
-      "addon_health": 10,
+      "addon_health": 15,
       "initial_armor": 50,
-      "addon_armor": 30
+      "addon_armor": 20
     },
     "hover_vanilla": {
       "initial_health": 70,

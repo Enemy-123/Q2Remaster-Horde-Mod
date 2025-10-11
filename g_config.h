@@ -640,5 +640,6 @@ bool GetLoadentEnabledForMap(const char* mapname);  // Convenience overload
 const MonsterLevelScaling* GetMonsterLevelScaling(const char* monster_name);
 void GetMonsterLevelScaledStats(const char* monster_name, int32_t pvm_level, int& out_health, int& out_armor);
 
-// Global variable for lowest player level (updated periodically in Horde_RunFrame)
+// Global variables for player levels (updated periodically in Horde_RunFrame)
 extern int32_t g_lowest_player_level;
+extern int32_t g_highest_player_level;

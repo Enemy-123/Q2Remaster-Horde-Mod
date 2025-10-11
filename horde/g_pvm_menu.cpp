@@ -10,7 +10,7 @@
 extern void OpenHordeMenu(edict_t* ent) noexcept;
 
 // Constants from pvm_stats.json
-constexpr int32_t BASE_XP_PER_LEVEL = 100;
+constexpr int32_t BASE_XP_PER_LEVEL = 80;
 constexpr float XP_GROWTH_FACTOR = 2.f;
 constexpr int32_t MAX_AMMO_LEVEL_CAP = 10;
 constexpr int32_t VITALITY_LEVEL_CAP = 10;
