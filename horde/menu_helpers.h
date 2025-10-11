@@ -58,6 +58,17 @@ inline void MenuFormatItemWithCustom(char* buffer, size_t buffer_size,
 	snprintf(buffer, buffer_size, "  %d. %s:\t%s", item_number, name, right_text);
 }
 
+// Format a menu item WITHOUT numbering - just name and custom text
+// Uses tab separator for fixed-column rendering
+// Example: "  Item Name:\t[CUSTOM]"
+inline void MenuFormatItemWithCustomNoNumber(char* buffer, size_t buffer_size,
+                                              const char* name,
+                                              const char* right_text)
+{
+	// Use tab character to separate left and right columns
+	snprintf(buffer, buffer_size, "  %s:\t%s", name, right_text);
+}
+
 // Macro versions for convenience (use the inline functions above)
 #define MENU_ITEM_WITH_PROGRESS(buffer, item_number, name, current, max) \
 	MenuFormatItemWithProgress(buffer, sizeof(buffer), item_number, name, current, max)

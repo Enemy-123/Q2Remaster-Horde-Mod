@@ -1833,19 +1833,33 @@ void OpenMiscMenu(edict_t *ent, int cursor_position)
 	add_entry("*Misc Options*", PMENU_ALIGN_CENTER);
 	add_entry("", PMENU_ALIGN_CENTER); // Separator
 
-	// Track item numbers for consistent formatting
-	int item_num = 1;
 	char buffer[128];
 
 	// --- Special Wave Selection ---
-	MenuFormatItemWithCustom(buffer, sizeof(buffer), item_num++, "Special key [L]", GetSpecialWaveName(g_special_key->integer));
+	MenuFormatItemWithCustomNoNumber(buffer, sizeof(buffer), "Special key [L]", GetSpecialWaveName(g_special_key->integer));
 	add_entry(buffer, PMENU_ALIGN_LEFT, MiscMenuHandler);
 
 	// --- Sentry Gun Choice ---
-	MenuFormatItemWithCustom(buffer, sizeof(buffer), item_num++, "Sentry Type", GetSentryTypeName(ent->client->pers.sentry_gun_choice));
+	MenuFormatItemWithCustomNoNumber(buffer, sizeof(buffer), "Sentry Type", GetSentryTypeName(ent->client->pers.sentry_gun_choice));
 	add_entry(buffer, PMENU_ALIGN_LEFT, MiscMenuHandler);
 
-	// --- Conditional Remove Options (MODIFIED) ---
+	// --- Beta: Strogg Preference Selection ---
+	MenuFormatItemWithCustomNoNumber(buffer, sizeof(buffer), "[Beta] Strogg", GetMorphTypeName(ent->client->pers.morph_preference));
+	add_entry(buffer, PMENU_ALIGN_LEFT, MiscMenuHandler);
+
+	// --- Stroggification Command (morph/unmorph) ---
+	if (IsMorphed(ent))
+	{
+		add_entry("  I hate stroggs!", PMENU_ALIGN_LEFT, MiscMenuHandler);
+	}
+	else
+	{
+		add_entry("  Stroggificate me!", PMENU_ALIGN_LEFT, MiscMenuHandler);
+	}
+
+	add_entry("", PMENU_ALIGN_CENTER); // Separator
+
+	// --- Conditional Remove Options ---
 
 	// Count actual summoned monsters (excluding bases, lasers, and barrels)
 	// This includes: strogg monsters, medic-revived entities, and any other summoned creatures
@@ -1870,7 +1884,7 @@ void OpenMiscMenu(edict_t *ent, int cursor_position)
 
 	if (strogg_count > 0)
 	{
-		add_entry(G_Fmt("Remove Stroggs ({})", strogg_count).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
+		add_entry(G_Fmt("  Remove Stroggs ({})", strogg_count).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
 	}
 
 	// Get the laser count directly from the client's respawn data.
@@ -1878,38 +1892,21 @@ void OpenMiscMenu(edict_t *ent, int cursor_position)
 	if (laser_count > 0)
 	{
 		// Use G_Fmt to format the menu entry with the current count.
-		add_entry(G_Fmt("Remove Lasers ({})", laser_count).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
+		add_entry(G_Fmt("  Remove Lasers ({})", laser_count).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
 	}
 
-	// --- Sentry Gun Removal (Unchanged) ---
+	// --- Sentry Gun Removal ---
 	int sentry_count = ent->client->resp.num_sentries;
 	if (sentry_count > 0)
 	{
-		add_entry(G_Fmt("Remove Sentry Gun ({})", sentry_count).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
+		add_entry(G_Fmt("  Remove Sentry Gun ({})", sentry_count).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
 	}
 
 	// --- Barrel Removal ---
 	int barrel_count = ent->client->resp.num_barrels;
 	if (barrel_count > 0)
 	{
-		add_entry(G_Fmt("Remove Barrels ({}/{})", barrel_count, BarrelConstants::MAX_BARRELS_PER_PLAYER()).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
-	}
-
-	add_entry("", PMENU_ALIGN_CENTER); // Separator
-
-	// --- STROGG OPTIONS (Prominent placement near bottom) ---
-	// --- Beta: Strogg Preference Selection (always visible) ---
-	MenuFormatItemWithCustom(buffer, sizeof(buffer), item_num++, "[Beta] Strogg", GetMorphTypeName(ent->client->pers.morph_preference));
-	add_entry(buffer, PMENU_ALIGN_LEFT, MiscMenuHandler);
-
-	// --- Stroggification Command (morph/unmorph) ---
-	if (IsMorphed(ent))
-	{
-		add_entry("I hate stroggs!", PMENU_ALIGN_LEFT, MiscMenuHandler);
-	}
-	else
-	{
-		add_entry("Stroggificate me!", PMENU_ALIGN_LEFT, MiscMenuHandler);
+		add_entry(G_Fmt("  Remove Barrels ({}/{})", barrel_count, BarrelConstants::MAX_BARRELS_PER_PLAYER()).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
 	}
 
 	add_entry("", PMENU_ALIGN_CENTER); // Separator
