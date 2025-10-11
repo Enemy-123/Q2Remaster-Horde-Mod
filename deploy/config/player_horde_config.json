@@ -14,7 +14,7 @@
   "weapons": {
     "blaster": {
       "damage_min": 10,
-      "damage_max": 20,
+      "damage_max": 24,
       "speed": 1300,
       "bounces": 5
     },
