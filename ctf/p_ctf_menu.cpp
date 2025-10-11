@@ -194,7 +194,7 @@ void PMenu_Do_Update(edict_t* ent)
 			const char* right_part = tab_pos + 1;
 
 			// Render left part at standard left position
-			const float left_x = menu_base.x + 32;
+			const float left_x = menu_base.x + 12;
 			sb.xv(left_x);
 			sb.sb << "loc_string";
 			if (hnd->cur == i || alt)
