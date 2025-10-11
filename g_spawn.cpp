@@ -1764,6 +1764,15 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 
 		ED_CallSpawn(ent, st);
 
+		// In horde mode, remove all map-spawned monsters
+		// (horde system spawns its own monsters later)
+		if (g_horde->integer && (ent->svflags & SVF_MONSTER))
+		{
+			G_FreeEdict(ent);
+			inhibit++;
+			continue;
+		}
+
 		ent->s.renderfx |= RF_IR_VISIBLE; // PGM
 	}
 

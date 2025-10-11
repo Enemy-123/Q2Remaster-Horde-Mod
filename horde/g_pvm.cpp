@@ -270,9 +270,9 @@ static const std::vector<horde::MonsterTypeID> g_pvm_excluded_monsters = {
     // Example exclusions (uncomment to exclude):
     // horde::MonsterTypeID::BOSS2_64,           // Too large/problematic
     // horde::MonsterTypeID::BOSS2_MINI,         // Boss variant
-    // horde::MonsterTypeID::BERSERKERKL,        // Special fog wave boss
-    // horde::MonsterTypeID::GEKKKL,             // Special fog wave boss
-    // horde::MonsterTypeID::TANK_SPAWNER,       // Spawns other monsters
+    horde::MonsterTypeID::TANK_64,        // Special fog wave boss
+    horde::MonsterTypeID::GEKKKL,             // Special fog wave boss
+    horde::MonsterTypeID::FLOATER_TRACKER,     // way too hateable
     horde::MonsterTypeID::MEDIC_COMMANDER,     // way too op
     horde::MonsterTypeID::DAEDALUS_BOMBER,     // way too op
     horde::MonsterTypeID::CARRIER_MINI, // way too op
@@ -285,7 +285,7 @@ static const std::vector<horde::MonsterTypeID> g_pvm_excluded_monsters = {
     horde::MonsterTypeID::SHAMBLER_KL,  // way too op
     horde::MonsterTypeID::GUNCMDR_KL,   // way too op
     horde::MonsterTypeID::MAKRON_KL,    // way too op
-    horde::MonsterTypeID::TANK_SPAWNER, // way too op
+    //horde::MonsterTypeID::TANK_SPAWNER, // way too op
     horde::MonsterTypeID::FIXBOT_KL,    // way too op
     horde::MonsterTypeID::BOSS2_KL,     // way too op
 };
