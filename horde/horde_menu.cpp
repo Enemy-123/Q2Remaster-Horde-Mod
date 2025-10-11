@@ -6394,16 +6394,16 @@ public:
 		if (!level.intermissiontime)
 		{
 			// Normal game display
-			layout_builder.append("if 25 xv -90 yv 10 dogtag endif \n");
+			layout_builder.append("if 25 xv -140 yv 3 dogtag endif \n");
 
-			layout_builder.append(
-				"if 0 xv 208 yv 8 string \"{}\" endif \n");
+			// layout_builder.append(
+			// 	"if 0 xv 208 yv 8 string \"{}\" endif \n");
 		}
 		else
 		{
 			// Intermission display
 			layout_builder.append(fmt::format(
-				"if 25 xv -90 yv 10 dogtag endif "
+				"if 25 xv -140 yv 3 dogtag endif "
 				"if 25 xv 205 yv 8 pic 25 endif "
 				"if 0 xv 70 yv -20 19 endif \n",
 				total_score, team_players.size()));
