@@ -98,11 +98,11 @@ void InitializeScalingSystem() {
     SetDefaultScalingConfig();
     LoadScalingConfig();
 
-    if (developer && developer->integer) {
-        gi.Com_Print("=== Horde Scaling System Initialized ===\n");
-        PrintScalingCurve("Monster Health", g_scalingConfig.monster_health, 40);
-        PrintScalingCurve("Player Weapon Damage", g_scalingConfig.player_weapon_damage, 40);
-    }
+    // if (developer && developer->integer) {
+    //     gi.Com_Print("=== Horde Scaling System Initialized ===\n");
+    //     PrintScalingCurve("Monster Health", g_scalingConfig.monster_health, 40);
+    //     PrintScalingCurve("Player Weapon Damage", g_scalingConfig.player_weapon_damage, 40);
+    // }
 }
 
 // Load scaling configuration from JSON file

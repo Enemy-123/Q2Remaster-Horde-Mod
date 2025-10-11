@@ -4588,7 +4588,7 @@ static edict_t* FindSafeTeleportDestination(edict_t* self)
 		target_player = FindBestPlayerTargetForTeleport();
 		if (!target_player)
 		{
-			if (developer->integer)
+			if (developer->integer > 1)
 				gi.Com_PrintFmt("FindSafeTeleportDestination: No valid player target found.\n");
 			return nullptr;
 		}

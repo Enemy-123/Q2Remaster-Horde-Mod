@@ -29,6 +29,141 @@ struct PositionValidationResult {
 	vec3_t adjusted_position;
 };
 
+// Relaxed boss-specific validation - less restrictive than regular monster spawning
+// Bosses can handle tighter spaces due to ClearSpawnArea + PushEntitiesAway combo
+static PositionValidationResult IsPositionPhysicallyValidForBoss(const vec3_t &position, const vec3_t &monster_mins, const vec3_t &monster_maxs, const bool is_flying)
+{
+	PositionValidationResult result = {false, position};
+
+	if (!is_valid_vector(position)) return result;
+
+	const contents_t point_contents = gi.pointcontents(position);
+	if (point_contents & MASK_SOLID) return result;
+
+	if (!is_flying && (point_contents & (CONTENTS_LAVA | CONTENTS_SLIME))) {
+		return result;
+	}
+
+	if (!is_flying && (point_contents & CONTENTS_WATER)) {
+		vec3_t head_pos = position;
+		head_pos.z += monster_maxs.z - monster_mins.z;
+		if (gi.pointcontents(head_pos) & CONTENTS_WATER) {
+			return result;
+		}
+	}
+
+	// RELAXED: Sky clearance check - bosses only care about very close sky (64 units for ground, 128 for flying)
+	// Much more lenient than regular monsters (128/256 units)
+	{
+		vec3_t sky_check_start = position;
+		sky_check_start.z += monster_maxs.z - monster_mins.z;
+		vec3_t sky_check_end = sky_check_start;
+		sky_check_end.z += is_flying ? 128.0f : 64.0f; // Reduced from 256/128
+
+		trace_t sky_trace = gi.trace(sky_check_start, vec3_origin, vec3_origin, sky_check_end, nullptr, MASK_SOLID);
+		if (sky_trace.surface && (sky_trace.surface->flags & SURF_SKY)) {
+			return result; // Sky is very close - still reject
+		}
+	}
+
+	// Check if spawning above sky brush (in the void)
+	{
+		vec3_t down_check_start = position;
+		down_check_start.z += monster_mins.z;
+		vec3_t down_check_end = down_check_start;
+		down_check_end.z -= (is_flying ? 2000.0f : 2048.0f);
+
+		trace_t down_trace = gi.trace(down_check_start, vec3_origin, vec3_origin, down_check_end, nullptr, MASK_SOLID);
+
+		if (down_trace.surface && (down_trace.surface->flags & SURF_SKY)) {
+			return result; // Spawning above sky
+		}
+
+		if (is_flying && down_trace.fraction >= 1.0f) {
+			return result; // No ground within 2000 units
+		}
+	}
+
+	// RELAXED: No extra padding for large monsters - ClearSpawnArea + PushEntitiesAway handles this
+	const trace_t trace = gi.trace(position, monster_mins, monster_maxs, position, nullptr, MASK_MONSTERSOLID);
+	
+	// RELAXED: Allow slight startsolid - bosses have unstuck mechanisms
+	// We check that it's not deeply stuck (allsolid would be bad)
+	if (trace.allsolid) {
+		return result; // Completely stuck - reject
+	}
+
+	// For ground units, drop to floor
+	vec3_t final_pos = position;
+	if (!is_flying)
+	{
+		vec3_t end = final_pos;
+		end.z -= 1024;
+		const trace_t ground_trace = gi.trace(final_pos, monster_mins, monster_maxs, end, nullptr, MASK_SOLID);
+
+		if (ground_trace.fraction == 1.0f) {
+			return result;
+		}
+
+		if (!M_droptofloor_generic(final_pos, monster_mins, monster_maxs, false, nullptr, MASK_SOLID, false))
+		{
+			return result;
+		}
+	}
+
+	result.is_valid = true;
+	result.adjusted_position = final_pos;
+	return result;
+}
+
+// Try alternative spawn points in a radial pattern around the primary spawn
+// Returns true if a valid position was found, with final_pos set to the valid position
+static bool TryAlternativeSpawnPoints(const vec3_t &primary_spawn, const vec3_t &predicted_mins, const vec3_t &predicted_maxs, bool is_flying,
+	int push_iterations, float push_radius, float push_strength, float push_player_str, float push_monster_str, vec3_t &final_pos)
+{
+	// Radial offsets: try close positions first, then expand outward
+	static constexpr std::array<vec3_t, 12> radial_offsets = {{
+		{128.0f, 0.0f, 0.0f},
+		{-128.0f, 0.0f, 0.0f},
+		{0.0f, 128.0f, 0.0f},
+		{0.0f, -128.0f, 0.0f},
+		{256.0f, 0.0f, 0.0f},
+		{-256.0f, 0.0f, 0.0f},
+		{0.0f, 256.0f, 0.0f},
+		{0.0f, -256.0f, 0.0f},
+		{180.0f, 180.0f, 0.0f},
+		{-180.0f, 180.0f, 0.0f},
+		{180.0f, -180.0f, 0.0f},
+		{-180.0f, -180.0f, 0.0f}
+	}};
+
+	for (const auto &offset : radial_offsets)
+	{
+		vec3_t test_pos = primary_spawn + offset;
+
+		// Clear the alternative spawn area
+		ClearSpawnArea(test_pos, predicted_mins, predicted_maxs);
+
+		// Validate using relaxed boss checks
+		const auto validation = IsPositionPhysicallyValidForBoss(test_pos, predicted_mins, predicted_maxs, is_flying);
+
+		if (validation.is_valid)
+		{
+			final_pos = validation.adjusted_position;
+
+			// Apply the same push entities logic
+			PushEntitiesAway(final_pos, push_iterations, push_radius, push_strength, push_player_str, push_monster_str);
+
+			if (developer->integer)
+				gi.Com_PrintFmt("TryAlternativeSpawnPoints: Found valid alternative spawn at {} (offset: {})\n", final_pos, offset);
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
 // External functions
 const char* GetCurrentMapName();
 extern bool GetPredictedScaledBounds(horde::MonsterTypeID typeId, vec3_t &mins, vec3_t &maxs);
@@ -813,25 +948,41 @@ void SpawnBossAutomatically()
 	predicted_mins *= boss_effect_scale;
 	predicted_maxs *= boss_effect_scale;
 
-	// Clear spawn area
-	ClearSpawnArea(spawn_origin, predicted_mins, predicted_maxs);
+	// HYBRID APPROACH: Try relaxed validation first, then alternative spawns if needed
+	const bool is_flying = IsFlying(boss_pick_result.typeId);
+	vec3_t final_spawn_origin;
+	bool spawn_valid = false;
 
-	// Validate spawn location
-	const auto validation = IsPositionPhysicallyValid(spawn_origin, predicted_mins, predicted_maxs, IsFlying(boss_pick_result.typeId));
-	if (!validation.is_valid)
+	// Step 1: Clear and validate primary spawn with relaxed boss checks
+	ClearSpawnArea(spawn_origin, predicted_mins, predicted_maxs);
+	const auto primary_validation = IsPositionPhysicallyValidForBoss(spawn_origin, predicted_mins, predicted_maxs, is_flying);
+
+	if (primary_validation.is_valid)
+	{
+		final_spawn_origin = primary_validation.adjusted_position;
+		PushEntitiesAway(final_spawn_origin, PUSH_ITERATIONS, PUSH_BASE_RADIUS, PUSH_BASE_STRENGTH, PUSH_PLAYER_STRENGTH, PUSH_MONSTER_STRENGTH);
+		spawn_valid = true;
+
+		if (developer->integer)
+			gi.Com_PrintFmt("SpawnBossAutomatically: Primary spawn validated at {}\n", final_spawn_origin);
+	}
+	// Step 2: If primary fails, try alternative spawn points
+	else if (TryAlternativeSpawnPoints(spawn_origin, predicted_mins, predicted_maxs, is_flying,
+		PUSH_ITERATIONS, PUSH_BASE_RADIUS, PUSH_BASE_STRENGTH, PUSH_PLAYER_STRENGTH, PUSH_MONSTER_STRENGTH, final_spawn_origin))
+	{
+		spawn_valid = true;
+
+		if (developer->integer)
+			gi.Com_PrintFmt("SpawnBossAutomatically: Using alternative spawn at {}\n", final_spawn_origin);
+	}
+	// Step 3: All attempts failed - abort and retry next frame
+	else
 	{
 		if (developer->integer)
-			gi.Com_PrintFmt("SpawnBossAutomatically: Designated boss spawn at {} is blocked by world geometry. Retrying next frame.\n", spawn_origin);
+			gi.Com_PrintFmt("SpawnBossAutomatically: All spawn attempts failed at {}. Will retry next frame.\n", spawn_origin);
 		boss_spawned_for_wave = false;
 		return;
 	}
-
-	// Use the adjusted position from validation (may have been dropped to floor)
-	const vec3_t final_spawn_origin = validation.adjusted_position;
-
-	// Push entities away from the validated spawn location
-	// This is called AFTER validation to prevent infinite loops when spawn is blocked
-	PushEntitiesAway(final_spawn_origin, PUSH_ITERATIONS, PUSH_BASE_RADIUS, PUSH_BASE_STRENGTH, PUSH_PLAYER_STRENGTH, PUSH_MONSTER_STRENGTH);
 
 	// Create boss entity
 	edict_t *boss = G_Spawn();
