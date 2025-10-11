@@ -6399,13 +6399,13 @@ public:
 	void addTeamScore()
 	{
 		// Define the path to your custom horde dogtag
-		const char *horde_dogtag_path = "/tags/etqw_strogg.png"; // No file extension needed
+		const char *horde_dogtag_path = "/tags/etqw_strogg.png";
 
 		if (!level.intermissiontime)
 		{
-			// Use 'picn' to draw the specific horde dogtag image
+			// Display horde dogtag image - picn doesn't need if/endif wrapper
 			layout_builder.append(fmt::format(
-				"if 25 xv -140 yv 3 picn {} endif \n", horde_dogtag_path));
+				"xv -140 yv 3 picn {} ", horde_dogtag_path));
 
 			// Get the new, safely-limited active bonuses string
 			//std::string activeBonuses = GetPlayerActiveBonusesString(const_cast<edict_t *>(ent));
@@ -6417,13 +6417,9 @@ public:
 		}
 		else
 		{
-			// Intermission screen - split into separate appends for better error isolation
-			// Each if/endif pair is self-contained and easier to debug
+			// Intermission screen - display team dogtag for aesthetics
 			layout_builder.append(fmt::format(
-				"if 25 xv -140 yv 3 picn {} endif \n", horde_dogtag_path));
-			layout_builder.append("if 25 xv 205 yv 3 pic 25 endif \n");
-			layout_builder.append(fmt::format(
-				"if 0 xv 70 yv -20 num 0 {} endif \n", total_score));
+				"xv -140 yv 3 picn {} ", horde_dogtag_path));
 		}
 	}
 
