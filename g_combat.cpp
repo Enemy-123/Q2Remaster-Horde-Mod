@@ -1009,13 +1009,29 @@ void HandleVampireEffect(edict_t* attacker, edict_t* targ, int damage)
     // --- 1. Guard Clauses & Early Exits ---
     // These fast checks prevent unnecessary processing and are crucial for performance.
 
-    // Check if attacker has vampire skill (new skill system)
+    // Check if attacker has vampire (either skill system for humans OR benefit system for bots)
     if (!attacker || !attacker->client || damage <= 0) {
         return;
     }
 
-    int8_t vampire_level = GetSkillLevel(attacker, "vampire");
-    if (vampire_level <= 0) {
+    // Check for vampire - support both skill system (humans) and benefit system (bots)
+    int8_t vampire_level = 0;
+    bool has_vampire = false;
+
+    if (attacker->svflags & SVF_BOT) {
+        // Bots use the benefit system
+        has_vampire = BotHasVampire(attacker);
+        // For bots, treat base vampire as level 1, upgraded as level 6 for armor stealing
+        if (has_vampire) {
+            vampire_level = BotHasBenefit(attacker, BenefitID::VAMPIRE_UPGRADED) ? 6 : 1;
+        }
+    } else {
+        // Human players use the skill system
+        vampire_level = GetSkillLevel(attacker, "vampire");
+        has_vampire = (vampire_level > 0);
+    }
+
+    if (!has_vampire) {
         return;
     }
 

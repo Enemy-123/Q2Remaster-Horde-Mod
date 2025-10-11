@@ -18,21 +18,21 @@ const struct benefit_source_t {
     BenefitID prereq; // Prerequisite benefit
     BenefitCategory category; // Benefit category
 } BENEFITS_SRC[] = {
-    // {BenefitID::VAMPIRE, "vampire", "\n\n\n\nYou're covered in blood!\n\nVampire Ability\nENABLED!\n", "RECOVERING HEALTH FROM DAMAGE DONE!\n", "g_vampire", "1", 4, -1, 0.2f, BenefitID::NONE, BenefitCategory::ABILITY},
-    // {BenefitID::VAMPIRE_UPGRADED, "vampire upgraded", "\n\n\n\nIMPROVED VAMPIRE ABILITY\n", "RECOVERING HEALTH & ARMOR FROM DAMAGE DONE!\n", "g_vampire", "2", 24, -1, 0.1f, BenefitID::VAMPIRE, BenefitCategory::ABILITY},
-    // {BenefitID::AMMO_REGEN, "ammo regen", "\n\n\n\n\nAMMO REGEN\n\nENABLED!\n", "AMMO REGEN IS NOW ENABLED!\n", "g_ammoregen", "1", 8, -1, 0.15f, BenefitID::NONE, BenefitCategory::ABILITY},
-    // {BenefitID::AUTO_HASTE, "auto haste", "\n\n\n\nDUAL-FIRE IS RUNNING THROUGH YOUR VEINS\nFRAGGING WHILE HASTE\nWILL EXTEND QUAD DMG AND DUAL-FIRE TIME!\n", "AUTO-HASTE ENABLED!\n", "g_autohaste", "1", 9, -1, 0.15f, BenefitID::NONE, BenefitCategory::ABILITY},
-    // {BenefitID::START_ARMOR, "start armor", "\n\n\n\nSTARTING ARMOR\nENABLED!\n", "STARTING WITH 100 BODY-ARMOR!\n", "g_startarmor", "1", 9, -1, 0.1f, BenefitID::NONE, BenefitCategory::ABILITY},
-    // {BenefitID::HA_PICKUP, "H/A Pickup", "\n\n\n\nENHANCED HEALTH & ARMOR PICKUPS\nENABLED!\n", "Health & Armor pickups increased by 60%!\n", "g_hapickup", "1", 1, -1, 0.15f, BenefitID::NONE, BenefitCategory::ABILITY},
-    // {BenefitID::TRACED_BULLETS, "Traced Bullets", "\n\n\n\nBULLETS\nUPGRADED!\n", "Piercing-PowerShield Bullets!\n", "g_tracedbullets", "1", 9, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
-    // {BenefitID::ENERGY_SHELLS, "Energy Shells", "\n\n\n\nSHELLS\nUPGRADED!\n", "Piercing-PowerShield Shells!\n", "g_energyshells", "1", 9, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
-    // {BenefitID::CLUSTER_PROX, "Cluster Prox", "\n\n\n\nIMPROVED PROX GRENADES\n", "Prox Cluster Launcher Enabled\n", "g_upgradeproxs", "1", 25, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
-    // {BenefitID::PIERCING_PLASMA, "Piercing Plasma", "\n\n\n\nPlasma-Beam Piercing Mode Enabled\n", "IMPROVED Plasma-Beam!\n", "g_piercingbeam", "1", 25, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
-    // {BenefitID::NAPALM_GRENADES, "Napalm GL", "\n\n\n\nIMPROVED GRENADE LAUNCHER!\n", "Napalm-Grenade Launcher Enabled\n", "g_bouncygl", "1", 25, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
-    // {BenefitID::BFG_SLIDE, "BFG Slide Mode", "\n\n\n\nBFG SLIDE MODE\nENABLED!\n", "BFG Slide Mode Active!\n", "g_bfgslide", "1", 12, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
-    // {BenefitID::BFG_GRAV_PULL, "BFG Gravity Pull", "\n\n\n\nBFG GRAVITY PULL\nENABLED!\n", "BFG Gravity Pull Active!\n", "g_bfgpull", "1", 12, -1, 0.15f, BenefitID::BFG_SLIDE, BenefitCategory::WEAPON},
-    // {BenefitID::TESLA_CHAIN_LIGHTNING, "Tesla Chain Lightning", "\n\n\n\nTESLA CHAIN LIGHTNING\nENABLED!\n", "Tesla Chain Lightning Upgrade Active!\n", "g_tesla_chain_lightning", "1", 1, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON}
-};;
+    {BenefitID::VAMPIRE, "vampire", "\n\n\n\nYou're covered in blood!\n\nVampire Ability\nENABLED!\n", "RECOVERING HEALTH FROM DAMAGE DONE!\n", "g_vampire", "1", 4, -1, 0.2f, BenefitID::NONE, BenefitCategory::ABILITY},
+    {BenefitID::VAMPIRE_UPGRADED, "vampire upgraded", "\n\n\n\nIMPROVED VAMPIRE ABILITY\n", "RECOVERING HEALTH & ARMOR FROM DAMAGE DONE!\n", "g_vampire", "2", 24, -1, 0.1f, BenefitID::VAMPIRE, BenefitCategory::ABILITY},
+    {BenefitID::AMMO_REGEN, "ammo regen", "\n\n\n\n\nAMMO REGEN\n\nENABLED!\n", "AMMO REGEN IS NOW ENABLED!\n", "g_ammoregen", "1", 8, -1, 0.15f, BenefitID::NONE, BenefitCategory::ABILITY},
+    {BenefitID::AUTO_HASTE, "auto haste", "\n\n\n\nDUAL-FIRE IS RUNNING THROUGH YOUR VEINS\nFRAGGING WHILE HASTE\nWILL EXTEND QUAD DMG AND DUAL-FIRE TIME!\n", "AUTO-HASTE ENABLED!\n", "g_autohaste", "1", 9, -1, 0.15f, BenefitID::NONE, BenefitCategory::ABILITY},
+    {BenefitID::START_ARMOR, "start armor", "\n\n\n\nSTARTING ARMOR\nENABLED!\n", "STARTING WITH 100 BODY-ARMOR!\n", "g_startarmor", "1", 9, -1, 0.1f, BenefitID::NONE, BenefitCategory::ABILITY},
+    {BenefitID::HA_PICKUP, "H/A Pickup", "\n\n\n\nENHANCED HEALTH & ARMOR PICKUPS\nENABLED!\n", "Health & Armor pickups increased by 60%!\n", "g_hapickup", "1", 1, -1, 0.15f, BenefitID::NONE, BenefitCategory::ABILITY},
+    {BenefitID::TRACED_BULLETS, "Traced Bullets", "\n\n\n\nBULLETS\nUPGRADED!\n", "Piercing-PowerShield Bullets!\n", "g_tracedbullets", "1", 9, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
+    {BenefitID::ENERGY_SHELLS, "Energy Shells", "\n\n\n\nSHELLS\nUPGRADED!\n", "Piercing-PowerShield Shells!\n", "g_energyshells", "1", 9, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
+    {BenefitID::CLUSTER_PROX, "Cluster Prox", "\n\n\n\nIMPROVED PROX GRENADES\n", "Prox Cluster Launcher Enabled\n", "g_upgradeproxs", "1", 25, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
+    {BenefitID::PIERCING_PLASMA, "Piercing Plasma", "\n\n\n\nPlasma-Beam Piercing Mode Enabled\n", "IMPROVED Plasma-Beam!\n", "g_piercingbeam", "1", 25, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
+    {BenefitID::NAPALM_GRENADES, "Napalm GL", "\n\n\n\nIMPROVED GRENADE LAUNCHER!\n", "Napalm-Grenade Launcher Enabled\n", "g_bouncygl", "1", 25, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
+    {BenefitID::BFG_SLIDE, "BFG Slide Mode", "\n\n\n\nBFG SLIDE MODE\nENABLED!\n", "BFG Slide Mode Active!\n", "g_bfgslide", "1", 12, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
+    {BenefitID::BFG_GRAV_PULL, "BFG Gravity Pull", "\n\n\n\nBFG GRAVITY PULL\nENABLED!\n", "BFG Gravity Pull Active!\n", "g_bfgpull", "1", 12, -1, 0.15f, BenefitID::BFG_SLIDE, BenefitCategory::WEAPON},
+    {BenefitID::TESLA_CHAIN_LIGHTNING, "Tesla Chain Lightning", "\n\n\n\nTESLA CHAIN LIGHTNING\nENABLED!\n", "Tesla Chain Lightning Upgrade Active!\n", "g_tesla_chain_lightning", "1", 1, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON}
+};
 
 // --- Compile-time transformation function ---
 // This should also ONLY exist in the .cpp file.
@@ -165,153 +165,153 @@ void CheckBotAndApplyBenefit(const int32_t wave) {
     mark_benefit_obtained(selected_id);
 }
 
-// struct BonusMapping {
-// 	std::string_view benefit_name;
-// 	std::string_view display_text; // The full name for menus
-// 	std::string_view short_name;   // The shorter name for the scoreboard
-// };
+struct BonusMapping {
+	std::string_view benefit_name;
+	std::string_view display_text; // The full name for menus
+	std::string_view short_name;   // The shorter name for the scoreboard
+};
 
 
-// // Definition for the function used in horde_menu.cpp
-// std::string GetActiveBonusesString() {
-//     // This function can remain here as it's a higher-level utility
-//     // that depends on the core benefit system.
-//     // ... (implementation from your horde_menu.cpp)
-//     // ...
-//     // NOTE: You will need to move the implementation of this function
-//     // from horde_menu.cpp to here.
+// Definition for the function used in horde_menu.cpp
+std::string GetActiveBonusesString() {
+    // This function can remain here as it's a higher-level utility
+    // that depends on the core benefit system.
+    // ... (implementation from your horde_menu.cpp)
+    // ...
+    // NOTE: You will need to move the implementation of this function
+    // from horde_menu.cpp to here.
     
-//     // Define mappings from internal names to display names
-// 	static const std::array<BonusMapping, 12> bonus_mappings = { {
-// 		{"vampire upgraded", "Health & Armor Vampirism"},
-// 		{"vampire", "Health Vampirism"},
-// 		{"ammo regen", "Ammo Regen"},
-// 		{"start armor", "Starting Armor"},
-// 		{"auto haste", "Auto-Haste"},
-// 		{"Tesla Chain Lightning", "Tesla Chain Lightning"},
-// 		{"Cluster Prox", "Upgraded Prox Launcher"},
-// 		{"Traced Bullets", "Traced-Energy Bullets"},
-// 		{"Napalm GL", "Napalm-Grenade Launcher"},
-// 		{"BFG Gravity Pull", "BFG Grav-Pull Lasers"},
-// 		{"Piercing Plasma", "Piercing Plasma-Beam"},
-// 		{"Energy Shells", "Energy Shells"}
-// 	} };
+    // Define mappings from internal names to display names
+	static const std::array<BonusMapping, 12> bonus_mappings = { {
+		{"vampire upgraded", "Health & Armor Vampirism"},
+		{"vampire", "Health Vampirism"},
+		{"ammo regen", "Ammo Regen"},
+		{"start armor", "Starting Armor"},
+		{"auto haste", "Auto-Haste"},
+		{"Tesla Chain Lightning", "Tesla Chain Lightning"},
+		{"Cluster Prox", "Upgraded Prox Launcher"},
+		{"Traced Bullets", "Traced-Energy Bullets"},
+		{"Napalm GL", "Napalm-Grenade Launcher"},
+		{"BFG Gravity Pull", "BFG Grav-Pull Lasers"},
+		{"Piercing Plasma", "Piercing Plasma-Beam"},
+		{"Energy Shells", "Energy Shells"}
+	} };
 
-//     std::vector<std::string_view> active_bonuses;
-// 	active_bonuses.reserve(bonus_mappings.size());
+    std::vector<std::string_view> active_bonuses;
+	active_bonuses.reserve(bonus_mappings.size());
 
-//     bool has_vampire_upgraded = has_benefit(BenefitID::VAMPIRE_UPGRADED);
+    bool has_vampire_upgraded = has_benefit(BenefitID::VAMPIRE_UPGRADED);
 
-//     for (size_t i = 0; i < BotsBonusesSoA::NUM_BOTSBONUS; ++i) {
-//         BenefitID id = static_cast<BenefitID>(i);
-//         if (id == BenefitID::VAMPIRE && has_vampire_upgraded) {
-//             continue; // Skip base vampire if upgraded is active
-//         }
-//         if (has_benefit(id)) {
-//             // Find the corresponding display text
-//             for(const auto& mapping : bonus_mappings) {
-//                 if (strcmp(g_BotsBonuses.names[i], mapping.benefit_name.data()) == 0) {
-//                     active_bonuses.push_back(mapping.display_text);
-//                     break;
-//                 }
-//             }
-//         }
-//     }
+    for (size_t i = 0; i < BotsBonusesSoA::NUM_BOTSBONUS; ++i) {
+        BenefitID id = static_cast<BenefitID>(i);
+        if (id == BenefitID::VAMPIRE && has_vampire_upgraded) {
+            continue; // Skip base vampire if upgraded is active
+        }
+        if (has_benefit(id)) {
+            // Find the corresponding display text
+            for(const auto& mapping : bonus_mappings) {
+                if (strcmp(g_BotsBonuses.names[i], mapping.benefit_name.data()) == 0) {
+                    active_bonuses.push_back(mapping.display_text);
+                    break;
+                }
+            }
+        }
+    }
 
-//     if (active_bonuses.empty()) {
-// 		return "";
-// 	}
+    if (active_bonuses.empty()) {
+		return "";
+	}
 
-//     // Use your StringBuilder or std::string to format the result
-//     std::string result;
-//     result.reserve(active_bonuses.size() * 30);
+    // Use your StringBuilder or std::string to format the result
+    std::string result;
+    result.reserve(active_bonuses.size() * 30);
 
-// 	for (size_t i = 0; i < active_bonuses.size(); ++i) {
-// 		result += "* ";
-// 		result += active_bonuses[i];
-// 		if (i < active_bonuses.size() - 1) {
-// 			result += "\n";
-// 		}
-// 	}
+	for (size_t i = 0; i < active_bonuses.size(); ++i) {
+		result += "* ";
+		result += active_bonuses[i];
+		if (i < active_bonuses.size() - 1) {
+			result += "\n";
+		}
+	}
 
-// 	return result;
-// }
+	return result;
+}
 
 // Get active bonuses string for a specific player (per-player version)
-// std::string GetPlayerActiveBonusesString(edict_t* player) {
-//     if (!player || !player->client) {
-//         return "";
-//     }
+std::string GetPlayerActiveBonusesString(edict_t* player) {
+    if (!player || !player->client) {
+        return "";
+    }
 
-//     // Using the clear, short names for the scoreboard list
-//     static const std::array<BonusMapping, 13> bonus_mappings = { {
-//         {"vampire upgraded", "Health & Armor Vampirism", "Full Vampirism"},
-//         {"vampire", "Health Vampirism", "Health Vamp"},
-//         {"ammo regen", "Ammo Regen", "Ammo Regen"},
-//         {"start armor", "Starting Armor", "Starting Armor"},
-//         {"H/A Pickup", "H/A Pickup", "H/A Pickup"},
-//         {"auto haste", "Auto-Haste", "Auto Haste"},
-//         {"Tesla Chain Lightning", "Tesla Chain Lightning", "Chain Tesla"},
-//         {"Cluster Prox", "Upgraded Prox Launcher", "Cluster Prox"},
-//         {"Traced Bullets", "Traced-Energy Bullets", "Traced Bullets"},
-//         {"Napalm GL", "Napalm-Grenade Launcher", "Napalm GL"},
-//         {"BFG Gravity Pull", "BFG Grav-Pull Lasers", "BFG Gravity Pull"},
-//         {"Piercing Plasma", "Piercing Plasma-Beam", "Piercing PlasmaBeam"},
-//         {"Energy Shells", "Energy Shells", "Piercing Shells"}
-//     } };
+    // Using the clear, short names for the scoreboard list
+    static const std::array<BonusMapping, 13> bonus_mappings = { {
+        {"vampire upgraded", "Health & Armor Vampirism", "Full Vampirism"},
+        {"vampire", "Health Vampirism", "Health Vamp"},
+        {"ammo regen", "Ammo Regen", "Ammo Regen"},
+        {"start armor", "Starting Armor", "Starting Armor"},
+        {"H/A Pickup", "H/A Pickup", "H/A Pickup"},
+        {"auto haste", "Auto-Haste", "Auto Haste"},
+        {"Tesla Chain Lightning", "Tesla Chain Lightning", "Chain Tesla"},
+        {"Cluster Prox", "Upgraded Prox Launcher", "Cluster Prox"},
+        {"Traced Bullets", "Traced-Energy Bullets", "Traced Bullets"},
+        {"Napalm GL", "Napalm-Grenade Launcher", "Napalm GL"},
+        {"BFG Gravity Pull", "BFG Grav-Pull Lasers", "BFG Gravity Pull"},
+        {"Piercing Plasma", "Piercing Plasma-Beam", "Piercing PlasmaBeam"},
+        {"Energy Shells", "Energy Shells", "Piercing Shells"}
+    } };
 
-//     std::vector<std::string_view> active_bonuses;
-//     active_bonuses.reserve(bonus_mappings.size());
+    std::vector<std::string_view> active_bonuses;
+    active_bonuses.reserve(bonus_mappings.size());
 
-//     bool has_vampire_upgraded = BotHasBenefit(player, BenefitID::VAMPIRE_UPGRADED);
+    bool has_vampire_upgraded = BotHasBenefit(player, BenefitID::VAMPIRE_UPGRADED);
 
-//     for (size_t i = 0; i < BotsBonusesSoA::NUM_BOTSBONUS; ++i) {
-//         BenefitID id = static_cast<BenefitID>(i);
-//         if (id == BenefitID::VAMPIRE && has_vampire_upgraded) {
-//             continue;
-//         }
-//         if (BotHasBenefit(player, id)) {
-//             for(const auto& mapping : bonus_mappings) {
-//                 if (strcmp(g_BotsBonuses.names[i], mapping.benefit_name.data()) == 0) {
-//                     active_bonuses.push_back(mapping.short_name);
-//                     break;
-//                 }
-//             }
-//         }
-//     }
+    for (size_t i = 0; i < BotsBonusesSoA::NUM_BOTSBONUS; ++i) {
+        BenefitID id = static_cast<BenefitID>(i);
+        if (id == BenefitID::VAMPIRE && has_vampire_upgraded) {
+            continue;
+        }
+        if (BotHasBenefit(player, id)) {
+            for(const auto& mapping : bonus_mappings) {
+                if (strcmp(g_BotsBonuses.names[i], mapping.benefit_name.data()) == 0) {
+                    active_bonuses.push_back(mapping.short_name);
+                    break;
+                }
+            }
+        }
+    }
 
-//     if (active_bonuses.empty()) {
-//         return "";
-//     }
+    if (active_bonuses.empty()) {
+        return "";
+    }
 
-//     // --- THIS IS THE NEW SAFETY LOGIC ---
-//     const size_t MAX_BONUSES_TO_DISPLAY = 10; // Display a max of 10 bonuses
-//     std::string result;
-//     result.reserve(256); // Reserve buffer for the list
+    // --- THIS IS THE NEW SAFETY LOGIC ---
+    const size_t MAX_BONUSES_TO_DISPLAY = 10; // Display a max of 10 bonuses
+    std::string result;
+    result.reserve(256); // Reserve buffer for the list
 
-//     result += "Active Bonuses:\n"; // Add the header
+    result += "Active Bonuses:\n"; // Add the header
 
-//     for (size_t i = 0; i < active_bonuses.size(); ++i) {
-//         if (i < MAX_BONUSES_TO_DISPLAY) {
-//             result += "* ";
-//             result += active_bonuses[i];
-//             result += "\n";
-//         }
-//     }
+    for (size_t i = 0; i < active_bonuses.size(); ++i) {
+        if (i < MAX_BONUSES_TO_DISPLAY) {
+            result += "* ";
+            result += active_bonuses[i];
+            result += "\n";
+        }
+    }
 
-//     if (active_bonuses.size() > MAX_BONUSES_TO_DISPLAY) {
-//         result += fmt::format("... and {} more", active_bonuses.size() - MAX_BONUSES_TO_DISPLAY);
-//     }
-//     // --- END OF SAFETY LOGIC ---
+    if (active_bonuses.size() > MAX_BONUSES_TO_DISPLAY) {
+        result += fmt::format("... and {} more", active_bonuses.size() - MAX_BONUSES_TO_DISPLAY);
+    }
+    // --- END OF SAFETY LOGIC ---
 
-//     return result;
-// }
+    return result;
+}
 
 // --- Per-Player Benefit System Implementation ---
 
 // Check if player has a specific benefit
 bool BotHasBenefit(edict_t* player, BenefitID benefit_id) {
-    if (!player || !player->client || !player->svflags & SVF_BOT) return false;
+    if (!player || !player->client || !(player->svflags & SVF_BOT)) return false;
 
     // Disable benefits for non-bots (for testing the new skill system)
     if (!(player->svflags & SVF_BOT)) {
@@ -479,7 +479,7 @@ void BotEarnWeaponPoints(edict_t* player, int32_t points) {
 }
 
 bool BotCanAffordBenefit(edict_t* player, BenefitID benefit_id, int32_t cost) {
-    if (!player || !player->client || !player->svflags & SVF_BOT) return false;
+    if (!player || !player->client || !(player->svflags & SVF_BOT)) return false;
 
     auto category = g_BotsBonuses.categories[static_cast<size_t>(benefit_id)];
     int32_t available_points = (category == BenefitCategory::ABILITY) ?
@@ -490,7 +490,7 @@ bool BotCanAffordBenefit(edict_t* player, BenefitID benefit_id, int32_t cost) {
 }
 
 void BotSpendPoints(edict_t* player, BenefitID benefit_id, int32_t cost) {
-    if (!player || !player->client || !player->svflags & SVF_BOT) return;
+    if (!player || !player->client || !(player->svflags & SVF_BOT)) return;
 
     auto category = g_BotsBonuses.categories[static_cast<size_t>(benefit_id)];
     int32_t* points = (category == BenefitCategory::ABILITY) ?
@@ -525,6 +525,9 @@ static const BenefitID AUTO_UPGRADE_PRIORITY_WEAPONS[] = {
 static void AutoBuyCategory(edict_t* player, BenefitCategory category) {
     if (!player || !player->client) return;
 
+    bool is_bot = (player->svflags & SVF_BOT);
+    const char* player_name = GetPlayerName(player);
+
     int32_t* points = (category == BenefitCategory::ABILITY) ?
                       &player->client->pers.ability_points :
                       &player->client->pers.weapon_points;
@@ -545,9 +548,15 @@ static void AutoBuyCategory(edict_t* player, BenefitCategory category) {
     for (size_t idx = 0; idx < list_size && *points > 0; ++idx) {
         BenefitID benefit_id = priority_list[idx];
         size_t i = static_cast<size_t>(benefit_id);
+        const char* benefit_name = g_BotsBonuses.names[i];
 
         // Skip if already owned
-        if (BotHasBenefit(player, benefit_id)) continue;
+        if (BotHasBenefit(player, benefit_id)) {
+            if (is_bot) {
+                gi.Com_PrintFmt("[DEBUG] {} already has {}, skipping\n", player_name, benefit_name);
+            }
+            continue;
+        }
 
         // Set costs based on benefit type
         int32_t cost = 1; // Default cost
@@ -557,22 +566,50 @@ static void AutoBuyCategory(edict_t* player, BenefitCategory category) {
         }
 
         // Check if can afford
-        if (*points < cost) continue;
+        if (*points < cost) {
+            if (is_bot) {
+                gi.Com_PrintFmt("[DEBUG] {} cannot afford {} (cost={}, points={})\n",
+                    player_name, benefit_name, cost, *points);
+            }
+            continue;
+        }
 
         // Check wave requirements (for auto-buy only)
         int32_t min_wave = g_BotsBonuses.min_levels[i];
-        if (current_wave_level < min_wave) continue;
+        if (current_wave_level < min_wave) {
+            if (is_bot) {
+                gi.Com_PrintFmt("[DEBUG] {} wave req not met for {} (wave={}, min={})\n",
+                    player_name, benefit_name, current_wave_level, min_wave);
+            }
+            continue;
+        }
 
         // Check prerequisites
         auto prereq = g_BotsBonuses.prerequisites[i];
         if (prereq != BenefitID::NONE && !BotHasBenefit(player, prereq)) {
+            if (is_bot) {
+                const char* prereq_name = g_BotsBonuses.names[static_cast<size_t>(prereq)];
+                gi.Com_PrintFmt("[DEBUG] {} missing prereq {} for {}\n",
+                    player_name, prereq_name, benefit_name);
+            }
             continue;
         }
 
         // Purchase the benefit
+        if (is_bot) {
+            gi.Com_PrintFmt("[DEBUG] {} attempting to purchase {} (cost={})\n",
+                player_name, benefit_name, cost);
+        }
+
         if (BotPurchaseBenefit(player, benefit_id, cost)) {
             player->client->pers.auto_purchased_benefits_mask |= (1u << static_cast<uint8_t>(benefit_id));
-          //  gi.LocClient_Print(player, PRINT_HIGH, "Auto-upgrade: {}\n", g_BotsBonuses.names[i]);
+            if (is_bot) {
+                gi.Com_PrintFmt("[DEBUG] {} successfully purchased {}!\n", player_name, benefit_name);
+            }
+        } else {
+            if (is_bot) {
+                gi.Com_PrintFmt("[DEBUG] {} FAILED to purchase {}!\n", player_name, benefit_name);
+            }
         }
     }
 }
@@ -581,6 +618,9 @@ static void AutoBuyCategory(edict_t* player, BenefitCategory category) {
 void CheckBotAutoBuy(edict_t* player) {
     if (!player || !player->client) return;
 
+    bool is_bot = (player->svflags & SVF_BOT);
+    const char* player_name = GetPlayerName(player);
+
     // Check if enough time has passed since last auto-buy check
     if (level.time < player->client->pers.last_auto_buy_check + 2_sec) {
         return;
@@ -588,29 +628,57 @@ void CheckBotAutoBuy(edict_t* player) {
 
     player->client->pers.last_auto_buy_check = level.time;
 
+    if (is_bot) {
+        gi.Com_PrintFmt("[DEBUG] CheckBotAutoBuy for {}: ability_pts={}, weapon_pts={}, auto_buy_ability={}, auto_buy_weapon={}\n",
+            player_name,
+            player->client->pers.ability_points,
+            player->client->pers.weapon_points,
+            player->client->pers.auto_buy_benefit_bot,
+            player->client->pers.auto_buy_benefit_weapons_bot);
+    }
+
     // Auto-buy abilities if enabled and player has points
     if (player->client->pers.auto_buy_benefit_bot && player->client->pers.ability_points > 0) {
+        if (is_bot) {
+            gi.Com_PrintFmt("[DEBUG] {} calling AutoBuyCategory for ABILITY\n", player_name);
+        }
         AutoBuyCategory(player, BenefitCategory::ABILITY);
     }
 
     // Auto-buy weapons if enabled and player has points
     if (player->client->pers.auto_buy_benefit_weapons_bot && player->client->pers.weapon_points > 0) {
+        if (is_bot) {
+            gi.Com_PrintFmt("[DEBUG] {} calling AutoBuyCategory for WEAPON\n", player_name);
+        }
         AutoBuyCategory(player, BenefitCategory::WEAPON);
     }
 }
 
 // Benefit purchasing with per-player messages
 bool BotPurchaseBenefit(edict_t* player, BenefitID benefit_id, int32_t cost) {
-    if (!player || !player->client || !player->svflags & SVF_BOT) return false;
+if (!player || !player->client || !(player->svflags & SVF_BOT)) {
+        gi.Com_PrintFmt("[DEBUG] BotPurchaseBenefit: player validation failed (not a bot)\n");
+        return false;
+    }
+
+    bool is_bot = (player->svflags & SVF_BOT);
+    const char* player_name = GetPlayerName(player);
+    const char* benefit_name = g_BotsBonuses.names[static_cast<size_t>(benefit_id)];
 
     // Check if player can afford it
     if (!BotCanAffordBenefit(player, benefit_id, cost)) {
+        if (is_bot) {
+            gi.Com_PrintFmt("[DEBUG] {} cannot afford {} in BotPurchaseBenefit\n", player_name, benefit_name);
+        }
         gi.LocClient_Print(player, PRINT_HIGH, "Not enough points!\n");
         return false;
     }
 
     // Check if already owned
     if (BotHasBenefit(player, benefit_id)) {
+        if (is_bot) {
+            gi.Com_PrintFmt("[DEBUG] {} already owns {} in BotPurchaseBenefit\n", player_name, benefit_name);
+        }
         gi.LocClient_Print(player, PRINT_HIGH, "Already owned!\n");
         return false;
     }
@@ -622,11 +690,20 @@ bool BotPurchaseBenefit(edict_t* player, BenefitID benefit_id, int32_t cost) {
     auto prereq = g_BotsBonuses.prerequisites[static_cast<size_t>(benefit_id)];
     if (prereq != BenefitID::NONE && !BotHasBenefit(player, prereq)) {
         const char* prereq_name = g_BotsBonuses.names[static_cast<size_t>(prereq)];
+        if (is_bot) {
+            gi.Com_PrintFmt("[DEBUG] {} missing prereq {} for {} in BotPurchaseBenefit\n",
+                player_name, prereq_name, benefit_name);
+        }
         gi.LocClient_Print(player, PRINT_HIGH, "Requires {} first!\n", prereq_name);
         return false;
     }
 
     // Purchase the benefit
+    if (is_bot) {
+        gi.Com_PrintFmt("[DEBUG] {} spending points and activating {} in BotPurchaseBenefit\n",
+            player_name, benefit_name);
+    }
+
     BotSpendPoints(player, benefit_id, cost);
     BotActivateBenefit(player, benefit_id);
     BotShowBenefitMessage(player, benefit_id);
@@ -661,6 +738,7 @@ void ProcessWaveRewards(int32_t wave) {
         if (!player || !player->client) continue;
 
         bool is_bot = (player->svflags & SVF_BOT);
+        const char* player_name = GetPlayerName(player);
 
         // Ability points every 4 waves starting from wave 4
         if (wave >= 4 && (wave % 4) == 0) {
@@ -669,6 +747,9 @@ void ProcessWaveRewards(int32_t wave) {
             if (!is_bot) {
                 gi.LocClient_Print(player, PRINT_HIGH, "+1 Ability Point! (Total: {})\n",
                           player->client->pers.ability_points);
+            } else {
+                gi.Com_PrintFmt("[DEBUG] Bot {} earned ability point. Total: {}\n",
+                    player_name, player->client->pers.ability_points);
             }
         }
 
@@ -679,6 +760,9 @@ void ProcessWaveRewards(int32_t wave) {
             if (!is_bot) {
                 gi.LocClient_Print(player, PRINT_HIGH, "+1 Weapon Point! (Total: {})\n",
                           player->client->pers.weapon_points);
+            } else {
+                gi.Com_PrintFmt("[DEBUG] Bot {} earned weapon point. Total: {}\n",
+                    player_name, player->client->pers.weapon_points);
             }
         }
 
