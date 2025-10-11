@@ -94,6 +94,16 @@ static const UpgradeDefinition UPGRADE_DEFS[] = {
         "Damage vs barrels: 50% (0.5x)\n"
         "Max: 21 damage, 1500 HP",
         10, 1, UpgradeCategory::ABILITY, nullptr, 0
+    },
+    {
+        "monster_summon",
+        "Monster Summon",
+        "Summon monsters to fight for you\n"
+        "Spawn cost: 25 cubes\n"
+        "Upkeep: -1 PC regen per monster alive\n"
+        "Base: 100 HP, 0 Armor\n"
+        "Each level: +50 HP, +25 Armor",
+        10, 1, UpgradeCategory::ABILITY, nullptr, 0
     }
 
     // More abilities will be added here in future phases
@@ -155,6 +165,8 @@ int8_t GetSkillLevel(edict_t* player, const char* upgrade_id) {
         return player->client->pers.skills.sentrygun;
     else if (strcmp(upgrade_id, "lasers") == 0)
         return player->client->pers.skills.lasers;
+    else if (strcmp(upgrade_id, "monster_summon") == 0)
+        return player->client->pers.skills.monster_summon;
 
     return 0;
 }
@@ -255,6 +267,12 @@ bool UpgradeSkill(edict_t* player, const char* upgrade_id) {
         }
     } else if (strcmp(upgrade_id, "lasers") == 0) {
         player->client->pers.skills.lasers++;
+    } else if (strcmp(upgrade_id, "monster_summon") == 0) {
+        player->client->pers.skills.monster_summon++;
+        // Give the item when first upgraded (0 -> 1)
+        if (player->client->pers.skills.monster_summon == 1) {
+            player->client->pers.inventory[IT_ITEM_STROGGSUMM] = 1;
+        }
     }
 
     return true;
@@ -372,6 +390,7 @@ void ResetAllSkills(edict_t* player) {
     total_points += player->client->pers.skills.pc_regen - player->client->pers.skills.free_pc_regen;
     total_points += player->client->pers.skills.sentrygun;
     total_points += player->client->pers.skills.lasers;
+    total_points += player->client->pers.skills.monster_summon;
 
     if (total_points == 0) {
         gi.LocClient_Print(player, PRINT_HIGH, nullptr, "No skills to reset!\n");
@@ -395,6 +414,7 @@ void ResetAllSkills(edict_t* player) {
     player->client->pers.skills.pc_regen = player->client->pers.skills.free_pc_regen;
     player->client->pers.skills.sentrygun = 0;
     player->client->pers.skills.lasers = 0;
+    player->client->pers.skills.monster_summon = 0;
     // Note: free_vitality, free_max_ammo, and free_pc_regen are NOT reset - they're permanent
 
     // Refund all points

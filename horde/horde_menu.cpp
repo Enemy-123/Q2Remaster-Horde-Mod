@@ -426,6 +426,9 @@ constexpr size_t RESPAWN_WEAPON_MENU_SIZE = 18; // Title, blank, current weapon,
 static pmenu_t respawn_weapon_menu[RESPAWN_WEAPON_MENU_SIZE];
 static size_t respawn_weapon_current_page = 0;
 
+// Abilities menu pagination
+static size_t abilities_current_page = 0;
+
 // Function to categorize the maps based on g_map_list cvar
 void CategorizeMapList()
 {
@@ -2605,9 +2608,28 @@ void AbilitiesMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	if (!item->SelectFunc)
 		return;
 
+	// Handle pagination
+	if (strcmp(item->text_arg1, "next_page") == 0)
+	{
+		abilities_current_page++;
+		PMenu_Close(ent);
+		OpenAbilitiesMenu(ent);
+		return;
+	}
+
+	if (strcmp(item->text_arg1, "prev_page") == 0)
+	{
+		if (abilities_current_page > 0)
+			abilities_current_page--;
+		PMenu_Close(ent);
+		OpenAbilitiesMenu(ent);
+		return;
+	}
+
 	// Handle back navigation
 	if (strcmp(item->text_arg1, "back_to_upgrade") == 0)
 	{
+		abilities_current_page = 0; // Reset to first page when returning
 		PMenu_Close(ent);
 		OpenUpgradeMenu(ent);
 		return;
@@ -2640,7 +2662,7 @@ void AbilitiesMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	}
 }
 
-// Create Abilities Menu - New skill-based system
+// Create Abilities Menu - New skill-based system with pagination
 pmenuhnd_t *CreateAbilitiesMenu(edict_t *ent)
 {
 	if (!ent || !ent->client)
@@ -2650,100 +2672,139 @@ pmenuhnd_t *CreateAbilitiesMenu(edict_t *ent)
 	memset(abilities_menu, 0, sizeof(abilities_menu));
 	int menu_index = 0;
 
-	// Header
-	Q_strlcpy(abilities_menu[menu_index].text, "Upgrade Ability Menu", sizeof(abilities_menu[menu_index].text));
-	abilities_menu[menu_index].align = PMENU_ALIGN_CENTER;
-	abilities_menu[menu_index].SelectFunc = nullptr;
-	menu_index++;
+	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg1 = nullptr)
+	{
+		if (menu_index < static_cast<int>(std::size(abilities_menu)))
+		{
+			Q_strlcpy(abilities_menu[menu_index].text, text, sizeof(abilities_menu[menu_index].text));
+			abilities_menu[menu_index].align = align;
+			abilities_menu[menu_index].SelectFunc = func;
+			if (arg1)
+				Q_strlcpy(abilities_menu[menu_index].text_arg1, arg1, sizeof(abilities_menu[menu_index].text_arg1));
+			menu_index++;
+		}
+	};
 
-	// Separator
-	Q_strlcpy(abilities_menu[menu_index].text, "---", sizeof(abilities_menu[menu_index].text));
-	abilities_menu[menu_index].align = PMENU_ALIGN_CENTER;
-	abilities_menu[menu_index].SelectFunc = nullptr;
-	menu_index++;
-
-	// List upgradeable abilities
+	// Get all ability upgrades
 	const UpgradeDefinition* defs = GetUpgradeDefinitions();
 	size_t def_count = GetUpgradeDefinitionCount();
 
+	// Count total abilities
+	size_t total_abilities = 0;
+	for (size_t i = 0; i < def_count; ++i)
+	{
+		if (defs[i].category == UpgradeCategory::ABILITY)
+			total_abilities++;
+	}
+
+	// Pagination settings (matching respawn weapon menu: 10 items per page)
+	constexpr size_t abilities_per_page = 10;
+	size_t total_pages = (total_abilities + abilities_per_page - 1) / abilities_per_page;
+
+	// Wrap page number
+	if (abilities_current_page >= total_pages && total_pages > 0)
+		abilities_current_page = 0;
+
+	// Calculate ability range for current page
+	size_t start_index = abilities_current_page * abilities_per_page;
+	size_t end_index = std::min(start_index + abilities_per_page, total_abilities);
+
+	// Header
+	add_entry("Upgrade Ability Menu", PMENU_ALIGN_CENTER);
+	add_entry("", PMENU_ALIGN_CENTER);
+
+	// Display abilities for current page
+	size_t ability_counter = 0;
+	int item_number = 1;
 	bool has_abilities = false;
-	int item_number = 1;  // Start numbering from 1
-	for (size_t i = 0; i < def_count && menu_index < 25; ++i)
+
+	for (size_t i = 0; i < def_count; ++i)
 	{
 		if (defs[i].category != UpgradeCategory::ABILITY)
 			continue;
 
-		int8_t current_level = GetSkillLevel(ent, defs[i].id);
-		int8_t max_level = defs[i].max_level;
-
-		// Show ability with current level
-		if (max_level == 1)
+		// Check if this ability is in the current page range
+		if (ability_counter >= start_index && ability_counter < end_index)
 		{
-			// Boolean ability (owned or not)
-			if (current_level > 0)
+			int8_t current_level = GetSkillLevel(ent, defs[i].id);
+			int8_t max_level = defs[i].max_level;
+
+			char item_text[64];
+
+			// Show ability with current level
+			if (max_level == 1)
 			{
-				MenuFormatItemWithOwned(abilities_menu[menu_index].text,
-				                        sizeof(abilities_menu[menu_index].text),
-				                        item_number, defs[i].name);
-				abilities_menu[menu_index].SelectFunc = AbilitiesMenuHandler; // Allow viewing details
+				// Boolean ability (owned or not)
+				if (current_level > 0)
+				{
+					MenuFormatItemWithOwned(item_text, sizeof(item_text), item_number, defs[i].name);
+				}
+				else
+				{
+					MenuFormatItemWithCost(item_text, sizeof(item_text), item_number, defs[i].name, defs[i].cost_per_level);
+				}
 			}
 			else
 			{
-				MenuFormatItemWithCost(abilities_menu[menu_index].text,
-				                       sizeof(abilities_menu[menu_index].text),
-				                       item_number, defs[i].name, defs[i].cost_per_level);
-				abilities_menu[menu_index].SelectFunc = AbilitiesMenuHandler; // Allow viewing details
+				// Multi-level ability - use progress indicator [X/Y]
+				MenuFormatItemWithProgress(item_text, sizeof(item_text), item_number, defs[i].name, current_level, max_level);
 			}
-		}
-		else
-		{
-			// Multi-level ability - use progress indicator [X/Y]
-			MenuFormatItemWithProgress(abilities_menu[menu_index].text,
-			                           sizeof(abilities_menu[menu_index].text),
-			                           item_number, defs[i].name, current_level, max_level);
-			abilities_menu[menu_index].SelectFunc = AbilitiesMenuHandler; // Always allow selection to view details
+
+			add_entry(item_text, PMENU_ALIGN_LEFT, AbilitiesMenuHandler, defs[i].id);
+			item_number++;
+			has_abilities = true;
 		}
 
-		Q_strlcpy(abilities_menu[menu_index].text_arg1, defs[i].id, sizeof(abilities_menu[menu_index].text_arg1));
-		abilities_menu[menu_index].align = PMENU_ALIGN_LEFT;
-		menu_index++;
-		item_number++;
-		has_abilities = true;
+		ability_counter++;
+	}
+
+	// Fill remaining ability slots if we have fewer than 10 abilities on this page
+	for (size_t i = end_index - start_index; i < abilities_per_page; ++i)
+	{
+		add_entry("", PMENU_ALIGN_CENTER);
 	}
 
 	if (!has_abilities)
 	{
-		Q_strlcpy(abilities_menu[menu_index].text, "No abilities available", sizeof(abilities_menu[menu_index].text));
-		abilities_menu[menu_index].align = PMENU_ALIGN_CENTER;
-		abilities_menu[menu_index].SelectFunc = nullptr;
-		menu_index++;
+		add_entry("No abilities available", PMENU_ALIGN_CENTER);
 	}
 
-	// Separator before back option
-	Q_strlcpy(abilities_menu[menu_index].text, "---", sizeof(abilities_menu[menu_index].text));
-	abilities_menu[menu_index].align = PMENU_ALIGN_CENTER;
-	abilities_menu[menu_index].SelectFunc = nullptr;
-	menu_index++;
+	// Navigation section
+	add_entry("", PMENU_ALIGN_CENTER);
 
-		// Points display
-	G_FmtTo(abilities_menu[menu_index].text, "You have: {} points to upgrade", ent->client->pers.skill_points);
-	abilities_menu[menu_index].align = PMENU_ALIGN_CENTER;
-	abilities_menu[menu_index].SelectFunc = nullptr;
-	menu_index++;
-	
+	// Next button (only if not on last page)
+	if (abilities_current_page < total_pages - 1)
+	{
+		add_entry("Next >", PMENU_ALIGN_LEFT, AbilitiesMenuHandler, "next_page");
+	}
+	else
+	{
+		add_entry("", PMENU_ALIGN_CENTER);
+	}
+
+	// Previous button (only if not on first page)
+	if (abilities_current_page > 0)
+	{
+		add_entry("< Previous", PMENU_ALIGN_LEFT, AbilitiesMenuHandler, "prev_page");
+	}
+	else
+	{
+		add_entry("", PMENU_ALIGN_CENTER);
+	}
+
+	// Separator
+	add_entry("---", PMENU_ALIGN_CENTER);
+
+	// Points display
+	char points_text[64];
+	G_FmtTo(points_text, "You have: {} points to upgrade", ent->client->pers.skill_points);
+	add_entry(points_text, PMENU_ALIGN_CENTER);
+
 	// Reset all skills option
-	Q_strlcpy(abilities_menu[menu_index].text, "Reset All Skills (Free)", sizeof(abilities_menu[menu_index].text));
-	abilities_menu[menu_index].align = PMENU_ALIGN_LEFT;
-	abilities_menu[menu_index].SelectFunc = AbilitiesMenuHandler;
-	Q_strlcpy(abilities_menu[menu_index].text_arg1, "reset_skills", sizeof(abilities_menu[menu_index].text_arg1));
-	menu_index++;
+	add_entry("Reset All Skills (Free)", PMENU_ALIGN_LEFT, AbilitiesMenuHandler, "reset_skills");
 
 	// Back to upgrade menu
-	Q_strlcpy(abilities_menu[menu_index].text, "< Back", sizeof(abilities_menu[menu_index].text));
-	abilities_menu[menu_index].align = PMENU_ALIGN_LEFT;
-	abilities_menu[menu_index].SelectFunc = AbilitiesMenuHandler;
-	Q_strlcpy(abilities_menu[menu_index].text_arg1, "back_to_upgrade", sizeof(abilities_menu[menu_index].text_arg1));
-	menu_index++;
+	add_entry("< Back", PMENU_ALIGN_LEFT, AbilitiesMenuHandler, "back_to_upgrade");
 
 	return PMenu_Open(ent, abilities_menu, 0, menu_index, nullptr, nullptr);
 }

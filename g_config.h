@@ -301,6 +301,19 @@ struct FireballConfig
 	int cost = 15;  // Power cube cost per fireball
 };
 
+// Monster Summon configuration
+struct SummonConfig
+{
+	int spawn_cost = 25;            // Power cube cost to spawn a monster
+	int upkeep_per_monster = 1;     // PC regen consumed per alive monster (reduces effective regen level)
+	int initial_health = 100;       // Base health at level 1
+	int addon_health = 50;          // Health added per upgrade level
+	int initial_armor = 0;          // Base armor at level 1
+	int addon_armor = 25;           // Armor added per upgrade level
+	float damage_scale = 1.0f;      // Damage multiplier for summoned monsters
+	float speed_scale = 1.0f;       // Speed multiplier for summoned monsters
+};
+
 // Hook configuration (offhand hook system from hook.cpp)
 struct HookConfig
 {
@@ -550,6 +563,7 @@ struct GameConfig
 	// Special abilities
 	BombSpellConfig bomb_spell;
 	FireballConfig fireball;
+	SummonConfig summon;
 
 	// Hook and Grapple
 	HookConfig hook;

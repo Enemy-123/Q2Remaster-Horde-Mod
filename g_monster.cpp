@@ -1475,6 +1475,34 @@ THINK(monster_think) (edict_t* self) -> void
 		return;
 	}
 
+	// Monster upkeep system - drain 1 cube per second per summoned monster (asynchronous)
+	// Each monster has its own timer, so they drain independently based on spawn time
+	if (g_horde->integer && self->monsterinfo.issummoned && self->chain && self->chain->client)
+	{
+		// Check if it's time to drain a cube (1 second interval)
+		if (level.time >= self->monsterinfo.upkeep_time)
+		{
+			edict_t* owner = self->chain;
+
+			// Try to drain 1 cube from owner
+			if (owner->client->pers.horde_power_cubes > 0)
+			{
+				owner->client->pers.horde_power_cubes -= 1;
+			}
+			else
+			{
+				// Owner can't pay upkeep - remove this monster
+				gi.LocClient_Print(owner, PRINT_HIGH, "Couldn't keep up the cost - Removing summon!\n");
+				T_Damage(self, world, world, vec3_origin, self->s.origin,
+					vec3_origin, 99999, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG);
+				return; // Monster is being removed, exit early
+			}
+
+			// Set next upkeep time (1 second from now)
+			self->monsterinfo.upkeep_time = level.time + 1_sec;
+		}
+	}
+
 	// Stygian/Friendly Health Regeneration
 	//  check order for fast early-out. The timer check is first as it fails most often.
 	if (level.time >= self->monsterinfo.next_regen_time &&

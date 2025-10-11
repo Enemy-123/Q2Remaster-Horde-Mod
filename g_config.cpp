@@ -816,6 +816,20 @@ void Config_Load(const char* basedir)
 			g_config.fireball.addon_speed = GetJsonInt(f, "addon_speed", 35);
 			g_config.fireball.cost = GetJsonInt(f, "cost", 15);
 		}
+
+		// Monster Summon
+		if (abilities.isMember("summon") && abilities["summon"].isObject())
+		{
+			const Json::Value& s = abilities["summon"];
+			g_config.summon.spawn_cost = GetJsonInt(s, "spawn_cost", 25);
+			g_config.summon.upkeep_per_monster = GetJsonInt(s, "upkeep_per_monster", 1);
+			g_config.summon.initial_health = GetJsonInt(s, "initial_health", 100);
+			g_config.summon.addon_health = GetJsonInt(s, "addon_health", 50);
+			g_config.summon.initial_armor = GetJsonInt(s, "initial_armor", 0);
+			g_config.summon.addon_armor = GetJsonInt(s, "addon_armor", 25);
+			g_config.summon.damage_scale = GetJsonFloat(s, "damage_scale", 1.0f);
+			g_config.summon.speed_scale = GetJsonFloat(s, "speed_scale", 1.0f);
+		}
 	}
 
 	// Load hook config

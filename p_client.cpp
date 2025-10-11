@@ -1176,7 +1176,9 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 			if (client->pers.skills.sentrygun > 0) {
 				client->pers.inventory[IT_ITEM_SENTRYGUN] = 1;
 			}
-			client->pers.inventory[IT_ITEM_STROGGSUMM] = 1;
+			if (client->pers.skills.monster_summon > 0) {
+				client->pers.inventory[IT_ITEM_STROGGSUMM] = 1;
+			}
 		}
 
 		// Trigger auto-buy for late joiner bots after inventory is set up
@@ -4295,10 +4297,14 @@ void Think_PowerCubesRegen(edict_t* ent)
 	if (!g_horde->integer && !pvm->integer)
 		return;
 
+	// NOTE: Upkeep is now handled asynchronously per-monster in their AI think functions
+	// Each monster drains 1 cube per second independently based on their spawn time
+	// PC regen works normally without being affected by upkeep
+
 	// Accumulate time using FRAME_TIME_S (time per frame in seconds)
 	ent->client->pers.pc_regen_time += FRAME_TIME_S.seconds();
 
-	// Calculate regeneration interval: base_regen_time / level
+	// Calculate regeneration interval: base_regen_time / pc_regen_level
 	// Example: 5.0 / 1 = 5 seconds, 5.0 / 10 = 0.5 seconds
 	float regen_interval = g_config.power_cubes_regen.base_regen_time / static_cast<float>(pc_regen_level);
 

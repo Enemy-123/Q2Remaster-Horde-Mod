@@ -1943,6 +1943,9 @@ struct monsterinfo_t
 	edict_t* leader;               // Follow/combat point target
 	vec3_t   spot1;                // Patrol/defend point 1
 	vec3_t   spot2;                // Patrol point 2
+
+	// Monster upkeep system (asynchronous per-monster cube drain)
+	gtime_t  upkeep_time;          // Timer for next cube drain (1 cube per second per monster)
 };;;;
 
 // non-monsterinfo save stuff
@@ -3180,6 +3183,12 @@ struct player_skills_t {
 	// Sentry Guns ability
 	int8_t sentrygun = 0;         // 0-10: Sentry gun stats (health, armor, damage)
 
+	// Lasers ability
+	int8_t lasers = 0;            // 0-10: Laser turret stats (health, damage)
+
+	// Monster Summon ability
+	int8_t monster_summon = 0;    // 0-10: Summon monsters (health, armor, upkeep cost)
+
 	// Weapon Upgrades - Grenade Launcher
 	int8_t gl_damage = 0;         // 0-10: Grenade damage
 	int8_t gl_range = 0;          // 0-10: Grenade range/speed
@@ -3316,9 +3325,6 @@ struct player_skills_t {
 	int8_t disruptor_speed = 0;    // 0-10: Disruptor projectile speed
 	int8_t disruptor_duration = 0; // 0-10: Tracker effect duration (for momentum/damage)
 	bool disruptor_silent = false; // Silent firing (no flash/noise)
-
-	// Lasers ability
-	int8_t lasers = 0;             // 0-10: Laser turret stats (health, damage)
 
 	int8_t reserved[9] = {0};
 };;

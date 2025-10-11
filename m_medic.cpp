@@ -469,6 +469,13 @@ bool finishHeal(edict_t *self)
 			healee->teammaster = self->teammaster; // Point to player owner
 			healee->touch = strogg_summoned_touch; // Always set touch to allow owner to push
 
+			// Inherit PvM level from the summoned medic
+			// This ensures revived monsters scale with the player's monster_summon skill
+			healee->monsterinfo.pvm_level = self->monsterinfo.pvm_level;
+
+			// Initialize upkeep timer for revived monster (1 cube per second asynchronously)
+			healee->monsterinfo.upkeep_time = level.time + 1_sec;
+
 			// Ensure proper collision for summoned monsters
 			healee->svflags &= ~SVF_PLAYER;
 			healee->svflags |= SVF_MONSTER;

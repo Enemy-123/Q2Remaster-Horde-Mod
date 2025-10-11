@@ -236,6 +236,16 @@ static edict_t* spawn_strogg_monster(edict_t* player, const vec3_t& origin, cons
 	// This maintains monster's independence and solidity
 	monster->monsterinfo.bonus_flags |= BF_FRIENDLY;
 
+	// Set PvM level based on player's monster_summon skill level
+	// This scales the monster's stats according to the player's skill
+	if (player && player->client) {
+		monster->monsterinfo.pvm_level = player->client->pers.skills.monster_summon;
+	}
+
+	// Initialize upkeep timer - each monster drains 1 cube per second asynchronously
+	// Set initial time to 1 second from now (staggered based on spawn time)
+	monster->monsterinfo.upkeep_time = level.time + 1_sec;
+
 	// Important: Do NOT set monster->owner = player
 	// We want the monster to remain independent with its own collision
 
@@ -354,6 +364,15 @@ void Use_StroggSummon_Impl(edict_t* ent, gitem_t* item)
 		return;
 	}
 
+	// Check power cube cost (only for non-bots in horde mode)
+	if (g_horde->integer && !(ent->svflags & SVF_BOT)) {
+		int spawn_cost = g_config.summon.spawn_cost;
+		if (ent->client->pers.horde_power_cubes < spawn_cost) {
+			gi.LocClient_Print(ent, PRINT_HIGH, "Not enough power cubes! Need {} cubes to summon.\n", spawn_cost);
+			return;
+		}
+	}
+
 	// Determine max summons based on whether player is a bot
 	int max_summons = (ent->svflags & SVF_BOT) ? 1 : SummonConstants::MAX_SUMMONS_PER_PLAYER();
 
@@ -450,6 +469,11 @@ void Use_StroggSummon_Impl(edict_t* ent, gitem_t* item)
 
 		// Check if spawn succeeded by checking if count increased
 		if (ent->client->resp.num_summons > prev_count) {
+			// Deduct power cube cost (only for non-bots in horde mode)
+			if (g_horde->integer && !(ent->svflags & SVF_BOT)) {
+				ent->client->pers.horde_power_cubes -= g_config.summon.spawn_cost;
+			}
+
 			// Only consume the item if NOT in horde mode OR player is a bot
 			// Non-bot players get infinite uses in horde mode
 			if (!g_horde->integer || (ent->svflags & SVF_BOT)) {
