@@ -1891,8 +1891,10 @@ void Chaingun_Fire(edict_t* ent)
 	// Handle gun state transitions
 	if (ent->client->ps.gunframe > CHAINGUN_READY_FRAME) {
 		// Starting spin-up: Skip to a later frame based on spin level
-		// Level 10 = instant ready (frame 14), Level 0 = start at frame 5
-		int skip_frames = (spin_level * 9) / 10; // 0 at level 0, 9 at level 10
+		// Level 6 = instant ready (frame 14), Level 0 = start at frame 5
+		// Scale: 0->0, 3->4, 6->9 frames skipped
+		int skip_frames = (spin_level * 3) / 2; // 0 at level 0, 9 at level 6
+		if (skip_frames > 9) skip_frames = 9; // Cap at 9 (instant ready)
 		ent->client->ps.gunframe = CHAINGUN_START_FRAME + skip_frames;
 		if (!ent->client->pers.skills.cg_silent)
 		{
@@ -1902,8 +1904,8 @@ void Chaingun_Fire(edict_t* ent)
 	else if ((ent->client->ps.gunframe == CHAINGUN_PAUSE_FRAME) &&
 		!(ent->client->buttons & BUTTON_ATTACK)) {
 		// Releasing fire: Skip spin-down based on spin level
-		// At level 10, instantly stop (skip to end of spindown)
-		if (spin_level >= 8) {
+		// At level 5+, instantly stop (skip to end of spindown)
+		if (spin_level >= 5) {
 			// High spin levels: instant stop, skip spindown animation entirely
 			ent->client->ps.gunframe = CHAINGUN_READY_FRAME + 1; // Go straight to idle
 		} else {
@@ -1921,16 +1923,50 @@ void Chaingun_Fire(edict_t* ent)
 		ent->client->pers.inventory[ent->client->pers.weapon->ammo]) {
 		ent->client->ps.gunframe = CHAINGUN_LOOP_FRAME;
 	}
+	else if ((ent->client->ps.gunframe == CHAINGUN_END_FRAME) &&
+		!(ent->client->buttons & BUTTON_ATTACK)) {
+		// Button released at end of firing cycle - stop immediately at high spin levels
+		if (spin_level >= 5) {
+			ent->client->ps.gunframe = CHAINGUN_READY_FRAME + 1; // Instant stop
+		} else {
+			ent->client->ps.gunframe = CHAINGUN_SPINDOWN_FRAME; // Normal spin-down
+		}
+		ent->client->weapon_sound = 0;
+		if (!ent->client->pers.skills.cg_silent)
+		{
+			gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnd1a.wav"), 1, ATTN_IDLE, 0);
+		}
+		return;
+	}
 	else {
+		// Check if button released during the firing loop - stop immediately
+		if (!(ent->client->buttons & BUTTON_ATTACK) &&
+		    ent->client->ps.gunframe >= CHAINGUN_LOOP_FRAME &&
+		    ent->client->ps.gunframe < CHAINGUN_END_FRAME) {
+			// Stop as soon as button is released during firing
+			if (spin_level >= 5) {
+				ent->client->ps.gunframe = CHAINGUN_READY_FRAME + 1; // Instant stop
+			} else {
+				ent->client->ps.gunframe = CHAINGUN_SPINDOWN_FRAME; // Normal spin-down
+			}
+			ent->client->weapon_sound = 0;
+			if (!ent->client->pers.skills.cg_silent)
+			{
+				gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnd1a.wav"), 1, ATTN_IDLE, 0);
+			}
+			return;
+		}
+
 		// Advance frame - with optional skip during spin-up phase
 		ent->client->ps.gunframe++;
 
 		// During spin-up (frames 5-13), skip additional frames based on spin level
 		if (ent->client->ps.gunframe >= CHAINGUN_START_FRAME &&
 		    ent->client->ps.gunframe < CHAINGUN_PAUSE_FRAME) {
-			// Every 3 levels = 1 extra frame skip during spin-up
-			int extra_skip = spin_level / 3;
-			if (extra_skip > 0 && (ent->client->ps.gunframe % (4 - extra_skip)) == 0) {
+			// Progressive skipping: level 3+ gets 1 extra skip, level 6+ gets 2 extra skips
+			if (spin_level >= 6 && (ent->client->ps.gunframe % 2) == 0) {
+				ent->client->ps.gunframe++;
+			} else if (spin_level >= 3 && (ent->client->ps.gunframe % 3) == 0) {
 				ent->client->ps.gunframe++;
 			}
 		}
