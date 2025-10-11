@@ -594,32 +594,36 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
 	// Apply level-based scaling (PvM leveling system with level-gap difficulty scaling)
-	// When there's a level gap, spawn harder monsters prioritizing lower-level ones for accessibility
-	if (g_lowest_player_level < g_highest_player_level)
+	// Skip this for friendly spawns - they already have their pvm_level set based on the summoner's skill level
+	if (!monster->monsterinfo.isfriendlyspawn)
 	{
-		// Calculate the level gap between highest and lowest players
-		int32_t level_gap = g_highest_player_level - g_lowest_player_level;
-
-		// If gap is significant (>= 3 levels), increase difficulty by spawning more varied-level monsters
-		// This results in ~30% harder spawns overall while still prioritizing lower levels
-		float higher_level_chance = (level_gap >= 3) ? 0.50f : 0.20f;
-
-		if (frandom() < higher_level_chance)
+		// When there's a level gap, spawn harder monsters prioritizing lower-level ones for accessibility
+		if (g_lowest_player_level < g_highest_player_level)
 		{
-			// Random level between lowest and highest (inclusive)
-			// Prioritizes lower levels to help struggling players
-			monster->monsterinfo.pvm_level = irandom(g_lowest_player_level, g_highest_player_level + 1);
+			// Calculate the level gap between highest and lowest players
+			int32_t level_gap = g_highest_player_level - g_lowest_player_level;
+
+			// If gap is significant (>= 3 levels), increase difficulty by spawning more varied-level monsters
+			// This results in ~30% harder spawns overall while still prioritizing lower levels
+			float higher_level_chance = (level_gap >= 3) ? 0.50f : 0.20f;
+
+			if (frandom() < higher_level_chance)
+			{
+				// Random level between lowest and highest (inclusive)
+				// Prioritizes lower levels to help struggling players
+				monster->monsterinfo.pvm_level = irandom(g_lowest_player_level, g_highest_player_level + 1);
+			}
+			else
+			{
+				// Use lowest player level to maintain accessibility
+				monster->monsterinfo.pvm_level = g_lowest_player_level;
+			}
 		}
 		else
 		{
-			// Use lowest player level to maintain accessibility
+			// All players are same level, use that level
 			monster->monsterinfo.pvm_level = g_lowest_player_level;
 		}
-	}
-	else
-	{
-		// All players are same level, use that level
-		monster->monsterinfo.pvm_level = g_lowest_player_level;
 	}
 
 	// Apply centralized PvM level scaling for ALL monsters
@@ -711,6 +715,11 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 	// Note: monster_start() sets max_health = health initially, but we need to update it
 	// here after ApplyMonsterBonusFlags applies health multipliers
 	monster->max_health = monster->health;
+
+	// Update skin after all health scaling is complete to ensure correct appearance
+	if (monster->monsterinfo.setskin)
+		monster->monsterinfo.setskin(monster);
+
 	monster->s.renderfx |= RF_IR_VISIBLE;
 
 	// Apply bonus monster dodge if this is a bonus monster
