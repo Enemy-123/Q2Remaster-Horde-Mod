@@ -2346,7 +2346,17 @@ void weapon_20mm_fire(edict_t* ent)
 	// Apply recoil - push player backward
 	vec3_t forward;
 	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
-	ent->velocity -= forward * g_config.cannon20mm.recoil_force;
+
+	// Apply recoil reduction skill
+	float recoil_force = static_cast<float>(g_config.cannon20mm.recoil_force);
+	if (ent->client->pers.skills.cannon20mm_recoil > 0)
+	{
+		float recoil_multiplier = 1.0f - (ent->client->pers.skills.cannon20mm_recoil * 0.1f);
+		if (recoil_multiplier < 0.0f) recoil_multiplier = 0.0f;
+		recoil_force *= recoil_multiplier;
+	}
+
+	ent->velocity -= forward * recoil_force;
 
 	// Big visual recoil - weapon kicks up high
 	P_AddWeaponKick(ent, ent->client->v_forward * -3, { -4.f, 0.f, 0.f });
