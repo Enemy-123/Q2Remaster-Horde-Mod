@@ -206,7 +206,7 @@ void Use_SentryGun(edict_t* ent, gitem_t* item)
 	}
 
 	// Check power cube cost (only for non-bots in horde mode)
-	if (g_horde->integer && !(ent->svflags & SVF_BOT)) {
+	if (g_horde->integer) {
 		const int cost = g_config.sentrygun.cost;
 		if (ent->client->pers.horde_power_cubes < cost) {
 			gi.LocClient_Print(ent, PRINT_HIGH, "Not enough power cubes! Need {} cubes to deploy.\n", cost);
@@ -311,7 +311,7 @@ void Use_SentryGun(edict_t* ent, gitem_t* item)
 
             // Only consume the item if in horde mode AND player is a bot
             // Non-bot players get infinite uses in horde mode
-            if (!g_horde->integer || (ent->svflags & SVF_BOT)) {
+            if (g_horde->integer && (ent->svflags & SVF_BOT)) {
                 ent->client->pers.inventory[item->id]--;
             }
             

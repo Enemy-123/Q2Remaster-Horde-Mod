@@ -369,7 +369,7 @@ void Use_StroggSummon_Impl(edict_t* ent, gitem_t* item)
 	}
 
 	// Check power cube cost (only for non-bots in horde mode)
-	if (g_horde->integer && !(ent->svflags & SVF_BOT)) {
+	if (g_horde->integer) {
 		int spawn_cost = g_config.summon.spawn_cost;
 		if (ent->client->pers.horde_power_cubes < spawn_cost) {
 			gi.LocClient_Print(ent, PRINT_HIGH, "Not enough power cubes! Need {} cubes to summon.\n", spawn_cost);
@@ -474,13 +474,13 @@ void Use_StroggSummon_Impl(edict_t* ent, gitem_t* item)
 		// Check if spawn succeeded by checking if count increased
 		if (ent->client->resp.num_summons > prev_count) {
 			// Deduct power cube cost (only for non-bots in horde mode)
-			if (g_horde->integer && !(ent->svflags & SVF_BOT)) {
+			if (g_horde->integer) {
 				ent->client->pers.horde_power_cubes -= g_config.summon.spawn_cost;
 			}
 
 			// Only consume the item if NOT in horde mode OR player is a bot
 			// Non-bot players get infinite uses in horde mode
-			if (!g_horde->integer || (ent->svflags & SVF_BOT)) {
+			if (g_horde->integer && (ent->svflags & SVF_BOT)) {
 				ent->client->pers.inventory[item->id]--;
 			}
 			// Message already printed by fire_strogg_summoner
