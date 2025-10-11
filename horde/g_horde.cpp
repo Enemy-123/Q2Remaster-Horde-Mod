@@ -6713,7 +6713,7 @@ void Horde_RunFrame()
 	case horde_state_t::cleanup:
 		if (g_horde_local.monster_spawn_time < currentTime) {
 			HandleWaveCleanupMessage(mapSize, currentWaveEndReason);
-			g_horde_local.warm_time = currentTime + random_time(0.8_sec, 1.5_sec);
+			g_horde_local.warm_time = currentTime + random_time(1.4_sec, 1.9_sec);
 			g_horde_local.state = horde_state_t::rest;
 			CheckAndResetDisabledSpawnPoints();
 		}
@@ -6730,7 +6730,7 @@ void Horde_RunFrame()
 
 	if (waveEnded) {
 		SendCleanupMessage(currentWaveEndReason);
-		g_horde_local.monster_spawn_time = currentTime + 0.5_sec;
+		g_horde_local.monster_spawn_time = currentTime + 1.5_sec;
 		g_horde_local.state = horde_state_t::cleanup;
 		ResetWaveAdvanceState();
 	}

@@ -911,6 +911,7 @@ edict_t* fire_barrel(edict_t* self, const vec3_t& start, const vec3_t& aimdir)
     barrel->dmg = g_config.exploding_barrel.initial_damage +
                   (barrel_level * g_config.exploding_barrel.addon_damage);
     barrel->classname = "horde_barrel";
+    barrel->monsterinfo.pvm_level = barrel_level;  // Store level for g_idview display
     barrel->special_type_id = static_cast<uint8_t>(horde::SpecialEntityTypeID::BARREL);
     barrel->flags |= (FL_DAMAGEABLE | FL_TRAP);
     barrel->clipmask = MASK_PROJECTILE & ~CONTENTS_DEADMONSTER;

@@ -202,7 +202,14 @@ const char* FormatEntityInfo_Fast(edict_t* ent) {
                 break;
             }
             case horde::SpecialEntityTypeID::BARREL: {
-                out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {}", name, stats_source->health).out;
+                out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}", name).out;
+                
+                // Show barrel level from monsterinfo.pvm_level
+                if (stats_source->monsterinfo.pvm_level > 0) {
+                    out = fmt::format_to_n(out, static_cast<size_t>(end - out), " Lv.{}", stats_source->monsterinfo.pvm_level).out;
+                }
+                
+                out = fmt::format_to_n(out, static_cast<size_t>(end - out), "\nH: {}", stats_source->health).out;
 
                 // Show if it's burning
                 if (stats_source->s.effects & EF_BARREL_EXPLODING) {

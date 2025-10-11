@@ -6408,11 +6408,12 @@ public:
 	void addTeamScore()
 	{
 		const char *horde_dogtag_path = "/tags/etqw_strogg.png";
+		// Display Strogg team icon (uses stat 26 = STAT_CTF_TEAM2_HEADER, right side)
+		layout_builder.append(fmt::format(
+			"xv -140 yv 3 picn {} ", horde_dogtag_path));
+
 		if (!level.intermissiontime)
 		{
-			// Display Strogg team icon during gameplay (uses stat 26 = STAT_CTF_TEAM2_HEADER, right side)
-			layout_builder.append(fmt::format(
-				"xv -140 yv 3 picn {} ", horde_dogtag_path));
 
 			// Get the new, safely-limited active bonuses string
 			//std::string activeBonuses = GetPlayerActiveBonusesString(const_cast<edict_t *>(ent));
