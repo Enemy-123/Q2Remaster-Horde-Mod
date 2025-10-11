@@ -6389,24 +6389,28 @@ public:
 		}
 	}
 
-	void addTeamScore()
+		void addTeamScore()
 	{
+		const char *horde_dogtag_path = "/tags/etqw_strogg.png";
+		// Display Strogg team icon (uses stat 26 = STAT_CTF_TEAM2_HEADER, right side)
+		layout_builder.append(fmt::format(
+			"xv -140 yv 3 picn {} ", horde_dogtag_path));
+
 		if (!level.intermissiontime)
 		{
-			// Normal game display
-			layout_builder.append("if 25 xv -140 yv 3 dogtag endif \n");
 
-			// layout_builder.append(
-			// 	"if 0 xv 208 yv 8 string \"{}\" endif \n");
+			// Get the new, safely-limited active bonuses string
+			//std::string activeBonuses = GetPlayerActiveBonusesString(const_cast<edict_t *>(ent));
+			// if (!activeBonuses.empty())
+			// {
+			// 	layout_builder.append(fmt::format(
+			// 		"if 0 xv 208 yv 8 string \"{}\" endif \n", activeBonuses));
+			// }
 		}
 		else
 		{
-			// Intermission display
-			layout_builder.append(fmt::format(
-				"if 25 xv -140 yv 3 dogtag endif "
-				"if 25 xv 205 yv 8 pic 25 endif "
-				"if 0 xv 70 yv -20 19 endif \n",
-				total_score, team_players.size()));
+			// Intermission screen - display Strogg team icon (uses stat 26 = STAT_CTF_TEAM2_HEADER, right side)
+			layout_builder.append("if 26 xv 208 yv 8 pic 25 endif ");
 		}
 	}
 
