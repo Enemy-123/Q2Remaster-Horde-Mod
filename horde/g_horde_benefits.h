@@ -36,8 +36,6 @@ struct BotsBonusesSoA {
     std::array<const char*, NUM_BOTSBONUS> names;
     std::array<const char*, NUM_BOTSBONUS> center_msgs;
     std::array<const char*, NUM_BOTSBONUS> chat_msgs;
-    std::array<const char*, NUM_BOTSBONUS> cvar_names;
-    std::array<const char*, NUM_BOTSBONUS> cvar_values;
     std::array<int32_t, NUM_BOTSBONUS> min_levels;
     std::array<int32_t, NUM_BOTSBONUS> max_levels;
     std::array<float, NUM_BOTSBONUS> weights;
@@ -69,7 +67,6 @@ void CheckBotAndApplyBenefit(int32_t wave);
 bool has_benefit(BenefitID id) noexcept;
 void mark_benefit_obtained(BenefitID id) noexcept;
 std::string GetActiveBonusesString(); // Declaration for the function used in horde_menu.cpp
-//std::string GetPlayerActiveBonusesString(edict_t* player); // Per-player version of GetActiveBonusesString
 
 // Per-player benefit functions
 bool BotHasBenefit(edict_t* player, BenefitID benefit_id);

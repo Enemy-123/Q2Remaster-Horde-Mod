@@ -10,28 +10,26 @@ const struct benefit_source_t {
     const char* name;
     const char* center_msg;
     const char* chat_msg;
-    const char* cvar_name;
-    const char* cvar_value;
     int32_t min_level;
     int32_t max_level;
     float weight;
     BenefitID prereq; // Prerequisite benefit
     BenefitCategory category; // Benefit category
 } BENEFITS_SRC[] = {
-    {BenefitID::VAMPIRE, "vampire", "\n\n\n\nYou're covered in blood!\n\nVampire Ability\nENABLED!\n", "RECOVERING HEALTH FROM DAMAGE DONE!\n", "g_vampire", "1", 4, -1, 0.2f, BenefitID::NONE, BenefitCategory::ABILITY},
-    {BenefitID::VAMPIRE_UPGRADED, "vampire upgraded", "\n\n\n\nIMPROVED VAMPIRE ABILITY\n", "RECOVERING HEALTH & ARMOR FROM DAMAGE DONE!\n", "g_vampire", "2", 24, -1, 0.1f, BenefitID::VAMPIRE, BenefitCategory::ABILITY},
-    {BenefitID::AMMO_REGEN, "ammo regen", "\n\n\n\n\nAMMO REGEN\n\nENABLED!\n", "AMMO REGEN IS NOW ENABLED!\n", "g_ammoregen", "1", 8, -1, 0.15f, BenefitID::NONE, BenefitCategory::ABILITY},
-    {BenefitID::AUTO_HASTE, "auto haste", "\n\n\n\nDUAL-FIRE IS RUNNING THROUGH YOUR VEINS\nFRAGGING WHILE HASTE\nWILL EXTEND QUAD DMG AND DUAL-FIRE TIME!\n", "AUTO-HASTE ENABLED!\n", "g_autohaste", "1", 9, -1, 0.15f, BenefitID::NONE, BenefitCategory::ABILITY},
-    {BenefitID::START_ARMOR, "start armor", "\n\n\n\nSTARTING ARMOR\nENABLED!\n", "STARTING WITH 100 BODY-ARMOR!\n", "g_startarmor", "1", 9, -1, 0.1f, BenefitID::NONE, BenefitCategory::ABILITY},
-    {BenefitID::HA_PICKUP, "H/A Pickup", "\n\n\n\nENHANCED HEALTH & ARMOR PICKUPS\nENABLED!\n", "Health & Armor pickups increased by 60%!\n", "g_hapickup", "1", 1, -1, 0.15f, BenefitID::NONE, BenefitCategory::ABILITY},
-    {BenefitID::TRACED_BULLETS, "Traced Bullets", "\n\n\n\nBULLETS\nUPGRADED!\n", "Piercing-PowerShield Bullets!\n", "g_tracedbullets", "1", 9, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
-    {BenefitID::ENERGY_SHELLS, "Energy Shells", "\n\n\n\nSHELLS\nUPGRADED!\n", "Piercing-PowerShield Shells!\n", "g_energyshells", "1", 9, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
-    {BenefitID::CLUSTER_PROX, "Cluster Prox", "\n\n\n\nIMPROVED PROX GRENADES\n", "Prox Cluster Launcher Enabled\n", "g_upgradeproxs", "1", 25, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
-    {BenefitID::PIERCING_PLASMA, "Piercing Plasma", "\n\n\n\nPlasma-Beam Piercing Mode Enabled\n", "IMPROVED Plasma-Beam!\n", "g_piercingbeam", "1", 25, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
-    {BenefitID::NAPALM_GRENADES, "Napalm GL", "\n\n\n\nIMPROVED GRENADE LAUNCHER!\n", "Napalm-Grenade Launcher Enabled\n", "g_bouncygl", "1", 25, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
-    {BenefitID::BFG_SLIDE, "BFG Slide Mode", "\n\n\n\nBFG SLIDE MODE\nENABLED!\n", "BFG Slide Mode Active!\n", "g_bfgslide", "1", 12, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
-    {BenefitID::BFG_GRAV_PULL, "BFG Gravity Pull", "\n\n\n\nBFG GRAVITY PULL\nENABLED!\n", "BFG Gravity Pull Active!\n", "g_bfgpull", "1", 12, -1, 0.15f, BenefitID::BFG_SLIDE, BenefitCategory::WEAPON},
-    {BenefitID::TESLA_CHAIN_LIGHTNING, "Tesla Chain Lightning", "\n\n\n\nTESLA CHAIN LIGHTNING\nENABLED!\n", "Tesla Chain Lightning Upgrade Active!\n", "g_tesla_chain_lightning", "1", 1, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON}
+    {BenefitID::VAMPIRE, "vampire", "\n\n\n\nYou're covered in blood!\n\nVampire Ability\nENABLED!\n", "RECOVERING HEALTH FROM DAMAGE DONE!\n", 4, -1, 0.2f, BenefitID::NONE, BenefitCategory::ABILITY},
+    {BenefitID::VAMPIRE_UPGRADED, "vampire upgraded", "\n\n\n\nIMPROVED VAMPIRE ABILITY\n", "RECOVERING HEALTH & ARMOR FROM DAMAGE DONE!\n", 24, -1, 0.1f, BenefitID::VAMPIRE, BenefitCategory::ABILITY},
+    {BenefitID::AMMO_REGEN, "ammo regen", "\n\n\n\n\nAMMO REGEN\n\nENABLED!\n", "AMMO REGEN IS NOW ENABLED!\n", 8, -1, 0.15f, BenefitID::NONE, BenefitCategory::ABILITY},
+    {BenefitID::AUTO_HASTE, "auto haste", "\n\n\n\nDUAL-FIRE IS RUNNING THROUGH YOUR VEINS\nFRAGGING WHILE HASTE\nWILL EXTEND QUAD DMG AND DUAL-FIRE TIME!\n", "AUTO-HASTE ENABLED!\n", 9, -1, 0.15f, BenefitID::NONE, BenefitCategory::ABILITY},
+    {BenefitID::START_ARMOR, "start armor", "\n\n\n\nSTARTING ARMOR\nENABLED!\n", "STARTING WITH 100 BODY-ARMOR!\n", 9, -1, 0.1f, BenefitID::NONE, BenefitCategory::ABILITY},
+    {BenefitID::HA_PICKUP, "H/A Pickup", "\n\n\n\nENHANCED HEALTH & ARMOR PICKUPS\nENABLED!\n", "Health & Armor pickups increased by 60%!\n", 1, -1, 0.15f, BenefitID::NONE, BenefitCategory::ABILITY},
+    {BenefitID::TRACED_BULLETS, "Traced Bullets", "\n\n\n\nBULLETS\nUPGRADED!\n", "Piercing-PowerShield Bullets!\n", 9, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
+    {BenefitID::ENERGY_SHELLS, "Energy Shells", "\n\n\n\nSHELLS\nUPGRADED!\n", "Piercing-PowerShield Shells!\n", 9, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
+    {BenefitID::CLUSTER_PROX, "Cluster Prox", "\n\n\n\nIMPROVED PROX GRENADES\n", "Prox Cluster Launcher Enabled\n", 25, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
+    {BenefitID::PIERCING_PLASMA, "Piercing Plasma", "\n\n\n\nPlasma-Beam Piercing Mode Enabled\n", "IMPROVED Plasma-Beam!\n", 25, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
+    {BenefitID::NAPALM_GRENADES, "Napalm GL", "\n\n\n\nIMPROVED GRENADE LAUNCHER!\n", "Napalm-Grenade Launcher Enabled\n", 25, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
+    {BenefitID::BFG_SLIDE, "BFG Slide Mode", "\n\n\n\nBFG SLIDE MODE\nENABLED!\n", "BFG Slide Mode Active!\n", 12, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
+    {BenefitID::BFG_GRAV_PULL, "BFG Gravity Pull", "\n\n\n\nBFG GRAVITY PULL\nENABLED!\n", "BFG Gravity Pull Active!\n", 12, -1, 0.15f, BenefitID::BFG_SLIDE, BenefitCategory::WEAPON},
+    {BenefitID::TESLA_CHAIN_LIGHTNING, "Tesla Chain Lightning", "\n\n\n\nTESLA CHAIN LIGHTNING\nENABLED!\n", "Tesla Chain Lightning Upgrade Active!\n", 1, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON}
 };
 
 // --- Compile-time transformation function ---
@@ -46,8 +44,6 @@ constexpr BotsBonusesSoA create_benefits_soa() {
             soa_data.names[index] = src.name;
             soa_data.center_msgs[index] = src.center_msg;
             soa_data.chat_msgs[index] = src.chat_msg;
-            soa_data.cvar_names[index] = src.cvar_name;
-            soa_data.cvar_values[index] = src.cvar_value;
             soa_data.min_levels[index] = src.min_level;
             soa_data.max_levels[index] = src.max_level;
             soa_data.weights[index] = src.weight;
@@ -235,76 +231,6 @@ std::string GetActiveBonusesString() {
 	}
 
 	return result;
-}
-
-// Get active bonuses string for a specific player (per-player version)
-std::string GetPlayerActiveBonusesString(edict_t* player) {
-    if (!player || !player->client) {
-        return "";
-    }
-
-    // Using the clear, short names for the scoreboard list
-    static const std::array<BonusMapping, 13> bonus_mappings = { {
-        {"vampire upgraded", "Health & Armor Vampirism", "Full Vampirism"},
-        {"vampire", "Health Vampirism", "Health Vamp"},
-        {"ammo regen", "Ammo Regen", "Ammo Regen"},
-        {"start armor", "Starting Armor", "Starting Armor"},
-        {"H/A Pickup", "H/A Pickup", "H/A Pickup"},
-        {"auto haste", "Auto-Haste", "Auto Haste"},
-        {"Tesla Chain Lightning", "Tesla Chain Lightning", "Chain Tesla"},
-        {"Cluster Prox", "Upgraded Prox Launcher", "Cluster Prox"},
-        {"Traced Bullets", "Traced-Energy Bullets", "Traced Bullets"},
-        {"Napalm GL", "Napalm-Grenade Launcher", "Napalm GL"},
-        {"BFG Gravity Pull", "BFG Grav-Pull Lasers", "BFG Gravity Pull"},
-        {"Piercing Plasma", "Piercing Plasma-Beam", "Piercing PlasmaBeam"},
-        {"Energy Shells", "Energy Shells", "Piercing Shells"}
-    } };
-
-    std::vector<std::string_view> active_bonuses;
-    active_bonuses.reserve(bonus_mappings.size());
-
-    bool has_vampire_upgraded = BotHasBenefit(player, BenefitID::VAMPIRE_UPGRADED);
-
-    for (size_t i = 0; i < BotsBonusesSoA::NUM_BOTSBONUS; ++i) {
-        BenefitID id = static_cast<BenefitID>(i);
-        if (id == BenefitID::VAMPIRE && has_vampire_upgraded) {
-            continue;
-        }
-        if (BotHasBenefit(player, id)) {
-            for(const auto& mapping : bonus_mappings) {
-                if (strcmp(g_BotsBonuses.names[i], mapping.benefit_name.data()) == 0) {
-                    active_bonuses.push_back(mapping.short_name);
-                    break;
-                }
-            }
-        }
-    }
-
-    if (active_bonuses.empty()) {
-        return "";
-    }
-
-    // --- THIS IS THE NEW SAFETY LOGIC ---
-    const size_t MAX_BONUSES_TO_DISPLAY = 10; // Display a max of 10 bonuses
-    std::string result;
-    result.reserve(256); // Reserve buffer for the list
-
-    result += "Active Bonuses:\n"; // Add the header
-
-    for (size_t i = 0; i < active_bonuses.size(); ++i) {
-        if (i < MAX_BONUSES_TO_DISPLAY) {
-            result += "* ";
-            result += active_bonuses[i];
-            result += "\n";
-        }
-    }
-
-    if (active_bonuses.size() > MAX_BONUSES_TO_DISPLAY) {
-        result += fmt::format("... and {} more", active_bonuses.size() - MAX_BONUSES_TO_DISPLAY);
-    }
-    // --- END OF SAFETY LOGIC ---
-
-    return result;
 }
 
 // --- Per-Player Benefit System Implementation ---
