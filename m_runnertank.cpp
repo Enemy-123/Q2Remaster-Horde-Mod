@@ -352,11 +352,11 @@ MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 		M_SetAnimation(self, &runnertank_move_start_run);
 	}
 
-	// Don't attack while running unless attack_finished allows it
+	// Try to attack if we have a valid target and attack cooldown has expired
 	if (M_HasValidTarget(self) && level.time >= self->monsterinfo.attack_finished)
 	{
-		// Add some randomness to prevent constant attacking
-		if (frandom() < 0.3f)
+		// Increased chance from 0.3 to 0.5 for more responsive attacking
+		if (frandom() < 0.5f)
 			runnertank_attack(self);
 	}
 }
@@ -1096,6 +1096,11 @@ MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 			M_SetAnimation(self, &runnertank_move_attack_blast);
 			self->monsterinfo.attack_finished = level.time + 3_sec;
 		}
+		else
+		{
+			// If no clear shot, continue running toward enemy
+			runnertank_run(self);
+		}
 	}
 	// Medium range attack selection
 	else if (range <= RANGE_MID)
@@ -1115,6 +1120,11 @@ MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 			M_SetAnimation(self, &runnertank_move_attack_chain);
 			self->monsterinfo.attack_finished = level.time + 3_sec;
 		}
+		else
+		{
+			// If no clear shot, continue running toward enemy
+			runnertank_run(self);
+		}
 	}
 	// Long range attack selection
 	else
@@ -1128,6 +1138,11 @@ MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 		{
 			M_SetAnimation(self, &runnertank_move_attack_pre_rocket);
 			self->monsterinfo.attack_finished = level.time + 4_sec;
+		}
+		else
+		{
+			// If no attack is possible, continue running toward enemy
+			runnertank_run(self);
 		}
 	}
 }
