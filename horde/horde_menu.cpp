@@ -1625,7 +1625,7 @@ void RespawnWeaponMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		return;
 	}
 
-	// Handle "< Back" or "Back to Main Menu"
+	// Handle "Back" or "Back to Main Menu"
 	if (strcmp(selected_text, "Back") == 0 || strcmp(selected_text, "Back to Main Menu") == 0)
 	{
 		respawn_weapon_current_page = 0; // Reset to first page
@@ -1634,7 +1634,7 @@ void RespawnWeaponMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		return;
 	}
 
-	// Handle "Next >"
+	// Handle "Next"
 	if (strcmp(selected_text, "Next") == 0)
 	{
 		respawn_weapon_current_page++;
@@ -1771,7 +1771,7 @@ void OpenRespawnWeaponMenu(edict_t *ent)
 	// Next button (only if not on last page)
 	if (respawn_weapon_current_page < total_pages - 1)
 	{
-		add_entry("Next >", PMENU_ALIGN_LEFT, RespawnWeaponMenuHandler);
+		add_entry("Next", PMENU_ALIGN_LEFT, RespawnWeaponMenuHandler);
 	}
 	else
 	{
@@ -1788,8 +1788,8 @@ void OpenRespawnWeaponMenu(edict_t *ent)
 		add_entry("", PMENU_ALIGN_CENTER);
 	}
 
-	// Back to main menu (always show, with "< Back" label)
-	add_entry("< Back", PMENU_ALIGN_LEFT, RespawnWeaponMenuHandler);
+	// Back to main menu (always show, with "Back" label)
+	add_entry("Back", PMENU_ALIGN_LEFT, RespawnWeaponMenuHandler);
 
 	PMenu_Open(ent, respawn_weapon_menu, -1, count, nullptr, nullptr);
 }
@@ -2645,7 +2645,7 @@ void AbilityDetailMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			// Upgrade button
 			if (can_upgrade)
 			{
-				Q_strlcpy(detail_menu[menu_index].text, "> Upgrade", sizeof(detail_menu[menu_index].text));
+				Q_strlcpy(detail_menu[menu_index].text, "Upgrade", sizeof(detail_menu[menu_index].text));
 				detail_menu[menu_index].align = PMENU_ALIGN_LEFT;
 				detail_menu[menu_index].SelectFunc = AbilityDetailMenuHandler;
 				snprintf(detail_menu[menu_index].text_arg1, sizeof(detail_menu[menu_index].text_arg1), "upgrade_%s", upgrade_id);
@@ -2662,7 +2662,7 @@ void AbilityDetailMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			menu_index++;
 
 			// Back button
-			Q_strlcpy(detail_menu[menu_index].text, "< Back", sizeof(detail_menu[menu_index].text));
+			Q_strlcpy(detail_menu[menu_index].text, "Back", sizeof(detail_menu[menu_index].text));
 			detail_menu[menu_index].align = PMENU_ALIGN_LEFT;
 			detail_menu[menu_index].SelectFunc = AbilityDetailMenuHandler;
 			Q_strlcpy(detail_menu[menu_index].text_arg1, "back_to_abilities", sizeof(detail_menu[menu_index].text_arg1));
@@ -2745,7 +2745,7 @@ pmenuhnd_t *CreateAbilityDetailMenu(edict_t *ent, const char* upgrade_id)
 	// Upgrade button
 	if (can_upgrade)
 	{
-		Q_strlcpy(detail_menu[menu_index].text, "> Upgrade", sizeof(detail_menu[menu_index].text));
+		Q_strlcpy(detail_menu[menu_index].text, "Upgrade", sizeof(detail_menu[menu_index].text));
 		detail_menu[menu_index].align = PMENU_ALIGN_LEFT;
 		detail_menu[menu_index].SelectFunc = AbilityDetailMenuHandler;
 		snprintf(detail_menu[menu_index].text_arg1, sizeof(detail_menu[menu_index].text_arg1), "upgrade_%s", upgrade_id);
@@ -2762,7 +2762,7 @@ pmenuhnd_t *CreateAbilityDetailMenu(edict_t *ent, const char* upgrade_id)
 	menu_index++;
 
 	// Back button
-	Q_strlcpy(detail_menu[menu_index].text, "< Back", sizeof(detail_menu[menu_index].text));
+	Q_strlcpy(detail_menu[menu_index].text, "Back", sizeof(detail_menu[menu_index].text));
 	detail_menu[menu_index].align = PMENU_ALIGN_LEFT;
 	detail_menu[menu_index].SelectFunc = AbilityDetailMenuHandler;
 	Q_strlcpy(detail_menu[menu_index].text_arg1, "back_to_abilities", sizeof(detail_menu[menu_index].text_arg1));
@@ -3109,7 +3109,7 @@ pmenuhnd_t *CreateWeaponsMenu(edict_t *ent)
 	menu_index++;
 
 	// Back to main menu
-	Q_strlcpy(weapons_menu[menu_index].text, "< Back", sizeof(weapons_menu[menu_index].text));
+	Q_strlcpy(weapons_menu[menu_index].text, "Back", sizeof(weapons_menu[menu_index].text));
 	weapons_menu[menu_index].align = PMENU_ALIGN_LEFT;
 	weapons_menu[menu_index].SelectFunc = WeaponsMenuHandler;
 	Q_strlcpy(weapons_menu[menu_index].text_arg1, "back_to_main", sizeof(weapons_menu[menu_index].text_arg1));
@@ -3188,39 +3188,75 @@ pmenuhnd_t *CreateUpgradeMenu(edict_t *ent)
 	menu_index++;
 
 	// Separator
-	Q_strlcpy(upgrade_menu[menu_index].text, "---", sizeof(upgrade_menu[menu_index].text));
+	Q_strlcpy(upgrade_menu[menu_index].text, "", sizeof(upgrade_menu[menu_index].text));
 	upgrade_menu[menu_index].align = PMENU_ALIGN_CENTER;
 	upgrade_menu[menu_index].SelectFunc = nullptr;
 	menu_index++;
 
 	// Menu options
-	Q_strlcpy(upgrade_menu[menu_index].text, "> Abilities", sizeof(upgrade_menu[menu_index].text));
+	Q_strlcpy(upgrade_menu[menu_index].text, "Abilities", sizeof(upgrade_menu[menu_index].text));
 	upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
 	upgrade_menu[menu_index].SelectFunc = UpgradeMenuHandler;
 	Q_strlcpy(upgrade_menu[menu_index].text_arg1, "abilities_shop", sizeof(upgrade_menu[menu_index].text_arg1));
 	menu_index++;
 
 	// Weapon upgrades
-	Q_strlcpy(upgrade_menu[menu_index].text, "> Weapons", sizeof(upgrade_menu[menu_index].text));
+	Q_strlcpy(upgrade_menu[menu_index].text, "Weapons", sizeof(upgrade_menu[menu_index].text));
 	upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
 	upgrade_menu[menu_index].SelectFunc = UpgradeMenuHandler;
 	Q_strlcpy(upgrade_menu[menu_index].text_arg1, "weapons_shop", sizeof(upgrade_menu[menu_index].text_arg1));
 	menu_index++;
 
 	// Placeholder for future talents
-	Q_strlcpy(upgrade_menu[menu_index].text, "  Talents (Coming Soon)", sizeof(upgrade_menu[menu_index].text));
+	Q_strlcpy(upgrade_menu[menu_index].text, "Talents (Coming Soon)", sizeof(upgrade_menu[menu_index].text));
 	upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
 	upgrade_menu[menu_index].SelectFunc = nullptr;
 	menu_index++;
 
 	// Separator
-	Q_strlcpy(upgrade_menu[menu_index].text, "---", sizeof(upgrade_menu[menu_index].text));
+	Q_strlcpy(upgrade_menu[menu_index].text, "", sizeof(upgrade_menu[menu_index].text));
+	upgrade_menu[menu_index].align = PMENU_ALIGN_CENTER;
+	upgrade_menu[menu_index].SelectFunc = nullptr;
+	menu_index++;
+		// Separator
+	Q_strlcpy(upgrade_menu[menu_index].text, "", sizeof(upgrade_menu[menu_index].text));
+	upgrade_menu[menu_index].align = PMENU_ALIGN_CENTER;
+	upgrade_menu[menu_index].SelectFunc = nullptr;
+	menu_index++;
+		// Separator
+	Q_strlcpy(upgrade_menu[menu_index].text, "", sizeof(upgrade_menu[menu_index].text));
+	upgrade_menu[menu_index].align = PMENU_ALIGN_CENTER;
+	upgrade_menu[menu_index].SelectFunc = nullptr;
+	menu_index++;
+		// Separator
+	Q_strlcpy(upgrade_menu[menu_index].text, "", sizeof(upgrade_menu[menu_index].text));
+	upgrade_menu[menu_index].align = PMENU_ALIGN_CENTER;
+	upgrade_menu[menu_index].SelectFunc = nullptr;
+	menu_index++;
+		// Separator
+	// Separator
+	Q_strlcpy(upgrade_menu[menu_index].text, "", sizeof(upgrade_menu[menu_index].text));
+	upgrade_menu[menu_index].align = PMENU_ALIGN_CENTER;
+	upgrade_menu[menu_index].SelectFunc = nullptr;
+	menu_index++;
+		// Separator
+	Q_strlcpy(upgrade_menu[menu_index].text, "", sizeof(upgrade_menu[menu_index].text));
+	upgrade_menu[menu_index].align = PMENU_ALIGN_CENTER;
+	upgrade_menu[menu_index].SelectFunc = nullptr;
+	menu_index++;
+		// Separator
+	Q_strlcpy(upgrade_menu[menu_index].text, "", sizeof(upgrade_menu[menu_index].text));
+	upgrade_menu[menu_index].align = PMENU_ALIGN_CENTER;
+	upgrade_menu[menu_index].SelectFunc = nullptr;
+	menu_index++;
+		// Separator
+	Q_strlcpy(upgrade_menu[menu_index].text, "", sizeof(upgrade_menu[menu_index].text));
 	upgrade_menu[menu_index].align = PMENU_ALIGN_CENTER;
 	upgrade_menu[menu_index].SelectFunc = nullptr;
 	menu_index++;
 
 	// Back to main menu
-	Q_strlcpy(upgrade_menu[menu_index].text, "< Back", sizeof(upgrade_menu[menu_index].text));
+	Q_strlcpy(upgrade_menu[menu_index].text, "Back", sizeof(upgrade_menu[menu_index].text));
 	upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
 	upgrade_menu[menu_index].SelectFunc = UpgradeMenuHandler;
 	Q_strlcpy(upgrade_menu[menu_index].text_arg1, "back_to_main", sizeof(upgrade_menu[menu_index].text_arg1));
@@ -3325,7 +3361,7 @@ void OpenWeaponUpgradeMenu(edict_t *ent)
 
 	if (weapon_upgrade_current_page < total_pages - 1)
 	{
-		add_entry("Next >", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "next_page");
+		add_entry("Next", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "next_page");
 	}
 
 	if (weapon_upgrade_current_page > 0)
@@ -3334,7 +3370,7 @@ void OpenWeaponUpgradeMenu(edict_t *ent)
 	}
 
 	add_entry("Reset All Weapon (Free)", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "reset_weapons");
-	add_entry("< Back to Upgrades", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "back_to_upgrades");
+	add_entry("Back to Upgrades", PMENU_ALIGN_LEFT, WeaponUpgradeMenuHandler, "back_to_upgrades");
 
 	PMenu_Open(ent, weapon_upgrade_menu, -1, count, nullptr, nullptr);
 }
@@ -3662,7 +3698,7 @@ void OpenRLUpgradeMenu(edict_t *ent, int cursor_pos)
 
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("---", PMENU_ALIGN_CENTER);
-	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, RLUpgradeMenuHandler, "back_to_weapons");
+	add_entry("Back to Weapons", PMENU_ALIGN_LEFT, RLUpgradeMenuHandler, "back_to_weapons");
 
 	PMenu_Open(ent, rl_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
@@ -3845,7 +3881,7 @@ void OpenGLUpgradeMenu(edict_t *ent, int cursor_pos)
 
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("---", PMENU_ALIGN_CENTER);
-	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, GLUpgradeMenuHandler, "back_to_weapons");
+	add_entry("Back to Weapons", PMENU_ALIGN_LEFT, GLUpgradeMenuHandler, "back_to_weapons");
 
 	PMenu_Open(ent, gl_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
@@ -4034,7 +4070,7 @@ void OpenMGUpgradeMenu(edict_t *ent, int cursor_pos)
 
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("---", PMENU_ALIGN_CENTER);
-	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, MGUpgradeMenuHandler, "back_to_weapons");
+	add_entry("Back to Weapons", PMENU_ALIGN_LEFT, MGUpgradeMenuHandler, "back_to_weapons");
 
 	PMenu_Open(ent, mg_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
@@ -4216,7 +4252,7 @@ void OpenCGUpgradeMenu(edict_t *ent, int cursor_pos)
 
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("---", PMENU_ALIGN_CENTER);
-	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, CGUpgradeMenuHandler, "back_to_weapons");
+	add_entry("Back to Weapons", PMENU_ALIGN_LEFT, CGUpgradeMenuHandler, "back_to_weapons");
 
 	PMenu_Open(ent, cg_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
@@ -4461,7 +4497,7 @@ void OpenSGUpgradeMenu(edict_t *ent, int cursor_pos)
 
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("---", PMENU_ALIGN_CENTER);
-	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, [](edict_t *ent, pmenuhnd_t *p) {
+	add_entry("Back to Weapons", PMENU_ALIGN_LEFT, [](edict_t *ent, pmenuhnd_t *p) {
 		PMenu_Close(ent);
 		OpenWeaponUpgradeMenu(ent);
 	}, "back_to_weapons");
@@ -4607,7 +4643,7 @@ void OpenSSGUpgradeMenu(edict_t *ent, int cursor_pos)
 
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("---", PMENU_ALIGN_CENTER);
-	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, [](edict_t *ent, pmenuhnd_t *p) {
+	add_entry("Back to Weapons", PMENU_ALIGN_LEFT, [](edict_t *ent, pmenuhnd_t *p) {
 		PMenu_Close(ent);
 		OpenWeaponUpgradeMenu(ent);
 	}, "back_to_weapons");
@@ -4679,7 +4715,7 @@ void OpenHGUpgradeMenu(edict_t *ent, int cursor_pos)
 
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("---", PMENU_ALIGN_CENTER);
-	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, HGUpgradeMenuHandler, "back_to_weapons");
+	add_entry("Back to Weapons", PMENU_ALIGN_LEFT, HGUpgradeMenuHandler, "back_to_weapons");
 
 	PMenu_Open(ent, hg_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
@@ -4850,7 +4886,7 @@ void OpenProxUpgradeMenu(edict_t *ent, int cursor_pos)
 
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("---", PMENU_ALIGN_CENTER);
-	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, ProxUpgradeMenuHandler, "back_to_weapons");
+	add_entry("Back to Weapons", PMENU_ALIGN_LEFT, ProxUpgradeMenuHandler, "back_to_weapons");
 
 	PMenu_Open(ent, prox_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
@@ -5022,7 +5058,7 @@ void OpenBlasterUpgradeMenu(edict_t *ent, int cursor_pos)
 
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("---", PMENU_ALIGN_CENTER);
-	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, BlasterUpgradeMenuHandler, "back_to_weapons");
+	add_entry("Back to Weapons", PMENU_ALIGN_LEFT, BlasterUpgradeMenuHandler, "back_to_weapons");
 
 	PMenu_Open(ent, blaster_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
@@ -5165,7 +5201,7 @@ void OpenHyperblasterUpgradeMenu(edict_t *ent, int cursor_pos)
 
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("---", PMENU_ALIGN_CENTER);
-	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, HyperblasterUpgradeMenuHandler, "back_to_weapons");
+	add_entry("Back to Weapons", PMENU_ALIGN_LEFT, HyperblasterUpgradeMenuHandler, "back_to_weapons");
 
 	PMenu_Open(ent, hyperblaster_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
@@ -5307,7 +5343,7 @@ void OpenETFUpgradeMenu(edict_t *ent, int cursor_pos)
 
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("---", PMENU_ALIGN_CENTER);
-	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, ETFUpgradeMenuHandler, "back_to_weapons");
+	add_entry("Back to Weapons", PMENU_ALIGN_LEFT, ETFUpgradeMenuHandler, "back_to_weapons");
 
 	PMenu_Open(ent, etf_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
@@ -5465,7 +5501,7 @@ void OpenIonRipperUpgradeMenu(edict_t *ent, int cursor_pos)
 
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("---", PMENU_ALIGN_CENTER);
-	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, IonRipperUpgradeMenuHandler, "back_to_weapons");
+	add_entry("Back to Weapons", PMENU_ALIGN_LEFT, IonRipperUpgradeMenuHandler, "back_to_weapons");
 
 	PMenu_Open(ent, ionripper_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
@@ -5607,7 +5643,7 @@ void OpenRailgunUpgradeMenu(edict_t *ent, int cursor_pos)
 
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("---", PMENU_ALIGN_CENTER);
-	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, RailgunUpgradeMenuHandler, "back_to_weapons");
+	add_entry("Back to Weapons", PMENU_ALIGN_LEFT, RailgunUpgradeMenuHandler, "back_to_weapons");
 
 	PMenu_Open(ent, railgun_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
@@ -5774,7 +5810,7 @@ void OpenBFGUpgradeMenu(edict_t *ent, int cursor_pos)
 
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("---", PMENU_ALIGN_CENTER);
-	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, BFGUpgradeMenuHandler, "back_to_weapons");
+	add_entry("Back to Weapons", PMENU_ALIGN_LEFT, BFGUpgradeMenuHandler, "back_to_weapons");
 
 	PMenu_Open(ent, bfg_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
@@ -5952,7 +5988,7 @@ void Open20mmCannonUpgradeMenu(edict_t *ent, int cursor_pos)
 
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("---", PMENU_ALIGN_CENTER);
-	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, ETGUpgradeMenuHandler, "back_to_weapons");
+	add_entry("Back to Weapons", PMENU_ALIGN_LEFT, ETGUpgradeMenuHandler, "back_to_weapons");
 
 	PMenu_Open(ent, cannon20mm_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
@@ -6109,7 +6145,7 @@ void OpenPlasmabeamUpgradeMenu(edict_t *ent, int cursor_pos)
 
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("---", PMENU_ALIGN_CENTER);
-	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, PlasmabeamUpgradeMenuHandler, "back_to_weapons");
+	add_entry("Back to Weapons", PMENU_ALIGN_LEFT, PlasmabeamUpgradeMenuHandler, "back_to_weapons");
 
 	PMenu_Open(ent, plasmabeam_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
@@ -6686,7 +6722,7 @@ void OpenChainfistUpgradeMenu(edict_t *ent, int cursor_pos)
 
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("---", PMENU_ALIGN_CENTER);
-	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, ChainfistUpgradeMenuHandler, "back_to_weapons");
+	add_entry("Back to Weapons", PMENU_ALIGN_LEFT, ChainfistUpgradeMenuHandler, "back_to_weapons");
 
 	PMenu_Open(ent, chainfist_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
@@ -6834,7 +6870,7 @@ void OpenTeslaUpgradeMenu(edict_t *ent, int cursor_pos)
 
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("---", PMENU_ALIGN_CENTER);
-	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, TeslaUpgradeMenuHandler, "back_to_weapons");
+	add_entry("Back to Weapons", PMENU_ALIGN_LEFT, TeslaUpgradeMenuHandler, "back_to_weapons");
 
 	PMenu_Open(ent, tesla_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
@@ -7000,7 +7036,7 @@ void OpenTrapUpgradeMenu(edict_t *ent, int cursor_pos)
 
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("---", PMENU_ALIGN_CENTER);
-	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, TrapUpgradeMenuHandler, "back_to_weapons");
+	add_entry("Back to Weapons", PMENU_ALIGN_LEFT, TrapUpgradeMenuHandler, "back_to_weapons");
 
 	PMenu_Open(ent, trap_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
@@ -7163,7 +7199,7 @@ void OpenPhalanxUpgradeMenu(edict_t *ent, int cursor_pos)
 
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("---", PMENU_ALIGN_CENTER);
-	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, PhalanxUpgradeMenuHandler, "back_to_weapons");
+	add_entry("Back to Weapons", PMENU_ALIGN_LEFT, PhalanxUpgradeMenuHandler, "back_to_weapons");
 
 	PMenu_Open(ent, phalanx_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
@@ -7333,7 +7369,7 @@ void OpenDisruptorUpgradeMenu(edict_t *ent, int cursor_pos)
 
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("---", PMENU_ALIGN_CENTER);
-	add_entry("< Back to Weapons", PMENU_ALIGN_LEFT, DisruptorUpgradeMenuHandler, "back_to_weapons");
+	add_entry("Back to Weapons", PMENU_ALIGN_LEFT, DisruptorUpgradeMenuHandler, "back_to_weapons");
 
 	PMenu_Open(ent, disruptor_upgrade_menu, cursor_pos, count, nullptr, nullptr);
 }
