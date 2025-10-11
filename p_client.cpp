@@ -1503,34 +1503,38 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	// WEAPON SELECTION
 	// Try last weapon, fallback to NoAmmoWeaponChange, then Blaster
 	//
-	if (client->pers.lastweapon && client->pers.inventory[client->pers.lastweapon->id] > 0)
+
+	if (!IsPvMMode())
 	{
-		client->pers.weapon = client->pers.lastweapon;
-		client->pers.selected_item = client->pers.lastweapon->id;
-	}
-	else
-	{
-		NoAmmoWeaponChange(ent, false);
-		if (client->newweapon)
+		if (client->pers.lastweapon && client->pers.inventory[client->pers.lastweapon->id] > 0)
 		{
-			client->pers.weapon = client->newweapon;
-			client->pers.selected_item = client->newweapon->id;
+			client->pers.weapon = client->pers.lastweapon;
+			client->pers.selected_item = client->pers.lastweapon->id;
 		}
 		else
 		{
-			// Fallback to Blaster
-			gitem_t* blasterItem = FindItem("Blaster");
-			if (blasterItem)
+			NoAmmoWeaponChange(ent, false);
+			if (client->newweapon)
 			{
-				client->pers.selected_item = blasterItem->id;
-				if (client->pers.inventory[blasterItem->id] <= 0)
-					client->pers.inventory[blasterItem->id] = 1;
-				client->pers.weapon = blasterItem;
+				client->pers.weapon = client->newweapon;
+				client->pers.selected_item = client->newweapon->id;
 			}
 			else
 			{
-				client->pers.weapon = nullptr;
-				client->pers.selected_item = IT_NULL;
+				// Fallback to Blaster
+				gitem_t *blasterItem = FindItem("Blaster");
+				if (blasterItem)
+				{
+					client->pers.selected_item = blasterItem->id;
+					if (client->pers.inventory[blasterItem->id] <= 0)
+						client->pers.inventory[blasterItem->id] = 1;
+					client->pers.weapon = blasterItem;
+				}
+				else
+				{
+					client->pers.weapon = nullptr;
+					client->pers.selected_item = IT_NULL;
+				}
 			}
 		}
 	}
