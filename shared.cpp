@@ -729,8 +729,22 @@ void ApplyPvMLevelScaling(edict_t* monster)
 	if (!config)
 		return;
 
+	// Determine which level to use for scaling
+	// For summoned/friendly monsters with pvm_level set, use that instead of lowest player level
+	int scaling_level;
+	if ((monster->monsterinfo.bonus_flags & BF_FRIENDLY) && monster->monsterinfo.pvm_level > 0)
+	{
+		// Use the monster's assigned pvm_level (from player's monster_summon skill)
+		scaling_level = monster->monsterinfo.pvm_level;
+	}
+	else
+	{
+		// Use global lowest player level for enemy monsters
+		scaling_level = g_lowest_player_level;
+	}
+
 	// Apply level-based health scaling
-	int scaled_health = level_scaling->initial_health + (g_lowest_player_level * level_scaling->addon_health);
+	int scaled_health = level_scaling->initial_health + (scaling_level * level_scaling->addon_health);
 	scaled_health = static_cast<int>(scaled_health * config->health_scale);
 	monster->health = scaled_health;
 	monster->max_health = scaled_health;
@@ -738,7 +752,7 @@ void ApplyPvMLevelScaling(edict_t* monster)
 	// Apply level-based armor scaling (if monster has regular armor configured)
 	if (config->armor_power > 0 && monster->monsterinfo.armor_power > 0)
 	{
-		int scaled_armor = level_scaling->initial_armor + (g_lowest_player_level * level_scaling->addon_armor);
+		int scaled_armor = level_scaling->initial_armor + (scaling_level * level_scaling->addon_armor);
 		scaled_armor = static_cast<int>(scaled_armor * config->armor_scale);
 		monster->monsterinfo.armor_power = scaled_armor;
 	}
@@ -746,7 +760,7 @@ void ApplyPvMLevelScaling(edict_t* monster)
 	// Apply level-based armor scaling to power armor (if monster has power armor configured)
 	if (config->power_armor_power > 0 && monster->monsterinfo.power_armor_power > 0)
 	{
-		int scaled_armor = level_scaling->initial_armor + (g_lowest_player_level * level_scaling->addon_armor);
+		int scaled_armor = level_scaling->initial_armor + (scaling_level * level_scaling->addon_armor);
 		scaled_armor = static_cast<int>(scaled_armor * config->power_armor_scale);
 		monster->monsterinfo.power_armor_power = scaled_armor;
 	}

@@ -120,6 +120,13 @@ static edict_t* spawn_strogg_monster(edict_t* player, const vec3_t& origin, cons
 	// Set AI flags
 	monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 
+	// CRITICAL: Set PvM level BEFORE calling spawn functions
+	// The SP_monster_* functions call ApplyMonsterBonusFlags which calls ApplyPvMLevelScaling
+	// So pvm_level must be set before that happens
+	if (player && player->client) {
+		monster->monsterinfo.pvm_level = player->client->pers.skills.monster_summon;
+	}
+
 	// Build list of summonable monsters
 	// Summoner now allows spawning monsters and will unlock/precache them as needed
 	struct SummonableMonster {
@@ -236,11 +243,8 @@ static edict_t* spawn_strogg_monster(edict_t* player, const vec3_t& origin, cons
 	// This maintains monster's independence and solidity
 	monster->monsterinfo.bonus_flags |= BF_FRIENDLY;
 
-	// Set PvM level based on player's monster_summon skill level
-	// This scales the monster's stats according to the player's skill
-	if (player && player->client) {
-		monster->monsterinfo.pvm_level = player->client->pers.skills.monster_summon;
-	}
+	// Note: pvm_level is already set earlier (before spawn functions)
+	// to ensure ApplyPvMLevelScaling uses the correct level
 
 	// Initialize upkeep timer - each monster drains 1 cube per second asynchronously
 	// Set initial time to 1 second from now (staggered based on spawn time)
