@@ -140,8 +140,8 @@ struct ClusterConfig
 
 // --- New, more aggressive cluster configuration ---
 static const ClusterConfig UPGRADED_CLUSTER_CONFIG = {
-	15,		// num_grenades (was 15)
-	5,		// direct_grenades (was 3)
+	8,		// num_grenades (reduced from 15 to 8)
+	3,		// direct_grenades (reduced from 5 to 3)
 	50.0f,	// spread_angle (was 45.0f)
 	500.0f, // min_velocity (was 400.0f)
 	750.0f, // max_velocity (was 600.0f)
@@ -150,7 +150,7 @@ static const ClusterConfig UPGRADED_CLUSTER_CONFIG = {
 	0.6f,	// damage_multiplier (was 0.5f)
 	0.55f,	// homing_bias (was 0.3f, now much more aggressive)
 	512.0f	// search_radius (was 384.0f)
-};
+};;
 
 // --- Smarter Enemy Finding: Now checks for line-of-sight ---
 edict_t *FindNearestVisibleEnemy(edict_t *from, const vec3_t &origin, float search_radius)

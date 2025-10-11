@@ -1099,6 +1099,18 @@ THINK(BouncyGrenade_Think)(edict_t* self) -> void
         Grenade_Explode(self);
         return;
     }
+
+    // Update angles to match velocity direction (same as normal grenades)
+    if (self->velocity)
+    {
+        const float p = self->s.angles.x;
+        const float z = self->s.angles.z;
+        const float speed_frac = clamp(self->velocity.lengthSquared() / (self->speed * self->speed), 0.f, 1.f);
+        self->s.angles = vectoangles(self->velocity);
+        self->s.angles.x = LerpAngle(p, self->s.angles.x, speed_frac);
+        self->s.angles.z = z + (gi.frame_time_s * 360 * speed_frac);
+    }
+
     self->nextthink = level.time + FRAME_TIME_S;
 }
 
@@ -1183,6 +1195,7 @@ void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir,
 
 	if (use_bouncy) {
 		// --- NEW Cluster-Bouncy Grenade Behavior ---
+		grenade->s.angles = vectoangles(grenade->velocity);
 		grenade->think = BouncyGrenade_Think;
 		grenade->touch = BouncyGrenade_Touch;
         grenade->nextthink = level.time + FRAME_TIME_S;
