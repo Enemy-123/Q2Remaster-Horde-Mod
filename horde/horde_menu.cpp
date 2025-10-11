@@ -845,6 +845,12 @@ void ModeSelectionHandler(edict_t *ent, pmenuhnd_t *p)
 		// Now open the map category menu to select which map
 		OpenMapCategoryMenu(ent);
 	}
+	else if (strcmp(selected_text, "Extend Time") == 0)
+	{
+		// Start manual vote to extend map time
+		ctfgame.automatic_vote = false; // Mark as manual vote
+		CTFBeginElection(ent, ELECT_TIME, "Extend map time by 30 minutes?");
+	}
 	else if (strcmp(selected_text, "Back to Horde Menu") == 0)
 	{
 		OpenHordeMenu(ent);
@@ -895,6 +901,12 @@ void OpenModeSelectionMenu(edict_t *ent)
 	idx++;
 
 	Q_strlcpy(mode_selection_menu[idx].text, "Vote PvM Mode", sizeof(mode_selection_menu[idx].text));
+	mode_selection_menu[idx].align = PMENU_ALIGN_LEFT;
+	mode_selection_menu[idx].SelectFunc = ModeSelectionHandler;
+	idx++;
+
+	// Add Extend Time option
+	Q_strlcpy(mode_selection_menu[idx].text, "Extend Time", sizeof(mode_selection_menu[idx].text));
 	mode_selection_menu[idx].align = PMENU_ALIGN_LEFT;
 	mode_selection_menu[idx].SelectFunc = ModeSelectionHandler;
 	idx++;

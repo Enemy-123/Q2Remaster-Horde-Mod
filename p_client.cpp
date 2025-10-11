@@ -1372,6 +1372,12 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	ent->max_health = 100;
 
 	//
+	// MENU STATE INITIALIZATION
+	//
+	// Initialize menu state to ensure menus work correctly
+	client->pending_mode_vote = 0;
+
+	//
 	// SKILLS INITIALIZATION (New unified upgrade system)
 	//
 	// Initialize skills structure to zero (only on first connect)

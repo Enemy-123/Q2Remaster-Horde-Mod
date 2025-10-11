@@ -5344,7 +5344,7 @@ bool CheckHardCapAndLog(int32_t activeMonsters, int32_t hardCap, int32_t softCap
 		if (currentState == horde_state_t::spawning && !next_wave_message_sent)
 		{
 			VerifyAndAdjustBots();
-			gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Deployed (Hard Cap).\nWave: {}\n", currentLevel);
+			//gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Deployed (Hard Cap).\nWave: {}\n", currentLevel);
 			next_wave_message_sent = true;
 			g_horde_local.state = horde_state_t::active_wave;
 		}
@@ -6687,7 +6687,7 @@ void Horde_RunFrame()
 				if (!IsBossWave() || boss_spawned_for_wave) {
 					if (!next_wave_message_sent) {
 						VerifyAndAdjustBots();
-						gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Fully Deployed.\nWave Level: {}\n", currentLevel);
+						gi.LocBroadcast_Print(PRINT_HIGH, "Wave fully deployed. Wave Level is: {}\n", currentLevel);
 						next_wave_message_sent = true;
 					}
 					g_horde_local.state = horde_state_t::active_wave;
