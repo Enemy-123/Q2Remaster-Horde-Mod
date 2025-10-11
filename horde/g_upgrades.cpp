@@ -102,7 +102,7 @@ static const UpgradeDefinition UPGRADE_DEFS[] = {
         "Spawn cost: 25 cubes\n"
         "Upkeep: 5 cubes/sec per monster alive\n"
         "requires pc regen\n"
-        "also unlocks cmd: monstercommand",
+        "unlocks strogg summoner item and\n cmd: monstercommand",
         10, 1, UpgradeCategory::ABILITY, nullptr, 0
     },
     {
@@ -120,9 +120,20 @@ static const UpgradeDefinition UPGRADE_DEFS[] = {
         "Spawn exploding barrels\n"
         "Usage: barrel command\n"
         "Cost: 20 cubes per barrel\n"
-        "Base: 100 damage, 30 HP\n"
-        "Each level: +40 damage\n"
-        "Max: 460 damage at level 10",
+        ""
+        ""
+        "",
+        10, 1, UpgradeCategory::ABILITY, nullptr, 0
+    },
+    {
+        "bombspell",
+        "BombSpell",
+        "Cast bombspell abilities\n"
+        "3 types of cmds, 3 different attacks\nbombspell - will follow a enemy\nbombspell forward - carpet of bombs\n bombspell area - bombs rain on your targetted area\n"
+        "Cost: 25 cubes per use\n"
+        ""
+        ""
+        "",
         10, 1, UpgradeCategory::ABILITY, nullptr, 0
     }
 
@@ -191,6 +202,8 @@ int8_t GetSkillLevel(edict_t* player, const char* upgrade_id) {
         return player->client->pers.skills.teleport_fwd ? 1 : 0;
     else if (strcmp(upgrade_id, "exploding_barrel") == 0)
         return player->client->pers.skills.exploding_barrel;
+    else if (strcmp(upgrade_id, "bombspell") == 0)
+        return player->client->pers.skills.bombspell;
 
     return 0;
 }
@@ -301,6 +314,8 @@ bool UpgradeSkill(edict_t* player, const char* upgrade_id) {
         player->client->pers.skills.teleport_fwd = true;
     } else if (strcmp(upgrade_id, "exploding_barrel") == 0) {
         player->client->pers.skills.exploding_barrel++;
+    } else if (strcmp(upgrade_id, "bombspell") == 0) {
+        player->client->pers.skills.bombspell++;
     }
 
     return true;
@@ -421,6 +436,7 @@ void ResetAllSkills(edict_t* player) {
     total_points += player->client->pers.skills.monster_summon;
     total_points += player->client->pers.skills.teleport_fwd ? 1 : 0;
     total_points += player->client->pers.skills.exploding_barrel;
+    total_points += player->client->pers.skills.bombspell;
 
     if (total_points == 0) {
         gi.LocClient_Print(player, PRINT_HIGH, nullptr, "No skills to reset!\n");
@@ -447,6 +463,7 @@ void ResetAllSkills(edict_t* player) {
     player->client->pers.skills.monster_summon = 0;
     player->client->pers.skills.teleport_fwd = false;
     player->client->pers.skills.exploding_barrel = 0;
+    player->client->pers.skills.bombspell = 0;
     // Note: free_vitality, free_max_ammo, and free_pc_regen are NOT reset - they're permanent
 
     // Refund all points

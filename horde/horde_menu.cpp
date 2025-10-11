@@ -2341,7 +2341,7 @@ pmenuhnd_t *CreateHordeMenu(edict_t *ent)
 
 	if (pvm->integer)
 	{
-		add_entry("Set Respawn Weapon", PMENU_ALIGN_LEFT, HordeMenuHandler);
+		add_entry("*Set Respawn Weapon", PMENU_ALIGN_LEFT, HordeMenuHandler);
 		// Add Character Info menu
 		add_entry("Character Info", PMENU_ALIGN_LEFT, HordeMenuHandler);
 	}

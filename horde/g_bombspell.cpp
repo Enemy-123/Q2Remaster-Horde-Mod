@@ -377,6 +377,13 @@ void CarpetBomb(edict_t* ent)
     if (!ent || !ent->client || IsPlayerMenuProtected(ent) || ClientIsSpectating(ent->client))
         return;
 
+    // Check if player has bombspell skill
+    int8_t bombspell_level = ent->client->pers.skills.bombspell;
+    if (bombspell_level == 0) {
+        gi.LocClient_Print(ent, PRINT_HIGH, "You need to upgrade the BombSpell skill first!\n");
+        return;
+    }
+
     // Check cooldown
     if (ent->client->resp.bombspell_forward_cooldown > level.time) {
         float remaining_seconds = (ent->client->resp.bombspell_forward_cooldown - level.time).seconds();
@@ -385,9 +392,18 @@ void CarpetBomb(edict_t* ent)
         return;
     }
 
-    // Deduct cost
-    // Note: power_cube_index would need to be defined elsewhere in the mod
-    // ent->client->pers.inventory[power_cube_index] -= COST_FOR_BOMB * cost_mult;
+    // Check power cube cost
+    const int cost = 25;
+    if (ent->client->pers.horde_power_cubes < cost) {
+        gi.LocClient_Print(ent, PRINT_HIGH, "Not enough power cubes! Need {} cubes to cast bombspell.\n", cost);
+        return;
+    }
+
+    // Deduct power cubes
+    ent->client->pers.horde_power_cubes -= cost;
+
+    // Calculate damage based on skill level
+    int damage = g_config.bomb_spell.initial_damage + (bombspell_level * g_config.bomb_spell.addon_damage);
 
     // Create bombspell entity
     edict_t* spell = G_Spawn();
@@ -395,7 +411,7 @@ void CarpetBomb(edict_t* ent)
     spell->nextthink = level.time + FRAME_TIME_MS;
     spell->s.origin = ent->s.origin;
     spell->move_origin = ent->s.origin;  // Save caster's origin for visibility checks
-    spell->dmg = g_config.bomb_spell.initial_damage + g_config.bomb_spell.addon_damage;
+    spell->dmg = damage;
     spell->dmg_radius = g_config.bomb_spell.damage_radius;
     spell->timestamp = level.time + gtime_t::from_sec(g_config.bomb_spell.duration_sec);  // Use timestamp instead of delay
     spell->owner = ent;
@@ -483,6 +499,13 @@ void BombArea(edict_t* ent)//, float skill_mult, float cost_mult)
     if (!ent || !ent->client || IsPlayerMenuProtected(ent) || ClientIsSpectating(ent->client))
         return;
 
+    // Check if player has bombspell skill
+    int8_t bombspell_level = ent->client->pers.skills.bombspell;
+    if (bombspell_level == 0) {
+        gi.LocClient_Print(ent, PRINT_HIGH, "You need to upgrade the BombSpell skill first!\n");
+        return;
+    }
+
     // Check cooldown
     if (ent->client->resp.bombspell_area_cooldown > level.time) {
         float remaining_seconds = (ent->client->resp.bombspell_area_cooldown - level.time).seconds();
@@ -490,6 +513,19 @@ void BombArea(edict_t* ent)//, float skill_mult, float cost_mult)
         gi.LocClient_Print(ent, PRINT_HIGH, "Bombspell area on cooldown for {} seconds\n", remaining_display);
         return;
     }
+
+    // Check power cube cost
+    const int cubes_cost = 25;
+    if (ent->client->pers.horde_power_cubes < cubes_cost) {
+        gi.LocClient_Print(ent, PRINT_HIGH, "Not enough power cubes! Need {} cubes to cast bombspell area.\n", cubes_cost);
+        return;
+    }
+
+    // Deduct power cubes
+    ent->client->pers.horde_power_cubes -= cubes_cost;
+
+    // Calculate damage based on skill level
+    int damage = g_config.bomb_spell.initial_damage + (bombspell_level * g_config.bomb_spell.addon_damage);
 
     AngleVectors(ent->client->v_angle, &forward, &right, nullptr);
     offset = { 0, 7, (float)(ent->viewheight - 8) };
@@ -548,7 +584,7 @@ void BombArea(edict_t* ent)//, float skill_mult, float cost_mult)
     bomb->owner = ent;
     bomb->timestamp = level.time + BOMBAREA_DURATION + BOMBAREA_STARTUP_DELAY;  // Use timestamp instead of delay
     bomb->nextthink = level.time + BOMBAREA_STARTUP_DELAY;
-    bomb->dmg = g_config.bomb_spell.initial_damage + g_config.bomb_spell.addon_damage;// * skill_mult;
+    bomb->dmg = damage;
     bomb->think = bombarea_think;
     bomb->s.angles = angles;
     bomb->s.origin = tr.endpos;
@@ -625,7 +661,7 @@ THINK(bombperson_think)(edict_t* self) -> void
 }
 
 // Bomb person function
-void BombPerson(edict_t* target, edict_t* owner)//, float skill_mult)
+void BombPerson(edict_t* target, edict_t* owner, int damage)
 {
     if (!target || !owner || IsPlayerMenuProtected(owner) ||
         (owner->client && ClientIsSpectating(owner->client)))
@@ -645,7 +681,7 @@ void BombPerson(edict_t* target, edict_t* owner)//, float skill_mult)
     bomb->owner = owner;
     bomb->enemy = target;
     bomb->timestamp = level.time + BOMBPERSON_DURATION;  // Use timestamp instead of delay
-    bomb->dmg = g_config.bomb_spell.initial_damage + g_config.bomb_spell.addon_damage;// * skill_mult;
+    bomb->dmg = damage;
     bomb->nextthink = level.time + 1_sec;
     bomb->think = bombperson_think;
     bomb->s.origin = target->s.origin;
@@ -697,7 +733,26 @@ void Cmd_BombPlayer(edict_t* ent)
     }
 
     // Default: bomb a person (targeted bomb)
-    // ent->client->pers.inventory[power_cube_index] -= cost;
+
+    // Check if player has bombspell skill
+    int8_t bombspell_level = ent->client->pers.skills.bombspell;
+    if (bombspell_level == 0) {
+        gi.LocClient_Print(ent, PRINT_HIGH, "You need to upgrade the BombSpell skill first!\n");
+        return;
+    }
+
+    // Check power cube cost
+    const int person_cost = 25;
+    if (ent->client->pers.horde_power_cubes < person_cost) {
+        gi.LocClient_Print(ent, PRINT_HIGH, "Not enough power cubes! Need {} cubes to cast bombspell.\n", person_cost);
+        return;
+    }
+
+    // Deduct power cubes
+    ent->client->pers.horde_power_cubes -= person_cost;
+
+    // Calculate damage based on skill level
+    int damage = g_config.bomb_spell.initial_damage + (bombspell_level * g_config.bomb_spell.addon_damage);
 
     AngleVectors(ent->client->v_angle, &forward, &right, nullptr);
     ent->client->kick_origin = forward * -3;
@@ -709,6 +764,6 @@ void Cmd_BombPlayer(edict_t* ent)
     // Check if we hit a valid target
     if (tr.ent && tr.ent->takedamage && tr.ent != ent)
     {
-        BombPerson(tr.ent, ent);//, skill_mult);
+        BombPerson(tr.ent, ent, damage);
     }
 }

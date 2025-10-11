@@ -3193,6 +3193,9 @@ struct player_skills_t {
 	// Exploding Barrel ability
 	int8_t exploding_barrel = 0;  // 0-10: Exploding barrel (damage scaling)
 
+	// BombSpell ability
+	int8_t bombspell = 0;         // 0-10: BombSpell damage scaling
+
 	// Weapon Upgrades - Grenade Launcher
 	int8_t gl_damage = 0;         // 0-10: Grenade damage
 	int8_t gl_range = 0;          // 0-10: Grenade range/speed
