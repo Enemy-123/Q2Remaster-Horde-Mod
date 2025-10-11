@@ -703,6 +703,13 @@ inline bool ValidateMapName(const char* map_name, char* sanitized_buffer, size_t
         return false;
     }
 
+    // Check for spaces within the map name (after trimming) - this indicates corruption
+    if (map_view.find(' ') != std::string_view::npos) {
+        gi.Com_PrintFmt("ERROR: Map name '{}' contains a SPACE character! This indicates corruption in g_map_list.\n", map_name);
+        gi.Com_PrintFmt("       Map names should never have spaces. Check your config file for formatting errors.\n");
+        return false;
+    }
+
     // Check for suspicious characters or corruption
     if (map_view.find_first_of("\r\n\t") != std::string_view::npos) {
         gi.Com_PrintFmt("WARNING: Map name '{}' contains invalid characters! Sanitizing...\n", map_name);
@@ -777,13 +784,9 @@ void EndDMLevel()
                 std::swap(values[0], values.back());
             }
 
-            // Re-join the list into a new string to update the cvar.
-            // This one allocation is acceptable to rebuild the list.
-            std::string new_map_list = join_string_views(values);
-            gi.cvar_forceset("g_map_list", new_map_list.c_str());
-
-            // --- FIX: AVOID ALLOCATION FOR THE NEXT MAP ---
-            // Create a temporary buffer on the stack.
+            // --- CRITICAL FIX: Copy the next map name BEFORE modifying the cvar ---
+            // The string_views in 'values' point to g_map_list->string, so we MUST
+            // copy the next map name before cvar_forceset invalidates that memory!
             char next_map_buffer[MAX_QPATH];
             char validated_map_buffer[MAX_QPATH];
             std::string_view next_map_sv = values[0];
@@ -792,6 +795,11 @@ void EndDMLevel()
             size_t len = std::min(next_map_sv.length(), sizeof(next_map_buffer) - 1);
             memcpy(next_map_buffer, next_map_sv.data(), len);
             next_map_buffer[len] = '\0'; // Manually null-terminate.
+
+            // Re-join the list into a new string to update the cvar.
+            // This one allocation is acceptable to rebuild the list.
+            std::string new_map_list = join_string_views(values);
+            gi.cvar_forceset("g_map_list", new_map_list.c_str());
 
             // Validate the map name before changing levels
             if (!ValidateMapName(next_map_buffer, validated_map_buffer, sizeof(validated_map_buffer))) {
