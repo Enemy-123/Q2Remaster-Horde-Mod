@@ -24,7 +24,7 @@ const struct benefit_source_t {
     // {BenefitID::AUTO_HASTE, "auto haste", "\n\n\n\nDUAL-FIRE IS RUNNING THROUGH YOUR VEINS\nFRAGGING WHILE HASTE\nWILL EXTEND QUAD DMG AND DUAL-FIRE TIME!\n", "AUTO-HASTE ENABLED!\n", "g_autohaste", "1", 9, -1, 0.15f, BenefitID::NONE, BenefitCategory::ABILITY},
     // {BenefitID::START_ARMOR, "start armor", "\n\n\n\nSTARTING ARMOR\nENABLED!\n", "STARTING WITH 100 BODY-ARMOR!\n", "g_startarmor", "1", 9, -1, 0.1f, BenefitID::NONE, BenefitCategory::ABILITY},
     // {BenefitID::HA_PICKUP, "H/A Pickup", "\n\n\n\nENHANCED HEALTH & ARMOR PICKUPS\nENABLED!\n", "Health & Armor pickups increased by 60%!\n", "g_hapickup", "1", 1, -1, 0.15f, BenefitID::NONE, BenefitCategory::ABILITY},
-    // {BenefitID::TRACED_BULLETS, "Traced Bullets", "\n\n\n\nBULLETS\nUPGRADED!\n", "Piercing-PowerShield Bullets!\n", "g_tracedbullets", "1", 9, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
+     {BenefitID::TRACED_BULLETS, "Traced Bullets", "\n\n\n\nBULLETS\nUPGRADED!\n", "Piercing-PowerShield Bullets!\n", "g_tracedbullets", "1", 9, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
     // {BenefitID::ENERGY_SHELLS, "Energy Shells", "\n\n\n\nSHELLS\nUPGRADED!\n", "Piercing-PowerShield Shells!\n", "g_energyshells", "1", 9, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
     // {BenefitID::CLUSTER_PROX, "Cluster Prox", "\n\n\n\nIMPROVED PROX GRENADES\n", "Prox Cluster Launcher Enabled\n", "g_upgradeproxs", "1", 25, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
     // {BenefitID::PIERCING_PLASMA, "Piercing Plasma", "\n\n\n\nPlasma-Beam Piercing Mode Enabled\n", "IMPROVED Plasma-Beam!\n", "g_piercingbeam", "1", 25, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
