@@ -3732,7 +3732,7 @@ void RLUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Rocket Launcher Damage is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenRLUpgradeMenu(ent);
+		OpenRLUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "rl_speed") == 0)
 	{
@@ -3754,7 +3754,7 @@ void RLUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Rocket Launcher Speed is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenRLUpgradeMenu(ent);
+		OpenRLUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "rl_radius") == 0)
 	{
@@ -3776,21 +3776,21 @@ void RLUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Rocket Launcher Radius is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenRLUpgradeMenu(ent);
+		OpenRLUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "rl_trails") == 0)
 	{
 		ent->client->pers.skills.rl_trails = !ent->client->pers.skills.rl_trails;
 		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Rocket Launcher Trails: {}\n", ent->client->pers.skills.rl_trails ? "DISABLED" : "ENABLED");
 		PMenu_Close(ent);
-		OpenRLUpgradeMenu(ent);
+		OpenRLUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "rl_silent") == 0)
 	{
 		ent->client->pers.skills.rl_silent = !ent->client->pers.skills.rl_silent;
 		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Rocket Launcher Silent Mode: {}\n", ent->client->pers.skills.rl_silent ? "ON" : "OFF");
 		PMenu_Close(ent);
-		OpenRLUpgradeMenu(ent);
+		OpenRLUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "back_to_weapons") == 0)
 	{
@@ -4104,7 +4104,7 @@ void MGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Machinegun Damage is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenMGUpgradeMenu(ent);
+		OpenMGUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "mg_pierce") == 0)
 	{
@@ -4126,7 +4126,7 @@ void MGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Machinegun Pierce is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenMGUpgradeMenu(ent);
+		OpenMGUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "mg_tracers") == 0)
 	{
@@ -4148,21 +4148,21 @@ void MGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Machinegun Tracers is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenMGUpgradeMenu(ent);
+		OpenMGUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "mg_spread") == 0)
 	{
 		ent->client->pers.skills.mg_spread = !ent->client->pers.skills.mg_spread;
 		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Machinegun Reduced Spread: {}\n", ent->client->pers.skills.mg_spread ? "ON" : "OFF");
 		PMenu_Close(ent);
-		OpenMGUpgradeMenu(ent);
+		OpenMGUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "mg_silent") == 0)
 	{
 		ent->client->pers.skills.mg_silent = !ent->client->pers.skills.mg_silent;
 		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Machinegun Silent Mode: {}\n", ent->client->pers.skills.mg_silent ? "ON" : "OFF");
 		PMenu_Close(ent);
-		OpenMGUpgradeMenu(ent);
+		OpenMGUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "back_to_weapons") == 0)
 	{
@@ -4419,7 +4419,7 @@ void OpenSGUpgradeMenu(edict_t *ent, int cursor_pos)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Shotgun Damage is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenSGUpgradeMenu(ent);
+		OpenSGUpgradeMenu(ent, p->cur);
 	}, "sg_damage");
 
 	MenuFormatItemWithProgress(status, sizeof(status), item_num++, "Strike", ent->client->pers.skills.sg_strike, 10);
@@ -4439,7 +4439,7 @@ void OpenSGUpgradeMenu(edict_t *ent, int cursor_pos)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Shotgun Strike is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenSGUpgradeMenu(ent);
+		OpenSGUpgradeMenu(ent, p->cur);
 	}, "sg_strike");
 
 	MenuFormatItemWithProgress(status, sizeof(status), item_num++, "Pellets", ent->client->pers.skills.sg_pellets, 10);
@@ -4459,7 +4459,7 @@ void OpenSGUpgradeMenu(edict_t *ent, int cursor_pos)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Shotgun Pellets is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenSGUpgradeMenu(ent);
+		OpenSGUpgradeMenu(ent, p->cur);
 	}, "sg_pellets");
 
 	const char *spread_status = ent->client->pers.skills.sg_spread ? "ON" : "OFF";
@@ -4468,7 +4468,7 @@ void OpenSGUpgradeMenu(edict_t *ent, int cursor_pos)
 		ent->client->pers.skills.sg_spread = !ent->client->pers.skills.sg_spread;
 		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Shotgun Reduced Spread: {}\n", ent->client->pers.skills.sg_spread ? "ON" : "OFF");
 		PMenu_Close(ent);
-		OpenSGUpgradeMenu(ent);
+		OpenSGUpgradeMenu(ent, p->cur);
 	}, "sg_spread");
 
 	const char *silent_status = ent->client->pers.skills.sg_silent ? "ON" : "OFF";
@@ -4477,7 +4477,7 @@ void OpenSGUpgradeMenu(edict_t *ent, int cursor_pos)
 		ent->client->pers.skills.sg_silent = !ent->client->pers.skills.sg_silent;
 		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Shotgun Silent Mode: {}\n", ent->client->pers.skills.sg_silent ? "ON" : "OFF");
 		PMenu_Close(ent);
-		OpenSGUpgradeMenu(ent);
+		OpenSGUpgradeMenu(ent, p->cur);
 	}, "sg_silent");
 
 	const char *energized_status = ent->client->pers.skills.sg_energized ? "ON" : "OFF";
@@ -4486,7 +4486,7 @@ void OpenSGUpgradeMenu(edict_t *ent, int cursor_pos)
 		ent->client->pers.skills.sg_energized = !ent->client->pers.skills.sg_energized;
 		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Shotgun Energized Shells: {}\n", ent->client->pers.skills.sg_energized ? "ON" : "OFF");
 		PMenu_Close(ent);
-		OpenSGUpgradeMenu(ent);
+		OpenSGUpgradeMenu(ent, p->cur);
 	}, "sg_energized");
 
 	add_entry("", PMENU_ALIGN_CENTER);
@@ -4565,7 +4565,7 @@ void OpenSSGUpgradeMenu(edict_t *ent, int cursor_pos)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Super Shotgun Damage is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenSSGUpgradeMenu(ent);
+		OpenSSGUpgradeMenu(ent, p->cur);
 	}, "ssg_damage");
 
 	MenuFormatItemWithProgress(status, sizeof(status), item_num++, "Strike", ent->client->pers.skills.ssg_strike, 10);
@@ -4585,7 +4585,7 @@ void OpenSSGUpgradeMenu(edict_t *ent, int cursor_pos)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Super Shotgun Strike is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenSSGUpgradeMenu(ent);
+		OpenSSGUpgradeMenu(ent, p->cur);
 	}, "ssg_strike");
 
 	MenuFormatItemWithProgress(status, sizeof(status), item_num++, "Pellets", ent->client->pers.skills.ssg_pellets, 10);
@@ -4605,7 +4605,7 @@ void OpenSSGUpgradeMenu(edict_t *ent, int cursor_pos)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Super Shotgun Pellets is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenSSGUpgradeMenu(ent);
+		OpenSSGUpgradeMenu(ent, p->cur);
 	}, "ssg_pellets");
 
 	const char *spread_status = ent->client->pers.skills.ssg_spread ? "ON" : "OFF";
@@ -4614,7 +4614,7 @@ void OpenSSGUpgradeMenu(edict_t *ent, int cursor_pos)
 		ent->client->pers.skills.ssg_spread = !ent->client->pers.skills.ssg_spread;
 		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Super Shotgun Reduced Spread: {}\n", ent->client->pers.skills.ssg_spread ? "ON" : "OFF");
 		PMenu_Close(ent);
-		OpenSSGUpgradeMenu(ent);
+		OpenSSGUpgradeMenu(ent, p->cur);
 	}, "ssg_spread");
 
 	const char *silent_status = ent->client->pers.skills.ssg_silent ? "ON" : "OFF";
@@ -4623,7 +4623,7 @@ void OpenSSGUpgradeMenu(edict_t *ent, int cursor_pos)
 		ent->client->pers.skills.ssg_silent = !ent->client->pers.skills.ssg_silent;
 		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Super Shotgun Silent Mode: {}\n", ent->client->pers.skills.ssg_silent ? "ON" : "OFF");
 		PMenu_Close(ent);
-		OpenSSGUpgradeMenu(ent);
+		OpenSSGUpgradeMenu(ent, p->cur);
 	}, "ssg_silent");
 
 	const char *energized_status = ent->client->pers.skills.ssg_energized ? "ON" : "OFF";
@@ -4632,7 +4632,7 @@ void OpenSSGUpgradeMenu(edict_t *ent, int cursor_pos)
 		ent->client->pers.skills.ssg_energized = !ent->client->pers.skills.ssg_energized;
 		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Super Shotgun Energized Shells: {}\n", ent->client->pers.skills.ssg_energized ? "ON" : "OFF");
 		PMenu_Close(ent);
-		OpenSSGUpgradeMenu(ent);
+		OpenSSGUpgradeMenu(ent, p->cur);
 	}, "ssg_energized");
 
 	add_entry("", PMENU_ALIGN_CENTER);
@@ -4920,7 +4920,7 @@ void ProxUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Prox Launcher Damage is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenProxUpgradeMenu(ent);
+		OpenProxUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "pl_range") == 0)
 	{
@@ -4942,7 +4942,7 @@ void ProxUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Prox Launcher Range is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenProxUpgradeMenu(ent);
+		OpenProxUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "pl_radius") == 0)
 	{
@@ -4964,28 +4964,28 @@ void ProxUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Prox Launcher Radius is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenProxUpgradeMenu(ent);
+		OpenProxUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "pl_trails") == 0)
 	{
 		ent->client->pers.skills.pl_trails = !ent->client->pers.skills.pl_trails;
 		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Prox Launcher Trails: {}\n", ent->client->pers.skills.pl_trails ? "DISABLED" : "ENABLED");
 		PMenu_Close(ent);
-		OpenProxUpgradeMenu(ent);
+		OpenProxUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "pl_silent") == 0)
 	{
 		ent->client->pers.skills.pl_silent = !ent->client->pers.skills.pl_silent;
 		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Prox Launcher Silent Mode: {}\n", ent->client->pers.skills.pl_silent ? "ON" : "OFF");
 		PMenu_Close(ent);
-		OpenProxUpgradeMenu(ent);
+		OpenProxUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "pl_improved_traps") == 0)
 	{
 		ent->client->pers.skills.pl_improved_traps = !ent->client->pers.skills.pl_improved_traps;
 		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Prox Launcher Improved Traps: {}\n", ent->client->pers.skills.pl_improved_traps ? "ON" : "OFF");
 		PMenu_Close(ent);
-		OpenProxUpgradeMenu(ent);
+		OpenProxUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "back_to_weapons") == 0)
 	{
@@ -5377,7 +5377,7 @@ void ETFUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "ETF Rifle Damage is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenETFUpgradeMenu(ent);
+		OpenETFUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "etf_speed") == 0)
 	{
@@ -5399,7 +5399,7 @@ void ETFUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "ETF Rifle Speed is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenETFUpgradeMenu(ent);
+		OpenETFUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "etf_kick") == 0)
 	{
@@ -5421,14 +5421,14 @@ void ETFUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "ETF Rifle Kick is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenETFUpgradeMenu(ent);
+		OpenETFUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "etf_silent") == 0)
 	{
 		ent->client->pers.skills.etf_silent = !ent->client->pers.skills.etf_silent;
 		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "ETF Rifle Silent Mode: {}\n", ent->client->pers.skills.etf_silent ? "ON" : "OFF");
 		PMenu_Close(ent);
-		OpenETFUpgradeMenu(ent);
+		OpenETFUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "back_to_weapons") == 0)
 	{
@@ -5844,7 +5844,7 @@ void BFGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "BFG10K Damage is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenBFGUpgradeMenu(ent);
+		OpenBFGUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "bfg_speed") == 0)
 	{
@@ -5866,7 +5866,7 @@ void BFGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "BFG10K Speed is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenBFGUpgradeMenu(ent);
+		OpenBFGUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "bfg_duration") == 0)
 	{
@@ -5888,7 +5888,7 @@ void BFGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "BFG10K Duration is already at maximum level!\n");
 		}
 		PMenu_Close(ent);
-		OpenBFGUpgradeMenu(ent);
+		OpenBFGUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "bfg_mode") == 0)
 	{
@@ -5909,14 +5909,14 @@ void BFGUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "BFG10K Mode: Normal\n");
 		}
 		PMenu_Close(ent);
-		OpenBFGUpgradeMenu(ent);
+		OpenBFGUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "bfg_silent") == 0)
 	{
 		ent->client->pers.skills.bfg_silent = !ent->client->pers.skills.bfg_silent;
 		gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "BFG10K Silent Mode: {}\n", ent->client->pers.skills.bfg_silent ? "ON" : "OFF");
 		PMenu_Close(ent);
-		OpenBFGUpgradeMenu(ent);
+		OpenBFGUpgradeMenu(ent, p->cur);
 	}
 	else if (strcmp(arg, "back_to_weapons") == 0)
 	{
