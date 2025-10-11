@@ -335,7 +335,14 @@ bool BotHasAmmoRegen(edict_t* player) {
 }
 
 bool BotHasAutoHaste(edict_t* player) {
-    return BotHasBenefit(player, BenefitID::AUTO_HASTE);
+    if (!player || !player->client) return false;
+
+    // Support both bot benefit system and player skill system
+    if (player->svflags & SVF_BOT) {
+        return BotHasBenefit(player, BenefitID::AUTO_HASTE);
+    } else {
+        return player->client->pers.skills.auto_haste;
+    }
 }
 
 bool BotHasStartArmor(edict_t* player) {

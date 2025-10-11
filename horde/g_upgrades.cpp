@@ -135,6 +135,15 @@ static const UpgradeDefinition UPGRADE_DEFS[] = {
         ""
         "",
         10, 1, UpgradeCategory::ABILITY, nullptr, 0
+    },
+    {
+        "auto_haste",
+        "Auto-Haste",
+        "Dual-Fire running through your veins!\n"
+        "Killing enemies extends Quad/Dual-Fire\n"
+        "Dealing damage gives chance for Dual-Fire\n"
+        "Single unlock - permanent ability",
+        1, 1, UpgradeCategory::ABILITY, nullptr, 0
     }
 
     // More abilities will be added here in future phases
