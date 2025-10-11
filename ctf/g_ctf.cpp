@@ -59,6 +59,13 @@ int imageindex_ctfsb2;
 int imageindex_strogg;
 int imageindex_human;
 int imageindex_victory;
+
+// Random achievement images for Horde intermission
+int imageindex_ach_eou7;
+int imageindex_ach_eou5;
+int imageindex_ach_xatrix;
+int imageindex_ach_rogue;
+int imageindex_ach_eou3;
 int modelindex_flag1, modelindex_flag2; // [Paril-KEX]
 
 constexpr item_id_t tech_ids[] = { IT_TECH_RESISTANCE, IT_TECH_STRENGTH, IT_TECH_HASTE, IT_TECH_REGENERATION };
@@ -202,6 +209,13 @@ void CTFPrecache()
 	imageindex_ctfsb1 = gi.imageindex("tag4");
 	imageindex_ctfsb2 = gi.imageindex("tag5");
 	imageindex_strogg = gi.imageindex("ach/ACH_eou7_on");
+
+	// Precache random achievement images for Horde intermission
+	imageindex_ach_eou7 = gi.imageindex("ach/ACH_eou7_on");
+	imageindex_ach_eou5 = gi.imageindex("ach/ACH_eou5_on");
+	imageindex_ach_xatrix = gi.imageindex("ach/ACH_xatrix_on");
+	imageindex_ach_rogue = gi.imageindex("ach/ACH_rogue_on");
+	imageindex_ach_eou3 = gi.imageindex("ach/ACH_eou3_on");
 
 	// Precache all possible images
 	int const precache_ach_eou7_on = gi.imageindex("ach/ACH_eou7_on");
@@ -1021,7 +1035,30 @@ void SetCTFStats(edict_t* ent)
 		//	ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
 		//	ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
 
-		ent->client->ps.stats[STAT_CTF_TEAM2_HEADER] = imageindex_strogg;
+		// For Horde mode, randomly select an achievement image for intermission
+		if (g_horde->integer || pvm->integer)
+		{
+			static int random_ach_image = 0;
+
+			// Only pick a new random image once at the start of intermission
+			if (level.intermission_server_frame == gi.ServerFrame())
+			{
+				int const ach_images[] = {
+					imageindex_ach_eou7,
+					imageindex_ach_eou5,
+					imageindex_ach_xatrix,
+					imageindex_ach_rogue,
+					imageindex_ach_eou3
+				};
+				random_ach_image = ach_images[irandom(5)];
+			}
+
+			ent->client->ps.stats[STAT_CTF_TEAM2_HEADER] = random_ach_image;
+		}
+		else
+		{
+			ent->client->ps.stats[STAT_CTF_TEAM2_HEADER] = imageindex_strogg;
+		}
 
 	}
 	else

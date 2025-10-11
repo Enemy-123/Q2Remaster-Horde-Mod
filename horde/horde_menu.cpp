@@ -6398,12 +6398,10 @@ public:
 
 	void addTeamScore()
 	{
-		// Define the path to your custom horde dogtag
 		const char *horde_dogtag_path = "/tags/etqw_strogg.png";
-
 		if (!level.intermissiontime)
 		{
-			// Display horde dogtag image - picn doesn't need if/endif wrapper
+			// Display Strogg team icon during gameplay (uses stat 26 = STAT_CTF_TEAM2_HEADER, right side)
 			layout_builder.append(fmt::format(
 				"xv -140 yv 3 picn {} ", horde_dogtag_path));
 
@@ -6417,9 +6415,8 @@ public:
 		}
 		else
 		{
-			// Intermission screen - display team dogtag for aesthetics
-			layout_builder.append(fmt::format(
-				"xv -140 yv 3 picn {} ", horde_dogtag_path));
+			// Intermission screen - display Strogg team icon (uses stat 26 = STAT_CTF_TEAM2_HEADER, right side)
+			layout_builder.append("if 26 xv 208 yv 8 pic 25 endif ");
 		}
 	}
 
