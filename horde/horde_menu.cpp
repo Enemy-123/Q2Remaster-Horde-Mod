@@ -2215,14 +2215,14 @@ void HordeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		shouldCloseMenu = false;
 	}
 	// Set Respawn Weapon
-	else if (strcmp(selected_text, "Set Respawn Weapon") == 0)
+	else if (strcmp(selected_text, "*Set Respawn Weapon") == 0)
 	{
 		respawn_weapon_current_page = 0; // Reset to first page when opening from main menu
 		OpenRespawnWeaponMenu(ent);
 		shouldCloseMenu = false;
 	}
 	// Character Info
-	else if (strstr(selected_text, "Character Info"))
+	else if (strstr(selected_text, "*Character Info"))
 	{
 		PvM_OpenStatsMenu(ent);
 		shouldCloseMenu = false;
@@ -2697,8 +2697,8 @@ pmenuhnd_t *CreateAbilitiesMenu(edict_t *ent)
 			total_abilities++;
 	}
 
-	// Pagination settings (matching respawn weapon menu: 10 items per page)
-	constexpr size_t abilities_per_page = 10;
+	// Pagination settings (8 items per page to ensure navigation visibility)
+	constexpr size_t abilities_per_page = 7;
 	size_t total_pages = (total_abilities + abilities_per_page - 1) / abilities_per_page;
 
 	// Wrap page number
@@ -2758,7 +2758,7 @@ pmenuhnd_t *CreateAbilitiesMenu(edict_t *ent)
 		ability_counter++;
 	}
 
-	// Fill remaining ability slots if we have fewer than 10 abilities on this page
+	// Fill remaining ability slots if we have fewer than 8 abilities on this page
 	for (size_t i = end_index - start_index; i < abilities_per_page; ++i)
 	{
 		add_entry("", PMENU_ALIGN_CENTER);
@@ -2769,42 +2769,39 @@ pmenuhnd_t *CreateAbilitiesMenu(edict_t *ent)
 		add_entry("No abilities available", PMENU_ALIGN_CENTER);
 	}
 
-	// Navigation section
+	// Separator
 	add_entry("", PMENU_ALIGN_CENTER);
+	add_entry("---", PMENU_ALIGN_CENTER);
 
-	// Next button (only if not on last page)
-	if (abilities_current_page < total_pages - 1)
-	{
-		add_entry("Next >", PMENU_ALIGN_LEFT, AbilitiesMenuHandler, "next_page");
-	}
-	else
-	{
-		add_entry("", PMENU_ALIGN_CENTER);
-	}
-
-	// Previous button (only if not on first page)
-	if (abilities_current_page > 0)
-	{
-		add_entry("< Previous", PMENU_ALIGN_LEFT, AbilitiesMenuHandler, "prev_page");
-	}
-	else
-	{
-		add_entry("", PMENU_ALIGN_CENTER);
-	}
+	// Points display with green highlighting
+	char points_text[64];
+	G_FmtTo(points_text, "*You have: {} points to upgrade", ent->client->pers.skill_points);
+	add_entry(points_text, PMENU_ALIGN_CENTER);
 
 	// Separator
 	add_entry("---", PMENU_ALIGN_CENTER);
 
-	// Points display
-	char points_text[64];
-	G_FmtTo(points_text, "You have: {} points to upgrade", ent->client->pers.skill_points);
-	add_entry(points_text, PMENU_ALIGN_CENTER);
-
 	// Reset all skills option
 	add_entry("Reset All Skills (Free)", PMENU_ALIGN_LEFT, AbilitiesMenuHandler, "reset_skills");
 
-	// Back to upgrade menu
-	add_entry("< Back", PMENU_ALIGN_LEFT, AbilitiesMenuHandler, "back_to_upgrade");
+	// // Separator
+	// add_entry("", PMENU_ALIGN_CENTER);
+
+	// Navigation at the bottom
+	// Previous page button (only if not on first page)
+	if (abilities_current_page > 0)
+	{
+		add_entry("< Previous Page", PMENU_ALIGN_LEFT, AbilitiesMenuHandler, "prev_page");
+	}
+
+	// Next page button (only if not on last page)
+	if (abilities_current_page < total_pages - 1)
+	{
+		add_entry("Next Page >", PMENU_ALIGN_LEFT, AbilitiesMenuHandler, "next_page");
+	}
+
+	// Back to upgrade menu (always visible)
+	add_entry("< Back to Main Menu", PMENU_ALIGN_LEFT, AbilitiesMenuHandler, "back_to_upgrade");
 
 	return PMenu_Open(ent, abilities_menu, 0, menu_index, nullptr, nullptr);
 }
@@ -3030,7 +3027,7 @@ pmenuhnd_t *CreateUpgradeMenu(edict_t *ent)
 	int menu_index = 0;
 
 	// Title
-	Q_strlcpy(upgrade_menu[menu_index].text, "=== UPGRADES ===", sizeof(upgrade_menu[menu_index].text));
+	Q_strlcpy(upgrade_menu[menu_index].text, "*=== UPGRADES ===", sizeof(upgrade_menu[menu_index].text));
 	upgrade_menu[menu_index].align = PMENU_ALIGN_CENTER;
 	upgrade_menu[menu_index].SelectFunc = nullptr;
 	menu_index++;

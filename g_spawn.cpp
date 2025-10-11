@@ -1970,9 +1970,9 @@ static void G_InitStatusbar()
 		sb.ifstat(STAT_HEALTH_BARS).yt(24).health_bars().endifstat();
 		sb.xr(-65).yt(12).num(4, STAT_FRAGS).xr(-43).yt(1).string("Score");
 
-		sb.xr(-50).yt(68).num(3, STAT_SPREE).xr(-43).yt(53).string("Spree");
+		sb.xr(-50).yt(65).num(3, STAT_SPREE).xr(-43).yt(50).string("Spree");
 
-		sb.xr(-50).yt(125).num(3, STAT_CUBES).xr(-43).yt(100).string("Power Cubes");
+		sb.xr(-50).yt(120).num(3, STAT_CUBES).xr(-43).yt(95).string("Power\nCubes");
 
 		sb.ifstat(STAT_ID_DAMAGE)
 			.xv(130).yv(150).string2("DMG-ID")
