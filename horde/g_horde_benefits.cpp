@@ -31,7 +31,6 @@ const struct benefit_source_t {
     {BenefitID::BFG_GRAV_PULL, "BFG Gravity Pull", "\n\n\n\nBFG GRAVITY PULL\nENABLED!\n", "BFG Gravity Pull Active!\n", 12, -1, 0.15f, BenefitID::BFG_SLIDE, BenefitCategory::WEAPON},
     {BenefitID::TESLA_CHAIN_LIGHTNING, "Tesla Chain Lightning", "\n\n\n\nTESLA CHAIN LIGHTNING\nENABLED!\n", "Tesla Chain Lightning Upgrade Active!\n", 1, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON}
 };
-
 // --- Compile-time transformation function ---
 // This should also ONLY exist in the .cpp file.
 constexpr BotsBonusesSoA create_benefits_soa() {
