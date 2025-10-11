@@ -1886,11 +1886,14 @@ void Chaingun_Fire(edict_t* ent)
 	damage += ent->client->pers.skills.cg_damage;
 
 	// Apply spin upgrade by reducing frame transitions (skip frames for faster spin)
-	int frame_skip = ent->client->pers.skills.cg_spin / 2; // Every 2 spin levels = 1 frame skip
+	int spin_level = ent->client->pers.skills.cg_spin;
 
 	// Handle gun state transitions
 	if (ent->client->ps.gunframe > CHAINGUN_READY_FRAME) {
-		ent->client->ps.gunframe = CHAINGUN_START_FRAME;
+		// Starting spin-up: Skip to a later frame based on spin level
+		// Level 10 = instant ready (frame 14), Level 0 = start at frame 5
+		int skip_frames = (spin_level * 9) / 10; // 0 at level 0, 9 at level 10
+		ent->client->ps.gunframe = CHAINGUN_START_FRAME + skip_frames;
 		if (!ent->client->pers.skills.cg_silent)
 		{
 			gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnu1a.wav"), 1, ATTN_IDLE, 0);
@@ -1898,7 +1901,14 @@ void Chaingun_Fire(edict_t* ent)
 	}
 	else if ((ent->client->ps.gunframe == CHAINGUN_PAUSE_FRAME) &&
 		!(ent->client->buttons & BUTTON_ATTACK)) {
-		ent->client->ps.gunframe = CHAINGUN_SPINDOWN_FRAME;
+		// Releasing fire: Skip spin-down based on spin level
+		// At level 10, instantly stop (skip to end of spindown)
+		if (spin_level >= 8) {
+			// High spin levels: instant stop, skip spindown animation entirely
+			ent->client->ps.gunframe = CHAINGUN_READY_FRAME + 1; // Go straight to idle
+		} else {
+			ent->client->ps.gunframe = CHAINGUN_SPINDOWN_FRAME;
+		}
 		ent->client->weapon_sound = 0;
 		if (!ent->client->pers.skills.cg_silent)
 		{
@@ -1912,7 +1922,18 @@ void Chaingun_Fire(edict_t* ent)
 		ent->client->ps.gunframe = CHAINGUN_LOOP_FRAME;
 	}
 	else {
+		// Advance frame - with optional skip during spin-up phase
 		ent->client->ps.gunframe++;
+
+		// During spin-up (frames 5-13), skip additional frames based on spin level
+		if (ent->client->ps.gunframe >= CHAINGUN_START_FRAME &&
+		    ent->client->ps.gunframe < CHAINGUN_PAUSE_FRAME) {
+			// Every 3 levels = 1 extra frame skip during spin-up
+			int extra_skip = spin_level / 3;
+			if (extra_skip > 0 && (ent->client->ps.gunframe % (4 - extra_skip)) == 0) {
+				ent->client->ps.gunframe++;
+			}
+		}
 	}
 
 	if (ent->client->ps.gunframe == CHAINGUN_SOUND_FRAME) {
