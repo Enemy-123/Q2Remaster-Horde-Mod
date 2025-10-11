@@ -6685,7 +6685,7 @@ void Horde_RunFrame()
 				if (!IsBossWave() || boss_spawned_for_wave) {
 					if (!next_wave_message_sent) {
 						VerifyAndAdjustBots();
-						gi.LocBroadcast_Print(PRINT_HIGH, "Wave fully deployed. Wave Level is: {}\n", currentLevel);
+						gi.LocBroadcast_Print(PRINT_HIGH, "Wave fully deployed! Current Wave Level is: {}\n", currentLevel);
 						next_wave_message_sent = true;
 					}
 					g_horde_local.state = horde_state_t::active_wave;
