@@ -253,6 +253,28 @@
     },
     "strogg_summons": {
       "comment": "Strogg summons configuration - max summons controlled by entity_limits.max_summons"
+    },
+    "sentrygun": {
+      "comment": "Sentry gun configuration - level-based damage scaling",
+      "initial_health": 50,
+      "addon_health": 15,
+      "initial_armor": 50,
+      "addon_armor": 30,
+      "max_health": 200,
+      "max_armor": 350,
+      "initial_bullet": 6,
+      "addon_bullet": 1,
+      "initial_heatbeam": 3,
+      "addon_heatbeam": 1,
+      "initial_flechette": 6,
+      "addon_flechette": 1,
+      "initial_rocket": 50,
+      "addon_rocket": 15,
+      "initial_plasma": 50,
+      "addon_plasma": 15,
+      "initial_grenade": 50,
+      "addon_grenade": 15,
+      "cost": 50
     }
   },
 
