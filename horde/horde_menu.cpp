@@ -2222,7 +2222,7 @@ void HordeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		shouldCloseMenu = false;
 	}
 	// Character Info
-	else if (strstr(selected_text, "*Character Info"))
+	else if (strstr(selected_text, "Character Info"))
 	{
 		PvM_OpenStatsMenu(ent);
 		shouldCloseMenu = false;
