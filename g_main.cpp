@@ -613,6 +613,19 @@ The timelimit or fraglimit has been exceeded
 */
 
 // --- HELPER FUNCTIONS (add these to the top of the file or a utility header) ---
+
+// Trim leading and trailing whitespace from a string_view
+inline std::string_view trim_whitespace(std::string_view str)
+{
+    const char* whitespace = " \t\r\n";
+    size_t start = str.find_first_not_of(whitespace);
+    if (start == std::string_view::npos)
+        return {}; // String is all whitespace
+
+    size_t end = str.find_last_not_of(whitespace);
+    return str.substr(start, end - start + 1);
+}
+
 inline std::vector<std::string_view> split_string_view(std::string_view str, char delimiter = ' ')
 {
     std::vector<std::string_view> result;
@@ -623,7 +636,17 @@ inline std::vector<std::string_view> split_string_view(std::string_view str, cha
     size_t end = 0;
     while ((start = str.find_first_not_of(delimiter, end)) != std::string_view::npos) {
         end = str.find(delimiter, start);
-        if (!safe_push_back(result, str.substr(start, end - start), 256)) {
+        std::string_view token = str.substr(start, end - start);
+
+        // Trim whitespace from the token
+        token = trim_whitespace(token);
+
+        // Skip empty tokens (from consecutive delimiters or whitespace-only tokens)
+        if (token.empty()) {
+            continue;
+        }
+
+        if (!safe_push_back(result, token, 256)) {
             break;  // Stop if we hit size limit
         }
     }
@@ -662,6 +685,55 @@ inline std::string join_string_views(const std::vector<std::string_view>& views,
         }
     }
     return result;
+}
+
+// Validate and sanitize a map name before changing levels
+// Returns true if the map name is valid, false otherwise
+inline bool ValidateMapName(const char* map_name, char* sanitized_buffer, size_t buffer_size)
+{
+    if (!map_name || !sanitized_buffer || buffer_size == 0)
+        return false;
+
+    // Trim leading/trailing whitespace
+    std::string_view map_view = trim_whitespace(map_name);
+
+    // Check for empty map name
+    if (map_view.empty()) {
+        gi.Com_PrintFmt("WARNING: Empty map name detected in map list! Skipping map change.\n");
+        return false;
+    }
+
+    // Check for suspicious characters or corruption
+    if (map_view.find_first_of("\r\n\t") != std::string_view::npos) {
+        gi.Com_PrintFmt("WARNING: Map name '{}' contains invalid characters! Sanitizing...\n", map_name);
+        // Remove the invalid characters
+        size_t write_pos = 0;
+        for (char c : map_view) {
+            if (c != '\r' && c != '\n' && c != '\t' && write_pos < buffer_size - 1) {
+                sanitized_buffer[write_pos++] = c;
+            }
+        }
+        sanitized_buffer[write_pos] = '\0';
+        map_view = std::string_view(sanitized_buffer, write_pos);
+    }
+
+    // Check for leading/trailing spaces that weren't trimmed (shouldn't happen but defensive)
+    if (map_name[0] == ' ' || map_name[strlen(map_name) - 1] == ' ') {
+        gi.Com_PrintFmt("WARNING: Map name '{}' has leading/trailing spaces! Corruption detected in g_map_list.\n", map_name);
+    }
+
+    // Copy the sanitized name to buffer
+    size_t len = std::min(map_view.length(), buffer_size - 1);
+    memcpy(sanitized_buffer, map_view.data(), len);
+    sanitized_buffer[len] = '\0';
+
+    // Check for very short or suspicious map names
+    if (len < 2) {
+        gi.Com_PrintFmt("WARNING: Map name '{}' is suspiciously short! Possible corruption in g_map_list.\n", sanitized_buffer);
+        return false;
+    }
+
+    return true;
 }
 
 void EndDMLevel()
@@ -713,6 +785,7 @@ void EndDMLevel()
             // --- FIX: AVOID ALLOCATION FOR THE NEXT MAP ---
             // Create a temporary buffer on the stack.
             char next_map_buffer[MAX_QPATH];
+            char validated_map_buffer[MAX_QPATH];
             std::string_view next_map_sv = values[0];
 
             // Safely copy the string_view's content into our buffer.
@@ -720,8 +793,15 @@ void EndDMLevel()
             memcpy(next_map_buffer, next_map_sv.data(), len);
             next_map_buffer[len] = '\0'; // Manually null-terminate.
 
-            // Start the intermission with the map name from our stack buffer.
-            BeginIntermission(CreateTargetChangeLevel(next_map_buffer));
+            // Validate the map name before changing levels
+            if (!ValidateMapName(next_map_buffer, validated_map_buffer, sizeof(validated_map_buffer))) {
+                gi.Com_PrintFmt("ERROR: Invalid map name '{}' in shuffled map list! Falling back to current map.\n", next_map_buffer);
+                BeginIntermission(CreateTargetChangeLevel(level.mapname));
+                return;
+            }
+
+            // Start the intermission with the validated map name.
+            BeginIntermission(CreateTargetChangeLevel(validated_map_buffer));
             return; // We are done.
         }
         // --- ORIGINAL NON-SHUFFLE LOGIC (FALLBACK) ---
@@ -729,6 +809,7 @@ void EndDMLevel()
         {
             const char* str = g_map_list->string;
             char first_map[MAX_QPATH]{ 0 };
+            char validated_map[MAX_QPATH];
             char* map;
 
             while (true)
@@ -743,8 +824,15 @@ void EndDMLevel()
                     map = COM_ParseEx(&str, " ");
                     if (*map) // If there is a next map
                     {
-                        BeginIntermission(CreateTargetChangeLevel(map));
-                        return;
+                        // Validate before changing
+                        if (ValidateMapName(map, validated_map, sizeof(validated_map))) {
+                            BeginIntermission(CreateTargetChangeLevel(validated_map));
+                            return;
+                        } else {
+                            gi.Com_PrintFmt("ERROR: Invalid next map '{}' in map list! Falling back to current map.\n", map);
+                            BeginIntermission(CreateTargetChangeLevel(level.mapname));
+                            return;
+                        }
                     }
                     // If no next map, we'll break and loop to the first_map.
                     break;
@@ -757,8 +845,15 @@ void EndDMLevel()
             // If we reached the end of the list, loop back to the first map.
             if (first_map[0])
             {
-                BeginIntermission(CreateTargetChangeLevel(first_map));
-                return;
+                // Validate before changing
+                if (ValidateMapName(first_map, validated_map, sizeof(validated_map))) {
+                    BeginIntermission(CreateTargetChangeLevel(validated_map));
+                    return;
+                } else {
+                    gi.Com_PrintFmt("ERROR: Invalid first map '{}' in map list! Restarting current map.\n", first_map);
+                    BeginIntermission(CreateTargetChangeLevel(level.mapname));
+                    return;
+                }
             }
         }
     }
