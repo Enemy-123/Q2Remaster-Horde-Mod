@@ -108,7 +108,8 @@ void Killed(edict_t* targ, edict_t* inflictor, edict_t* attacker, int damage, co
 	targ->lastMOD = mod;
 
 	// Award XP for monster kills (Horde/PvM modes)
-	if ((targ->svflags & SVF_MONSTER) && attacker && attacker->client)
+	// Only award on FIRST kill, not on subsequent damage during death animation
+	if ((targ->svflags & SVF_MONSTER) && attacker && attacker->client && !targ->deadflag)
 	{
 		extern void AwardKillXP(edict_t* attacker, edict_t* monster);
 		AwardKillXP(attacker, targ);
