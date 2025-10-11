@@ -279,7 +279,7 @@ void PvM_CheckLevelUp(edict_t* player)
         // Level up!
         current_level++;
         player->client->pers.pvm_level = current_level;
-        player->client->pers.skill_points++; // Grant 1 skill point per level
+        player->client->pers.skill_points += 2; // Grant 2 skill point per level
         player->client->pers.weapon_points += 4; // Grant 4 weapon points per level
 
         // Every 5 levels, auto-grant +1 vitality and +1 max ammo (free, not using skill points)
@@ -324,13 +324,14 @@ void PvM_CheckLevelUp(edict_t* player)
             }
         }
 
+        
         // Show level-up message
         gi.LocClient_Print(player, PRINT_TYPEWRITER,
-                           "LEVEL UP!\nYou are now level {}!\n+1 Skill Point\n+4 Weapon Points\nOpen Menu for upgrading skills",
+                           "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n*****LEVEL UP!*****\n\n\n\n\n\n\n\n\n\n\nYou are now level {}!\n+2 Skill Point\n+4 Weapon Points\nOpen Menu for upgrading skills",
                            current_level);
 
         gi.LocClient_Print(player, PRINT_HIGH,
-                           "*** LEVEL UP! You are now level {} (+1 skill point, +4 weapon points) ***\n",
+                           "*** LEVEL UP! You are now level {} (+2 skill point, +4 weapon points) ***\n",
                            current_level);
 
         // // Show bonus message if applicable
