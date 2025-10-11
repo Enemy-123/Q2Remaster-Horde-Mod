@@ -478,7 +478,7 @@ static void AutoBuyCategory(edict_t* player, BenefitCategory category) {
         // Skip if already owned
         if (BotHasBenefit(player, benefit_id)) {
             if (is_bot) {
-                gi.Com_PrintFmt("[DEBUG] {} already has {}, skipping\n", player_name, benefit_name);
+                // gi.Com_PrintFmt("[DEBUG] {} already has {}, skipping\n", player_name, benefit_name);
             }
             continue;
         }

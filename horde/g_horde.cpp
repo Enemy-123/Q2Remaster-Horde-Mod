@@ -6361,11 +6361,11 @@ static const int TOTAL_REWARD_WEIGHT = []
 	return (total > 0) ? total : 1;
 }(); // Immediately invoke the lambda
 
-static bool GiveTopDamagerReward(const PlayerStats& topDamager, std::string_view playerName)
+static const char* GiveTopDamagerReward(const PlayerStats& topDamager, std::string_view playerName)
 {
 	// Quick validation with early return
 	if (!topDamager.player || !topDamager.player->inuse || !topDamager.player->client)
-		return false;
+		return nullptr;
 
 	const int roll = irandom(1, TOTAL_REWARD_WEIGHT);
 	item_id_t selectedItemId = TOP_DAMAGER_REWARDS[0].item_id; // Default fallback to the first item
@@ -6393,13 +6393,13 @@ static bool GiveTopDamagerReward(const PlayerStats& topDamager, std::string_view
 		{
 			gi.Com_PrintFmt("Error: GiveTopDamagerReward - Failed to get valid gitem_t for ID {}\n", static_cast<int>(selectedItemId));
 		}
-		return false;
+		return nullptr;
 	}
 
 	// Spawn and give item directly to player
 	edict_t* entity = G_Spawn();
 	if (!entity)
-		return false;
+		return nullptr;
 
 	entity->classname = item->classname;
 	entity->item = item;
@@ -6408,8 +6408,8 @@ static bool GiveTopDamagerReward(const PlayerStats& topDamager, std::string_view
 	// Check if SpawnItem succeeded (entity might be freed if e.g., item shouldn't spawn in DM)
 	if (!entity->inuse)
 	{
-		// SpawnItem already freed it, just return false
-		return false;
+		// SpawnItem already freed it, just return nullptr
+		return nullptr;
 	}
 
 	// Give item to player
@@ -6420,14 +6420,9 @@ static bool GiveTopDamagerReward(const PlayerStats& topDamager, std::string_view
 		G_FreeEdict(entity); // Free if Touch_Item didn't consume it
 	}
 
-	// Announce reward
+	// Return item name for announcement (caller will print combined message)
 	const char* itemName = item->use_name ? item->use_name : (item->classname ? item->classname : "reward");
-
-	gi.LocBroadcast_Print(PRINT_HIGH, "{} receives a {} for top damage!\n",
-		playerName.empty() ? "Unknown Player" : playerName.data(),
-		itemName);
-
-	return true;
+	return itemName;
 }
 
 static void SendCleanupMessage(WaveEndReason reason)
@@ -6461,12 +6456,16 @@ static void SendCleanupMessage(WaveEndReason reason)
 		// Get player name once
 		const char* playerName = GetPlayerName(topDamager.player);
 
-		gi.LocBroadcast_Print(PRINT_HIGH, "{} dealt the most damage with {}! ({}% of total)\n",
-			playerName, topDamager.total_damage, static_cast<int>(percentage));
+		// Try to give reward and get item name
+		const char* rewardItem = GiveTopDamagerReward(topDamager, std::string_view(playerName));
 
-		if (GiveTopDamagerReward(topDamager, std::string_view(playerName)))
+		if (rewardItem)
 		{
-			// (rest of the function is unchanged)
+			// Print combined message: damage stats + reward in one line
+			gi.LocBroadcast_Print(PRINT_HIGH, "{} dealt {} damage ({}% of total) and receives a {}!\n",
+				playerName, topDamager.total_damage, static_cast<int>(percentage), rewardItem);
+
+			// Reset player stats
 			for (auto* player : active_players())
 			{
 				if (player && player->client)
