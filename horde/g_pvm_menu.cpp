@@ -325,30 +325,30 @@ void PvM_CheckLevelUp(edict_t* player)
         }
 
         // Show level-up message
-        gi.LocClient_Print(player, PRINT_TYPEWRITER, nullptr,
-                           "LEVEL UP!\\nYou are now level {}!\n+1 Skill Point\n+4 Weapon Points\n",
+        gi.LocClient_Print(player, PRINT_TYPEWRITER,
+                           "LEVEL UP!\nYou are now level {}!\n+1 Skill Point\n+4 Weapon Points\nOpen Menu for upgrading skills",
                            current_level);
 
-        gi.LocClient_Print(player, PRINT_HIGH, nullptr,
+        gi.LocClient_Print(player, PRINT_HIGH,
                            "*** LEVEL UP! You are now level {} (+1 skill point, +4 weapon points) ***\n",
                            current_level);
 
-        // Show bonus message if applicable
-        if (got_free_vitality && got_free_max_ammo)
-        {
-            gi.LocClient_Print(player, PRINT_HIGH, nullptr,
-                               "*** MILESTONE! +1 Vitality & +1 Max Ammo (Free) ***\n");
-        }
-        else if (got_free_vitality)
-        {
-            gi.LocClient_Print(player, PRINT_HIGH, nullptr,
-                               "*** MILESTONE! +1 Vitality (Free) ***\n");
-        }
-        else if (got_free_max_ammo)
-        {
-            gi.LocClient_Print(player, PRINT_HIGH, nullptr,
-                               "*** MILESTONE! +1 Max Ammo (Free) ***\n");
-        }
+        // // Show bonus message if applicable
+        // if (got_free_vitality && got_free_max_ammo)
+        // {
+        //     gi.LocClient_Print(player, PRINT_HIGH, nullptr,
+        //                        "*** MILESTONE! +1 Vitality & +1 Max Ammo (Free) ***\n");
+        // }
+        // else if (got_free_vitality)
+        // {
+        //     gi.LocClient_Print(player, PRINT_HIGH, nullptr,
+        //                        "*** MILESTONE! +1 Vitality (Free) ***\n");
+        // }
+        // else if (got_free_max_ammo)
+        // {
+        //     gi.LocClient_Print(player, PRINT_HIGH, nullptr,
+        //                        "*** MILESTONE! +1 Max Ammo (Free) ***\n");
+        // }
 
         gi.LocBroadcast_Print(PRINT_CHAT, "*****{} gained a level*****\n", player_name);
 

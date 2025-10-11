@@ -1225,16 +1225,16 @@ void AwardKillXP(edict_t* attacker, edict_t* monster)
 	if (!monster || !(monster->svflags & SVF_MONSTER)) return;
 
 	// Base XP from monster
-	int32_t base_xp = 10; // Default for standard monsters
+	int32_t base_xp = (!IsPvMMode() ? 2 : 4); // Default for standard monsters
 
 	// Scale by monster type/difficulty
 	if (monster->monsterinfo.IS_BOSS)
-		base_xp = 500;
+		base_xp = 300;
 	else if (monster->monsterinfo.bonus_flags & BF_CHAMPION)
-		base_xp = 50;
+		base_xp = 20;
 
-	// Scale by current wave level (+2 XP per level)
-	base_xp += current_wave_level * 2;
+	// // Scale by current wave level (+2 XP per level)
+	// base_xp += current_wave_level * 2;
 
 	// Award XP
 	attacker->client->pers.pvm_xp += base_xp;
