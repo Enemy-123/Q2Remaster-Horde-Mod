@@ -6338,11 +6338,10 @@ struct RewardInfo
 };
 
 // Define the rewards ONLY ONCE in this array
-static const std::array<RewardInfo, 4> TOP_DAMAGER_REWARDS = {{
-	{IT_ITEM_BANDOLIER, 60}, // More common
-	{IT_ITEM_SENTRYGUN, 20}, // mid common
-	{IT_ITEM_STROGGSUMM, 25}, // mid common
-	{IT_AMMO_NUKE, 2}		 // lessss common
+static const std::array<RewardInfo, 3> TOP_DAMAGER_REWARDS = {{
+	{IT_ITEM_BANDOLIER, 79}, // More common
+	{IT_ITEM_PACK, 20}, // More common
+	{IT_AMMO_NUKE, 1}		 // lessss common
 }};
 
 // Pre-computed total reward weight, calculated directly from the single array
