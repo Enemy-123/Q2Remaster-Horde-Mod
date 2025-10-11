@@ -1283,10 +1283,6 @@ void SP_monster_infantry(edict_t* self)
 		self->max_health = self->health;
 		if (self->monsterinfo.setskin)
 			self->monsterinfo.setskin(self);
-
-		// Apply monster bonus flags after custom horde health setup
-		// This ensures proper level scaling, effects, and skin updates
-		ApplyMonsterBonusFlags(self);
 	}
 
 }
