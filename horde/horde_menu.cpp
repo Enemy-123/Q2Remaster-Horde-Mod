@@ -484,6 +484,13 @@ void CategorizeMapList()
 
 // Add a placeholder for the current map name
 static pmenu_t map_category_menu[12]; // Dynamic menu, will be filled in OpenMapCategoryMenu
+
+// --- Mode Selection Menu (for voting) ---
+static pmenu_t mode_selection_menu[8]; // Menu for choosing Horde or PvM mode before map selection
+
+// Forward declarations for mode selection
+void OpenModeSelectionMenu(edict_t *ent);
+void ModeSelectionHandler(edict_t *ent, pmenuhnd_t *p);
 // Menu indices are now dynamic, determined by the text content in MapCategoryHandler
 
 // Forward declaration for cooperative campaign menu
@@ -650,16 +657,15 @@ void MapCategoryHandler(edict_t *ent, pmenuhnd_t *p)
 		ent->client->menu_protected = true;
 		ent->client->menu_protection_start = level.time;
 	}
-	else if (strcmp(selected_text, "Vote Cooperative Mode (Beta)") == 0)
+	else if (strcmp(selected_text, "Vote PvM Mode") == 0)
 	{
-		// Open the cooperative campaign selection menu
-		OpenCooperativeCampaignMenu(ent);
+		// Start vote to switch to PvM mode
+		CTFBeginElection(ent, ELECT_PVM, "Switch to PvM Mode? (Disables g_instagib)");
 	}
 	else if (strcmp(selected_text, "Vote Horde Mode") == 0)
 	{
-		// Start vote to switch to horde mode
-		Q_strlcpy(ctfgame.elevel, "horde_mode", sizeof(ctfgame.elevel));
-		CTFBeginElection(ent, ELECT_COOP, "Switch to Horde Mode?");
+		// Start vote to switch to Horde mode
+		CTFBeginElection(ent, ELECT_HORDE, "Switch to Horde Mode? (Enables g_instagib)");
 	}
 	else if (strcmp(selected_text, "Extend Time") == 0)
 	{
@@ -694,8 +700,18 @@ void OpenMapCategoryMenu(edict_t *ent)
 	memset(map_category_menu, 0, sizeof(map_category_menu));
 	int idx = 0;
 
+	// Check if we're in mode voting flow (user has selected a mode)
+	bool in_mode_vote_flow = (ent->client->pending_mode_vote != 0);
+
 	// Title
-	Q_strlcpy(map_category_menu[idx].text, "Map Category Selection", sizeof(map_category_menu[idx].text));
+	if (in_mode_vote_flow)
+	{
+		Q_strlcpy(map_category_menu[idx].text, "Select Map Category", sizeof(map_category_menu[idx].text));
+	}
+	else
+	{
+		Q_strlcpy(map_category_menu[idx].text, "Map Category Selection", sizeof(map_category_menu[idx].text));
+	}
 	map_category_menu[idx].align = PMENU_ALIGN_CENTER;
 	map_category_menu[idx].SelectFunc = nullptr;
 	idx++;
@@ -725,40 +741,53 @@ void OpenMapCategoryMenu(edict_t *ent)
 	map_category_menu[idx].SelectFunc = nullptr;
 	idx++;
 
-	// Map categories or mode vote options
-	if (g_horde->integer || pvm->integer)
+	// Map categories - always show these
+	Q_strlcpy(map_category_menu[idx].text, "Small Maps", sizeof(map_category_menu[idx].text));
+	map_category_menu[idx].align = PMENU_ALIGN_LEFT;
+	map_category_menu[idx].SelectFunc = MapCategoryHandler;
+	idx++;
+
+	Q_strlcpy(map_category_menu[idx].text, "Medium Maps", sizeof(map_category_menu[idx].text));
+	map_category_menu[idx].align = PMENU_ALIGN_LEFT;
+	map_category_menu[idx].SelectFunc = MapCategoryHandler;
+	idx++;
+
+	Q_strlcpy(map_category_menu[idx].text, "Big Maps", sizeof(map_category_menu[idx].text));
+	map_category_menu[idx].align = PMENU_ALIGN_LEFT;
+	map_category_menu[idx].SelectFunc = MapCategoryHandler;
+	idx++;
+
+	// If NOT in mode vote flow, show mode switching votes and extend time
+	if (!in_mode_vote_flow)
 	{
-		// In horde/PvM mode - show map categories and cooperative vote
-		Q_strlcpy(map_category_menu[idx].text, "Small Maps", sizeof(map_category_menu[idx].text));
-		map_category_menu[idx].align = PMENU_ALIGN_LEFT;
-		map_category_menu[idx].SelectFunc = MapCategoryHandler;
-		idx++;
-
-		Q_strlcpy(map_category_menu[idx].text, "Medium Maps", sizeof(map_category_menu[idx].text));
-		map_category_menu[idx].align = PMENU_ALIGN_LEFT;
-		map_category_menu[idx].SelectFunc = MapCategoryHandler;
-		idx++;
-
-		Q_strlcpy(map_category_menu[idx].text, "Big Maps", sizeof(map_category_menu[idx].text));
-		map_category_menu[idx].align = PMENU_ALIGN_LEFT;
-		map_category_menu[idx].SelectFunc = MapCategoryHandler;
-		idx++;
-
-		Q_strlcpy(map_category_menu[idx].text, "Vote Cooperative Mode (Beta)", sizeof(map_category_menu[idx].text));
-		map_category_menu[idx].align = PMENU_ALIGN_LEFT;
-		map_category_menu[idx].SelectFunc = MapCategoryHandler;
-		idx++;
+		// Show mode switching votes based on current mode
+		if (g_horde->integer && !pvm->integer)
+		{
+			// In Horde mode - show PvM vote option
+			Q_strlcpy(map_category_menu[idx].text, "Vote PvM Mode", sizeof(map_category_menu[idx].text));
+			map_category_menu[idx].align = PMENU_ALIGN_LEFT;
+			map_category_menu[idx].SelectFunc = MapCategoryHandler;
+			idx++;
+		}
+		else if (pvm->integer)
+		{
+			// In PvM mode - show Horde vote option
+			Q_strlcpy(map_category_menu[idx].text, "Vote Horde Mode", sizeof(map_category_menu[idx].text));
+			map_category_menu[idx].align = PMENU_ALIGN_LEFT;
+			map_category_menu[idx].SelectFunc = MapCategoryHandler;
+			idx++;
+		}
+		else if (G_IsCooperative() || coop->integer)
+		{
+			// In cooperative mode - show option to vote for horde mode
+			Q_strlcpy(map_category_menu[idx].text, "Vote Horde Mode", sizeof(map_category_menu[idx].text));
+			map_category_menu[idx].align = PMENU_ALIGN_LEFT;
+			map_category_menu[idx].SelectFunc = MapCategoryHandler;
+			idx++;
+		}
 
 		// Add Extend Time option
 		Q_strlcpy(map_category_menu[idx].text, "Extend Time", sizeof(map_category_menu[idx].text));
-		map_category_menu[idx].align = PMENU_ALIGN_LEFT;
-		map_category_menu[idx].SelectFunc = MapCategoryHandler;
-		idx++;
-	}
-	else if (G_IsCooperative() || coop->integer)
-	{
-		// In cooperative mode - show option to vote for horde mode
-		Q_strlcpy(map_category_menu[idx].text, "Vote Horde Mode", sizeof(map_category_menu[idx].text));
 		map_category_menu[idx].align = PMENU_ALIGN_LEFT;
 		map_category_menu[idx].SelectFunc = MapCategoryHandler;
 		idx++;
@@ -783,6 +812,112 @@ void OpenMapCategoryMenu(edict_t *ent)
 
 	// Open the menu
 	PMenu_Open(ent, map_category_menu, -1, idx, nullptr, nullptr);
+}
+
+// --- Mode Selection Menu (for voting on mode + map) ---
+
+void ModeSelectionHandler(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client || !p)
+	{
+		return;
+	}
+
+	const char *selected_text = p->entries[p->cur].text;
+
+	PMenu_Close(ent); // Close the mode selection menu
+
+	if (strcmp(selected_text, "Vote Horde Mode") == 0)
+	{
+		// Store that we want to vote for Horde mode
+		ent->client->pending_mode_vote = 1;
+		// Categorize maps before opening map menu
+		CategorizeMapList();
+		// Now open the map category menu to select which map
+		OpenMapCategoryMenu(ent);
+	}
+	else if (strcmp(selected_text, "Vote PvM Mode") == 0)
+	{
+		// Store that we want to vote for PvM mode
+		ent->client->pending_mode_vote = 2;
+		// Categorize maps before opening map menu
+		CategorizeMapList();
+		// Now open the map category menu to select which map
+		OpenMapCategoryMenu(ent);
+	}
+	else if (strcmp(selected_text, "Back to Horde Menu") == 0)
+	{
+		OpenHordeMenu(ent);
+	}
+	// else Close or unrecognized - just close (already done)
+}
+
+void OpenModeSelectionMenu(edict_t *ent)
+{
+	if (!ent || !ent->client)
+	{
+		return;
+	}
+
+	// Close any existing menu first
+	if (ent->client->menu)
+	{
+		PMenu_Close(ent);
+	}
+
+	// Set menu protection
+	ent->client->menu_protected = true;
+	ent->client->menu_protection_start = level.time;
+
+	// Clear any pending mode vote
+	ent->client->pending_mode_vote = 0;
+
+	// Build the menu
+	memset(mode_selection_menu, 0, sizeof(mode_selection_menu));
+	int idx = 0;
+
+	// Title
+	Q_strlcpy(mode_selection_menu[idx].text, "Vote Mode & Map", sizeof(mode_selection_menu[idx].text));
+	mode_selection_menu[idx].align = PMENU_ALIGN_CENTER;
+	mode_selection_menu[idx].SelectFunc = nullptr;
+	idx++;
+
+	// Blank line
+	mode_selection_menu[idx].text[0] = '\0';
+	mode_selection_menu[idx].align = PMENU_ALIGN_CENTER;
+	mode_selection_menu[idx].SelectFunc = nullptr;
+	idx++;
+
+	// Show both mode options
+	Q_strlcpy(mode_selection_menu[idx].text, "Vote Horde Mode", sizeof(mode_selection_menu[idx].text));
+	mode_selection_menu[idx].align = PMENU_ALIGN_LEFT;
+	mode_selection_menu[idx].SelectFunc = ModeSelectionHandler;
+	idx++;
+
+	Q_strlcpy(mode_selection_menu[idx].text, "Vote PvM Mode", sizeof(mode_selection_menu[idx].text));
+	mode_selection_menu[idx].align = PMENU_ALIGN_LEFT;
+	mode_selection_menu[idx].SelectFunc = ModeSelectionHandler;
+	idx++;
+
+	// Blank line
+	mode_selection_menu[idx].text[0] = '\0';
+	mode_selection_menu[idx].align = PMENU_ALIGN_CENTER;
+	mode_selection_menu[idx].SelectFunc = nullptr;
+	idx++;
+
+	// Back and Close
+	Q_strlcpy(mode_selection_menu[idx].text, "Back to Horde Menu", sizeof(mode_selection_menu[idx].text));
+	mode_selection_menu[idx].align = PMENU_ALIGN_LEFT;
+	mode_selection_menu[idx].SelectFunc = ModeSelectionHandler;
+	idx++;
+
+	Q_strlcpy(mode_selection_menu[idx].text, "Close", sizeof(mode_selection_menu[idx].text));
+	mode_selection_menu[idx].align = PMENU_ALIGN_LEFT;
+	mode_selection_menu[idx].SelectFunc = ModeSelectionHandler;
+	idx++;
+
+	// Open the menu
+	PMenu_Open(ent, mode_selection_menu, -1, idx, nullptr, nullptr);
 }
 
 // --- Map Voting Logic ---
@@ -857,23 +992,49 @@ void VoteMenuHandler(edict_t *ent, pmenuhnd_t *p)
 
 		const std::string &map_name = (*current_map_list)[map_index];
 
-		// Check if it's the current map
-		if (level.mapname && Q_strcasecmp(map_name.c_str(), level.mapname) == 0)
+		// Check if it's the current map (but only if not voting for a mode change)
+		if (ent->client->pending_mode_vote == 0 && level.mapname && Q_strcasecmp(map_name.c_str(), level.mapname) == 0)
 		{
 			gi.LocClient_Print(ent, PRINT_HIGH, "Can't vote for the current map.\n");
 			return; // Stay in the menu
 		}
 
-		// Initiate vote
-		Q_strlcpy(ctfgame.elevel, map_name.c_str(), sizeof(ctfgame.elevel));
-
-		char vote_msg[128]; // Safe buffer for vote message
-		snprintf(vote_msg, sizeof(vote_msg), "Change map to %s?", map_name.c_str());
-
-		// Close menu *before* starting election if successful
-		if (CTFBeginElection(ent, ELECT_MAP, vote_msg))
+		// Check if we're voting for a mode+map combination
+		if (ent->client->pending_mode_vote != 0)
 		{
-			PMenu_Close(ent);
+			// Store mode+map in elevel as "mode:map" format
+			char combined[64];
+			const char *mode_name = (ent->client->pending_mode_vote == 1) ? "horde" : "pvm";
+			snprintf(combined, sizeof(combined), "%s:%s", mode_name, map_name.c_str());
+			Q_strlcpy(ctfgame.elevel, combined, sizeof(ctfgame.elevel));
+
+			// Create vote message with mode info
+			char vote_msg[128];
+			const char *mode_display = (ent->client->pending_mode_vote == 1) ? "Horde" : "PvM";
+			snprintf(vote_msg, sizeof(vote_msg), "Change to %s Mode on %s?", mode_display, map_name.c_str());
+
+			// Clear pending mode vote before starting election
+			ent->client->pending_mode_vote = 0;
+
+			// Use ELECT_MAP for mode+map voting (we'll handle it in CTFWinElection)
+			if (CTFBeginElection(ent, ELECT_MAP, vote_msg))
+			{
+				PMenu_Close(ent);
+			}
+		}
+		else
+		{
+			// Regular map vote (no mode change)
+			Q_strlcpy(ctfgame.elevel, map_name.c_str(), sizeof(ctfgame.elevel));
+
+			char vote_msg[128];
+			snprintf(vote_msg, sizeof(vote_msg), "Change map to %s?", map_name.c_str());
+
+			// Close menu *before* starting election if successful
+			if (CTFBeginElection(ent, ELECT_MAP, vote_msg))
+			{
+				PMenu_Close(ent);
+			}
 		}
 		// If election failed (e.g., already in progress), menu remains open
 		return;
@@ -2190,10 +2351,10 @@ void HordeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		OpenMiscMenu(ent);
 		shouldCloseMenu = false;
 	}
-	// Vote Map
-	else if (ctfgame.election == ELECT_NONE && strcmp(selected_text, "Vote Map") == 0)
+	// Vote Mode/Map
+	else if (ctfgame.election == ELECT_NONE && strcmp(selected_text, "Vote Mode/Map") == 0)
 	{
-		OpenVoteMenu(ent);
+		OpenModeSelectionMenu(ent);
 		shouldCloseMenu = false;
 	}
 	// Vote Yes
@@ -2314,7 +2475,7 @@ pmenuhnd_t *CreateHordeMenu(edict_t *ent)
 
 	if (ctfgame.election == ELECT_NONE)
 	{
-		add_entry("Vote Map", PMENU_ALIGN_LEFT, HordeMenuHandler);
+		add_entry("Vote Mode/Map", PMENU_ALIGN_LEFT, HordeMenuHandler);
 	}
 	else
 	{

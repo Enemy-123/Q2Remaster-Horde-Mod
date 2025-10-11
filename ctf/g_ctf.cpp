@@ -1914,28 +1914,32 @@ void CTFDrop_Tech(edict_t* ent, gitem_t* item)
 
 void CTFDeadDropTech(edict_t *ent)
 {
-	edict_t *dropped;
-	int i;
-
-	i = 0;
-	for (; i < q_countof(tech_ids); i++)
+	if (IsPvMMode())
 	{
-		if (ent->client->pers.inventory[tech_ids[i]])
-		{
-			if (pvm->integer)
-			{
-				dropped = Drop_Item(ent, GetItemByIndex(tech_ids[i]));
-				// hack the velocity to make it bounce random
-				dropped->velocity[0] = crandom_open() * 300;
-				dropped->velocity[1] = crandom_open() * 300;
-				dropped->nextthink = level.time + CTF_TECH_TIMEOUT;
-				dropped->think = TechThink;
-				dropped->owner = nullptr;
-			}
+		edict_t *dropped;
+		int i;
 
-			ent->client->pers.inventory[tech_ids[i]] = 0;
+		i = 0;
+		for (; i < q_countof(tech_ids); i++)
+		{
+			if (ent->client->pers.inventory[tech_ids[i]])
+			{
+				if (pvm->integer)
+				{
+					dropped = Drop_Item(ent, GetItemByIndex(tech_ids[i]));
+					// hack the velocity to make it bounce random
+					dropped->velocity[0] = crandom_open() * 300;
+					dropped->velocity[1] = crandom_open() * 300;
+					dropped->nextthink = level.time + CTF_TECH_TIMEOUT;
+					dropped->think = TechThink;
+					dropped->owner = nullptr;
+				}
+
+				ent->client->pers.inventory[tech_ids[i]] = 0;
+			}
 		}
 	}
+	else return;
 }
 
 static void SpawnTech(gitem_t* item, edict_t* spot)
@@ -2660,10 +2664,38 @@ bool CTFNextMap()
 void CTFWinElection() {
 	edict_t* CreateTargetChangeLevel(const char* map);
 	switch (ctfgame.election) {
-	case ELECT_MAP:
-		gi.LocBroadcast_Print(PRINT_HIGH, "vote succeeded! Changing level to {}.\n",
-			ctfgame.elevel);
-		if (g_horde->integer || G_IsCooperative() || coop->integer || !deathmatch->integer) {
+	case ELECT_MAP: {
+		// Check if this is a mode+map vote (format: "mode:map")
+		const char* colon = strchr(ctfgame.elevel, ':');
+		if (colon != nullptr) {
+			// Mode+map vote: parse the mode and map
+			char mode[16];
+			char map_name[64];
+			size_t mode_len = colon - ctfgame.elevel;
+			if (mode_len >= sizeof(mode)) mode_len = sizeof(mode) - 1;
+			strncpy(mode, ctfgame.elevel, mode_len);
+			mode[mode_len] = '\0';
+			Q_strlcpy(map_name, colon + 1, sizeof(map_name));
+
+			// Announce vote success
+			const char* mode_display = (strcmp(mode, "horde") == 0) ? "Horde" : "PvM";
+			gi.LocBroadcast_Print(PRINT_HIGH, "Vote succeeded! Switching to {} Mode on {}...\n",
+				mode_display, map_name);
+
+			// Set the appropriate cvars
+			if (strcmp(mode, "horde") == 0) {
+				// Horde mode
+				gi.cvar_forceset("g_instagib", "1");
+				gi.cvar_forceset("pvm", "0");
+				gi.cvar_forceset("horde", "1");
+			} else {
+				// PvM mode
+				gi.cvar_forceset("g_instagib", "0");
+				gi.cvar_forceset("pvm", "1");
+				gi.cvar_forceset("horde", "1");
+			}
+
+			// Reset horde state if in horde mode
 			if (g_horde->integer) {
 				HandleResetEvent();
 				for (uint32_t i = 0; i < game.maxclients; i++) {
@@ -2673,10 +2705,32 @@ void CTFWinElection() {
 					}
 				}
 			}
-			BeginIntermission(CreateTargetChangeLevel(ctfgame.elevel));
-			// Don't clear elevel here - it's still needed by CreateTargetChangeLevel
+
+			// Load the selected map with horde marker
+			char horde_map[64];
+			snprintf(horde_map, sizeof(horde_map), "*horde:%s", map_name);
+			BeginIntermission(CreateTargetChangeLevel(horde_map));
+		}
+		else {
+			// Regular map vote (no mode change)
+			gi.LocBroadcast_Print(PRINT_HIGH, "vote succeeded! Changing level to {}.\n",
+				ctfgame.elevel);
+			if (g_horde->integer || G_IsCooperative() || coop->integer || !deathmatch->integer) {
+				if (g_horde->integer) {
+					HandleResetEvent();
+					for (uint32_t i = 0; i < game.maxclients; i++) {
+						edict_t* ent = g_edicts + 1 + i;
+						if (ent->inuse && ent->client) {
+							InitClientPt(ent, ent->client);
+						}
+					}
+				}
+				BeginIntermission(CreateTargetChangeLevel(ctfgame.elevel));
+				// Don't clear elevel here - it's still needed by CreateTargetChangeLevel
+			}
 		}
 		break;
+	}
 	case ELECT_TIME:
 		// Extend the timelimit by 30 minutes
 		gi.cvar_set("timelimit", G_Fmt("{}", timelimit->value + 30).data());
@@ -2739,6 +2793,24 @@ void CTFWinElection() {
 		}
 		// elevel will be cleared at the end of the function
 		break;
+	case ELECT_PVM:
+		// Switch to PvM mode - reload current map with PvM settings
+		gi.LocBroadcast_Print(PRINT_HIGH, "Vote succeeded! Switching to PvM Mode...\n");
+		gi.cvar_forceset("g_instagib", "0");
+		gi.cvar_forceset("pvm", "1");
+		gi.cvar_forceset("horde", "1");  // Keep horde mode active, just disable instagib
+		// Reload the current map to apply settings
+		BeginIntermission(CreateTargetChangeLevel(level.mapname));
+		break;
+	case ELECT_HORDE:
+		// Switch to Horde mode - reload current map with Horde settings
+		gi.LocBroadcast_Print(PRINT_HIGH, "Vote succeeded! Switching to Horde Mode...\n");
+		gi.cvar_forceset("g_instagib", "1");
+		gi.cvar_forceset("pvm", "0");
+		gi.cvar_forceset("horde", "1");  // Ensure horde mode is active
+		// Reload the current map to apply settings
+		BeginIntermission(CreateTargetChangeLevel(level.mapname));
+		break;
 	default:
 		break;
 	}
@@ -2770,8 +2842,8 @@ void CTFVoteYes(edict_t* ent)
 		gi.LocClient_Print(ent, PRINT_HIGH, "You already voted.\n");
 		return;
 	}
-	// Allow self-voting for mode changes (map, time extension, cooperative mode)
-	if (ctfgame.etarget == ent && ctfgame.election != ELECT_MAP && ctfgame.election != ELECT_TIME && ctfgame.election != ELECT_COOP)
+	// Allow self-voting for mode changes (map, time extension, cooperative mode, pvm, horde)
+	if (ctfgame.etarget == ent && ctfgame.election != ELECT_MAP && ctfgame.election != ELECT_TIME && ctfgame.election != ELECT_COOP && ctfgame.election != ELECT_PVM && ctfgame.election != ELECT_HORDE)
 	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "You can't vote for yourself.\n");
 		return;

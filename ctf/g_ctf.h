@@ -27,8 +27,10 @@ enum elect_t
 {
 	ELECT_NONE,
 	ELECT_MAP,
-	ELECT_TIME, // Added for time extension vote in g_ctf.cpp
-	ELECT_COOP  // Added for cooperative mode campaign selection
+	ELECT_TIME,  // Added for time extension vote in g_ctf.cpp
+	ELECT_COOP,  // Added for cooperative mode campaign selection
+	ELECT_PVM,   // Added for PvM mode voting
+	ELECT_HORDE  // Added for Horde mode voting
 };
 
 // Moved from g_ctf.cpp for CTFObserver logic

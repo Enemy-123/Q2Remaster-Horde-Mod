@@ -435,6 +435,7 @@ void InitGame()
 	g_allow_techs = gi.cvar("g_allow_techs", "auto", CVAR_NOFLAGS);
 
 	g_horde_profiler = gi.cvar("g_horde_profiler", "0", CVAR_NOFLAGS);
+	pvm = gi.cvar("pvm", "0", CVAR_NOFLAGS);
 
 	g_loadent = gi.cvar("g_loadent", "1", CVAR_LATCH);
 	g_chaotic = gi.cvar("g_chaotic", "0", CVAR_NOFLAGS);

@@ -3748,9 +3748,12 @@ struct gclient_t
 	//int num_traps; //foodcube trap per client
 
 	int last_wave_timer_horde_update; // hud timer
-	int last_wave_level_update; 
+	int last_wave_level_update;
 	char voted_map[128];
 	bool emergency_teleport = false;
+
+	// Mode selection for voting (0=none, 1=horde, 2=pvm)
+	int pending_mode_vote;
 
 	//int ctf_lasttechmsg_count;
 	gtime_t		ammoregentime;
