@@ -147,7 +147,7 @@ static const ClusterConfig UPGRADED_CLUSTER_CONFIG = {
 	750.0f, // max_velocity (was 600.0f)
 	0.4f,	// min_fuse_time (was 0.5f)
 	1.8f,	// max_fuse_time (was 2.0f)
-	0.6f,	// damage_multiplier (was 0.5f)
+	0.35f,	// damage_multiplier (reduced from 0.6f to 0.35f - weaker clusters)
 	0.55f,	// homing_bias (was 0.3f, now much more aggressive)
 	512.0f	// search_radius (was 384.0f)
 };;

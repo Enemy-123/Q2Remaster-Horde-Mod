@@ -98,7 +98,7 @@ struct GrenadeLauncherConfig
 	int damage_napalm = 95;
 	float radius_normal = 155.0f;
 	float radius_napalm = 135.0f;
-	int speed = 1200;
+	int speed = 900;       // Base speed (reaches 1200 at level 10)
 	int speed_addon = 30;  // Speed added per upgrade level
 };
 
