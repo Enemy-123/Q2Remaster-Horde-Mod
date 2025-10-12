@@ -6447,8 +6447,8 @@ public:
 		// Loop through players - optimized format (set Y once per player)
 		for (size_t i = 0; i < std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY); ++i)
 		{
-			// Add a safety check to prevent string overflow
-			if (layout_builder.size() >= MAX_CTF_STAT_LENGTH - 200)
+			// Safety check: reserve ~300 bytes for spectators + footer
+			if (layout_builder.size() >= MAX_CTF_STAT_LENGTH - 300)
 			{
 				break;
 			}
@@ -6484,7 +6484,8 @@ public:
 			size_t spectators_to_display = std::min(spectators.size(), MAX_SPECTATORS_TO_DISPLAY);
 			for (size_t i = 0; i < spectators_to_display; ++i)
 			{
-				if (layout_builder.size() >= MAX_CTF_STAT_LENGTH - 200)
+				// Use tighter margin for spectators (footer is ~150 bytes max)
+				if (layout_builder.size() >= MAX_CTF_STAT_LENGTH - 160)
 				{
 					break;
 				}
