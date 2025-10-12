@@ -6477,7 +6477,7 @@ public:
 
 			// Add the "Spectators & AFK" header
 			layout_builder.append(fmt::format(
-				"if 0 xv -90 yv {} string2 \"Spectators & AFK\" endif \n", y));
+				"if 0 xv -90 yv {} string2 \"Spectators\" endif \n", y));
 			y += PLAYER_Y_SPACING;
 
 			// Loop through spectators using optimized format
@@ -6527,8 +6527,8 @@ public:
 		{
 			// This block runs during the intermission.
 			const char *message = brandom()
-									  ? "MAKE THEM PAY !!!"
-									  : "THEY WILL REGRET THIS !!!";
+									  ? "MAKE THEM PAY!"
+									  : "THEY WILL REGRET THIS!";
 
 			// It will display the message after a 5-second delay.
 			layout_builder.append(fmt::format(
