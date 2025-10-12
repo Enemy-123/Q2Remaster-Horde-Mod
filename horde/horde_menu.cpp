@@ -6694,6 +6694,15 @@ void HordeScoreboardMessage(edict_t *ent, edict_t *killer)
 
 	//	gi.Com_PrintFmt("--- BEGIN SCOREBOARD LAYOUT ---\n{}\n--- END SCOREBOARD LAYOUT ---\n", final_layout.c_str());
 
+	// Validate layout before sending to client
+	if (!ValidateLayoutString(final_layout, "HordeScoreboardMessage"))
+	{
+		// If validation fails, don't send corrupted layout
+		if (developer && developer->integer)
+			gi.Com_Print("ERROR: HordeScoreboardMessage layout failed validation, not sending\n");
+		return;
+	}
+
 	// Send to client
 	gi.WriteByte(svc_layout);
 	gi.WriteString(final_layout.c_str());

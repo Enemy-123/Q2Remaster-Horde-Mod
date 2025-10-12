@@ -567,6 +567,15 @@ void DeathmatchScoreboardMessage(edict_t* ent, edict_t* killer)
 		layout_string_buffer.clear();
 	}
 
+	// Validate layout before sending to client
+	if (!layout_string_buffer.empty() && !ValidateLayoutString(layout_string_buffer, "DeathmatchScoreboardMessage"))
+	{
+		// If validation fails, don't send corrupted layout
+		if (developer && developer->integer)
+			gi.Com_Print("ERROR: DeathmatchScoreboardMessage layout failed validation, not sending\n");
+		return;
+	}
+
 	gi.WriteByte(svc_layout);
 	gi.WriteString(layout_string_buffer.c_str());
 }

@@ -2034,6 +2034,13 @@ static void G_InitStatusbar()
 	}
 
 	gi.configstring(CS_STATUSBAR, sb.sb.str().c_str());
+
+	// Validate the generated statusbar for if/endif balance
+	if (developer && developer->integer)
+	{
+		std::string statusbar_str = sb.sb.str();
+		ValidateLayoutString(statusbar_str, "CS_STATUSBAR");
+	}
 }
 
 void InitMonsterSpawnTable()

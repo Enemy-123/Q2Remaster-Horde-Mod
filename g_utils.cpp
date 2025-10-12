@@ -34,6 +34,70 @@ inline vec3_t CalculateEntityCenter(const edict_t* ent) {
 	return ent->s.origin + (ent->mins + ent->maxs) * 0.5f;
 }
 
+// Validates that all if/ifgef statements in a layout string have matching endif statements
+// Returns true if balanced, false if imbalanced (with debug logging)
+bool ValidateLayoutString(const std::string& layout, const char* debug_name) {
+	int if_count = 0;
+	int endif_count = 0;
+	
+	size_t pos = 0;
+	while (pos < layout.size())
+	{
+		// Count "if " with word boundary check (must be at start or after space/newline)
+		if (pos + 3 <= layout.size() && layout.substr(pos, 3) == "if ")
+		{
+			if (pos == 0 || layout[pos - 1] == ' ' || layout[pos - 1] == '\n')
+			{
+				if_count++;
+				pos += 3;
+				continue;
+			}
+		}
+		
+		// Count "ifgef "
+		if (pos + 6 <= layout.size() && layout.substr(pos, 6) == "ifgef ")
+		{
+			if_count++;
+			pos += 6;
+			continue;
+		}
+		
+		// Count "endif" with word boundary check (must be followed by space/newline/end)
+		if (pos + 5 <= layout.size() && layout.substr(pos, 5) == "endif")
+		{
+			if (pos + 5 >= layout.size() || layout[pos + 5] == ' ' || layout[pos + 5] == '\n')
+			{
+				endif_count++;
+				pos += 5;
+				continue;
+			}
+		}
+		
+		pos++;
+	}
+	
+	const bool balanced = (if_count == endif_count);
+	
+	// Log validation results if developer mode is on
+	if (!balanced && developer && developer->integer)
+	{
+		const char* name = debug_name ? debug_name : "Unknown";
+		gi.Com_PrintFmt("ERROR: Layout validation failed for '{}'\n", name);
+		gi.Com_PrintFmt("  if/ifgef count: {}\n", if_count);
+		gi.Com_PrintFmt("  endif count: {}\n", endif_count);
+		gi.Com_PrintFmt("  Layout size: {} bytes\n", layout.size());
+		
+		// Log first 500 chars for debugging
+		size_t preview_len = std::min(layout.size(), size_t(500));
+		std::string preview = layout.substr(0, preview_len);
+		if (layout.size() > preview_len)
+			preview += "...";
+		gi.Com_PrintFmt("  Layout preview: {}\n", preview);
+	}
+	
+	return balanced;
+}
+
 // Removes an entity from its team chain cleanly
 inline void RemoveFromTeamChain(edict_t* ent) {
 	if (!ent->teammaster)

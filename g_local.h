@@ -2350,6 +2350,8 @@ void G_PlayerNotifyGoal(edict_t* player);
 // Helper function to check if a player is menu protected
 bool IsPlayerMenuProtected(edict_t* ent);
 
+bool ValidateLayoutString(const std::string& layout, const char* debug_name = nullptr);
+
 //
 // g_spawn.c
 //
