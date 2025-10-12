@@ -6623,7 +6623,7 @@ public:
 		}
 
 		// If we couldn't find a safe truncation point, return empty string
-		gi.Com_Print("WARNING: Could not find safe truncation point for scoreboard layout\n");
+	//	gi.Com_Print("WARNING: Could not find safe truncation point for scoreboard layout\n");
 		return "";
 	}
 };
@@ -6659,7 +6659,7 @@ void HordeScoreboardMessage(edict_t *ent, edict_t *killer)
 
 		if (developer && developer->integer)
 		{
-			gi.Com_PrintFmt("Scoreboard truncated from {} to {} bytes\n",
+		//	gi.Com_PrintFmt("Scoreboard truncated from {} to {} bytes\n",
 				layout.build().size(), final_layout.size());
 		}
 	}
@@ -6669,7 +6669,7 @@ void HordeScoreboardMessage(edict_t *ent, edict_t *killer)
 	// Debug: log layout size during intermission
 	if (developer && developer->integer && level.intermissiontime)
 	{
-		gi.Com_PrintFmt("Intermission scoreboard size: {} bytes (limit: {})\n",
+	//	gi.Com_PrintFmt("Intermission scoreboard size: {} bytes (limit: {})\n",
 			final_layout.size(), MAX_CTF_STAT_LENGTH);
 	}
 
@@ -6678,7 +6678,7 @@ void HordeScoreboardMessage(edict_t *ent, edict_t *killer)
 	{
 		// If validation fails, don't send corrupted layout
 		if (developer && developer->integer)
-			gi.Com_Print("ERROR: HordeScoreboardMessage layout failed validation, not sending\n");
+		//	gi.Com_Print("ERROR: HordeScoreboardMessage layout failed validation, not sending\n");
 		return;
 	}
 

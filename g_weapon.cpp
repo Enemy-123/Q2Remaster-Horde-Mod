@@ -1896,12 +1896,17 @@ THINK(bfg_explode) (edict_t* self) -> void
 			T_Damage(ent, self, self->owner, self->velocity, centroid, vec3_origin,
 				(int)points, 0, DAMAGE_ENERGY, MOD_BFG_EFFECT);
 
-			// Visual effect
-			gi.WriteByte(svc_temp_entity);
-			gi.WriteByte(TE_BFG_ZAP);
-			gi.WritePosition(self->s.origin);
-			gi.WritePosition(centroid);
-			gi.multicast(self->s.origin, MULTICAST_PHS, false);
+			// Visual effect - limit to reduce network traffic
+			// Only show zap effects for entities within 80% of blast radius
+			constexpr float ZAP_VISUAL_RANGE_FACTOR = 0.8f;
+			if (dist <= (self->dmg_radius * ZAP_VISUAL_RANGE_FACTOR))
+			{
+				gi.WriteByte(svc_temp_entity);
+				gi.WriteByte(TE_BFG_ZAP);
+				gi.WritePosition(self->s.origin);
+				gi.WritePosition(centroid);
+				gi.multicast(self->s.origin, MULTICAST_PVS, false); // Use PVS for better network efficiency
+			}
 		}
 	}
 
@@ -2148,12 +2153,17 @@ THINK(bfg_think) (edict_t* self) -> void
 				pull_force, DAMAGE_ENERGY, MOD_BFG_LASER);
 		}
 
-		// Visual laser effect
-		gi.WriteByte(svc_temp_entity);
-		gi.WriteByte(TE_BFG_LASER);
-		gi.WritePosition(self_origin);
-		gi.WritePosition(laser_end);
-		gi.multicast(self_origin, MULTICAST_PHS, false);
+		// Visual laser effect - only show for closer targets to reduce network traffic
+		// Show lasers for entities within 60% of max range to avoid network overflow
+		constexpr float LASER_VISUAL_RANGE_FACTOR = 0.6f;
+		if (dist_squared <= (bfgrange_squared * LASER_VISUAL_RANGE_FACTOR * LASER_VISUAL_RANGE_FACTOR))
+		{
+			gi.WriteByte(svc_temp_entity);
+			gi.WriteByte(TE_BFG_LASER);
+			gi.WritePosition(self_origin);
+			gi.WritePosition(laser_end);
+			gi.multicast(self_origin, MULTICAST_PVS, false); // Use PVS instead of PHS for better network efficiency
+		}
 	}
 
 	// Calculate next think time based on game mode
