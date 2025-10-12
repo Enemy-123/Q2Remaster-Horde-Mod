@@ -6438,16 +6438,16 @@ public:
 
 	void addPlayerList()
 	{
-		// Add column headers. The X coordinates here will be the same for the data below.
-		int header_y = PLAYER_Y_START - PLAYER_Y_SPACING; // Position headers just above the first player
+		// Add column headers - Name, Score, Lv, Ping (user's preferred order)
+		int header_y = PLAYER_Y_START - PLAYER_Y_SPACING;
 		layout_builder.append(fmt::format(
-			"if 0 xv -140 yv {} string2 \"Name\" xv 70 yv {} string2 \"Score\" xv 120 yv {} string2 \"Lv\" xv 160 yv {} string2 \"Png\" endif \n",
-			header_y, header_y, header_y, header_y));
+			"if 0 yv {} xv -140 string2 \"Name\" xv 70 string2 \"Score\" xv 120 string2 \"Lv\" xv 160 string2 \"Ping\" endif \n",
+			header_y));
 
-		// Loop through players and display their info
+		// Loop through players - optimized format (set Y once per player)
 		for (size_t i = 0; i < std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY); ++i)
 		{
-			// **FIX:** Add a safety check to prevent string overflow. 200 is a safe margin for one line.
+			// Add a safety check to prevent string overflow
 			if (layout_builder.size() >= MAX_CTF_STAT_LENGTH - 200)
 			{
 				break;
@@ -6456,37 +6456,14 @@ public:
 			const auto &player = team_players[i];
 			edict_t *player_ent = g_edicts + 1 + player.index;
 			int y = PLAYER_Y_START + i * PLAYER_Y_SPACING;
-
-			// **FIX:** Build the content for the player row first, then wrap it in a single if...endif.
-			std::string player_line_content;
-
-			if (player.is_dead)
-			{
-				player_line_content += fmt::format("xv -175 yv {} string \"[RIP]\" ", y);
-			}
-
-			const char *player_name = GetPlayerName(player_ent);
-			std::string score_str = fmt::format("{}", player.score);
 			int32_t player_level = player_ent->client->pers.pvm_level;
 
-			// // DEBUG: Print level info when building scoreboard
-			// if (level.intermissiontime)
-			// {
-			// 	gi.Com_PrintFmt("DEBUG Scoreboard addPlayerList: Player {} ({}), index={}, pvm_level={}, pvm_xp={}\n",
-			// 		player_name, i, player.index, player_level, player_ent->client->pers.pvm_xp);
-			// }
+			const char *player_name = GetPlayerName(player_ent);
 
-			std::string level_str = fmt::format("{}", player_level);
-			std::string ping_str = fmt::format("{}", player.ping);
-
-			player_line_content += fmt::format(
-				"xv -140 yv {} string \"{}\" "
-				"xv 70 yv {} string \"{}\" "
-				"xv 120 yv {} string \"{}\" "
-				"xv 160 yv {} string \"{}\"",
-				y, player_name, y, score_str, y, level_str, y, ping_str);
-
-			layout_builder.append(fmt::format("if 0 {} endif \n", player_line_content));
+			// Optimized format: set Y once, then just X positions (saves ~40 bytes per player)
+			layout_builder.append(fmt::format(
+				"if 0 yv {} xv -140 string \"{}\" xv 70 string \"{}\" xv 120 string \"{}\" xv 160 string \"{}\" endif \n",
+				y, player_name, player.score, player_level, player.ping));
 		}
 	}
 
@@ -6498,16 +6475,15 @@ public:
 			// Calculate the starting Y position for the spectator list, leaving a gap after the player list.
 			int y = PLAYER_Y_START + (std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY) + 1) * PLAYER_Y_SPACING;
 
-			// Add the "Spectators & AFK" header, aligning it with the "Name" column for consistency.
+			// Add the "Spectators & AFK" header
 			layout_builder.append(fmt::format(
 				"if 0 xv -90 yv {} string2 \"Spectators & AFK\" endif \n", y));
-			y += PLAYER_Y_SPACING; // Add a bit more space after the header
+			y += PLAYER_Y_SPACING;
 
-			// Loop through the spectators to display, up to the defined maximum.
+			// Loop through spectators using optimized format
 			size_t spectators_to_display = std::min(spectators.size(), MAX_SPECTATORS_TO_DISPLAY);
 			for (size_t i = 0; i < spectators_to_display; ++i)
 			{
-				// **FIX:** Use a larger, safer margin for the check.
 				if (layout_builder.size() >= MAX_CTF_STAT_LENGTH - 200)
 				{
 					break;
@@ -6516,17 +6492,11 @@ public:
 				const auto &spec = spectators[i];
 				edict_t *spec_ent = g_edicts + 1 + spec.index;
 				const char *spec_name = GetPlayerName(spec_ent);
-				std::string score_str = fmt::format("{}", spec.score);
-				std::string ping_str = fmt::format("{}", spec.ping);
 
-				// **FIX:** Consolidate all drawing commands into a single if...endif block.
-				std::string spectator_line_content = fmt::format(
-					"xv -140 yv {} string2 \"{}\" "
-					"xv 70 yv {} string2 \"{}\" "
-					"xv 160 yv {} string2 \"{}\"",
-					y, spec_name, y, score_str, y, ping_str);
-
-				layout_builder.append(fmt::format("if 0 {} endif \n", spectator_line_content));
+				// Optimized format: Name, Score, Ping (spectators don't have levels)
+				layout_builder.append(fmt::format(
+					"if 0 yv {} xv -140 string2 \"{}\" xv 70 string2 \"{}\" xv 160 string2 \"{}\" endif \n",
+					y, spec_name, spec.score, spec.ping));
 
 				y += PLAYER_Y_SPACING;
 			}
@@ -6535,7 +6505,7 @@ public:
 			if (spectators.size() > spectators_to_display)
 			{
 				layout_builder.append(fmt::format(
-					"if 0 xv -140 yv {} string2 \"... and {} more\" endif \n",
+					"if 0 xv -90 yv {} string2 \"... and {} more\" endif \n",
 					y, spectators.size() - spectators_to_display));
 			}
 		}

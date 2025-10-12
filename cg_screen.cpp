@@ -951,7 +951,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
 
         if (!strcmp(token, "ctf"))
         {   // draw a ctf client block
-            int     score, ping;
+            int     score, ping, level;
 
             token = COM_Parse(&s);
             if (!token) break;
@@ -987,11 +987,18 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
 
             token = COM_Parse(&s);
             if (!token) break;
+            if (!skip_depth)
+                level = atoi(token);
+
+            token = COM_Parse(&s);
+            if (!token) break;
 
             if (!skip_depth)
             {
                 cgi.SCR_DrawFontString(G_Fmt("{}", score).data(), x, y - (font_y_offset * scale), scale, value == playernum ? alt_color : rgba_white, true, text_align_t::LEFT);
                 x += 3 * 9 * scale;
+                cgi.SCR_DrawFontString(G_Fmt("{}", level).data(), x, y - (font_y_offset * scale), scale, value == playernum ? alt_color : rgba_white, true, text_align_t::LEFT);
+                x += 2 * 9 * scale;
                 cgi.SCR_DrawFontString(G_Fmt("{}", ping).data(), x, y - (font_y_offset * scale), scale, value == playernum ? alt_color : rgba_white, true, text_align_t::LEFT);
                 x += 3 * 9 * scale;
 

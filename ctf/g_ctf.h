@@ -5,7 +5,7 @@
 #include "../g_local.h" // Include base types like edict_t, gclient_t, gtime_t, etc. BEFORE they are used here.
 
 constexpr const char* CTF_VERSION_STRING = "1.52";
-constexpr size_t MAX_CTF_STAT_LENGTH = 1300;  // Testing to find actual network protocol limit
+constexpr size_t MAX_CTF_STAT_LENGTH = 1000;  // Network protocol limit is ~1024 bytes (MAX_STRING_CHARS)
 // --- Enums Moved from g_ctf.cpp ---
 
 enum ctfteam_t
