@@ -844,7 +844,7 @@ edict_t* fire_barrel(edict_t* self, const vec3_t& start, const vec3_t& aimdir)
             return nullptr;
 
         // Check if player has enough power cubes
-        if (self->client->pers.horde_power_cubes < g_config.exploding_barrel.cost)
+        if (g_vortex->integer && self->client->pers.horde_power_cubes < g_config.exploding_barrel.cost)
         {
             gi.LocClient_Print(self, PRINT_HIGH, "Need {} power cubes to spawn barrel (you have {})\n",
                              g_config.exploding_barrel.cost, self->client->pers.horde_power_cubes);

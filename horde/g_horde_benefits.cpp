@@ -216,6 +216,20 @@ std::string GetActiveBonusesString() {
     if (active_bonuses.empty()) {
 		return "";
 	}
+
+    // Use std::string to format the result
+    std::string result;
+    result.reserve(active_bonuses.size() * 30);
+
+    for (size_t i = 0; i < active_bonuses.size(); ++i) {
+        result += "* ";
+        result += active_bonuses[i];
+        if (i < active_bonuses.size() - 1) {
+            result += "\n";
+        }
+    }
+
+    return result;
 }
 
 // Get active bonuses string for a specific player (per-player version)
@@ -627,14 +641,12 @@ void CheckBotAutoBuy(edict_t* player) {
 
     player->client->pers.last_auto_buy_check = level.time;
 
-    // if (is_bot) {
-    //     gi.Com_PrintFmt("[DEBUG] CheckBotAutoBuy for {}: ability_pts={}, weapon_pts={}, auto_buy_ability={}, auto_buy_weapon={}\n",
-    //         player_name,
-    //         player->client->pers.ability_points,
-    //         player->client->pers.weapon_points,
-    //         player->client->pers.auto_buy_benefit_bot,
-    //         player->client->pers.auto_buy_benefit_weapons_bot);
-    // }
+    gi.Com_PrintFmt("[DEBUG] CheckBotAutoBuy for {}: ability_pts={}, weapon_pts={}, auto_buy_ability={}, auto_buy_weapon={}\n",
+        player_name,
+        player->client->pers.ability_points,
+        player->client->pers.weapon_points,
+        player->client->pers.auto_buy_benefit_bot,
+        player->client->pers.auto_buy_benefit_weapons_bot);
 
     // Auto-buy abilities if enabled and player has points
     if (player->client->pers.auto_buy_benefit_bot && player->client->pers.ability_points > 0) {
@@ -744,14 +756,14 @@ void ProcessWaveRewards(int32_t wave) {
         // Ability points every 4 waves starting from wave 4
         if (wave >= 4 && (wave % 4) == 0) {
             BotEarnAbilityPoints(player, 1);
-            // Only notify human players
-        //     if (!is_bot) {
-        //         // gi.LocClient_Print(player, PRINT_HIGH, "+1 Ability Point! (Total: {})\n",
-        //         //           player->client->pers.ability_points);
-        //     } else {
-        //     //     gi.Com_PrintFmt("[DEBUG] Bot {} earned ability point. Total: {}\n",
-        //     //         player_name, player->client->pers.ability_points);
-        //     // }
+            // Notify all players in Classic Mode
+            if (!is_bot) {
+                gi.LocClient_Print(player, PRINT_HIGH, "+1 Ability Point! (Total: {})\n",
+                          player->client->pers.ability_points);
+            } else {
+                gi.Com_PrintFmt("[DEBUG] Bot {} earned ability point. Total: {}\n",
+                    player_name, player->client->pers.ability_points);
+            }
         }
 
         // Weapon points every 8 waves starting from wave 8

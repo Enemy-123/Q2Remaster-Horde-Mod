@@ -206,7 +206,7 @@ void Use_SentryGun(edict_t* ent, gitem_t* item)
 	}
 
 	// Check power cube cost (only for non-bots in horde mode)
-	if (g_horde->integer) {
+	if (g_vortex->integer) {
 		const int cost = g_config.sentrygun.cost;
 		if (ent->client->pers.horde_power_cubes < cost) {
 			gi.LocClient_Print(ent, PRINT_HIGH, "Not enough power cubes! Need {} cubes to deploy.\n", cost);
@@ -311,14 +311,14 @@ void Use_SentryGun(edict_t* ent, gitem_t* item)
 
             // Only consume the item if in horde mode AND player is a bot
             // Non-bot players get infinite uses in horde mode
-            if (g_horde->integer && (ent->svflags & SVF_BOT)) {
+            if (g_vortex->integer && (ent->svflags & SVF_BOT)) {
                 ent->client->pers.inventory[item->id]--;
             }
             
             ent->client->resp.num_sentries++;
 
             // Deduct power cubes for successful deployment (non-bots in horde mode)
-            if (g_horde->integer && !(ent->svflags & SVF_BOT)) {
+            if (g_vortex->integer && !(ent->svflags & SVF_BOT)) {
                 ent->client->pers.horde_power_cubes -= g_config.sentrygun.cost;
             }
 
@@ -343,8 +343,8 @@ bool Pickup_SentryGun(edict_t* ent, edict_t* other)
 {
 	int quantity;
 
-	// In horde mode, non-bot players already have infinite sentry guns, no need to pick up
-	if (g_horde->integer && !(other->svflags & SVF_BOT))
+	// In vortex mode, non-bot players already have infinite sentry guns, no need to pick up
+	if (g_vortex->integer && !(other->svflags & SVF_BOT))
 		return false;
 
 	// if (!G_IsDeathmatch()) // item is DM only
@@ -367,8 +367,8 @@ bool Pickup_StroggSumm(edict_t* ent, edict_t* other)
 	int quantity;
 	int max_quantity;
 
-	// In horde mode, non-bot players already have infinite strogg summoners, no need to pick up
-	if (g_horde->integer && !(other->svflags & SVF_BOT))
+	// In vortex mode, non-bot players already have infinite strogg summoners, no need to pick up
+	if (g_vortex->integer && !(other->svflags & SVF_BOT))
 		return false;
 
 	quantity = other->client->pers.inventory[ent->item->id];

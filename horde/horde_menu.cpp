@@ -3136,12 +3136,9 @@ pmenuhnd_t *CreateWeaponsMenu(edict_t *ent)
 
 void OpenUpgradeMenu(edict_t *ent)
 {
-	// Block upgrade menu when vortex is 0 (Classic Mode)
-	if (g_vortex->integer == 0)
-	{
-		gi.LocClient_Print(ent, PRINT_HIGH, "Upgrade menu is disabled in Classic Mode (vortex 0)\n");
-		return;
-	}
+	// Menu is now available in both Classic Mode (vortex=0) and RPG Mode (vortex=1)
+	// In Classic Mode, abilities show the benefit system
+	// In RPG Mode, abilities show the skill system
 
 	// Set menu protection for upgrade menu
 	if (ent && ent->client)

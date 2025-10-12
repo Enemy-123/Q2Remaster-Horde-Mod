@@ -1020,9 +1020,20 @@ static void HORDE_ApplyAmmoRegen(edict_t* ent) {
 		return;
 	}
 
-	// Check if player has ammo regen skill
-	if (ent->client->pers.skills.ammo_regen == 0) {
-		return;
+	// Check if player has ammo regen (benefit in Classic Mode, skill in RPG Mode)
+	int8_t ammo_regen_level = 0;
+	if (g_vortex->integer == 0) {
+		// Classic Mode: Check benefit system
+		if (!ClassicPlayerHasBenefitAmmoRegen(ent)) {
+			return;
+		}
+		ammo_regen_level = 5; // Default level for benefit system
+	} else {
+		// RPG Mode: Check skill system
+		ammo_regen_level = ent->client->pers.skills.ammo_regen;
+		if (ammo_regen_level == 0) {
+			return;
+		}
 	}
 
 	// Skip if player is spectating in HORDE mode
@@ -1049,7 +1060,7 @@ static void HORDE_ApplyAmmoRegen(edict_t* ent) {
 	}
 
 	// Fixed regen time: 5 seconds per tick
-	int8_t ammo_regen_level = client->pers.skills.ammo_regen;
+	// Note: ammo_regen_level already set above based on vortex mode
 	gtime_t regen_time = 5_sec;
 
 	client->ammoregentime = level.time + regen_time;

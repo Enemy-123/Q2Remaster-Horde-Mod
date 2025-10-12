@@ -1125,17 +1125,14 @@ void Horde_UpdateStartItemsForWave(int32_t wave)
 
 void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 {
-	// PvM Mode: Skip old wave-based bonus system entirely (uses XP/level system instead)
-	if (IsPvMMode())
-	{
-		// Bots in PvM mode: Give them skill/weapon points based on current wave
+	// Bots in PvM mode: Give them skill/weapon points based on current wave
 		// (Since bots can't use upgrade menus, they auto-buy with these points)
 		const bool is_late_joiner = !client->pers.received_late_join_ammo;
 		if ((ent->svflags & SVF_BOT) && is_late_joiner)
 		{
 			const int wave = current_wave_level;
 
-			// Enable auto-buy for bots
+			// Enable auto-buy for players/bots out of vortex mode
 			client->pers.auto_buy_benefit_bot = true;
 			client->pers.auto_buy_benefit_weapons_bot = true;
 			client->pers.bot_has_manually_disabled_auto_buy = false;
@@ -1155,6 +1152,11 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 			}
 		}
 
+		
+	// PvM Mode: Skip old wave-based bonus system entirely (uses XP/level system instead)
+	if (g_vortex->integer)
+	{
+		
 		// Set base health (100) - vitality bonus will be added by PvM_ApplyStatBonuses
 		client->pers.max_health = client->resp.max_health = ent->max_health = 100;
 
@@ -1203,7 +1205,7 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 		}
 
 		// Trigger auto-buy for late joiner bots after inventory is set up
-		if ((ent->svflags & SVF_BOT) && is_late_joiner)
+		if (is_late_joiner)
 		{
 			if (client->pers.skill_points > 0 || client->pers.weapon_points > 0)
 			{
@@ -1222,27 +1224,29 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 	const int wave = current_wave_level;
 
 	//
-	// BOT AUTO-BUY SYSTEM
+	// AUTO-BUY SYSTEM
 	//
-	// Bots always use auto-buy for the old benefits system
-	if (ent->svflags & SVF_BOT) {
+	// In Classic Mode (vortex=0), everyone uses auto-buy for the benefits system
+	// In RPG Mode (vortex=1), only bots use auto-buy (humans use skills)
+	if (g_vortex->integer == 0 || (ent->svflags & SVF_BOT)) {
 		client->pers.auto_buy_benefit_bot = true;
 		client->pers.auto_buy_benefit_weapons_bot = true;
 		client->pers.bot_has_manually_disabled_auto_buy = false;
 	}
 
 	//
-	// LATE JOINER BENEFITS (Bots only in non-PvM mode)
-	// Human players use the upgrade menu and don't get automatic bonuses
+	// LATE JOINER BENEFITS
+	// In RPG Mode (vortex=1), only bots get points (humans use upgrade menu)
+	// In Classic Mode (vortex=0), both humans and bots get points for auto-buy
 	//
-	if (is_late_joiner && (ent->svflags & SVF_BOT))
+	if (is_late_joiner && (g_vortex->integer == 0 || (ent->svflags & SVF_BOT)))
 	{
-		// Enable auto-buy by default for late joiner bots
+		// Enable auto-buy by default for late joiners
 		client->pers.auto_buy_benefit_bot = true;
 		client->pers.auto_buy_benefit_weapons_bot = true;
 		client->pers.bot_has_manually_disabled_auto_buy = false;
 
-		// Calculate bonus points based on wave progress (bots only)
+		// Calculate bonus points based on wave progress
 		client->pers.ability_points = (wave >= HordeConstants::ABILITY_POINT_WAVE_INTERVAL)
 			? (wave / HordeConstants::ABILITY_POINT_WAVE_INTERVAL) : 0;
 
