@@ -1410,46 +1410,66 @@ void HordeMenu_BFGMode(edict_t *ent, pmenuhnd_t *p)
 		return;
 	}
 
-	// Check what modes are available
-	bool has_slide = ClassicPlayerHasBenefit(ent, BenefitID::BFG_SLIDE);
-	bool has_pull = ClassicPlayerHasBenefit(ent, BenefitID::BFG_GRAV_PULL);
-
-	// If no upgrades, can't change mode
-	if (!has_slide && !has_pull)
-	{
-		gi.LocCenter_Print(ent, "\n\n\nNo BFG upgrades available!\n");
-		return;
-	}
-
-	// Cycle through available modes
 	BFGMode current_mode = ent->client->pers.bfg_mode;
 	BFGMode new_mode = BFGMode::NORMAL;
 
-	if (current_mode == BFGMode::NORMAL)
+	// Classic Mode (vortex=0): Allow cycling through all modes freely
+	if (g_vortex->integer == 0)
 	{
-		if (has_slide)
+		// Cycle: Normal -> Slide -> Pull -> Normal
+		if (current_mode == BFGMode::NORMAL)
 		{
 			new_mode = BFGMode::SLIDE;
 		}
-		else if (has_pull)
+		else if (current_mode == BFGMode::SLIDE)
 		{
 			new_mode = BFGMode::GRAV_PULL;
 		}
-	}
-	else if (current_mode == BFGMode::SLIDE)
-	{
-		if (has_pull)
-		{
-			new_mode = BFGMode::GRAV_PULL;
-		}
-		else
+		else // GRAV_PULL
 		{
 			new_mode = BFGMode::NORMAL;
 		}
 	}
 	else
-	{ // GRAV_PULL
-		new_mode = BFGMode::NORMAL;
+	{
+		// RPG Mode (vortex=1): Check for benefits/skills
+		bool has_slide = ClassicPlayerHasBenefit(ent, BenefitID::BFG_SLIDE);
+		bool has_pull = ClassicPlayerHasBenefit(ent, BenefitID::BFG_GRAV_PULL);
+
+		// If no upgrades, can't change mode
+		if (!has_slide && !has_pull)
+		{
+			gi.LocCenter_Print(ent, "\n\n\nNo BFG upgrades available!\n");
+			return;
+		}
+
+		// Cycle through available modes based on what player has
+		if (current_mode == BFGMode::NORMAL)
+		{
+			if (has_slide)
+			{
+				new_mode = BFGMode::SLIDE;
+			}
+			else if (has_pull)
+			{
+				new_mode = BFGMode::GRAV_PULL;
+			}
+		}
+		else if (current_mode == BFGMode::SLIDE)
+		{
+			if (has_pull)
+			{
+				new_mode = BFGMode::GRAV_PULL;
+			}
+			else
+			{
+				new_mode = BFGMode::NORMAL;
+			}
+		}
+		else
+		{ // GRAV_PULL
+			new_mode = BFGMode::NORMAL;
+		}
 	}
 
 	ent->client->pers.bfg_mode = new_mode;
@@ -1569,6 +1589,12 @@ void MiscMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		HordeMenu_SentryChoice(ent, p); // Call the dedicated handler
 		shouldCloseMenu = false;		// Don't close, HordeMenu_SentryChoice will reopen Misc Menu
+	}
+	// **** Check BFG Behavior selection ****
+	else if (strstr(selected_text, "BFG Behavior") != nullptr)
+	{
+		HordeMenu_BFGMode(ent, p); // Call the dedicated handler
+		shouldCloseMenu = false;   // Don't close, HordeMenu_BFGMode will reopen Misc Menu
 	}
 	// **** Check Beta: Strogg preference selection ****
 	else if (strstr(selected_text, "[Beta] Strogg") != nullptr)
@@ -1818,7 +1844,7 @@ void OpenMiscMenu(edict_t *ent, int cursor_position)
 	ent->client->menu_protected = true;
 	ent->client->menu_protection_start = level.time;
 
-	static pmenu_t entries[15]; // Increased from 14 to 15 for extra strogg option
+	static pmenu_t entries[16]; // Increased from 15 to 16 for BFG mode option
 	memset(entries, 0, sizeof(entries));
 	int count = 0;
 
@@ -1849,6 +1875,12 @@ void OpenMiscMenu(edict_t *ent, int cursor_position)
 	// --- Sentry Gun Choice ---
 	MenuFormatItemWithCustomNoNumber(buffer, sizeof(buffer), "Sentry Type", GetSentryTypeName(ent->client->pers.sentry_gun_choice));
 	add_entry(buffer, PMENU_ALIGN_LEFT, MiscMenuHandler);
+
+	// --- BFG Mode Selection (Classic Mode only) ---
+	if (g_vortex->integer == 0) {
+		MenuFormatItemWithCustomNoNumber(buffer, sizeof(buffer), "BFG Behavior", GetBFGModeName(ent->client->pers.bfg_mode));
+		add_entry(buffer, PMENU_ALIGN_LEFT, MiscMenuHandler);
+	}
 
 	// --- Beta: Strogg Preference Selection ---
 	MenuFormatItemWithCustomNoNumber(buffer, sizeof(buffer), "[Beta] Strogg", GetMorphTypeName(ent->client->pers.morph_preference));

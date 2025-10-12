@@ -3413,7 +3413,7 @@ struct client_persistant_t
 	uint32_t purchased_benefits_mask = 0; // All benefits ever purchased (for prerequisites) - //not for bots only anymore. for non vortex modes
 	uint32_t auto_purchased_benefits_mask = 0; // Benefits purchased via auto-buy (for refunds) - //not for bots only anymore. for non vortex modes
 	gtime_t last_auto_buy_check = 0_ms;   // Last time auto-buy was checked - //not for bots only anymore. for non vortex modes
-	BFGMode bfg_mode = BFGMode::NORMAL;   // Default to normal mode (players must upgrade) 
+	BFGMode bfg_mode = BFGMode::SLIDE;    // Default to slide mode 
 	int morph_preference = 0;              // 0=Brain (default), 1=Flyer
 
 	// Character persistence (PvM & Horde)

@@ -604,6 +604,15 @@ void create_laser(edict_t * ent)
             return;
         }
     }
+    else
+    {
+        // Classic Mode (vortex=0): Check cell cost
+        if (ent->client->pers.inventory[IT_AMMO_CELLS] < 25)
+        {
+            gi.LocClient_Print(ent, PRINT_HIGH, "You need 25 cells to build a laser!\n");
+            return;
+        }
+    }
 
     if (ent->client->resp.num_lasers >= LaserConstants::MAX_LASERS_PER_PLAYER())
     {
@@ -714,10 +723,16 @@ void create_laser(edict_t * ent)
 
     g_targetable_special_entities.push_back(emitter);
 
-    // Only deduct power cubes in RPG Mode
+    // Deduct appropriate resource based on mode
     if (g_vortex->integer != 0)
     {
+        // RPG Mode: Deduct power cubes
         ent->client->pers.horde_power_cubes -= g_config.laser.cost;
+    }
+    else
+    {
+        // Classic Mode: Deduct cells
+        ent->client->pers.inventory[IT_AMMO_CELLS] -= 25;
     }
 
     for (int i = 0; i < LaserConstants::MAX_LASERS_PER_PLAYER(); ++i) {

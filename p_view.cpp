@@ -1022,7 +1022,9 @@ static void HORDE_ApplyAmmoRegen(edict_t* ent) {
 
 	// Check if player has ammo regen (benefit in Classic Mode, skill in RPG Mode)
 	int8_t ammo_regen_level = 0;
-	if (g_vortex->integer == 0) {
+	bool is_classic_mode = (g_vortex->integer == 0);
+	
+	if (is_classic_mode) {
 		// Classic Mode: Check benefit system
 		if (!ClassicPlayerHasBenefitAmmoRegen(ent)) {
 			return;
@@ -1059,96 +1061,239 @@ static void HORDE_ApplyAmmoRegen(edict_t* ent) {
 		return;
 	}
 
-	// Fixed regen time: 5 seconds per tick
-	// Note: ammo_regen_level already set above based on vortex mode
-	gtime_t regen_time = 5_sec;
+	// Classic Mode: Fixed regen time based on spree
+	// RPG Mode: Level-based regen time
+	gtime_t regen_time;
+	
+	if (is_classic_mode) {
+		// Fixed 5 second regen time, or 2.5s with high spree (15+)
+		if (ent->client->resp.spree >= 15) {
+			regen_time = gtime_t::from_ms(2500); // 2.5 seconds
+		} else {
+			regen_time = 5_sec; // 5 seconds
+		}
+	} else {
+		// RPG Mode: Use old behavior
+		regen_time = 5_sec;
+	}
 
 	client->ammoregentime = level.time + regen_time;
 
-	// Define regeneration rules structure
-	typedef struct {
-		int weapon_check;       // 0 = no check, 1 = check the weapon ID
-		int weapon_id;          // ID of weapon to check
-		int alt_weapon_id;      // Alternative weapon ID (if applicable, 0 otherwise)
-		int ammo_inventory_id;  // ID of ammo in inventory
-		int ammo_max_id;        // ID for max ammo
-		int per_level_amount;   // Amount of ammo per upgrade level
-	} AmmoRegenRule;
+	if (is_classic_mode) {
+		// ====== CLASSIC MODE: Fixed amounts based on weapon upgrades ======
+		
+		// Get player's weapon upgrades for dynamic amounts
+		bool has_traced_bullets = ClassicPlayerHasBenefitTracedBullets(ent);
+		bool has_energy_shells = ClassicPlayerHasBenefitEnergyShells(ent);
+		bool has_napalm_gl = ClassicPlayerHasBenefitNapalmGL(ent);
+		bool has_cluster_prox = ClassicPlayerHasBenefitClusterProx(ent);
+		bool has_bfg_pull = ClassicPlayerHasBenefitBFGPull(ent);
 
-	// Define the regeneration rules with specific amounts per level
-	// At level 5, cells would give 25 (5 * 5), rockets would give 5 (1 * 5), etc.
-	const AmmoRegenRule regenRules[] = {
-		// Weapon check, Weapon ID,           Alt Weapon ID,        Ammo ID,            Max Ammo ID,    Per Level
-		{1,             IT_WEAPON_SHOTGUN,    IT_WEAPON_SSHOTGUN,   IT_AMMO_SHELLS,     AMMO_SHELLS,    1},  // Not specified, using 1
-		{1,             IT_WEAPON_MACHINEGUN, IT_WEAPON_CHAINGUN,   IT_AMMO_BULLETS,    AMMO_BULLETS,   5},  // 5 bullets per level
-		{0,             0,                    0,                    IT_AMMO_GRENADES,   AMMO_GRENADES,  1},  // 1 grenade per level
-		{1,             IT_WEAPON_RLAUNCHER,  0,                    IT_AMMO_ROCKETS,    AMMO_ROCKETS,   1},  // 1 rocket per level
-		{1,             IT_WEAPON_HYPERBLASTER, 0,                  IT_AMMO_CELLS,      AMMO_CELLS,     5},  // 5 cells per level
-		{1,             IT_WEAPON_RAILGUN,    0,                    IT_AMMO_SLUGS,      AMMO_SLUGS,     1},  // 1 slug per level
-		{1,             IT_WEAPON_PHALANX,    0,                    IT_AMMO_MAGSLUG,    AMMO_MAGSLUG,   1},  // Not specified, using 1
-		{1,             IT_WEAPON_ETF_RIFLE,  0,                    IT_AMMO_FLECHETTES, AMMO_FLECHETTES,5},  // 5 flechettes per level
-		{1,             IT_WEAPON_PROXLAUNCHER,    0,               IT_AMMO_PROX,       AMMO_PROX,      1},  // 1 prox per level
-		{1,             IT_WEAPON_DISRUPTOR,  0,                    IT_AMMO_ROUNDS,     AMMO_DISRUPTOR, 1},  // 1 round per level
-		{0,             0,                    0,                    IT_AMMO_TESLA,      AMMO_TESLA,     1},  // 1 tesla per level
-		{0,             0,                    0,                    IT_AMMO_TRAP,       AMMO_TRAP,      1}   // 1 trap per level
-	};
-
-	// Apply all regeneration rules
-	constexpr size_t ruleCount = sizeof(regenRules) / sizeof(regenRules[0]);
-
-	for (size_t i = 0; i < ruleCount; i++) {
-		bool shouldRegenerate = false;
-
-		// Determine if we should regenerate this ammo type
-		if (regenRules[i].weapon_check == 0) {
-			// No weapon check needed
-			shouldRegenerate = true;
-		}
-		else {
-			// Check if player has the required weapon
-			if (regenRules[i].weapon_id == IT_WEAPON_HYPERBLASTER) {
-				// Special case for energy weapons: check if player has any energy weapon
-				shouldRegenerate = (
-					client->pers.inventory[IT_WEAPON_HYPERBLASTER] > 0 ||
-					client->pers.inventory[IT_WEAPON_BFG] > 0 ||
-					client->pers.inventory[IT_WEAPON_IONRIPPER] > 0 ||
-					client->pers.inventory[IT_WEAPON_PLASMABEAM] > 0
-					);
+		// Bullets - 50 base, +25 with traced bullets
+		if (client->pers.inventory[IT_WEAPON_MACHINEGUN] > 0 || 
+		    client->pers.inventory[IT_WEAPON_CHAINGUN] > 0) {
+			int bullet_amount = 50;
+			if (has_traced_bullets) {
+				bullet_amount += 25;
 			}
-			else if (regenRules[i].alt_weapon_id != 0) {
-				// Check primary or alternative weapon
-				shouldRegenerate = (
-					client->pers.inventory[regenRules[i].weapon_id] > 0 ||
-					client->pers.inventory[regenRules[i].alt_weapon_id] > 0
-					);
+			client->pers.inventory[IT_AMMO_BULLETS] += bullet_amount;
+			if (client->pers.inventory[IT_AMMO_BULLETS] > client->pers.max_ammo[AMMO_BULLETS]) {
+				client->pers.inventory[IT_AMMO_BULLETS] = client->pers.max_ammo[AMMO_BULLETS];
+			}
+		}
+
+		// Shells - 10 base, +5 with energy shells
+		if (client->pers.inventory[IT_WEAPON_SHOTGUN] > 0 || 
+		    client->pers.inventory[IT_WEAPON_SSHOTGUN] > 0) {
+			int shell_amount = 10;
+			if (has_energy_shells) {
+				shell_amount += 5;
+			}
+			client->pers.inventory[IT_AMMO_SHELLS] += shell_amount;
+			if (client->pers.inventory[IT_AMMO_SHELLS] > client->pers.max_ammo[AMMO_SHELLS]) {
+				client->pers.inventory[IT_AMMO_SHELLS] = client->pers.max_ammo[AMMO_SHELLS];
+			}
+		}
+
+		// Grenades - 5 base, +3 with napalm GL
+		if (client->pers.inventory[IT_WEAPON_GLAUNCHER] > 0) {
+			int grenade_amount = 5;
+			if (has_napalm_gl) {
+				grenade_amount += 3;
+			}
+			client->pers.inventory[IT_AMMO_GRENADES] += grenade_amount;
+			if (client->pers.inventory[IT_AMMO_GRENADES] > client->pers.max_ammo[AMMO_GRENADES]) {
+				client->pers.inventory[IT_AMMO_GRENADES] = client->pers.max_ammo[AMMO_GRENADES];
+			}
+		}
+
+		// Rockets - 5 always
+		if (client->pers.inventory[IT_WEAPON_RLAUNCHER] > 0) {
+			client->pers.inventory[IT_AMMO_ROCKETS] += 5;
+			if (client->pers.inventory[IT_AMMO_ROCKETS] > client->pers.max_ammo[AMMO_ROCKETS]) {
+				client->pers.inventory[IT_AMMO_ROCKETS] = client->pers.max_ammo[AMMO_ROCKETS];
+			}
+		}
+
+		// Cells - 50 for any energy weapon
+		if (client->pers.inventory[IT_WEAPON_HYPERBLASTER] > 0 ||
+		    client->pers.inventory[IT_WEAPON_BFG] > 0 ||
+		    client->pers.inventory[IT_WEAPON_IONRIPPER] > 0 ||
+		    client->pers.inventory[IT_WEAPON_PLASMABEAM] > 0) {
+			client->pers.inventory[IT_AMMO_CELLS] += 50;
+			if (client->pers.inventory[IT_AMMO_CELLS] > client->pers.max_ammo[AMMO_CELLS]) {
+				client->pers.inventory[IT_AMMO_CELLS] = client->pers.max_ammo[AMMO_CELLS];
+			}
+		}
+
+		// Slugs - 5 always
+		if (client->pers.inventory[IT_WEAPON_RAILGUN] > 0) {
+			client->pers.inventory[IT_AMMO_SLUGS] += 5;
+			if (client->pers.inventory[IT_AMMO_SLUGS] > client->pers.max_ammo[AMMO_SLUGS]) {
+				client->pers.inventory[IT_AMMO_SLUGS] = client->pers.max_ammo[AMMO_SLUGS];
+			}
+		}
+
+		// Mag Slugs (Phalanx) - 5 always
+		if (client->pers.inventory[IT_WEAPON_PHALANX] > 0) {
+			client->pers.inventory[IT_AMMO_MAGSLUG] += 5;
+			if (client->pers.inventory[IT_AMMO_MAGSLUG] > client->pers.max_ammo[AMMO_MAGSLUG]) {
+				client->pers.inventory[IT_AMMO_MAGSLUG] = client->pers.max_ammo[AMMO_MAGSLUG];
+			}
+		}
+
+		// Flechettes (ETF) - 50 always
+		if (client->pers.inventory[IT_WEAPON_ETF_RIFLE] > 0) {
+			client->pers.inventory[IT_AMMO_FLECHETTES] += 50;
+			if (client->pers.inventory[IT_AMMO_FLECHETTES] > client->pers.max_ammo[AMMO_FLECHETTES]) {
+				client->pers.inventory[IT_AMMO_FLECHETTES] = client->pers.max_ammo[AMMO_FLECHETTES];
+			}
+		}
+
+		// Prox - 2 base, +1 with cluster prox
+		if (client->pers.inventory[IT_WEAPON_PROXLAUNCHER] > 0) {
+			int prox_amount = 2;
+			if (has_cluster_prox) {
+				prox_amount += 1;
+			}
+			client->pers.inventory[IT_AMMO_PROX] += prox_amount;
+			if (client->pers.inventory[IT_AMMO_PROX] > client->pers.max_ammo[AMMO_PROX]) {
+				client->pers.inventory[IT_AMMO_PROX] = client->pers.max_ammo[AMMO_PROX];
+			}
+		}
+
+		// Disruptor Rounds - 10 always
+		if (client->pers.inventory[IT_WEAPON_DISRUPTOR] > 0) {
+			client->pers.inventory[IT_AMMO_ROUNDS] += 10;
+			if (client->pers.inventory[IT_AMMO_ROUNDS] > client->pers.max_ammo[AMMO_DISRUPTOR]) {
+				client->pers.inventory[IT_AMMO_ROUNDS] = client->pers.max_ammo[AMMO_DISRUPTOR];
+			}
+		}
+
+		// Tesla - 2 always (no weapon ownership check)
+		client->pers.inventory[IT_AMMO_TESLA] += 2;
+		if (client->pers.inventory[IT_AMMO_TESLA] > client->pers.max_ammo[AMMO_TESLA]) {
+			client->pers.inventory[IT_AMMO_TESLA] = client->pers.max_ammo[AMMO_TESLA];
+		}
+
+		// Power Cubes - 2 base, +1 with BFG pull upgrade
+		int cube_amount = 2;
+		if (has_bfg_pull) {
+			cube_amount += 1;
+		}
+		client->pers.inventory[IT_AMMO_TRAP] += cube_amount;
+		if (client->pers.inventory[IT_AMMO_TRAP] > client->pers.max_ammo[AMMO_TRAP]) {
+			client->pers.inventory[IT_AMMO_TRAP] = client->pers.max_ammo[AMMO_TRAP];
+		}
+
+	} else {
+		// ====== RPG MODE: Original level-based behavior ======
+		
+		// Define regeneration rules structure
+		typedef struct {
+			int weapon_check;       // 0 = no check, 1 = check the weapon ID
+			int weapon_id;          // ID of weapon to check
+			int alt_weapon_id;      // Alternative weapon ID (if applicable, 0 otherwise)
+			int ammo_inventory_id;  // ID of ammo in inventory
+			int ammo_max_id;        // ID for max ammo
+			int per_level_amount;   // Amount of ammo per upgrade level
+		} AmmoRegenRule;
+
+		// Define the regeneration rules with specific amounts per level
+		// At level 5, cells would give 25 (5 * 5), rockets would give 5 (1 * 5), etc.
+		const AmmoRegenRule regenRules[] = {
+			// Weapon check, Weapon ID,           Alt Weapon ID,        Ammo ID,            Max Ammo ID,    Per Level
+			{1,             IT_WEAPON_SHOTGUN,    IT_WEAPON_SSHOTGUN,   IT_AMMO_SHELLS,     AMMO_SHELLS,    1},  // Not specified, using 1
+			{1,             IT_WEAPON_MACHINEGUN, IT_WEAPON_CHAINGUN,   IT_AMMO_BULLETS,    AMMO_BULLETS,   5},  // 5 bullets per level
+			{0,             0,                    0,                    IT_AMMO_GRENADES,   AMMO_GRENADES,  1},  // 1 grenade per level
+			{1,             IT_WEAPON_RLAUNCHER,  0,                    IT_AMMO_ROCKETS,    AMMO_ROCKETS,   1},  // 1 rocket per level
+			{1,             IT_WEAPON_HYPERBLASTER, 0,                  IT_AMMO_CELLS,      AMMO_CELLS,     5},  // 5 cells per level
+			{1,             IT_WEAPON_RAILGUN,    0,                    IT_AMMO_SLUGS,      AMMO_SLUGS,     1},  // 1 slug per level
+			{1,             IT_WEAPON_PHALANX,    0,                    IT_AMMO_MAGSLUG,    AMMO_MAGSLUG,   1},  // Not specified, using 1
+			{1,             IT_WEAPON_ETF_RIFLE,  0,                    IT_AMMO_FLECHETTES, AMMO_FLECHETTES,5},  // 5 flechettes per level
+			{1,             IT_WEAPON_PROXLAUNCHER,    0,               IT_AMMO_PROX,       AMMO_PROX,      1},  // 1 prox per level
+			{1,             IT_WEAPON_DISRUPTOR,  0,                    IT_AMMO_ROUNDS,     AMMO_DISRUPTOR, 1},  // 1 round per level
+			{0,             0,                    0,                    IT_AMMO_TESLA,      AMMO_TESLA,     1},  // 1 tesla per level
+			{0,             0,                    0,                    IT_AMMO_TRAP,       AMMO_TRAP,      1}   // 1 trap per level
+		};
+
+		// Apply all regeneration rules
+		constexpr size_t ruleCount = sizeof(regenRules) / sizeof(regenRules[0]);
+
+		for (size_t i = 0; i < ruleCount; i++) {
+			bool shouldRegenerate = false;
+
+			// Determine if we should regenerate this ammo type
+			if (regenRules[i].weapon_check == 0) {
+				// No weapon check needed
+				shouldRegenerate = true;
 			}
 			else {
-				// Check only primary weapon
-				shouldRegenerate = (client->pers.inventory[regenRules[i].weapon_id] > 0);
+				// Check if player has the required weapon
+				if (regenRules[i].weapon_id == IT_WEAPON_HYPERBLASTER) {
+					// Special case for energy weapons: check if player has any energy weapon
+					shouldRegenerate = (
+						client->pers.inventory[IT_WEAPON_HYPERBLASTER] > 0 ||
+						client->pers.inventory[IT_WEAPON_BFG] > 0 ||
+						client->pers.inventory[IT_WEAPON_IONRIPPER] > 0 ||
+						client->pers.inventory[IT_WEAPON_PLASMABEAM] > 0
+						);
+				}
+				else if (regenRules[i].alt_weapon_id != 0) {
+					// Check primary or alternative weapon
+					shouldRegenerate = (
+						client->pers.inventory[regenRules[i].weapon_id] > 0 ||
+						client->pers.inventory[regenRules[i].alt_weapon_id] > 0
+						);
+				}
+				else {
+					// Check only primary weapon
+					shouldRegenerate = (client->pers.inventory[regenRules[i].weapon_id] > 0);
+				}
 			}
-		}
 
-		// Skip if weapon condition is not met
-		if (!shouldRegenerate) {
-			continue;
-		}
+			// Skip if weapon condition is not met
+			if (!shouldRegenerate) {
+				continue;
+			}
 
-		// Safety check for array indices
-		if (regenRules[i].ammo_max_id < 0) {
-			continue;
-		}
+			// Safety check for array indices
+			if (regenRules[i].ammo_max_id < 0) {
+				continue;
+			}
 
-		// Calculate ammo amount: per_level_amount * skill_level
-		int ammo_amount = regenRules[i].per_level_amount * ammo_regen_level;
+			// Calculate ammo amount: per_level_amount * skill_level
+			int ammo_amount = regenRules[i].per_level_amount * ammo_regen_level;
 
-		// Add ammo
-		client->pers.inventory[regenRules[i].ammo_inventory_id] += ammo_amount;
+			// Add ammo
+			client->pers.inventory[regenRules[i].ammo_inventory_id] += ammo_amount;
 
-		// Cap at maximum value
-		if (client->pers.inventory[regenRules[i].ammo_inventory_id] >
-			client->pers.max_ammo[regenRules[i].ammo_max_id]) {
-			client->pers.inventory[regenRules[i].ammo_inventory_id] =
-				client->pers.max_ammo[regenRules[i].ammo_max_id];
+			// Cap at maximum value
+			if (client->pers.inventory[regenRules[i].ammo_inventory_id] >
+				client->pers.max_ammo[regenRules[i].ammo_max_id]) {
+				client->pers.inventory[regenRules[i].ammo_inventory_id] =
+					client->pers.max_ammo[regenRules[i].ammo_max_id];
+			}
 		}
 	}
 }
