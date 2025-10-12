@@ -568,11 +568,11 @@ const char* GetDisplayName(const edict_t* ent) {
 }
 
 // // Calculate sentry gun health with adrenaline bonus
-// [[nodiscard]] int CalculateSentryHealth(int base_health, gclient_t* owner_client)
-// {
-// 	if (!owner_client) return base_health;
-// 	return base_health + (owner_client->pers.adrenaline_count * 10);
-// }
+[[nodiscard]] int CalculateSentryHealth(int base_health, gclient_t* owner_client)
+{
+	if (!owner_client) return base_health;
+	return base_health + (owner_client->pers.adrenaline_count * 10);
+}
 
 // Calculate tesla/trap lifetime with adrenaline bonus
 [[nodiscard]] gtime_t CalculateDeployableLifetime(gtime_t base_lifetime, gclient_t* owner_client)

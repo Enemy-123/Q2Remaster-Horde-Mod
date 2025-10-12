@@ -78,8 +78,10 @@ static inline void HandleSentryRegeneration(edict_t* self, sentry_state_t* state
 	int health_regen = (int)(self->max_health * 0.05f);
 	if (health_regen > 0) {
 		self->health += health_regen;
-		if (self->health > self->max_health) {
-			self->health = self->max_health;
+		// Cap regeneration at 200 health maximum
+		int health_cap = std::min(self->max_health, 200);
+		if (self->health > health_cap) {
+			self->health = health_cap;
 		}
 	}
 
@@ -2393,26 +2395,29 @@ void SP_monster_sentrygun(edict_t* self)
 		base_health = g_config.sentrygun.max_health;
 	}
 
-	// Power armor is disabled for skill-based sentrygun to avoid using monsters.json values
-	// All armor scaling is now handled by regular armor based on skill level below
-
-	// Regular armor configuration based on skill level
-	if (!st.was_key_specified("armor_type") && g_config.sentrygun.initial_armor > 0) {
-		int armor = g_config.sentrygun.initial_armor +
-		            (self->monsterinfo.pvm_level * g_config.sentrygun.addon_armor);
-		// Apply max cap
-		if (armor > g_config.sentrygun.max_armor) {
-			armor = g_config.sentrygun.max_armor;
+	// Armor configuration differs between Classic and RPG modes
+	if (g_vortex->integer) {
+		// RPG Mode: Use regular armor based on skill level
+		if (!st.was_key_specified("armor_type") && g_config.sentrygun.initial_armor > 0) {
+			int armor = g_config.sentrygun.initial_armor +
+			            (self->monsterinfo.pvm_level * g_config.sentrygun.addon_armor);
+			// Apply max cap
+			if (armor > g_config.sentrygun.max_armor) {
+				armor = g_config.sentrygun.max_armor;
+			}
+			self->monsterinfo.armor_power = armor;
 		}
-		self->monsterinfo.armor_power = armor;
+	} else {
+		// Classic Mode: Use power armor, updated dynamically by wave level
+		// Initial power armor based on base health (40% of max health, capped at 150)
+		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
+		int initial_power_armor = static_cast<int>(round(base_health * 0.4f));
+		self->monsterinfo.power_armor_power = std::min(initial_power_armor, 150);
 	}
 
 	// Set health to calculated base_health (no adrenaline bonus)
 	self->health = base_health;
 	self->max_health = base_health;
-
-	// self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
-	// self->monsterinfo.power_armor_power = static_cast<int>(round(self->max_health * 0.4f));
 	self->gib_health = -100;
 	self->mass = 100;
 	self->yaw_speed = 16;

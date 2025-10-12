@@ -70,60 +70,97 @@ void RemoveEmitterState(const edict_t* ent) {
 void laser_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod);
 void laser_beam_think(edict_t *self); // Forward declare the renamed think function
 
-// These functions are no longer used since lasers are now skill-based, not wave-based
-// Kept for reference but commented out
-/*
+// Wave-based scaling for lasers and sentries in Classic Mode
 static int CalculateWaveBasedLaserDamage(int wave_level)
 {
     int effective_wave_level = std::max(1, wave_level);
-    return g_config.laser.initial_damage + (g_config.laser.addon_damage * (effective_wave_level - 1));
+    // Classic Mode uses different base values than RPG mode config
+    constexpr int CLASSIC_BASE_DAMAGE = 2;      // Base damage at wave 1
+    constexpr int CLASSIC_DAMAGE_PER_WAVE = 2;  // Damage increase per wave
+    return CLASSIC_BASE_DAMAGE + (CLASSIC_DAMAGE_PER_WAVE * (effective_wave_level - 1));
 }
 
 static int CalculateWaveBasedLaserMaxHealth(int wave_level)
 {
     int effective_wave_level = std::max(1, wave_level);
-    return std::min(g_config.laser.initial_health + (g_config.laser.addon_health * (effective_wave_level - 1)), LaserConstants::MAX_LASER_HEALTH);
+    // Classic Mode uses different base values than RPG mode config
+    constexpr int CLASSIC_BASE_HEALTH = 100;     // Base health at wave 1
+    constexpr int CLASSIC_HEALTH_PER_WAVE = 50;  // Health increase per wave
+    return std::min(CLASSIC_BASE_HEALTH + (CLASSIC_HEALTH_PER_WAVE * (effective_wave_level - 1)), LaserConstants::MAX_LASER_HEALTH);
 }
-*/
 
+static int CalculateWaveBasedSentryHealth(int base_health, int wave_level, int adrenaline_count)
+{
+    // Wave-based scaling: base + (wave - 1) * 15 per wave + adrenaline bonus
+    int effective_wave_level = std::max(1, wave_level);
+    int wave_bonus = (effective_wave_level - 1) * 15;
+    int adrenaline_bonus = adrenaline_count * 10;
+    return base_health + wave_bonus + adrenaline_bonus;
+}
 
-// Helper function to update laser damage and health for a single player
-// Note: Lasers are now skill-based, so this function is no longer needed for wave updates
-// It's kept for potential future use but lasers don't scale with waves anymore
+// Helper function to update laser damage and health for a single player in Classic Mode
 static void UpdatePlayerLasers(const edict_t* player, int current_wave_level, int current_adrenaline)
 {
-    // Lasers are now skill-based and don't update with wave progression
-    // Stats are set once at creation based on skill level
-    // This function is kept empty for compatibility but does nothing
-    return;
+    if (!player || !player->client || g_vortex->integer) return; // Only update in Classic Mode
+
+    for (int i = 0; i < LaserConstants::MAX_LASERS_PER_PLAYER(); ++i)
+    {
+        edict_t* emitter = player->client->resp.deployed_lasers[i];
+
+        // Check if the emitter and its beam are valid
+        if (!emitter || !emitter->inuse || !emitter->chain || !emitter->chain->inuse)
+            continue;
+
+        edict_t* laser_beam = emitter->chain;
+
+        // Update damage based on wave level
+        int new_damage = CalculateWaveBasedLaserDamage(current_wave_level);
+
+        // Calculate max health: wave-based + adrenaline bonus (+250 per adrenaline)
+        int wave_based_health = CalculateWaveBasedLaserMaxHealth(current_wave_level);
+        int new_max_health = wave_based_health + (current_adrenaline * 250);
+        new_max_health = std::min(new_max_health, LaserConstants::MAX_LASER_HEALTH);
+
+        laser_beam->dmg = new_damage;
+        if (new_max_health != laser_beam->max_health)
+        {
+            if (laser_beam->health > 0)
+            {
+                float health_ratio = (laser_beam->max_health > 0) ? (float)laser_beam->health / (float)laser_beam->max_health : 1.0f;
+                laser_beam->health = std::max(1, static_cast<int>(health_ratio * new_max_health));
+            }
+            laser_beam->max_health = new_max_health;
+        }
+    }
 }
 
-// // Helper function to update sentry gun health for a single player
-// static void UpdatePlayerSentryGuns(const edict_t* player)
-// {
-//     if (!player || !player->client) return;
+// Helper function to update sentry gun health for a single player in Classic Mode
+static void UpdatePlayerSentryGuns(const edict_t* player, int current_wave_level)
+{
+    if (!player || !player->client || g_vortex->integer) return; // Only update in Classic Mode
 
-//     for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER(); ++i)
-//     {
-//         edict_t* sentry = player->client->resp.deployed_sentries[i];
+    for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER(); ++i)
+    {
+        edict_t* sentry = player->client->resp.deployed_sentries[i];
 
-//         if (!sentry || !sentry->inuse)
-//             continue;
+        if (!sentry || !sentry->inuse)
+            continue;
 
-//         // Calculate new max health with current adrenaline count
-//         int base_health = 125; // Base sentry health from SP_monster_sentrygun
-//         int new_max_health = CalculateSentryHealth(base_health, player->client);
+        // Calculate new max health with wave-based scaling + adrenaline bonus
+        int base_health = 125; // Base sentry health from SP_monster_sentrygun
+        int new_max_health = CalculateWaveBasedSentryHealth(base_health, current_wave_level, player->client->pers.adrenaline_count);
 
-//         // Only update max_health, leave current health untouched
-//         if (new_max_health != sentry->max_health)
-//         {
-//             sentry->max_health = new_max_health;
+        // Only update max_health, leave current health untouched
+        if (new_max_health != sentry->max_health)
+        {
+            sentry->max_health = new_max_health;
 
-//             // Update power armor accordingly (40% of max health)
-//             sentry->monsterinfo.power_armor_power = static_cast<int>(round(sentry->max_health * 0.4f));
-//         }
-//     }
-// }
+            // Update power armor accordingly (40% of max health, capped at 150)
+            int new_power_armor = static_cast<int>(round(sentry->max_health * 0.4f));
+            sentry->monsterinfo.power_armor_power = std::min(new_power_armor, 150);
+        }
+    }
+}
 
 // Helper function to update tesla mine lifetimes for a single player
 static void UpdatePlayerTeslaMines(const edict_t* player)
@@ -154,7 +191,7 @@ static void UpdatePlayerTeslaMines(const edict_t* player)
 
 void G_UpdateAdrenalineBasedDeployables(int current_wave_level)
 {
-    if (!g_horde || !g_horde->integer)
+    if (!g_horde || !g_horde->integer || g_vortex->integer)
         return;
 
     // Cache tracking for performance optimization
@@ -186,14 +223,14 @@ void G_UpdateAdrenalineBasedDeployables(int current_wave_level)
             last_adrenaline_count[player_num] = current_adrenaline;
         }
 
-        // Update lasers only if wave changed or adrenaline changed
+        // Update lasers and sentries when wave or adrenaline changes
         if (wave_changed || should_update_adrenaline) {
             UpdatePlayerLasers(player, current_wave_level, current_adrenaline);
+            UpdatePlayerSentryGuns(player, current_wave_level);  // Sentries also scale with wave
         }
 
         // Update other deployables only when adrenaline changes
         if (should_update_adrenaline) {
-          //  UpdatePlayerSentryGuns(player);
             UpdatePlayerTeslaMines(player);
 
             // NOTE: Traps should NOT have their lifetime updated after creation
@@ -691,9 +728,18 @@ void create_laser(edict_t * ent)
     beam->teammaster = ent;
     beam->owner = emitter;
     beam->s.angles = emitter->s.angles;
-    // Calculate damage and health based on skill level
-    beam->dmg = g_config.laser.initial_damage + (laser_level * g_config.laser.addon_damage);
-    beam->max_health = g_config.laser.initial_health + (laser_level * g_config.laser.addon_health);
+    // Calculate damage and health based on mode
+    if (g_vortex->integer) {
+        // RPG Mode: Skill-based
+        beam->dmg = g_config.laser.initial_damage + (laser_level * g_config.laser.addon_damage);
+        beam->max_health = g_config.laser.initial_health + (laser_level * g_config.laser.addon_health);
+    } else {
+        // Classic Mode: Wave-based with adrenaline bonus
+        beam->dmg = CalculateWaveBasedLaserDamage(current_wave_level);
+        int wave_based_health = CalculateWaveBasedLaserMaxHealth(current_wave_level);
+        int adrenaline_health_bonus = ent->client->pers.adrenaline_count * 250;
+        beam->max_health = std::min(wave_based_health + adrenaline_health_bonus, LaserConstants::MAX_LASER_HEALTH);
+    }
     beam->health = beam->max_health;
     beam->die = laser_die;
     beam->think = laser_beam_think;
