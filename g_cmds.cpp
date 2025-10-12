@@ -358,6 +358,13 @@ void Cmd_Fireball_f(edict_t* ent)
 	if (!ent || !ent->client)
 		return;
 
+	// Only available in RPG Mode (vortex enabled)
+	if (g_vortex->integer == 0)
+	{
+		gi.LocClient_Print(ent, PRINT_HIGH, "Fireball is only available in RPG Mode (vortex 1)\n");
+		return;
+	}
+
 	// Get player's fireball skill level
 	int8_t fireball_level = ent->client->pers.skills.fireball;
 
@@ -1446,6 +1453,55 @@ void Cmd_PowerCubes_f(edict_t* ent)
 
 /*
 =================
+Cmd_Vortex_f
+
+Toggle or set vortex mode
+0 = Classic Mode (disables all RPG features)
+1 = RPG Mode (default, enables progression system)
+Only host can change this
+=================
+*/
+void Cmd_Vortex_f(edict_t* ent)
+{
+	unsigned int playerNum = P_GetLobbyUserNum(ent);
+
+	// Only host can change vortex mode
+	if (playerNum != 0)
+	{
+		gi.LocClient_Print(ent, PRINT_HIGH, "Only the host can change vortex mode.\n");
+		return;
+	}
+
+	// If no argument provided, display current status
+	if (gi.argc() < 2)
+	{
+		const char* mode_name = g_vortex->integer ? "RPG Mode" : "Classic Mode";
+		gi.LocClient_Print(ent, PRINT_HIGH, "Vortex is currently set to {} ({})\n", g_vortex->integer, mode_name);
+		gi.LocClient_Print(ent, PRINT_HIGH, "Usage: vortex <0|1>\n");
+		gi.LocClient_Print(ent, PRINT_HIGH, "  0 = Classic Mode (no RPG features)\n");
+		gi.LocClient_Print(ent, PRINT_HIGH, "  1 = RPG Mode (default)\n");
+		return;
+	}
+
+	// Parse the new value
+	int new_value = atoi(gi.argv(1));
+
+	// Validate input (0 or 1 only)
+	if (new_value != 0 && new_value != 1)
+	{
+		gi.LocClient_Print(ent, PRINT_HIGH, "Invalid value. Use 0 (Classic) or 1 (RPG).\n");
+		return;
+	}
+
+	// Set the new value
+	gi.cvar_set("vortex", new_value ? "1" : "0");
+
+	const char* mode_name = new_value ? "RPG Mode" : "Classic Mode";
+	gi.LocBroadcast_Print(PRINT_HIGH, "Vortex mode changed to {} by {}\n", mode_name, ent->client->pers.netname);
+}
+
+/*
+=================
 Cmd_Clear_AI_Enemy_f
 =================
 */
@@ -2221,6 +2277,8 @@ void ClientCommand(edict_t* ent)
 		Cmd_Where_f(ent);
 	else if (Q_strcasecmp(cmd, "powercubes") == 0)
 		Cmd_PowerCubes_f(ent);
+	else if (Q_strcasecmp(cmd, "vortex") == 0)
+		Cmd_Vortex_f(ent);
 	else if (Q_strcasecmp(cmd, "clear_ai_enemy") == 0)
 		Cmd_Clear_AI_Enemy_f(ent);
 	else if (Q_strcasecmp(cmd, "coopp") == 0) {

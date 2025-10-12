@@ -157,6 +157,7 @@ cvar_t* g_nolag; // Network optimization: convert gibs to temp entities
 
 //HORDE STUFF
 cvar_t* g_horde_profiler;
+cvar_t* g_vortex;
 cvar_t* pvm; // PvM (Player vs Monster) mode
 
 cvar_t* g_use_hook;
@@ -435,6 +436,7 @@ void InitGame()
 	g_allow_techs = gi.cvar("g_allow_techs", "auto", CVAR_NOFLAGS);
 
 	g_horde_profiler = gi.cvar("g_horde_profiler", "0", CVAR_NOFLAGS);
+	g_vortex = gi.cvar("vortex", "0", CVAR_SERVERINFO);
 	pvm = gi.cvar("pvm", "0", CVAR_NOFLAGS);
 
 	g_loadent = gi.cvar("g_loadent", "1", CVAR_LATCH);

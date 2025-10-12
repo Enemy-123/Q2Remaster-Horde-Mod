@@ -368,8 +368,8 @@ void Use_StroggSummon_Impl(edict_t* ent, gitem_t* item)
 		return;
 	}
 
-	// Check power cube cost (only for non-bots in horde mode)
-	if (g_horde->integer) {
+	// Check power cube cost (only in RPG mode/vortex enabled and horde mode)
+	if (g_horde->integer && g_vortex->integer != 0) {
 		int spawn_cost = g_config.summon.spawn_cost;
 		if (ent->client->pers.horde_power_cubes < spawn_cost) {
 			gi.LocClient_Print(ent, PRINT_HIGH, "Not enough power cubes! Need {} cubes to summon.\n", spawn_cost);

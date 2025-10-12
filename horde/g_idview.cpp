@@ -97,7 +97,8 @@ const char* FormatEntityInfo_Fast(edict_t* ent) {
 
         out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}", full_name).out;
 
-        if (ent->monsterinfo.pvm_level > 0) {
+        // Only show level in RPG Mode (vortex enabled)
+        if (g_vortex->integer != 0 && ent->monsterinfo.pvm_level > 0) {
             out = fmt::format_to_n(out, static_cast<size_t>(end - out), " Lv.{}", ent->monsterinfo.pvm_level).out;
         }
 
@@ -130,7 +131,8 @@ const char* FormatEntityInfo_Fast(edict_t* ent) {
 
         out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}", playerName).out;
 
-        if (ent->client->pers.pvm_level > 0) {
+        // Only show level in RPG Mode (vortex enabled)
+        if (g_vortex->integer != 0 && ent->client->pers.pvm_level > 0) {
             out = fmt::format_to_n(out, static_cast<size_t>(end - out), " Lv.{}", ent->client->pers.pvm_level).out;
         }
 
@@ -184,7 +186,8 @@ const char* FormatEntityInfo_Fast(edict_t* ent) {
                 }
 
                 out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}", name).out;
-                if (laser_level > 0) {
+                // Only show level in RPG Mode (vortex enabled)
+                if (g_vortex->integer != 0 && laser_level > 0) {
                     out = fmt::format_to_n(out, static_cast<size_t>(end - out), " Lv.{}", laser_level).out;
                 }
                 out = fmt::format_to_n(out, static_cast<size_t>(end - out), "\nH: {}", health_to_display).out;
@@ -203,9 +206,9 @@ const char* FormatEntityInfo_Fast(edict_t* ent) {
             }
             case horde::SpecialEntityTypeID::BARREL: {
                 out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}", name).out;
-                
-                // Show barrel level from monsterinfo.pvm_level
-                if (stats_source->monsterinfo.pvm_level > 0) {
+
+                // Show barrel level from monsterinfo.pvm_level (only in RPG Mode/vortex enabled)
+                if (g_vortex->integer != 0 && stats_source->monsterinfo.pvm_level > 0) {
                     out = fmt::format_to_n(out, static_cast<size_t>(end - out), " Lv.{}", stats_source->monsterinfo.pvm_level).out;
                 }
                 

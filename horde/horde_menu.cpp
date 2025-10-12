@@ -1678,6 +1678,13 @@ void OpenRespawnWeaponMenu(edict_t *ent)
 		return;
 	}
 
+	// Block respawn weapon menu when vortex is 0 (Classic Mode)
+	if (g_vortex->integer == 0)
+	{
+		gi.LocClient_Print(ent, PRINT_HIGH, "Respawn weapon menu is disabled in Classic Mode (vortex 0)\n");
+		return;
+	}
+
 	if (ent->client->menu)
 	{
 		PMenu_Close(ent);
@@ -2495,21 +2502,26 @@ pmenuhnd_t *CreateHordeMenu(edict_t *ent)
 	}
 	add_entry("", PMENU_ALIGN_CENTER);
 
-	// Highlight Upgrade Menu if player has available skill points
-	int total_points = ent->client->pers.ability_points + ent->client->pers.weapon_points;
-	if (total_points >= 1)
+	// Only show Upgrade Menu in RPG Mode (vortex enabled)
+	if (g_vortex->integer != 0)
 	{
-		add_entry("*Upgrade Menu", PMENU_ALIGN_LEFT, HordeMenuHandler);
-	}
-	else
-	{
-		add_entry("Upgrade Menu", PMENU_ALIGN_LEFT, HordeMenuHandler);
+		// Highlight Upgrade Menu if player has available skill points
+		int total_points = ent->client->pers.ability_points + ent->client->pers.weapon_points;
+		if (total_points >= 1)
+		{
+			add_entry("*Upgrade Menu", PMENU_ALIGN_LEFT, HordeMenuHandler);
+		}
+		else
+		{
+			add_entry("Upgrade Menu", PMENU_ALIGN_LEFT, HordeMenuHandler);
+		}
 	}
 
 	add_entry("Misc Options", PMENU_ALIGN_LEFT, HordeMenuHandler);
 	add_entry("HUD Options", PMENU_ALIGN_LEFT, HordeMenuHandler);
 
-	if (pvm->integer)
+	// Only show Set Respawn Weapon and Character Info in RPG Mode (vortex enabled)
+	if (pvm->integer && g_vortex->integer != 0)
 	{
 		add_entry("*Set Respawn Weapon", PMENU_ALIGN_LEFT, HordeMenuHandler);
 		// Add Character Info menu
@@ -3124,6 +3136,13 @@ pmenuhnd_t *CreateWeaponsMenu(edict_t *ent)
 
 void OpenUpgradeMenu(edict_t *ent)
 {
+	// Block upgrade menu when vortex is 0 (Classic Mode)
+	if (g_vortex->integer == 0)
+	{
+		gi.LocClient_Print(ent, PRINT_HIGH, "Upgrade menu is disabled in Classic Mode (vortex 0)\n");
+		return;
+	}
+
 	// Set menu protection for upgrade menu
 	if (ent && ent->client)
 	{
@@ -3278,6 +3297,13 @@ void OpenWeaponUpgradeMenu(edict_t *ent)
 {
 	if (!ent || !ent->client)
 		return;
+
+	// Block weapon upgrade menu when vortex is 0 (Classic Mode)
+	if (g_vortex->integer == 0)
+	{
+		gi.LocClient_Print(ent, PRINT_HIGH, "Weapon upgrade menu is disabled in Classic Mode (vortex 0)\n");
+		return;
+	}
 
 	if (ent->client->menu)
 		PMenu_Close(ent);

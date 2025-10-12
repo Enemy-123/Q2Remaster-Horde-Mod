@@ -249,6 +249,10 @@ void PvM_AwardExperience(edict_t* player, int32_t xp_amount)
     if (!player || !player->client)
         return;
 
+    // Skip XP in Classic Mode (vortex 0)
+    if (g_vortex->integer == 0)
+        return;
+
     // Award XP
     player->client->pers.pvm_xp += xp_amount;
 
@@ -266,6 +270,10 @@ void PvM_AwardExperience(edict_t* player, int32_t xp_amount)
 void PvM_CheckLevelUp(edict_t* player)
 {
     if (!player || !player->client)
+        return;
+
+    // Skip leveling in Classic Mode (vortex 0)
+    if (g_vortex->integer == 0)
         return;
 
     int32_t current_level = player->client->pers.pvm_level;

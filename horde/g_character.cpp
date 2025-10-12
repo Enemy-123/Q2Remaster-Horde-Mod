@@ -526,9 +526,12 @@ bool Character_Save(edict_t* player)
     root["stats"]["pvm_max_ammo_level"] = player->client->pers.pvm_max_ammo_level;
     root["stats"]["pvm_vitality_level"] = player->client->pers.pvm_vitality_level;
 
-    // Save skill-based upgrades
-    root["stats"]["skill_points"] = player->client->pers.skill_points;
-    root["stats"]["weapon_points"] = player->client->pers.weapon_points;
+    // Only save skill-based upgrades if vortex is enabled (RPG mode)
+    if (g_vortex->integer != 0)
+    {
+        // Save skill-based upgrades
+        root["stats"]["skill_points"] = player->client->pers.skill_points;
+        root["stats"]["weapon_points"] = player->client->pers.weapon_points;
     root["stats"]["skills"]["vampire"] = player->client->pers.skills.vampire;
     root["stats"]["skills"]["ammo_regen"] = player->client->pers.skills.ammo_regen;
     root["stats"]["skills"]["vitality"] = player->client->pers.skills.vitality;
@@ -547,15 +550,15 @@ bool Character_Save(edict_t* player)
     root["stats"]["skills"]["teleport_fwd"] = player->client->pers.skills.teleport_fwd;
     root["stats"]["skills"]["exploding_barrel"] = player->client->pers.skills.exploding_barrel;
     root["stats"]["skills"]["bombspell"] = player->client->pers.skills.bombspell;
-    // Save free bonuses from milestones (permanent, not resetable)
-    root["stats"]["skills"]["free_vitality"] = player->client->pers.skills.free_vitality;
-    root["stats"]["skills"]["free_max_ammo"] = player->client->pers.skills.free_max_ammo;
-    root["stats"]["skills"]["free_pc_regen"] = player->client->pers.skills.free_pc_regen;
+        // Save free bonuses from milestones (permanent, not resetable)
+        root["stats"]["skills"]["free_vitality"] = player->client->pers.skills.free_vitality;
+        root["stats"]["skills"]["free_max_ammo"] = player->client->pers.skills.free_max_ammo;
+        root["stats"]["skills"]["free_pc_regen"] = player->client->pers.skills.free_pc_regen;
 
-    // Save power cubes currency
-    root["stats"]["horde_power_cubes"] = player->client->pers.horde_power_cubes;
+        // Save power cubes currency
+        root["stats"]["horde_power_cubes"] = player->client->pers.horde_power_cubes;
 
-    // Save weapon upgrades
+        // Save weapon upgrades
     root["stats"]["weapons"]["gl_damage"] = player->client->pers.skills.gl_damage;
     root["stats"]["weapons"]["gl_range"] = player->client->pers.skills.gl_range;
     root["stats"]["weapons"]["gl_radius"] = player->client->pers.skills.gl_radius;
@@ -664,10 +667,11 @@ bool Character_Save(edict_t* player)
     root["stats"]["weapons"]["phalanx_radius"] = player->client->pers.skills.phalanx_radius;
     root["stats"]["weapons"]["phalanx_silent"] = player->client->pers.skills.phalanx_silent;
 
-    root["stats"]["weapons"]["disruptor_damage"] = player->client->pers.skills.disruptor_damage;
-    root["stats"]["weapons"]["disruptor_speed"] = player->client->pers.skills.disruptor_speed;
-    root["stats"]["weapons"]["disruptor_duration"] = player->client->pers.skills.disruptor_duration;
-    root["stats"]["weapons"]["disruptor_silent"] = player->client->pers.skills.disruptor_silent;
+        root["stats"]["weapons"]["disruptor_damage"] = player->client->pers.skills.disruptor_damage;
+        root["stats"]["weapons"]["disruptor_speed"] = player->client->pers.skills.disruptor_speed;
+        root["stats"]["weapons"]["disruptor_duration"] = player->client->pers.skills.disruptor_duration;
+        root["stats"]["weapons"]["disruptor_silent"] = player->client->pers.skills.disruptor_silent;
+    }  // End vortex check
 
     // Write to file
     std::string filepath = Character_GetFilePath(player);

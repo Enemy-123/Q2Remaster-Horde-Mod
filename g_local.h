@@ -2163,6 +2163,7 @@ extern cvar_t* g_speedstuff;
 //extern cvar_t* g_mover_debug;
 
 extern cvar_t* g_horde_profiler;
+extern cvar_t* g_vortex;
 
 extern cvar_t* g_chaotic;
 extern cvar_t* g_insane;
