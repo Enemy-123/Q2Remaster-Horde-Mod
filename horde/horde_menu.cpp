@@ -6484,8 +6484,9 @@ public:
 			size_t spectators_to_display = std::min(spectators.size(), MAX_SPECTATORS_TO_DISPLAY);
 			for (size_t i = 0; i < spectators_to_display; ++i)
 			{
-				// Use tighter margin for spectators (footer is ~150 bytes max)
-				if (layout_builder.size() >= MAX_CTF_STAT_LENGTH - 160)
+				// Dynamic margin: intermission footer is ~110 bytes, normal footer is ~90 bytes
+				size_t footer_reserve = level.intermissiontime ? 120 : 100;
+				if (layout_builder.size() >= MAX_CTF_STAT_LENGTH - footer_reserve)
 				{
 					break;
 				}
@@ -6664,6 +6665,13 @@ void HordeScoreboardMessage(edict_t *ent, edict_t *killer)
 	}
 
 	//	gi.Com_PrintFmt("--- BEGIN SCOREBOARD LAYOUT ---\n{}\n--- END SCOREBOARD LAYOUT ---\n", final_layout.c_str());
+
+	// Debug: log layout size during intermission
+	if (developer && developer->integer && level.intermissiontime)
+	{
+		gi.Com_PrintFmt("Intermission scoreboard size: {} bytes (limit: {})\n",
+			final_layout.size(), MAX_CTF_STAT_LENGTH);
+	}
 
 	// Validate layout before sending to client
 	if (!ValidateLayoutString(final_layout, "HordeScoreboardMessage"))
