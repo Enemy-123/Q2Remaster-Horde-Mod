@@ -14,7 +14,7 @@
       "monster_cap": "Override monster cap for this map. -1 uses default based on map size",
       "enable_grid": "Enable/disable grid spawning for this map",
       "enable_loadent": "Enable/disable g_loadent (entity file override) for this map. Default: true",
-      "map_size": "Override map size category. Valid values: 'small', 'medium', 'big'/'large'. Affects spawning, cooldowns, and voting menu"
+      "map_size": "Override map size category. Valid values: 'small', 'medium', 'big'. Affects spawning, cooldowns, and voting menu"
     },
 
     "q2dm1": {
