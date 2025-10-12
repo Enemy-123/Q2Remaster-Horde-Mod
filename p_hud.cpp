@@ -553,15 +553,18 @@ void DeathmatchScoreboardMessage(edict_t* ent, edict_t* killer)
 		fmt::format_to(std::back_inserter(layout_string_buffer), FMT_STRING("xv 340 yv -10 time_limit {} "), gi.ServerFrame() + ((gtime_t::from_min(timelimit->value) - level.time)).milliseconds() / gi.frame_time_ms);
 	}
 
-	if (level.intermissiontime && layout_string_buffer.length() < MAX_SCOREBOARD_SIZE - 100)
+	if (level.intermissiontime && layout_string_buffer.length() < MAX_SCOREBOARD_SIZE - 150)
 		fmt::format_to(std::back_inserter(layout_string_buffer), FMT_STRING("ifgef {} yb -48 xv 0 loc_cstring2 0 \"$m_eou_press_button\" endif "), (level.intermission_server_frame + (5_sec).frames()));
 
-	// Final safety check before sending
+	// Final safety check - DON'T truncate blindly as it could cut in the middle of if/endif blocks
+	// The size checks above with sufficient margins should prevent this, but log if we exceed
 	if (layout_string_buffer.length() >= MAX_SCOREBOARD_SIZE)
 	{
-		layout_string_buffer.resize(MAX_SCOREBOARD_SIZE - 1);
 		if (developer && developer->integer)
-			gi.Com_Print("WARNING: Scoreboard truncated to prevent overflow\n");
+			gi.Com_PrintFmt("ERROR: Scoreboard size {} exceeds MAX_SCOREBOARD_SIZE {}, layout may be corrupted\n",
+				layout_string_buffer.length(), MAX_SCOREBOARD_SIZE);
+		// Don't send corrupted layout - send empty instead
+		layout_string_buffer.clear();
 	}
 
 	gi.WriteByte(svc_layout);

@@ -6592,8 +6592,7 @@ public:
 		while (truncate_pos > 0)
 		{
 			// Look for "endif \n" or "endif " pattern
-			if (truncate_pos >= 6 &&
-			    layout.substr(truncate_pos - 6, 6) == "endif " ||
+			if ((truncate_pos >= 6 && layout.substr(truncate_pos - 6, 6) == "endif ") ||
 			    (truncate_pos >= 7 && layout.substr(truncate_pos - 7, 7) == "endif \n"))
 			{
 				// Found a potential endif, now verify all if/ifgef statements are matched
