@@ -248,8 +248,18 @@ void PMenu_Do_Update(edict_t* ent)
 		}
 	}
 
+	// Validate layout before sending to client
+	std::string menu_layout = sb.sb.str();
+	if (!ValidateLayoutString(menu_layout, "PMenu_Do_Update"))
+	{
+		// If validation fails, don't send corrupted layout
+		if (developer && developer->integer)
+			gi.Com_Print("ERROR: PMenu_Do_Update layout failed validation, not sending\n");
+		return;
+	}
+
 	gi.WriteByte(svc_layout);
-	gi.WriteString(sb.sb.str().c_str());
+	gi.WriteString(menu_layout.c_str());
 }
 
 void PMenu_Update(edict_t* ent)
