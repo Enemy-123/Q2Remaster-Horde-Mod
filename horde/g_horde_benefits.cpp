@@ -624,11 +624,7 @@ void CheckBotAutoBuy(edict_t* player) {
     bool is_bot = (player->svflags & SVF_BOT);
     const char* player_name = GetPlayerName(player);
 
-    // Check if enough time has passed since last auto-buy check
-    if (level.time < player->client->pers.last_auto_buy_check + 2_sec) {
-        return;
-    }
-
+    // Update last check time (for tracking purposes, no longer used for throttling)
     player->client->pers.last_auto_buy_check = level.time;
 
     gi.Com_PrintFmt("[DEBUG] CheckBotAutoBuy for {}: ability_pts={}, weapon_pts={}, auto_buy_ability={}, auto_buy_weapon={}\n",

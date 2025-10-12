@@ -1027,7 +1027,7 @@ static void HORDE_ApplyAmmoRegen(edict_t* ent) {
 		if (!ClassicPlayerHasBenefitAmmoRegen(ent)) {
 			return;
 		}
-		ammo_regen_level = 5; // Default level for benefit system
+		ammo_regen_level = 10; // Max level for benefit system (level 10 equivalent)
 	} else {
 		// RPG Mode: Check skill system
 		ammo_regen_level = ent->client->pers.skills.ammo_regen;

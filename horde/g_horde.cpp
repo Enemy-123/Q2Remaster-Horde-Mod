@@ -1220,7 +1220,7 @@ void AwardKillXP(edict_t* attacker, edict_t* monster)
 {
 	// Early validation
 	if (!attacker || !attacker->client) return;
-	if (!g_horde->integer && !pvm->integer) return;
+	if (!g_vortex->integer) return;
 	if (attacker->svflags & SVF_BOT) return; // Bots don't earn XP
 	if (!monster || !(monster->svflags & SVF_MONSTER)) return;
 
@@ -4223,15 +4223,14 @@ inline int8_t GetNumSpectPlayers()
 // Implementación de DisplayWaveMessage
 static void DisplayWaveMessage(gtime_t duration = 5_sec)
 {
-	static const std::array<const char *, 8> messages = {
+	static const std::array<const char *, 7> messages = {
 		"Horde Menu available upon opening Inventory or using TURTLE on POWERUP WHEEL\n\nMAKE THEM PAY!\n",
-		"Welcome to Hell.\n\nUse FlipOff <Key> looking at walls to spawn lasers (cost: 25 cubes, yeah cubes)\n",
+		"Welcome to Hell.\n\nUse FlipOff <Key> looking at walls to spawn lasers (cost: 25 cells)\n",
 		"Teslas/Traps can now be placed on walls and ceilings!\n\nUse them wisely!\n",
 		"Adrenalines will improve traps/teslas duration\n",
 		"Improved Traps!\n\nTraps are ready again after 5sec of eating a strogg!\n",
 		"Check Menu -> Upgrading for the new stuff!\n",
-		"New Power Cubes system! pickup armor shards/ammo packs\n Or upgrade PC Regen !\n",
-		"You can choose your own path on upgrades, check Horde Menu!\n"};
+		"You can choose your own path on bonuses/upgrades, check Horde Menu!\n"};
 
 	// Usar distribución uniforme con mt_rand
 	std::uniform_int_distribution<size_t> dist(0, messages.size() - 1);

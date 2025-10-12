@@ -1,4 +1,5 @@
 #include "g_upgrades.h"
+#include "g_horde_benefits.h"
 #include <cstring>
 
 // Initial upgrade definitions - Phase 2 will add the first 3 abilities
@@ -381,11 +382,21 @@ float GetHAPickupMultiplier(edict_t* player) {
     if (!player || !player->client)
         return 1.0f;
 
+    // In Classic Mode (vortex=0), check benefit system
+    if (g_vortex->integer == 0) {
+        if (ClassicPlayerHasBenefitHAPickup(player)) {
+            // Max power: level 10 equivalent = +200% (3.0x multiplier)
+            return 3.0f;
+        }
+        return 1.0f;
+    }
+
+    // In RPG Mode (vortex=1), use skill-based calculation
     int8_t ha_level = player->client->pers.skills.ha_pickup;
     if (ha_level == 0)
         return 1.0f;
 
-    // +20% per level, up to +100% at level 5
+    // +20% per level, up to +100% at level 5, +200% at level 10
     return 1.0f + (ha_level * 0.20f);
 }
 
