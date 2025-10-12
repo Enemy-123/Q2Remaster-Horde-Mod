@@ -791,6 +791,10 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
     if (!s || !s[0])
         return;
 
+    // Save original layout string for debugging
+    static char original_layout[8192];
+    Q_strlcpy(original_layout, s, sizeof(original_layout));
+
     x = hud_vrect.x;
     y = hud_vrect.y;
     width = 3;
@@ -1718,7 +1722,15 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
     }
 
     if (skip_depth)
+    {
+        // Log the full layout string for debugging before crashing
+        cgi.Com_Print("ERROR: Layout has unmatched if/endif blocks!\n");
+        cgi.Com_Print(G_Fmt("  if_depth: {}, endif_depth: {}, skip_depth: true\n", if_depth, endif_depth).data());
+        cgi.Com_Print("  Full layout string:\n");
+        cgi.Com_Print(original_layout);
+        cgi.Com_Print("\n  --- END LAYOUT ---\n");
         cgi.Com_Error("if with no matching endif");
+    }
 }
 
 static cvar_t* cl_skipHud;
