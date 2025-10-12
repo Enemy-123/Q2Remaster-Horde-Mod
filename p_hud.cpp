@@ -169,6 +169,14 @@ void G_EndOfUnitMessage()
 	layout += G_Fmt("ifgef {} yb -48 xv 0 loc_cstring2 0 \"$m_eou_press_button\" endif ",
 		(level.intermission_server_frame + (5_sec).frames()));
 
+	// Validate layout before sending to clients
+	if (!ValidateLayoutString(layout, "G_EndOfUnitMessage"))
+	{
+		if (developer && developer->integer)
+			gi.Com_Print("ERROR: G_EndOfUnitMessage layout failed validation, not sending\n");
+		return;
+	}
+
 	gi.WriteByte(svc_layout);
 	gi.WriteString(layout.c_str());
 	gi.multicast(vec3_origin, MULTICAST_ALL, true);
@@ -711,6 +719,14 @@ void HelpComputer(edict_t* ent)
 		level.found_goals, level.total_goals,
 		level.killed_monsters, level.total_monsters,
 		level.found_secrets, level.total_secrets);
+
+	// Validate layout before sending to client
+	if (!ValidateLayoutString(helpString, "HelpComputer"))
+	{
+		if (developer && developer->integer)
+			gi.Com_Print("ERROR: HelpComputer layout failed validation, not sending\n");
+		return;
+	}
 
 	gi.WriteByte(svc_layout);
 	gi.WriteString(helpString.c_str());

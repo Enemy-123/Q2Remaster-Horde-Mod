@@ -86,13 +86,19 @@ bool ValidateLayoutString(const std::string& layout, const char* debug_name) {
 		gi.Com_PrintFmt("  if/ifgef count: {}\n", if_count);
 		gi.Com_PrintFmt("  endif count: {}\n", endif_count);
 		gi.Com_PrintFmt("  Layout size: {} bytes\n", layout.size());
+
+		// If developer is 2 or higher, log the full layout string for complete debugging
+
+			gi.Com_PrintFmt("  Full layout string:\n{}\n", layout);
+			gi.Com_PrintFmt("  --- END FULL LAYOUT ---\n");
+
+			// Developer level 1: Log first 500 chars for debugging
+			size_t preview_len = std::min(layout.size(), size_t(500));
+			std::string preview = layout.substr(0, preview_len);
+			if (layout.size() > preview_len)
+				preview += "...";
+			gi.Com_PrintFmt("  Layout preview: {}\n", preview);
 		
-		// Log first 500 chars for debugging
-		size_t preview_len = std::min(layout.size(), size_t(500));
-		std::string preview = layout.substr(0, preview_len);
-		if (layout.size() > preview_len)
-			preview += "...";
-		gi.Com_PrintFmt("  Layout preview: {}\n", preview);
 	}
 	
 	return balanced;
