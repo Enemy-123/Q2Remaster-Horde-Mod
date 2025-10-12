@@ -1342,7 +1342,7 @@ GRENADE LAUNCHER
 
 void weapon_grenadelauncher_fire(edict_t* ent)
 {
-	bool napalm = BotHasNapalmGL(ent) || (ent->client && ent->client->pers.skills.gl_bouncy);
+	bool napalm = ClassicPlayerHasBenefitNapalmGL(ent) || (ent->client && ent->client->pers.skills.gl_bouncy);
 	int	  damage = napalm ? g_config.grenadelauncher.damage_napalm : g_config.grenadelauncher.damage_normal;
 	float radius = napalm ? g_config.grenadelauncher.radius_napalm : g_config.grenadelauncher.radius_normal;
 
@@ -1387,7 +1387,7 @@ void weapon_grenadelauncher_fire(edict_t* ent)
 
 	G_RemoveAmmo(ent);
 
-	if (BotHasNapalmGL(ent) || (ent->client && ent->client->pers.skills.gl_bouncy))
+	if (ClassicPlayerHasBenefitNapalmGL(ent) || (ent->client && ent->client->pers.skills.gl_bouncy))
 		G_RemoveAmmo(ent);
 }
 
@@ -1698,7 +1698,7 @@ void Fire_TracerBullet(edict_t* ent, int damage, gtime_t cooldown_duration)
         return;
 
     // Check if player has tracer bullets from benefits or weapon upgrades
-    bool has_traced = BotHasTracedBullets(ent);
+    bool has_traced = ClassicPlayerHasBenefitTracedBullets(ent);
 
     // Check weapon-specific tracer upgrades
     if (ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_MACHINEGUN)
@@ -2129,7 +2129,7 @@ void weapon_shotgun_fire(edict_t* ent)
 	int kick = g_config.shotgun.kick;
 
 	// Check if using energy shells (global benefit or weapon-specific upgrade)
-	bool use_energy = BotHasEnergyShells(ent) || (ent->client && ent->client->pers.skills.sg_energized);
+	bool use_energy = ClassicPlayerHasBenefitEnergyShells(ent) || (ent->client && ent->client->pers.skills.sg_energized);
 	damage = !use_energy ? irandom(g_config.shotgun.damage_min, g_config.shotgun.damage_max) : irandom(g_config.shotgun.damage_energy_min, g_config.shotgun.damage_energy_max);
 
 	// Apply damage upgrade (+0.2 per level, max 10 levels = +2.0 damage)
@@ -2206,7 +2206,7 @@ void weapon_supershotgun_fire(edict_t* ent)
 	int kick = g_config.supershotgun.kick;
 
 	// Check if using energy shells (global benefit or weapon-specific upgrade)
-	bool use_energy = BotHasEnergyShells(ent) || (ent->client && ent->client->pers.skills.ssg_energized);
+	bool use_energy = ClassicPlayerHasBenefitEnergyShells(ent) || (ent->client && ent->client->pers.skills.ssg_energized);
 	damage = !use_energy ? irandom(g_config.supershotgun.damage_min, g_config.supershotgun.damage_max) : irandom(g_config.supershotgun.damage_energy_min, g_config.supershotgun.damage_energy_max);
 
 	// Apply damage upgrade (+0.4 per level, max 10 levels = +4.0 damage)
@@ -2478,7 +2478,7 @@ void weapon_bfg_fire(edict_t* ent)
 	}
 
 	// Handle muzzle flash for standard BFG charge-up (unless silent mode)
-	if (!BotHasBFGSlide(ent) && ent->client->ps.gunframe == 9)
+	if (!ClassicPlayerHasBenefitBFGSlide(ent) && ent->client->ps.gunframe == 9)
 	{
 		if (!ent->client || !ent->client->pers.skills.bfg_silent)
 		{
@@ -2492,7 +2492,7 @@ void weapon_bfg_fire(edict_t* ent)
 	}
 
 	// Check for required ammo
-	int const required_ammo = BotHasBFGSlide(ent) ? 25 : 50;
+	int const required_ammo = ClassicPlayerHasBenefitBFGSlide(ent) ? 25 : 50;
 	if (ent->client->pers.inventory[ent->client->pers.weapon->ammo] < required_ammo)
 		return;
 
@@ -2532,7 +2532,7 @@ void weapon_bfg_fire(edict_t* ent)
 	G_RemoveAmmo(ent, required_ammo);
 
 	// Advance gunframe
-	if (BotHasBFGSlide(ent))
+	if (ClassicPlayerHasBenefitBFGSlide(ent))
 		ent->client->ps.gunframe = 17;
 	else
 		ent->client->ps.gunframe++;

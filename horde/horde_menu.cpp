@@ -1411,8 +1411,8 @@ void HordeMenu_BFGMode(edict_t *ent, pmenuhnd_t *p)
 	}
 
 	// Check what modes are available
-	bool has_slide = BotHasBenefit(ent, BenefitID::BFG_SLIDE);
-	bool has_pull = BotHasBenefit(ent, BenefitID::BFG_GRAV_PULL);
+	bool has_slide = ClassicPlayerHasBenefit(ent, BenefitID::BFG_SLIDE);
+	bool has_pull = ClassicPlayerHasBenefit(ent, BenefitID::BFG_GRAV_PULL);
 
 	// If no upgrades, can't change mode
 	if (!has_slide && !has_pull)
@@ -2989,12 +2989,12 @@ void WeaponsMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		const char *benefit_name = item->text_arg1 + 7; // Skip "weapon_" prefix
 
 		// Find benefit by name
-		for (size_t i = 0; i < BotsBonusesSoA::NUM_BOTSBONUS; ++i)
+		for (size_t i = 0; i < BenefitsDataSoA::NUM_BENEFITS; ++i)
 		{
-			if (g_BotsBonuses.categories[i] != BenefitCategory::WEAPON)
+			if (g_benefitsData.categories[i] != BenefitCategory::WEAPON)
 				continue;
 
-			if (strcmp(g_BotsBonuses.names[i], benefit_name) == 0)
+			if (strcmp(g_benefitsData.names[i], benefit_name) == 0)
 			{
 				BenefitID benefit_id = static_cast<BenefitID>(i);
 
@@ -3054,13 +3054,13 @@ pmenuhnd_t *CreateWeaponsMenu(edict_t *ent)
 
 	// List weapon benefits (only show available ones)
 	bool has_available = false;
-	for (size_t i = 0; i < BotsBonusesSoA::NUM_BOTSBONUS && menu_index < 25; ++i)
+	for (size_t i = 0; i < BenefitsDataSoA::NUM_BENEFITS && menu_index < 25; ++i)
 	{
-		if (g_BotsBonuses.categories[i] != BenefitCategory::WEAPON)
+		if (g_benefitsData.categories[i] != BenefitCategory::WEAPON)
 			continue;
 
 		BenefitID benefit_id = static_cast<BenefitID>(i);
-		bool owned = BotHasBenefit(ent, benefit_id);
+		bool owned = ClassicPlayerHasBenefit(ent, benefit_id);
 
 		// Skip if already owned - cleaner menu
 		if (owned)
@@ -3076,8 +3076,8 @@ pmenuhnd_t *CreateWeaponsMenu(edict_t *ent)
 		}
 
 		// Check prerequisites
-		auto prereq = g_BotsBonuses.prerequisites[i];
-		bool prereq_met = (prereq == BenefitID::NONE) || BotHasBenefit(ent, prereq);
+		auto prereq = g_benefitsData.prerequisites[i];
+		bool prereq_met = (prereq == BenefitID::NONE) || ClassicPlayerHasBenefit(ent, prereq);
 
 		// Don't show if prerequisite not met - cleaner menu
 		if (!prereq_met)
@@ -3090,13 +3090,13 @@ pmenuhnd_t *CreateWeaponsMenu(edict_t *ent)
 		// Available to purchase
 		MenuFormatItemWithCost(weapons_menu[menu_index].text,
 		                       sizeof(weapons_menu[menu_index].text),
-		                       can_afford, g_BotsBonuses.names[i], cost);
+		                       can_afford, g_benefitsData.names[i], cost);
 		weapons_menu[menu_index].align = PMENU_ALIGN_LEFT;
 		if (can_afford)
 		{
 			weapons_menu[menu_index].SelectFunc = WeaponsMenuHandler;
 			snprintf(weapons_menu[menu_index].text_arg1, sizeof(weapons_menu[menu_index].text_arg1),
-					 "weapon_%s", g_BotsBonuses.names[i]);
+					 "weapon_%s", g_benefitsData.names[i]);
 		}
 		else
 		{
@@ -6447,10 +6447,20 @@ public:
 		if (!level.intermissiontime)
 		{
 
-			// Get the new, safely-limited active bonuses string
-			//std::string activeBonuses = GetPlayerActiveBonusesString(const_cast<edict_t *>(ent));
-			// if (!activeBonuses.empty())
-			// {
+			// Active bonuses (per-player) with length check
+			std::string activeBonuses = GetPlayerActiveBonusesString(const_cast<edict_t*>(ent));
+			// if (!activeBonuses.empty()) {
+			// 	// Truncate if too long to prevent overflow
+			// //	if (activeBonuses.length() > MAX_BONUS_STRING_LENGTH) {
+			// 		// Safe resize with bounds check
+			// 		// try {
+			// 		// 	activeBonuses.resize(MAX_BONUS_STRING_LENGTH);
+			// 		// 	activeBonuses += "...";
+			// 		// } catch (const std::bad_alloc&) {
+			// 			// gi.Com_Print("WARNING: Failed to resize bonus string\n");
+			// 			// activeBonuses = "Error";
+			// 		}
+			// //	}
 			// 	layout_builder.append(fmt::format(
 			// 		"if 0 xv 208 yv 8 string \"{}\" endif \n", activeBonuses));
 			// }

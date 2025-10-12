@@ -873,7 +873,7 @@ static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_dama
 }
 
 static void HandleAutoHaste(edict_t* attacker, const edict_t* targ, int damage) {
-	if (!BotHasAutoHaste(attacker) || !attacker || !attacker->client ||
+	if (!ClassicPlayerHasBenefitAutoHaste(attacker) || !attacker || !attacker->client ||
 		attacker->client->quadfire_time >= level.time ||
 		damage <= 0 || (attacker->health < 1 && targ->health < 1)) {
 		return;
@@ -900,10 +900,10 @@ int calculate_health_stolen(edict_t* attacker, int base_health_stolen) {
 	if (it != WEAPON_MULTIPLIERS.end()) {
 		multiplier = it->multiplier;
 
-		if (weapon_id == IT_WEAPON_MACHINEGUN && BotHasTracedBullets(attacker)) {
+		if (weapon_id == IT_WEAPON_MACHINEGUN && ClassicPlayerHasBenefitTracedBullets(attacker)) {
 			multiplier = 0.5f;
 		}
-		else if (weapon_id == IT_WEAPON_GLAUNCHER && BotHasNapalmGL(attacker)) {
+		else if (weapon_id == IT_WEAPON_GLAUNCHER && ClassicPlayerHasBenefitNapalmGL(attacker)) {
 			multiplier *= 0.5f;
 		}
 	}
@@ -1020,10 +1020,10 @@ void HandleVampireEffect(edict_t* attacker, edict_t* targ, int damage)
 
     if (attacker->svflags & SVF_BOT) {
         // Bots use the benefit system
-        has_vampire = BotHasVampire(attacker);
+        has_vampire = ClassicPlayerHasBenefitVampire(attacker);
         // For bots, treat base vampire as level 1, upgraded as level 6 for armor stealing
         if (has_vampire) {
-            vampire_level = BotHasBenefit(attacker, BenefitID::VAMPIRE_UPGRADED) ? 6 : 1;
+            vampire_level = ClassicPlayerHasBenefit(attacker, BenefitID::VAMPIRE_UPGRADED) ? 6 : 1;
         }
     } else {
         // Human players use the skill system
@@ -1292,7 +1292,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 			vec3_t kvel;
 
 			// Skip mass calculation for BFG pull
-			if (BotHasBFGPull(attacker) && mod.id == MOD_BFG_LASER) {
+			if (ClassicPlayerHasBenefitBFGPull(attacker) && mod.id == MOD_BFG_LASER) {
 				kvel = normalized_dir * (500.0f * knockback / 50);
 			}
 			else {

@@ -845,7 +845,7 @@ static void AwardKillToPlayer(edict_t* player)
 		player->client->resp.spree++;
 
 		// Increment powerup time if player has autohaste bonus
-		if (BotHasAutoHaste(player))
+		if (ClassicPlayerHasBenefitAutoHaste(player))
 		{
 			if (player->client->quadfire_time > level.time)
 				player->client->quadfire_time += 0.75_sec;

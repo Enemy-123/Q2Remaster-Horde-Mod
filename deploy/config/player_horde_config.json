@@ -257,7 +257,7 @@
 
   "// ==================== AMMO REGENERATION ====================": "Ammo regen rates per type",
   "ammo_regen": {
-    "comment": "Ammo regeneration when BotHasAmmoRegen benefit is active",
+    "comment": "Ammo regeneration when ClassicPlayerHasBenefitAmmoRegen benefit is active",
     "enabled": true,
     "rates": {
       "bullets": {

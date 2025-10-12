@@ -30,17 +30,17 @@ enum class BenefitCategory : uint8_t {
     WEAPON    // Weapon modifications (traced bullets, energy shells, etc.)
 };
 
-struct BotsBonusesSoA {
-    static constexpr size_t NUM_BOTSBONUS = static_cast<size_t>(BenefitID::COUNT);
+struct BenefitsDataSoA {
+    static constexpr size_t NUM_BENEFITS = static_cast<size_t>(BenefitID::COUNT);
 
-    std::array<const char*, NUM_BOTSBONUS> names;
-    std::array<const char*, NUM_BOTSBONUS> center_msgs;
-    std::array<const char*, NUM_BOTSBONUS> chat_msgs;
-    std::array<int32_t, NUM_BOTSBONUS> min_levels;
-    std::array<int32_t, NUM_BOTSBONUS> max_levels;
-    std::array<float, NUM_BOTSBONUS> weights;
-    std::array<BenefitID, NUM_BOTSBONUS> prerequisites;
-    std::array<BenefitCategory, NUM_BOTSBONUS> categories;
+    std::array<const char*, NUM_BENEFITS> names;
+    std::array<const char*, NUM_BENEFITS> center_msgs;
+    std::array<const char*, NUM_BENEFITS> chat_msgs;
+    std::array<int32_t, NUM_BENEFITS> min_levels;
+    std::array<int32_t, NUM_BENEFITS> max_levels;
+    std::array<float, NUM_BENEFITS> weights;
+    std::array<BenefitID, NUM_BENEFITS> prerequisites;
+    std::array<BenefitCategory, NUM_BENEFITS> categories;
 };
 
 // --- Constants (These are also fine in a header) ---
@@ -52,7 +52,7 @@ constexpr size_t MAX_RECENT_BENEFITS = 3;
 // Use 'extern' to tell the compiler that these exist somewhere else (in the .cpp file).
 
 // Global Data
-extern const BotsBonusesSoA g_BotsBonuses;
+extern const BenefitsDataSoA g_benefitsData;
 
 // Global State
 extern uint32_t obtained_benefits_mask;
@@ -69,29 +69,29 @@ void mark_benefit_obtained(BenefitID id) noexcept;
 std::string GetActiveBonusesString(); // Declaration for the function used in horde_menu.cpp
 
 // Per-player benefit functions
-bool BotHasBenefit(edict_t* player, BenefitID benefit_id);
-bool BotHasAbility(edict_t* player, BenefitID ability_id);
-bool BotHasWeaponUpgrade(edict_t* player, BenefitID weapon_id);
+bool ClassicPlayerHasBenefit(edict_t* player, BenefitID benefit_id);
+bool ClassicPlayerHasBenefitAbility(edict_t* player, BenefitID ability_id);
+bool ClassicPlayerHasBenefitWeaponUpgrade(edict_t* player, BenefitID weapon_id);
 void BotActivateBenefit(edict_t* player, BenefitID benefit_id);
 void BotDeactivateBenefit(edict_t* player, BenefitID benefit_id);
 
 // Specific benefit helpers (replace global cvar checks)
-bool BotHasVampire(edict_t* player);
-bool BotHasAmmoRegen(edict_t* player);
-bool BotHasAutoHaste(edict_t* player);
-bool BotHasStartArmor(edict_t* player);
+bool ClassicPlayerHasBenefitVampire(edict_t* player);
+bool ClassicPlayerHasBenefitAmmoRegen(edict_t* player);
+bool ClassicPlayerHasBenefitAutoHaste(edict_t* player);
+bool ClassicPlayerHasBenefitStartArmor(edict_t* player);
 
-bool BotHasHAPickup(edict_t* player);
-bool BotHasTracedBullets(edict_t* player);
-bool BotHasEnergyShells(edict_t* player);
-bool BotHasClusterProx(edict_t* player);
-bool BotHasPiercingPlasma(edict_t* player);
-bool BotHasNapalmGL(edict_t* player);
-bool BotHasTeslaChainLightning(edict_t* player);
+bool ClassicPlayerHasBenefitHAPickup(edict_t* player);
+bool ClassicPlayerHasBenefitTracedBullets(edict_t* player);
+bool ClassicPlayerHasBenefitEnergyShells(edict_t* player);
+bool ClassicPlayerHasBenefitClusterProx(edict_t* player);
+bool ClassicPlayerHasBenefitPiercingPlasma(edict_t* player);
+bool ClassicPlayerHasBenefitNapalmGL(edict_t* player);
+bool ClassicPlayerHasBenefitTeslaChainLightning(edict_t* player);
 
 // BFG mode helpers
-bool BotHasBFGSlide(edict_t* player);
-bool BotHasBFGPull(edict_t* player);
+bool ClassicPlayerHasBenefitBFGSlide(edict_t* player);
+bool ClassicPlayerHasBenefitBFGPull(edict_t* player);
 BFGMode PlayerGetBFGMode(edict_t* player);
 void PlayerSetBFGMode(edict_t* player, BFGMode mode);
 
