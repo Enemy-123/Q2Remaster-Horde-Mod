@@ -6581,9 +6581,18 @@ public:
 	{
 		// Add column headers - Name, Score, Lv, Ping (user's preferred order)
 		int header_y = PLAYER_Y_START - PLAYER_Y_SPACING;
-		layout_builder.append(fmt::format(
-			"if 0 yv {} xv -140 string2 \"Name\" xv 70 string2 \"Score\" xv 120 string2 \"Lv\" xv 160 string2 \"Ping\" endif \n",
-			header_y));
+		if (g_vortex->integer)
+		{
+			layout_builder.append(fmt::format(
+				"if 0 yv {} xv -140 string2 \"Name\" xv 70 string2 \"Score\" xv 120 string2 \"Lv\" xv 160 string2 \"Ping\" endif \n",
+				header_y));
+		}
+		else
+		{
+			layout_builder.append(fmt::format(
+				"if 0 yv {} xv -140 string2 \"Name\" xv 70 string2 \"Score\" xv 120 string2 \"Ping\" endif \n",
+				header_y));
+		}
 
 		// Loop through players - optimized format (set Y once per player)
 		for (size_t i = 0; i < std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY); ++i)
@@ -6601,10 +6610,20 @@ public:
 
 			const char *player_name = GetPlayerName(player_ent);
 
-			// Optimized format: set Y once, then just X positions (saves ~40 bytes per player)
-			layout_builder.append(fmt::format(
+			if (g_vortex->integer)
+			{
+				// Optimized format: set Y once, then just X positions (saves ~40 bytes per player)
+				layout_builder.append(fmt::format(
 				"if 0 yv {} xv -140 string \"{}\" xv 70 string \"{}\" xv 120 string \"{}\" xv 160 string \"{}\" endif \n",
 				y, player_name, player.score, player_level, player.ping));
+			}
+			else
+			{
+				// Optimized format: set Y once, then just X positions (saves ~40 bytes per player)
+				layout_builder.append(fmt::format(
+					"if 0 yv {} xv -140 string \"{}\" xv 70 string \"{}\"  xv 120 string \"{}\" endif \n",
+					y, player_name, player.score, player.ping));
+			}
 		}
 	}
 
@@ -6637,9 +6656,16 @@ public:
 				const char *spec_name = GetPlayerName(spec_ent);
 
 				// Optimized format: Name, Score, Ping (spectators don't have levels)
+				if (!g_vortex->integer)
+				{
+					layout_builder.append(fmt::format(
+					"if 0 yv {} xv -140 string2 \"{}\" xv 70 string2 \"{}\" xv 120 string2 \"{}\" endif \n",
+					y, spec_name, spec.score, spec.ping));
+				}
+				else	{
 				layout_builder.append(fmt::format(
 					"if 0 yv {} xv -140 string2 \"{}\" xv 70 string2 \"{}\" xv 160 string2 \"{}\" endif \n",
-					y, spec_name, spec.score, spec.ping));
+					y, spec_name, spec.score, spec.ping));}
 
 				y += PLAYER_Y_SPACING;
 			}
