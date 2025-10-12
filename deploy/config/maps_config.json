@@ -132,9 +132,9 @@
       "map_size": "medium"
     },
     "ec/base_ec": {
-      "monster_cap": 24,
-      "enable_grid": true,
-      "enable_loadent": false,
+      "monster_cap": -1,
+      "enable_grid": false,
+      "enable_loadent": true,
       "map_size": "medium"
     },
     "old/baseold": {
