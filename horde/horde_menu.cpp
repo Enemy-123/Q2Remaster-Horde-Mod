@@ -6660,7 +6660,7 @@ void HordeScoreboardMessage(edict_t *ent, edict_t *killer)
 		if (developer && developer->integer)
 		{
 		//	gi.Com_PrintFmt("Scoreboard truncated from {} to {} bytes\n",
-				layout.build().size(), final_layout.size());
+				// layout.build().size(), final_layout.size());
 		}
 	}
 
@@ -6670,7 +6670,7 @@ void HordeScoreboardMessage(edict_t *ent, edict_t *killer)
 	if (developer && developer->integer && level.intermissiontime)
 	{
 	//	gi.Com_PrintFmt("Intermission scoreboard size: {} bytes (limit: {})\n",
-			final_layout.size(), MAX_CTF_STAT_LENGTH);
+			// final_layout.size(), MAX_CTF_STAT_LENGTH);
 	}
 
 	// Validate layout before sending to client
