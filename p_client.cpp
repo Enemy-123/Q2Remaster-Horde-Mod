@@ -1563,10 +1563,17 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	if (ent->client->pers.autoshield >= AUTO_SHIELD_AUTO)
 		client->pers.savedFlags |= FL_WANTS_POWER_ARMOR;
 
-	// Apply Start Armor skill - 10 armor per level
-	if (client->pers.skills.start_armor > 0)
-	{
-		client->pers.inventory[IT_ARMOR_BODY] = client->pers.skills.start_armor * 10;
+	// Apply Start Armor - Classic Mode benefit or RPG Mode skill
+	if (g_vortex->integer == 0) {
+		// Classic Mode: Give 100 armor if benefit is active
+		if (ClassicPlayerHasBenefitStartArmor(ent)) {
+			client->pers.inventory[IT_ARMOR_BODY] = 100;
+		}
+	} else {
+		// RPG Mode: Give 10 armor per skill level
+		if (client->pers.skills.start_armor > 0) {
+			client->pers.inventory[IT_ARMOR_BODY] = client->pers.skills.start_armor * 10;
+		}
 	}
 
 	client->pers.connected = true;

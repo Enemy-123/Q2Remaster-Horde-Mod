@@ -70,6 +70,14 @@ void WeaponsMenuHandler(edict_t *ent, pmenuhnd_t *p);
 pmenuhnd_t *CreateAbilitiesMenu(edict_t *ent);
 pmenuhnd_t *CreateWeaponsMenu(edict_t *ent);
 
+// Bonus Management menu functions (Classic Mode)
+void OpenBonusManagementMenu(edict_t *ent, int cursor_position = -1);
+void BonusManagementMenuHandler(edict_t *ent, pmenuhnd_t *p);
+void OpenBonusAbilitiesMenu(edict_t *ent, int cursor_position = -1);
+void BonusAbilitiesMenuHandler(edict_t *ent, pmenuhnd_t *p);
+void OpenBonusWeaponsMenu(edict_t *ent, int cursor_position = -1);
+void BonusWeaponsMenuHandler(edict_t *ent, pmenuhnd_t *p);
+
 // Helper to get sentry type name
 static const char *GetSentryTypeName(sentrytype_t type)
 {
@@ -2404,6 +2412,14 @@ void HordeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		OpenUpgradeMenu(ent);	// This will set protection and open new menu
 		return;					// Exit early since we already closed
 	}
+	// Check for "Bonus Management" (with or without highlighting)
+	else if (strncmp(selected_text, "Bonus Management", 16) == 0 || strncmp(selected_text, "*Bonus Management", 17) == 0)
+	{
+		shouldCloseMenu = true; // Close main menu first
+		PMenu_Close(ent);		// Close now before opening bonus menu
+		OpenBonusManagementMenu(ent); // This will set protection and open new menu
+		return;					// Exit early since we already closed
+	}
 	// Check for "Misc Options"
 	else if (strcmp(selected_text, "Misc Options") == 0)
 	{
@@ -2545,7 +2561,7 @@ pmenuhnd_t *CreateHordeMenu(edict_t *ent)
 	}
 	add_entry("", PMENU_ALIGN_CENTER);
 
-	// Only show Upgrade Menu in RPG Mode (vortex enabled)
+	// Show Upgrade Menu in RPG Mode, Bonus Management in Classic Mode
 	if (g_vortex->integer != 0)
 	{
 		// Highlight Upgrade Menu if player has available skill points
@@ -2557,6 +2573,19 @@ pmenuhnd_t *CreateHordeMenu(edict_t *ent)
 		else
 		{
 			add_entry("Upgrade Menu", PMENU_ALIGN_LEFT, HordeMenuHandler);
+		}
+	}
+	else
+	{
+		// Classic Mode: Show Bonus Management
+		int total_points = ent->client->pers.ability_points + ent->client->pers.weapon_points;
+		if (total_points >= 1)
+		{
+			add_entry("*Bonus Management", PMENU_ALIGN_LEFT, HordeMenuHandler);
+		}
+		else
+		{
+			add_entry("Bonus Management", PMENU_ALIGN_LEFT, HordeMenuHandler);
 		}
 	}
 
@@ -7616,3 +7645,594 @@ void DisruptorUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		OpenWeaponUpgradeMenu(ent);
 	}
 }
+
+// ========================================================================
+// BONUS MANAGEMENT MENU SYSTEM (Classic Mode - Non-Vortex)
+// ========================================================================
+
+// Helper: Get the cost of a benefit
+static int32_t GetBenefitCost(BenefitID benefit_id) {
+	// Special cases with higher costs
+	if (benefit_id == BenefitID::BFG_GRAV_PULL || benefit_id == BenefitID::CLUSTER_PROX) {
+		return 3;
+	}
+	// Default cost for all other benefits
+	return 1;
+}
+
+// Helper: Check if any purchased benefits depend on this one
+static bool HasDependentBenefits(edict_t* player, BenefitID benefit_id) {
+	if (!player || !player->client) return false;
+
+	for (size_t i = 0; i < g_benefitsData.NUM_BENEFITS; ++i) {
+		BenefitID other_benefit = static_cast<BenefitID>(i);
+
+		// Skip if not purchased
+		if (!ClassicPlayerHasPurchasedBenefit(player, other_benefit)) continue;
+
+		// Check if this benefit is a prerequisite for the other
+		auto prereq = g_benefitsData.prerequisites[i];
+		if (prereq == benefit_id) {
+			return true; // Found a dependent benefit
+		}
+	}
+
+	return false;
+}
+
+// Helper: Refund a benefit (remove purchase, deactivate, return points)
+static bool RefundBenefit(edict_t* player, BenefitID benefit_id) {
+	if (!player || !player->client) return false;
+
+	// Check if player actually owns it
+	if (!ClassicPlayerHasPurchasedBenefit(player, benefit_id)) {
+		return false;
+	}
+
+	// Check if any other benefits depend on this one
+	if (HasDependentBenefits(player, benefit_id)) {
+		gi.LocClient_Print(player, PRINT_HIGH, "Cannot refund: Other benefits depend on this!\n");
+		return false;
+	}
+
+	// Get the cost to refund
+	int32_t refund_amount = GetBenefitCost(benefit_id);
+
+	// Determine which point pool to refund to
+	BenefitCategory category = g_benefitsData.categories[static_cast<size_t>(benefit_id)];
+
+	// Deactivate the benefit first
+	BotDeactivateBenefit(player, benefit_id);
+
+	// Remove from purchased mask
+	uint8_t bit_pos = static_cast<uint8_t>(benefit_id);
+	player->client->pers.purchased_benefits_mask &= ~(1u << bit_pos);
+
+	// Refund the points
+	if (category == BenefitCategory::ABILITY) {
+		player->client->pers.ability_points += refund_amount;
+	} else if (category == BenefitCategory::WEAPON) {
+		player->client->pers.weapon_points += refund_amount;
+	}
+
+	// Show message
+	const char* benefit_name = g_benefitsData.names[static_cast<size_t>(benefit_id)];
+	gi.LocClient_Print(player, PRINT_HIGH, "{} refunded ({} pt{})\n",
+		benefit_name, refund_amount, refund_amount > 1 ? "s" : "");
+
+	return true;
+}
+
+// ========================================================================
+// BONUS ABILITIES MENU (Classic Mode)
+// ========================================================================
+
+void BonusAbilitiesMenuHandler(edict_t* ent, pmenuhnd_t* p) {
+	if (!ent || !ent->client || !p || p->cur < 0 || p->cur >= p->num) {
+		if (ent && ent->client && ent->client->menu)
+			PMenu_Close(ent);
+		return;
+	}
+
+	const pmenu_t* selected_entry = &p->entries[p->cur];
+	const char* selected_text = selected_entry->text;
+	const char* arg = selected_entry->text_arg1;
+
+	if (!arg || arg[0] == '\0') {
+		// No action - title or separator
+		return;
+	}
+
+	// Handle refund for owned benefits
+	if (strncmp(arg, "refund_", 7) == 0) {
+		const char* benefit_name = arg + 7; // Skip "refund_" prefix
+
+		// Find benefit by name
+		for (size_t i = 0; i < g_benefitsData.NUM_BENEFITS; ++i) {
+			if (g_benefitsData.categories[i] != BenefitCategory::ABILITY) continue;
+
+			if (strcmp(g_benefitsData.names[i], benefit_name) == 0) {
+				BenefitID benefit_id = static_cast<BenefitID>(i);
+
+				// Attempt to refund the benefit
+				RefundBenefit(ent, benefit_id);
+
+				// Reopen menu to show updated state
+				PMenu_Close(ent);
+				OpenBonusAbilitiesMenu(ent, p->cur);
+				return;
+			}
+		}
+	}
+
+	// Handle purchase of new benefits
+	if (strncmp(arg, "purchase_", 9) == 0) {
+		const char* benefit_name = arg + 9; // Skip "purchase_" prefix
+
+		// Find benefit by name
+		for (size_t i = 0; i < g_benefitsData.NUM_BENEFITS; ++i) {
+			if (g_benefitsData.categories[i] != BenefitCategory::ABILITY) continue;
+
+			if (strcmp(g_benefitsData.names[i], benefit_name) == 0) {
+				BenefitID benefit_id = static_cast<BenefitID>(i);
+				int32_t cost = 1; // All abilities cost 1 point
+
+				if (BotPurchaseBenefit(ent, benefit_id, cost)) {
+					// Success message already shown by BotPurchaseBenefit
+				}
+				
+				// Reopen menu to show updated state
+				PMenu_Close(ent);
+				OpenBonusAbilitiesMenu(ent, p->cur);
+				return;
+			}
+		}
+	}
+
+	// Handle back action
+	if (strcmp(arg, "back") == 0) {
+		PMenu_Close(ent);
+		OpenBonusManagementMenu(ent);
+	}
+}
+
+void OpenBonusAbilitiesMenu(edict_t* ent, int cursor_position) {
+	if (!ent || !ent->client) return;
+
+	if (ent->client->menu) {
+		PMenu_Close(ent);
+	}
+
+	// Set menu protection
+	ent->client->menu_protected = true;
+	ent->client->menu_protection_start = level.time;
+
+	static pmenu_t entries[64];
+	memset(entries, 0, sizeof(entries));
+	int count = 0;
+
+	auto add_entry = [&](const char* text, int align, SelectFunc_t func = nullptr, const char* text_arg = nullptr) {
+		if (count < static_cast<int>(std::size(entries))) {
+			Q_strlcpy(entries[count].text, text, sizeof(entries[count].text));
+			entries[count].align = align;
+			entries[count].SelectFunc = func;
+			if (text_arg) {
+				Q_strlcpy(entries[count].text_arg1, text_arg, sizeof(entries[count].text_arg1));
+			}
+			count++;
+		}
+	};
+
+	// Title
+	add_entry("=== ABILITIES ===", PMENU_ALIGN_CENTER);
+	
+	// Points display
+	char points_buffer[64];
+	G_FmtTo(points_buffer, "Points: {}", ent->client->pers.ability_points);
+	add_entry(points_buffer, PMENU_ALIGN_CENTER);
+	
+	// Separator
+	add_entry("", PMENU_ALIGN_CENTER);
+
+	// Show owned abilities first (with refund option)
+	bool has_owned = false;
+	for (size_t i = 0; i < g_benefitsData.NUM_BENEFITS && count < 55; ++i) {
+		if (g_benefitsData.categories[i] != BenefitCategory::ABILITY) continue;
+
+		BenefitID benefit_id = static_cast<BenefitID>(i);
+
+		// Check if player has purchased this benefit
+		if (ClassicPlayerHasPurchasedBenefit(ent, benefit_id)) {
+			has_owned = true;
+			int32_t refund_cost = GetBenefitCost(benefit_id);
+
+			char buffer[128];
+			G_FmtTo(buffer, "  > Refund: {} ({} pt{})", g_benefitsData.names[i], refund_cost, refund_cost > 1 ? "s" : "");
+
+			char arg_buffer[64];
+			snprintf(arg_buffer, sizeof(arg_buffer), "refund_%s", g_benefitsData.names[i]);
+
+			add_entry(buffer, PMENU_ALIGN_LEFT, BonusAbilitiesMenuHandler, arg_buffer);
+		}
+	}
+
+	if (has_owned) {
+		add_entry("---", PMENU_ALIGN_CENTER);
+	}
+
+	// Show available abilities to purchase
+	bool has_available = false;
+	for (size_t i = 0; i < g_benefitsData.NUM_BENEFITS && count < 60; ++i) {
+		if (g_benefitsData.categories[i] != BenefitCategory::ABILITY) continue;
+
+		BenefitID benefit_id = static_cast<BenefitID>(i);
+		
+		// Skip if already purchased
+		if (ClassicPlayerHasPurchasedBenefit(ent, benefit_id)) {
+			continue;
+		}
+
+		// Check prerequisites
+		auto prereq = g_benefitsData.prerequisites[i];
+		bool prereq_met = (prereq == BenefitID::NONE) || ClassicPlayerHasPurchasedBenefit(ent, prereq);
+		
+		if (!prereq_met) {
+			continue;
+		}
+
+		has_available = true;
+		bool can_afford = ent->client->pers.ability_points >= 1;
+		
+		char buffer[128];
+		G_FmtTo(buffer, "  {} {} (1 pt)", can_afford ? ">" : " ", g_benefitsData.names[i]);
+		
+		if (can_afford) {
+			char arg_buffer[64];
+			snprintf(arg_buffer, sizeof(arg_buffer), "purchase_%s", g_benefitsData.names[i]);
+			add_entry(buffer, PMENU_ALIGN_LEFT, BonusAbilitiesMenuHandler, arg_buffer);
+		} else {
+			add_entry(buffer, PMENU_ALIGN_LEFT);
+		}
+	}
+
+	if (!has_available && !has_owned) {
+		add_entry("No abilities available", PMENU_ALIGN_CENTER);
+	}
+
+	// Separator
+	add_entry("", PMENU_ALIGN_CENTER);
+	
+	// Back option
+	add_entry("< Back", PMENU_ALIGN_LEFT, BonusAbilitiesMenuHandler, "back");
+
+	PMenu_Open(ent, entries, cursor_position, count, nullptr, nullptr);
+}
+
+// ========================================================================
+// BONUS WEAPONS MENU (Classic Mode)
+// ========================================================================
+
+void BonusWeaponsMenuHandler(edict_t* ent, pmenuhnd_t* p) {
+	if (!ent || !ent->client || !p || p->cur < 0 || p->cur >= p->num) {
+		if (ent && ent->client && ent->client->menu)
+			PMenu_Close(ent);
+		return;
+	}
+
+	const pmenu_t* selected_entry = &p->entries[p->cur];
+	const char* selected_text = selected_entry->text;
+	const char* arg = selected_entry->text_arg1;
+
+	if (!arg || arg[0] == '\0') {
+		// No action - title or separator
+		return;
+	}
+
+	// Handle refund for owned benefits
+	if (strncmp(arg, "refund_", 7) == 0) {
+		const char* benefit_name = arg + 7; // Skip "refund_" prefix
+
+		// Find benefit by name
+		for (size_t i = 0; i < g_benefitsData.NUM_BENEFITS; ++i) {
+			if (g_benefitsData.categories[i] != BenefitCategory::WEAPON) continue;
+
+			if (strcmp(g_benefitsData.names[i], benefit_name) == 0) {
+				BenefitID benefit_id = static_cast<BenefitID>(i);
+
+				// Attempt to refund the benefit
+				RefundBenefit(ent, benefit_id);
+
+				// Reopen menu to show updated state
+				PMenu_Close(ent);
+				OpenBonusWeaponsMenu(ent, p->cur);
+				return;
+			}
+		}
+	}
+
+	// Handle purchase of new benefits
+	if (strncmp(arg, "purchase_", 9) == 0) {
+		const char* benefit_name = arg + 9; // Skip "purchase_" prefix
+
+		// Find benefit by name
+		for (size_t i = 0; i < g_benefitsData.NUM_BENEFITS; ++i) {
+			if (g_benefitsData.categories[i] != BenefitCategory::WEAPON) continue;
+
+			if (strcmp(g_benefitsData.names[i], benefit_name) == 0) {
+				BenefitID benefit_id = static_cast<BenefitID>(i);
+				
+				// Set cost based on benefit type
+				int32_t cost = 1;
+				if (benefit_id == BenefitID::BFG_GRAV_PULL || benefit_id == BenefitID::CLUSTER_PROX) {
+					cost = 3;
+				}
+
+				if (BotPurchaseBenefit(ent, benefit_id, cost)) {
+					// Success message already shown by BotPurchaseBenefit
+				}
+				
+				// Reopen menu to show updated state
+				PMenu_Close(ent);
+				OpenBonusWeaponsMenu(ent, p->cur);
+				return;
+			}
+		}
+	}
+
+	// Handle back action
+	if (strcmp(arg, "back") == 0) {
+		PMenu_Close(ent);
+		OpenBonusManagementMenu(ent);
+	}
+}
+
+void OpenBonusWeaponsMenu(edict_t* ent, int cursor_position) {
+	if (!ent || !ent->client) return;
+
+	if (ent->client->menu) {
+		PMenu_Close(ent);
+	}
+
+	// Set menu protection
+	ent->client->menu_protected = true;
+	ent->client->menu_protection_start = level.time;
+
+	static pmenu_t entries[64];
+	memset(entries, 0, sizeof(entries));
+	int count = 0;
+
+	auto add_entry = [&](const char* text, int align, SelectFunc_t func = nullptr, const char* text_arg = nullptr) {
+		if (count < static_cast<int>(std::size(entries))) {
+			Q_strlcpy(entries[count].text, text, sizeof(entries[count].text));
+			entries[count].align = align;
+			entries[count].SelectFunc = func;
+			if (text_arg) {
+				Q_strlcpy(entries[count].text_arg1, text_arg, sizeof(entries[count].text_arg1));
+			}
+			count++;
+		}
+	};
+
+	// Title
+	add_entry("=== WEAPON UPGRADES ===", PMENU_ALIGN_CENTER);
+	
+	// Points display
+	char points_buffer[64];
+	G_FmtTo(points_buffer, "Points: {}", ent->client->pers.weapon_points);
+	add_entry(points_buffer, PMENU_ALIGN_CENTER);
+	
+	// Separator
+	add_entry("", PMENU_ALIGN_CENTER);
+
+	// Show owned weapons first (with refund option)
+	bool has_owned = false;
+	for (size_t i = 0; i < g_benefitsData.NUM_BENEFITS && count < 55; ++i) {
+		if (g_benefitsData.categories[i] != BenefitCategory::WEAPON) continue;
+
+		BenefitID benefit_id = static_cast<BenefitID>(i);
+
+		// Check if player has purchased this benefit
+		if (ClassicPlayerHasPurchasedBenefit(ent, benefit_id)) {
+			has_owned = true;
+			int32_t refund_cost = GetBenefitCost(benefit_id);
+
+			char buffer[128];
+			G_FmtTo(buffer, "  > Refund: {} ({} pt{})", g_benefitsData.names[i], refund_cost, refund_cost > 1 ? "s" : "");
+
+			char arg_buffer[64];
+			snprintf(arg_buffer, sizeof(arg_buffer), "refund_%s", g_benefitsData.names[i]);
+
+			add_entry(buffer, PMENU_ALIGN_LEFT, BonusWeaponsMenuHandler, arg_buffer);
+		}
+	}
+
+	if (has_owned) {
+		add_entry("---", PMENU_ALIGN_CENTER);
+	}
+
+	// Show available weapons to purchase
+	bool has_available = false;
+	for (size_t i = 0; i < g_benefitsData.NUM_BENEFITS && count < 60; ++i) {
+		if (g_benefitsData.categories[i] != BenefitCategory::WEAPON) continue;
+
+		BenefitID benefit_id = static_cast<BenefitID>(i);
+		
+		// Skip if already purchased
+		if (ClassicPlayerHasPurchasedBenefit(ent, benefit_id)) {
+			continue;
+		}
+
+		// Check prerequisites
+		auto prereq = g_benefitsData.prerequisites[i];
+		bool prereq_met = (prereq == BenefitID::NONE) || ClassicPlayerHasPurchasedBenefit(ent, prereq);
+		
+		if (!prereq_met) {
+			continue;
+		}
+
+		has_available = true;
+		
+		// Set cost
+		int32_t cost = 1;
+		if (benefit_id == BenefitID::BFG_GRAV_PULL || benefit_id == BenefitID::CLUSTER_PROX) {
+			cost = 3;
+		}
+		
+		bool can_afford = ent->client->pers.weapon_points >= cost;
+		
+		char buffer[128];
+		G_FmtTo(buffer, "  {} {} ({} pt{})", can_afford ? ">" : " ", g_benefitsData.names[i], cost, cost > 1 ? "s" : "");
+		
+		if (can_afford) {
+			char arg_buffer[64];
+			snprintf(arg_buffer, sizeof(arg_buffer), "purchase_%s", g_benefitsData.names[i]);
+			add_entry(buffer, PMENU_ALIGN_LEFT, BonusWeaponsMenuHandler, arg_buffer);
+		} else {
+			add_entry(buffer, PMENU_ALIGN_LEFT);
+		}
+	}
+
+	if (!has_available && !has_owned) {
+		add_entry("No weapons available", PMENU_ALIGN_CENTER);
+	}
+
+	// Separator
+	add_entry("", PMENU_ALIGN_CENTER);
+	
+	// Back option
+	add_entry("< Back", PMENU_ALIGN_LEFT, BonusWeaponsMenuHandler, "back");
+
+	PMenu_Open(ent, entries, cursor_position, count, nullptr, nullptr);
+}
+
+// ========================================================================
+// BONUS MANAGEMENT MAIN MENU (Classic Mode)
+// ========================================================================
+
+void BonusManagementMenuHandler(edict_t* ent, pmenuhnd_t* p) {
+	if (!ent || !ent->client || !p || p->cur < 0 || p->cur >= p->num) {
+		if (ent && ent->client && ent->client->menu)
+			PMenu_Close(ent);
+		return;
+	}
+
+	const pmenu_t* selected_entry = &p->entries[p->cur];
+	const char* arg = selected_entry->text_arg1;
+
+	if (!arg || arg[0] == '\0') {
+		// No action - title or separator
+		return;
+	}
+
+	if (strcmp(arg, "abilities") == 0) {
+		PMenu_Close(ent);
+		OpenBonusAbilitiesMenu(ent);
+	}
+	else if (strcmp(arg, "weapons") == 0) {
+		PMenu_Close(ent);
+		OpenBonusWeaponsMenu(ent);
+	}
+	else if (strcmp(arg, "reset") == 0) {
+		BotRestoreAllBonusPoints(ent);
+		gi.LocClient_Print(ent, PRINT_HIGH, "All bonus points restored!\n");
+		PMenu_Close(ent);
+		OpenBonusManagementMenu(ent);
+	}
+	else if (strcmp(arg, "toggle_auto_abilities") == 0) {
+		bool was_enabled = ent->client->pers.auto_buy_benefit_bot;
+		ent->client->pers.auto_buy_benefit_bot = !ent->client->pers.auto_buy_benefit_bot;
+
+		// If disabling auto-buy for the first time, offer refund
+		if (was_enabled && !ent->client->pers.auto_buy_benefit_bot &&
+			!ent->client->pers.bot_has_manually_disabled_auto_buy) {
+			BotRefundAutoPurchasedBenefits(ent);
+		} else {
+			gi.LocClient_Print(ent, PRINT_HIGH, "Auto-buy abilities: {}\n",
+					  ent->client->pers.auto_buy_benefit_bot ? "ON" : "OFF");
+		}
+		PMenu_Close(ent);
+		OpenBonusManagementMenu(ent);
+	}
+	else if (strcmp(arg, "toggle_auto_weapons") == 0) {
+		bool was_enabled = ent->client->pers.auto_buy_benefit_weapons_bot;
+		ent->client->pers.auto_buy_benefit_weapons_bot = !ent->client->pers.auto_buy_benefit_weapons_bot;
+
+		// If disabling auto-buy for the first time, offer refund
+		if (was_enabled && !ent->client->pers.auto_buy_benefit_weapons_bot &&
+			!ent->client->pers.bot_has_manually_disabled_auto_buy) {
+			BotRefundAutoPurchasedBenefits(ent);
+		} else {
+			gi.LocClient_Print(ent, PRINT_HIGH, "Auto-buy weapons: {}\n",
+					  ent->client->pers.auto_buy_benefit_weapons_bot ? "ON" : "OFF");
+		}
+		PMenu_Close(ent);
+		OpenBonusManagementMenu(ent);
+	}
+	else if (strcmp(arg, "back") == 0) {
+		PMenu_Close(ent);
+		OpenHordeMenu(ent);
+	}
+}
+
+void OpenBonusManagementMenu(edict_t* ent, int cursor_position) {
+	if (!ent || !ent->client) return;
+
+	if (ent->client->menu) {
+		PMenu_Close(ent);
+	}
+
+	// Set menu protection
+	ent->client->menu_protected = true;
+	ent->client->menu_protection_start = level.time;
+
+	static pmenu_t entries[32];
+	memset(entries, 0, sizeof(entries));
+	int count = 0;
+
+	auto add_entry = [&](const char* text, int align, SelectFunc_t func = nullptr, const char* text_arg = nullptr) {
+		if (count < static_cast<int>(std::size(entries))) {
+			Q_strlcpy(entries[count].text, text, sizeof(entries[count].text));
+			entries[count].align = align;
+			entries[count].SelectFunc = func;
+			if (text_arg) {
+				Q_strlcpy(entries[count].text_arg1, text_arg, sizeof(entries[count].text_arg1));
+			}
+			count++;
+		}
+	};
+
+	// Title
+	add_entry("=== BONUS MANAGEMENT ===", PMENU_ALIGN_CENTER);
+	
+	// Points display
+	char buffer[128];
+	G_FmtTo(buffer, "Ability Points: {}", ent->client->pers.ability_points);
+	add_entry(buffer, PMENU_ALIGN_CENTER);
+	
+	G_FmtTo(buffer, "Weapon Points: {}", ent->client->pers.weapon_points);
+	add_entry(buffer, PMENU_ALIGN_CENTER);
+	
+	// Separator
+	add_entry("", PMENU_ALIGN_CENTER);
+
+	// Menu options
+	add_entry("> Abilities", PMENU_ALIGN_LEFT, BonusManagementMenuHandler, "abilities");
+	add_entry("> Weapon Upgrades", PMENU_ALIGN_LEFT, BonusManagementMenuHandler, "weapons");
+	add_entry("> Reset All Points", PMENU_ALIGN_LEFT, BonusManagementMenuHandler, "reset");
+	
+	// Auto-buy toggles
+	G_FmtTo(buffer, "> Auto-buy Abilities: {}", ent->client->pers.auto_buy_benefit_bot ? "ON" : "OFF");
+	add_entry(buffer, PMENU_ALIGN_LEFT, BonusManagementMenuHandler, "toggle_auto_abilities");
+
+	G_FmtTo(buffer, "> Auto-buy Weapons: {}", ent->client->pers.auto_buy_benefit_weapons_bot ? "ON" : "OFF");
+	add_entry(buffer, PMENU_ALIGN_LEFT, BonusManagementMenuHandler, "toggle_auto_weapons");
+	
+	// Separator
+	add_entry("", PMENU_ALIGN_CENTER);
+	
+	// Back option
+	add_entry("< Back", PMENU_ALIGN_LEFT, BonusManagementMenuHandler, "back");
+
+	PMenu_Open(ent, entries, cursor_position, count, nullptr, nullptr);
+}
+

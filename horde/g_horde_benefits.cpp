@@ -322,6 +322,22 @@ bool ClassicPlayerHasBenefit(edict_t* player, BenefitID benefit_id) {
     return (mask & (1u << bit_pos)) != 0;
 }
 
+// Check if player has purchased a benefit (regardless of activation status)
+bool ClassicPlayerHasPurchasedBenefit(edict_t* player, BenefitID benefit_id) {
+    if (!player || !player->client) return false;
+
+    // In Classic Mode (vortex=0), everyone uses benefits
+    // In RPG Mode (vortex=1), only bots use benefits (humans use skills)
+    if (g_vortex->integer != 0 && !(player->svflags & SVF_BOT)) {
+        return false;
+    }
+
+    uint32_t mask = player->client->pers.purchased_benefits_mask;
+    uint8_t bit_pos = static_cast<uint8_t>(benefit_id);
+    
+    return (mask & (1u << bit_pos)) != 0;
+}
+
 // Check if player has ability (category check)
 bool ClassicPlayerHasBenefitAbility(edict_t* player, BenefitID ability_id) {
     if (g_benefitsData.categories[static_cast<size_t>(ability_id)] != BenefitCategory::ABILITY) {

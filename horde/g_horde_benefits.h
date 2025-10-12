@@ -71,6 +71,7 @@ std::string GetPlayerActiveBonusesString(edict_t* player); // Per-player version
 
 // Per-player benefit functions
 bool ClassicPlayerHasBenefit(edict_t* player, BenefitID benefit_id);
+bool ClassicPlayerHasPurchasedBenefit(edict_t* player, BenefitID benefit_id);
 bool ClassicPlayerHasBenefitAbility(edict_t* player, BenefitID ability_id);
 bool ClassicPlayerHasBenefitWeaponUpgrade(edict_t* player, BenefitID weapon_id);
 void BotActivateBenefit(edict_t* player, BenefitID benefit_id);
