@@ -1413,17 +1413,28 @@ void HordeMenu_BFGMode(edict_t *ent, pmenuhnd_t *p)
 	BFGMode current_mode = ent->client->pers.bfg_mode;
 	BFGMode new_mode = BFGMode::NORMAL;
 
-	// Classic Mode (vortex=0): Allow cycling through all modes freely
+	// Classic Mode (vortex=0): Allow cycling through available modes
 	if (g_vortex->integer == 0)
 	{
-		// Cycle: Normal -> Slide -> Pull -> Normal
+		// Check if player has BFG Pull benefit
+		bool has_pull = ClassicPlayerHasBenefit(ent, BenefitID::BFG_GRAV_PULL);
+
+		// Cycle through modes: Normal -> Slide -> Pull (if unlocked) -> Normal
 		if (current_mode == BFGMode::NORMAL)
 		{
 			new_mode = BFGMode::SLIDE;
 		}
 		else if (current_mode == BFGMode::SLIDE)
 		{
-			new_mode = BFGMode::GRAV_PULL;
+			// Only allow Pull mode if player has the benefit
+			if (has_pull)
+			{
+				new_mode = BFGMode::GRAV_PULL;
+			}
+			else
+			{
+				new_mode = BFGMode::NORMAL;
+			}
 		}
 		else // GRAV_PULL
 		{
