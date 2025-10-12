@@ -1723,13 +1723,6 @@ void OpenRespawnWeaponMenu(edict_t *ent)
 		return;
 	}
 
-	// Block respawn weapon menu when vortex is 0 (Classic Mode)
-	if (g_vortex->integer == 0)
-	{
-		gi.LocClient_Print(ent, PRINT_HIGH, "Respawn weapon menu is disabled in Classic Mode (vortex 0)\n");
-		return;
-	}
-
 	if (ent->client->menu)
 	{
 		PMenu_Close(ent);
@@ -2592,11 +2585,15 @@ pmenuhnd_t *CreateHordeMenu(edict_t *ent)
 	add_entry("Misc Options", PMENU_ALIGN_LEFT, HordeMenuHandler);
 	add_entry("HUD Options", PMENU_ALIGN_LEFT, HordeMenuHandler);
 
-	// Only show Set Respawn Weapon and Character Info in RPG Mode (vortex enabled)
-	if (pvm->integer && g_vortex->integer != 0)
+	// Show Set Respawn Weapon in PvM mode (horde+pvm or pvm alone, but not horde alone)
+	if (pvm->integer)
 	{
 		add_entry("*Set Respawn Weapon", PMENU_ALIGN_LEFT, HordeMenuHandler);
-		// Add Character Info menu
+	}
+
+	// Only show Character Info in RPG Mode (vortex enabled)
+	if (pvm->integer && g_vortex->integer != 0)
+	{
 		add_entry("Character Info", PMENU_ALIGN_LEFT, HordeMenuHandler);
 	}
 

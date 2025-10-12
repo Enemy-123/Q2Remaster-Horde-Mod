@@ -209,7 +209,7 @@ void SP_info_player_intermission(edict_t* ent)
 // [Paril-KEX] whether instanced items should be used or not
 bool P_UseCoopInstancedItems() noexcept
 {
-	if (IsPvMMode())
+	if (IsPvMMode() || g_vortex->integer)
 	return false;
 	// squad respawn forces instanced items on, since we don't
 	// want players to need to backtrack just to get their stuff.
@@ -530,7 +530,7 @@ void TossClientWeapon(edict_t* self)
 
 	item = self->client->pers.weapon;
 	// PvM mode: disable instagib
-	if (item && g_instagib->integer && !IsPvMMode())
+	if (item && g_instagib->integer && (!IsPvMMode() || g_vortex->integer) )
 		item = nullptr;
 	if (item && !self->client->pers.inventory[self->client->pers.weapon->ammo])
 		item = nullptr;
@@ -683,7 +683,7 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 		Hook_PlayerDie(attacker, self);
 		// ZOID
 		// PvM mode: drop backpack with all items, otherwise toss weapon
-		if (IsPvMMode())
+		if (IsPvMMode() || g_vortex->integer)
 			PVM_DropBackpack(self);
 		else
 			TossClientWeapon(self);
@@ -1050,7 +1050,7 @@ int CalculateWaveBasedMaxHealth(int base_max_health, gclient_t* client = nullptr
 		return max(100, base_max_health);
 
 	// PvM mode: Don't apply wave-based scaling, vitality handles health instead
-	if (IsPvMMode())
+	if (IsPvMMode() || g_vortex->integer)
 		return base_max_health;
 
 	// Calculate health based on wave tier (optimized lookup)
@@ -1125,6 +1125,11 @@ void Horde_UpdateStartItemsForWave(int32_t wave)
 
 void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 {
+
+	if (IsPvMMode())
+			// Give respawn weapon and ammo (handled by PVM_GiveRespawnWeapon)
+		PVM_GiveRespawnWeapon(ent);
+		
 	// Bots in PvM mode: Give them skill/weapon points based on current wave
 		// (Since bots can't use upgrade menus, they auto-buy with these points)
 		const bool is_late_joiner = !client->pers.received_late_join_ammo;
@@ -1519,7 +1524,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	// Try last weapon, fallback to NoAmmoWeaponChange, then Blaster
 	//
 
-	if (!g_vortex->integer) // fixed: PvM always starts with respawn weapon
+	if (!g_vortex->integer || (!IsPvMMode())) // fixed: PvM always starts with respawn weapon
 	{
 		if (client->pers.lastweapon && client->pers.inventory[client->pers.lastweapon->id] > 0)
 		{
@@ -4130,7 +4135,7 @@ void UpdateClientHealth(edict_t* ent, gclient_t* client)
 		return;
 
 	// PvM mode: Skip wave-based health updates, vitality handles max health
-	if (IsPvMMode())
+	if (g_vortex->integer)
 	{
 		// client->resp.max_health = ent->max_health;
 		// client->pers.max_health = ent->max_health;
