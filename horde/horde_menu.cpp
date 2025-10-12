@@ -6582,34 +6582,78 @@ public:
 		if (layout.size() <= max_length)
 			return layout;
 
-		// Find the last complete "endif" before max_length
-		std::string truncated = layout.substr(0, max_length);
+		// We need to find a safe truncation point where all if/ifgef statements have matching endif
+		// Start from max_length and work backwards to find a complete block
 
-		// Search backwards for the last "endif"
-		size_t last_endif = truncated.rfind("endif");
+		size_t truncate_pos = max_length;
 
-		if (last_endif != std::string::npos)
+		// Search backwards for the last complete "endif \n" pattern
+		// This ensures we don't cut in the middle of a statement
+		while (truncate_pos > 0)
 		{
-			// Include the "endif" and any trailing whitespace/newline
-			size_t cut_pos = last_endif + 5; // 5 = length of "endif"
-
-			// Skip any trailing whitespace after endif
-			while (cut_pos < truncated.size() &&
-			       (truncated[cut_pos] == ' ' || truncated[cut_pos] == '\n'))
+			// Look for "endif \n" or "endif " pattern
+			if (truncate_pos >= 6 &&
+			    layout.substr(truncate_pos - 6, 6) == "endif " ||
+			    (truncate_pos >= 7 && layout.substr(truncate_pos - 7, 7) == "endif \n"))
 			{
-				cut_pos++;
+				// Found a potential endif, now verify all if/ifgef statements are matched
+				std::string test_layout = layout.substr(0, truncate_pos);
+
+				// Count if/ifgef and endif statements using simple word boundary matching
+				int if_count = 0;
+				int endif_count = 0;
+
+				size_t pos = 0;
+				while (pos < test_layout.size())
+				{
+					// Look for "if " (with space after to ensure word boundary)
+					if (pos + 3 <= test_layout.size() && test_layout.substr(pos, 3) == "if ")
+					{
+						// Make sure it's not "endif" or "ifgef"
+						if (pos == 0 || test_layout[pos - 1] == ' ' || test_layout[pos - 1] == '\n')
+						{
+							if_count++;
+							pos += 3;
+							continue;
+						}
+					}
+
+					// Look for "ifgef "
+					if (pos + 6 <= test_layout.size() && test_layout.substr(pos, 6) == "ifgef ")
+					{
+						if_count++;
+						pos += 6;
+						continue;
+					}
+
+					// Look for "endif"
+					if (pos + 5 <= test_layout.size() && test_layout.substr(pos, 5) == "endif")
+					{
+						// Make sure it's actually a word boundary (followed by space or newline or end)
+						if (pos + 5 >= test_layout.size() || test_layout[pos + 5] == ' ' || test_layout[pos + 5] == '\n')
+						{
+							endif_count++;
+							pos += 5;
+							continue;
+						}
+					}
+
+					pos++;
+				}
+
+				// If counts match, we found a safe truncation point
+				if (if_count == endif_count)
+				{
+					return test_layout;
+				}
 			}
 
-			truncated = truncated.substr(0, cut_pos);
-		}
-		else
-		{
-			// No endif found, return empty to be safe
-			gi.Com_Print("WARNING: No complete endif found in truncated scoreboard layout\n");
-			truncated.clear();
+			truncate_pos--;
 		}
 
-		return truncated;
+		// If we couldn't find a safe truncation point, return empty string
+		gi.Com_Print("WARNING: Could not find safe truncation point for scoreboard layout\n");
+		return "";
 	}
 };
 
