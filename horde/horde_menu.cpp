@@ -6284,7 +6284,7 @@ constexpr size_t MAX_PLAYERS_TO_DISPLAY = 16;
 constexpr int PLAYER_Y_START = 42;
 constexpr int PLAYER_Y_SPACING = 8;
 constexpr int LAYOUT_SAFETY_MARGIN = 50;
-
+static constexpr size_t MAX_BONUS_STRING_LENGTH = 400; 
 /**
  *  StringBuilder
  * Helper class for efficient string concatenation
@@ -6449,21 +6449,21 @@ public:
 
 			// Active bonuses (per-player) with length check
 			std::string activeBonuses = GetPlayerActiveBonusesString(const_cast<edict_t*>(ent));
-			// if (!activeBonuses.empty()) {
-			// 	// Truncate if too long to prevent overflow
-			// //	if (activeBonuses.length() > MAX_BONUS_STRING_LENGTH) {
-			// 		// Safe resize with bounds check
-			// 		// try {
-			// 		// 	activeBonuses.resize(MAX_BONUS_STRING_LENGTH);
-			// 		// 	activeBonuses += "...";
-			// 		// } catch (const std::bad_alloc&) {
-			// 			// gi.Com_Print("WARNING: Failed to resize bonus string\n");
-			// 			// activeBonuses = "Error";
-			// 		}
-			// //	}
-			// 	layout_builder.append(fmt::format(
-			// 		"if 0 xv 208 yv 8 string \"{}\" endif \n", activeBonuses));
-			// }
+			if (!activeBonuses.empty()) {
+	//			Truncate if too long to prevent overflow
+				if (activeBonuses.length() > MAX_BONUS_STRING_LENGTH) {
+	//				Safe resize with bounds check
+					try {
+						activeBonuses.resize(MAX_BONUS_STRING_LENGTH);
+						activeBonuses += "...";
+					} catch (const std::bad_alloc&) {
+						gi.Com_Print("WARNING: Failed to resize bonus string\n");
+						activeBonuses = "Error";
+					}
+				}
+				layout_builder.append(fmt::format(
+					"if 0 xv 208 yv 8 string \"{}\" endif \n", activeBonuses));
+			}
 		}
 		else
 		{

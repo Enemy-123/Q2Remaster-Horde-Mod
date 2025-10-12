@@ -377,11 +377,29 @@ void CarpetBomb(edict_t* ent)
     if (!ent || !ent->client || IsPlayerMenuProtected(ent) || ClientIsSpectating(ent->client))
         return;
 
-    // Check if player has bombspell skill
-    int8_t bombspell_level = ent->client->pers.skills.bombspell;
-    if (bombspell_level == 0) {
-        gi.LocClient_Print(ent, PRINT_HIGH, "You need to upgrade the BombSpell skill first!\n");
-        return;
+    // Get player's bombspell skill level (default to 5 in Classic Mode)
+    int8_t bombspell_level = 5;
+
+    // Only in RPG Mode (vortex=1), check skills and power cubes
+    if (g_vortex->integer != 0)
+    {
+        bombspell_level = ent->client->pers.skills.bombspell;
+
+        // Check if player has bombspell skill
+        if (bombspell_level == 0) {
+            gi.LocClient_Print(ent, PRINT_HIGH, "You need to upgrade the BombSpell skill first!\n");
+            return;
+        }
+
+        // Check power cube cost
+        const int cost = 25;
+        if (ent->client->pers.horde_power_cubes < cost) {
+            gi.LocClient_Print(ent, PRINT_HIGH, "Not enough power cubes! Need {} cubes to cast bombspell.\n", cost);
+            return;
+        }
+
+        // Deduct power cubes
+        ent->client->pers.horde_power_cubes -= cost;
     }
 
     // Check cooldown
@@ -391,16 +409,6 @@ void CarpetBomb(edict_t* ent)
         gi.LocClient_Print(ent, PRINT_HIGH, "Bombspell on cooldown for {} seconds\n", remaining_display);
         return;
     }
-
-    // Check power cube cost
-    const int cost = 25;
-    if (ent->client->pers.horde_power_cubes < cost) {
-        gi.LocClient_Print(ent, PRINT_HIGH, "Not enough power cubes! Need {} cubes to cast bombspell.\n", cost);
-        return;
-    }
-
-    // Deduct power cubes
-    ent->client->pers.horde_power_cubes -= cost;
 
     // Calculate damage based on skill level
     int damage = g_config.bomb_spell.initial_damage + (bombspell_level * g_config.bomb_spell.addon_damage);
@@ -499,11 +507,29 @@ void BombArea(edict_t* ent)//, float skill_mult, float cost_mult)
     if (!ent || !ent->client || IsPlayerMenuProtected(ent) || ClientIsSpectating(ent->client))
         return;
 
-    // Check if player has bombspell skill
-    int8_t bombspell_level = ent->client->pers.skills.bombspell;
-    if (bombspell_level == 0) {
-        gi.LocClient_Print(ent, PRINT_HIGH, "You need to upgrade the BombSpell skill first!\n");
-        return;
+    // Get player's bombspell skill level (default to 5 in Classic Mode)
+    int8_t bombspell_level = 5;
+
+    // Only in RPG Mode (vortex=1), check skills and power cubes
+    if (g_vortex->integer != 0)
+    {
+        bombspell_level = ent->client->pers.skills.bombspell;
+
+        // Check if player has bombspell skill
+        if (bombspell_level == 0) {
+            gi.LocClient_Print(ent, PRINT_HIGH, "You need to upgrade the BombSpell skill first!\n");
+            return;
+        }
+
+        // Check power cube cost
+        const int cubes_cost = 25;
+        if (ent->client->pers.horde_power_cubes < cubes_cost) {
+            gi.LocClient_Print(ent, PRINT_HIGH, "Not enough power cubes! Need {} cubes to cast bombspell area.\n", cubes_cost);
+            return;
+        }
+
+        // Deduct power cubes
+        ent->client->pers.horde_power_cubes -= cubes_cost;
     }
 
     // Check cooldown
@@ -513,16 +539,6 @@ void BombArea(edict_t* ent)//, float skill_mult, float cost_mult)
         gi.LocClient_Print(ent, PRINT_HIGH, "Bombspell area on cooldown for {} seconds\n", remaining_display);
         return;
     }
-
-    // Check power cube cost
-    const int cubes_cost = 25;
-    if (ent->client->pers.horde_power_cubes < cubes_cost) {
-        gi.LocClient_Print(ent, PRINT_HIGH, "Not enough power cubes! Need {} cubes to cast bombspell area.\n", cubes_cost);
-        return;
-    }
-
-    // Deduct power cubes
-    ent->client->pers.horde_power_cubes -= cubes_cost;
 
     // Calculate damage based on skill level
     int damage = g_config.bomb_spell.initial_damage + (bombspell_level * g_config.bomb_spell.addon_damage);
@@ -734,22 +750,30 @@ void Cmd_BombPlayer(edict_t* ent)
 
     // Default: bomb a person (targeted bomb)
 
-    // Check if player has bombspell skill
-    int8_t bombspell_level = ent->client->pers.skills.bombspell;
-    if (bombspell_level == 0) {
-        gi.LocClient_Print(ent, PRINT_HIGH, "You need to upgrade the BombSpell skill first!\n");
-        return;
-    }
+    // Get player's bombspell skill level (default to 5 in Classic Mode)
+    int8_t bombspell_level = 5;
 
-    // Check power cube cost
-    const int person_cost = 25;
-    if (ent->client->pers.horde_power_cubes < person_cost) {
-        gi.LocClient_Print(ent, PRINT_HIGH, "Not enough power cubes! Need {} cubes to cast bombspell.\n", person_cost);
-        return;
-    }
+    // Only in RPG Mode (vortex=1), check skills and power cubes
+    if (g_vortex->integer != 0)
+    {
+        bombspell_level = ent->client->pers.skills.bombspell;
 
-    // Deduct power cubes
-    ent->client->pers.horde_power_cubes -= person_cost;
+        // Check if player has bombspell skill
+        if (bombspell_level == 0) {
+            gi.LocClient_Print(ent, PRINT_HIGH, "You need to upgrade the BombSpell skill first!\n");
+            return;
+        }
+
+        // Check power cube cost
+        const int person_cost = 25;
+        if (ent->client->pers.horde_power_cubes < person_cost) {
+            gi.LocClient_Print(ent, PRINT_HIGH, "Not enough power cubes! Need {} cubes to cast bombspell.\n", person_cost);
+            return;
+        }
+
+        // Deduct power cubes
+        ent->client->pers.horde_power_cubes -= person_cost;
+    }
 
     // Calculate damage based on skill level
     int damage = g_config.bomb_spell.initial_damage + (bombspell_level * g_config.bomb_spell.addon_damage);

@@ -285,10 +285,11 @@ std::string GetPlayerActiveBonusesString(edict_t* player) {
 
 // Check if player has a specific benefit
 bool ClassicPlayerHasBenefit(edict_t* player, BenefitID benefit_id) {
-    if (!player || !player->client || !(player->svflags & SVF_BOT)) return false;
+    if (!player || !player->client) return false;
 
-    // Disable benefits for non-bots (for testing the new skill system)
-    if (!(player->svflags & SVF_BOT)) {
+    // In Classic Mode (vortex=0), everyone uses benefits
+    // In RPG Mode (vortex=1), only bots use benefits (humans use skills)
+    if (g_vortex->integer != 0 && !(player->svflags & SVF_BOT)) {
         return false;
     }
 
@@ -386,7 +387,12 @@ bool ClassicPlayerHasBenefitAmmoRegen(edict_t* player) {
 bool ClassicPlayerHasBenefitAutoHaste(edict_t* player) {
     if (!player || !player->client) return false;
 
-    // Support both bot benefit system and player skill system
+    // In Classic Mode (vortex=0), everyone uses benefit system
+    if (g_vortex->integer == 0) {
+        return ClassicPlayerHasBenefit(player, BenefitID::AUTO_HASTE);
+    }
+
+    // In RPG Mode (vortex=1), bots use benefits, humans use skills
     if (player->svflags & SVF_BOT) {
         return ClassicPlayerHasBenefit(player, BenefitID::AUTO_HASTE);
     } else {
@@ -423,6 +429,12 @@ bool ClassicPlayerHasBenefitNapalmGL(edict_t* player) {
 }
 
 bool ClassicPlayerHasBenefitTeslaChainLightning(edict_t* player) {
+    // In Classic Mode (vortex=0), only check benefit system
+    if (g_vortex->integer == 0) {
+        return ClassicPlayerHasBenefit(player, BenefitID::TESLA_CHAIN_LIGHTNING);
+    }
+
+    // In RPG Mode (vortex=1), check both benefit (bots) and skill (humans)
     return ClassicPlayerHasBenefit(player, BenefitID::TESLA_CHAIN_LIGHTNING) ||
            (player && player->client && player->client->pers.skills.tesla_chain);
 }
@@ -460,7 +472,10 @@ void BotEarnWeaponPoints(edict_t* player, int32_t points) {
 }
 
 bool BotCanAffordBenefit(edict_t* player, BenefitID benefit_id, int32_t cost) {
-    if (!player || !player->client || !(player->svflags & SVF_BOT)) return false;
+    if (!player || !player->client) return false;
+
+    // In RPG Mode (vortex=1), only bots can use this
+    if (g_vortex->integer != 0 && !(player->svflags & SVF_BOT)) return false;
 
     auto category = g_benefitsData.categories[static_cast<size_t>(benefit_id)];
     int32_t available_points = (category == BenefitCategory::ABILITY) ?
@@ -471,7 +486,10 @@ bool BotCanAffordBenefit(edict_t* player, BenefitID benefit_id, int32_t cost) {
 }
 
 void BotSpendPoints(edict_t* player, BenefitID benefit_id, int32_t cost) {
-    if (!player || !player->client || !(player->svflags & SVF_BOT)) return;
+    if (!player || !player->client) return;
+
+    // In RPG Mode (vortex=1), only bots can use this
+    if (g_vortex->integer != 0 && !(player->svflags & SVF_BOT)) return;
 
     auto category = g_benefitsData.categories[static_cast<size_t>(benefit_id)];
     int32_t* points = (category == BenefitCategory::ABILITY) ?
@@ -637,8 +655,10 @@ void CheckBotAutoBuy(edict_t* player) {
 
 // Benefit purchasing with per-player messages
 bool BotPurchaseBenefit(edict_t* player, BenefitID benefit_id, int32_t cost) {
-if (!player || !player->client || !(player->svflags & SVF_BOT)) {
-        // gi.Com_PrintFmt("[DEBUG] BotPurchaseBenefit: player validation failed (not a bot)\n");
+    if (!player || !player->client) return false;
+
+    // In RPG Mode (vortex=1), only bots can use this
+    if (g_vortex->integer != 0 && !(player->svflags & SVF_BOT)) {
         return false;
     }
 

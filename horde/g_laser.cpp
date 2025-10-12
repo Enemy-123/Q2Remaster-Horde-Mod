@@ -582,23 +582,32 @@ void create_laser(edict_t * ent)
         return;
     }
 
-    // Check if player has the lasers skill
-    int8_t laser_level = ent->client->pers.skills.lasers;
-    if (laser_level == 0)
+    // Get player's laser skill level (default to 5 in Classic Mode)
+    int8_t laser_level = 5;
+
+    // Only in RPG Mode (vortex=1), check skills and power cubes
+    if (g_vortex->integer != 0)
     {
-        gi.LocClient_Print(ent, PRINT_HIGH, "You need to upgrade the Lasers skill first!\n");
-        return;
+        laser_level = ent->client->pers.skills.lasers;
+
+        // Check if player has the lasers skill
+        if (laser_level == 0)
+        {
+            gi.LocClient_Print(ent, PRINT_HIGH, "You need to upgrade the Lasers skill first!\n");
+            return;
+        }
+
+        // Check power cube cost
+        if (ent->client->pers.horde_power_cubes < g_config.laser.cost)
+        {
+            gi.LocClient_Print(ent, PRINT_HIGH, "You need 25 cubes to build a laser!\n");
+            return;
+        }
     }
 
     if (ent->client->resp.num_lasers >= LaserConstants::MAX_LASERS_PER_PLAYER())
     {
         gi.LocClient_Print(ent, PRINT_HIGH, "Can't build any more lasers.\n");
-        return;
-    }
-
-    if (ent->client->pers.horde_power_cubes < g_config.laser.cost)
-    {
-        gi.LocClient_Print(ent, PRINT_HIGH, "You need 25 cubes to build a laser!\n");
         return;
     }
 
@@ -705,7 +714,11 @@ void create_laser(edict_t * ent)
 
     g_targetable_special_entities.push_back(emitter);
 
-    ent->client->pers.horde_power_cubes -= g_config.laser.cost;
+    // Only deduct power cubes in RPG Mode
+    if (g_vortex->integer != 0)
+    {
+        ent->client->pers.horde_power_cubes -= g_config.laser.cost;
+    }
 
     for (int i = 0; i < LaserConstants::MAX_LASERS_PER_PLAYER(); ++i) {
         if (ent->client->resp.deployed_lasers[i] == nullptr) {

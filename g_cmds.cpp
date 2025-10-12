@@ -358,34 +358,32 @@ void Cmd_Fireball_f(edict_t* ent)
 	if (!ent || !ent->client)
 		return;
 
-	// Only available in RPG Mode (vortex enabled)
-	if (g_vortex->integer == 0)
+	// Get player's fireball skill level (default to 5 in Classic Mode)
+	int8_t fireball_level = 5;
+
+	// Only in RPG Mode (vortex=1), check skills and power cubes
+	if (g_vortex->integer != 0)
 	{
-		gi.LocClient_Print(ent, PRINT_HIGH, "Fireball is only available in RPG Mode (vortex 1)\n");
-		return;
+		fireball_level = ent->client->pers.skills.fireball;
+
+		// Check if player has the fireball skill
+		if (fireball_level == 0)
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, "You need to upgrade the Fireball skill first!\n");
+			return;
+		}
+
+		// Check power cube cost
+		const int cost = g_config.fireball.cost;
+		if (ent->client->pers.horde_power_cubes < cost)
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, "Not enough power cubes! Need {} cubes to cast fireball.\n", cost);
+			return;
+		}
+
+		// Deduct power cubes
+		ent->client->pers.horde_power_cubes -= cost;
 	}
-
-	// Get player's fireball skill level
-	int8_t fireball_level = ent->client->pers.skills.fireball;
-
-	// Check if player has the fireball skill
-	if (fireball_level == 0)
-	{
-		gi.LocClient_Print(ent, PRINT_HIGH, "You need to upgrade the Fireball skill first!\n");
-		return;
-	}
-
-	// Check power cube cost
-	const int cost = g_config.fireball.cost;
-	if (ent->client->pers.horde_power_cubes < cost)
-	{
-		gi.LocClient_Print(ent, PRINT_HIGH, "Not enough power cubes! Need {} cubes to cast fireball.\n", cost);
-		return;
-	}
-
-	// Deduct power cubes
-	ent->client->pers.horde_power_cubes -= cost;
-
 	// Get player's aim direction
 	vec3_t forward, right, up;
 	AngleVectors(ent->client->v_angle, forward, right, up);
@@ -410,8 +408,8 @@ void Cmd_Fireball_f(edict_t* ent)
 	// Base: initial_speed, Each level adds: addon_speed
 	int speed = g_config.fireball.initial_speed + (fireball_level * g_config.fireball.addon_speed);
 
-	int flames = 5;  // Number of flame entities spawned on explosion
-	int flame_damage = 12;  // Damage per flame
+	int flames = 5;		   // Number of flame entities spawned on explosion
+	int flame_damage = 12; // Damage per flame
 
 	// Fire the fireball!
 	fire_fireball(ent, start, aimdir, damage, damage_radius, speed, flames, flame_damage);

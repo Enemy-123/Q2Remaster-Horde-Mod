@@ -1078,12 +1078,16 @@ void Cmd_Barrel_f(edict_t* ent)
         return;
     }
 
-    // Check if player has the exploding_barrel skill
-    int8_t barrel_level = ent->client->pers.skills.exploding_barrel;
-    if (barrel_level == 0)
+    // Only in RPG Mode (vortex=1), check skills
+    if (g_vortex->integer != 0)
     {
-        gi.LocClient_Print(ent, PRINT_HIGH, "You need to upgrade the Exploding Barrel skill first!\n");
-        return;
+        // Check if player has the exploding_barrel skill
+        int8_t barrel_level = ent->client->pers.skills.exploding_barrel;
+        if (barrel_level == 0)
+        {
+            gi.LocClient_Print(ent, PRINT_HIGH, "You need to upgrade the Exploding Barrel skill first!\n");
+            return;
+        }
     }
 
     const char* arg = gi.argv(1);
