@@ -425,7 +425,7 @@ inline void G_AdjustAmmoCap(edict_t* other, ammo_t ammo, int16_t new_max)
 
 bool Pickup_Bandolier(edict_t *ent, edict_t *other)
 {
-	if (!pvm->integer)
+	if (!g_vortex->integer)
 	{
 		G_AdjustAmmoCap(other, AMMO_BULLETS, 250);
 		G_AdjustAmmoCap(other, AMMO_SHELLS, 80);
@@ -476,7 +476,7 @@ bool Pickup_Pack(edict_t* ent, edict_t* other)
 {
 
 		// Award power cubes for ammopack pickup
-		if (other->client && (g_horde->integer || pvm->integer))
+	if (g_vortex->integer)
 		{
 			int cubes_to_add = g_config.power_cubes.cubes_per_ammopack;
 			
@@ -487,7 +487,7 @@ bool Pickup_Pack(edict_t* ent, edict_t* other)
 			other->client->pers.horde_power_cubes = new_cubes;
 		}
 
-	if (!pvm->integer)
+	if (!g_vortex->integer)
 	{
 		G_AdjustAmmoCap(other, AMMO_BULLETS, 400);
 		G_AdjustAmmoCap(other, AMMO_SHELLS, 175);
@@ -923,7 +923,7 @@ bool Pickup_Armor(edict_t* ent, edict_t* other)
 			other->client->pers.inventory[old_armor_index] += shard_amount;
 
 		// Award power cubes for armor shard pickup
-		if (other->client && (g_horde->integer || pvm->integer))
+	if (g_vortex->integer)
 		{
 			int cubes_to_add = g_config.power_cubes.cubes_per_shard;
 			

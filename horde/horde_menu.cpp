@@ -3185,23 +3185,49 @@ pmenuhnd_t *CreateUpgradeMenu(edict_t *ent)
 	memset(upgrade_menu, 0, sizeof(upgrade_menu));
 	int menu_index = 0;
 
-	// Title
-	Q_strlcpy(upgrade_menu[menu_index].text, "*=== UPGRADES ===", sizeof(upgrade_menu[menu_index].text));
+	// Check vortex mode to determine menu type
+	bool is_classic_mode = (g_vortex->integer == 0);
+
+	// Title - different for Classic vs RPG mode
+	if (is_classic_mode)
+	{
+		Q_strlcpy(upgrade_menu[menu_index].text, "*=== BONUS MANAGEMENT ===", sizeof(upgrade_menu[menu_index].text));
+	}
+	else
+	{
+		Q_strlcpy(upgrade_menu[menu_index].text, "*=== UPGRADES ===", sizeof(upgrade_menu[menu_index].text));
+	}
 	upgrade_menu[menu_index].align = PMENU_ALIGN_CENTER;
 	upgrade_menu[menu_index].SelectFunc = nullptr;
 	menu_index++;
 
-	// Points display
-	G_FmtTo(upgrade_menu[menu_index].text, "Skill Points: {}", ent->client->pers.skill_points);
-	upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
-	upgrade_menu[menu_index].SelectFunc = nullptr;
-	menu_index++;
+	// Points display - different for Classic vs RPG mode
+	if (is_classic_mode)
+	{
+		// Classic Mode: Show ability and weapon points from benefit system
+		G_FmtTo(upgrade_menu[menu_index].text, "Ability Points: {}", ent->client->pers.ability_points);
+		upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
+		upgrade_menu[menu_index].SelectFunc = nullptr;
+		menu_index++;
 
-		// Points display
-	G_FmtTo(upgrade_menu[menu_index].text, "Weapon Points: {}", ent->client->pers.weapon_points);
-	upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
-	upgrade_menu[menu_index].SelectFunc = nullptr;
-	menu_index++;
+		G_FmtTo(upgrade_menu[menu_index].text, "Weapon Points: {}", ent->client->pers.weapon_points);
+		upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
+		upgrade_menu[menu_index].SelectFunc = nullptr;
+		menu_index++;
+	}
+	else
+	{
+		// RPG Mode: Show skill points
+		G_FmtTo(upgrade_menu[menu_index].text, "Skill Points: {}", ent->client->pers.skill_points);
+		upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
+		upgrade_menu[menu_index].SelectFunc = nullptr;
+		menu_index++;
+
+		G_FmtTo(upgrade_menu[menu_index].text, "Weapon Points: {}", ent->client->pers.weapon_points);
+		upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
+		upgrade_menu[menu_index].SelectFunc = nullptr;
+		menu_index++;
+	}
 
 	// Separator
 	Q_strlcpy(upgrade_menu[menu_index].text, "", sizeof(upgrade_menu[menu_index].text));
@@ -3223,11 +3249,24 @@ pmenuhnd_t *CreateUpgradeMenu(edict_t *ent)
 	Q_strlcpy(upgrade_menu[menu_index].text_arg1, "weapons_shop", sizeof(upgrade_menu[menu_index].text_arg1));
 	menu_index++;
 
-	// Placeholder for future talents
-	Q_strlcpy(upgrade_menu[menu_index].text, "Talents (Coming Soon)", sizeof(upgrade_menu[menu_index].text));
-	upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
-	upgrade_menu[menu_index].SelectFunc = nullptr;
-	menu_index++;
+	// In Classic Mode, show auto-buy status and toggle option
+	if (is_classic_mode)
+	{
+		// Auto-buy status display
+		const char* auto_buy_status = ent->client->pers.auto_buy_benefit_bot ? "ON" : "OFF";
+		G_FmtTo(upgrade_menu[menu_index].text, "Auto-Buy: {}", auto_buy_status);
+		upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
+		upgrade_menu[menu_index].SelectFunc = nullptr;
+		menu_index++;
+	}
+	else
+	{
+		// Placeholder for future talents (RPG Mode only)
+		Q_strlcpy(upgrade_menu[menu_index].text, "Talents (Coming Soon)", sizeof(upgrade_menu[menu_index].text));
+		upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
+		upgrade_menu[menu_index].SelectFunc = nullptr;
+		menu_index++;
+	}
 
 	// Separator
 	Q_strlcpy(upgrade_menu[menu_index].text, "", sizeof(upgrade_menu[menu_index].text));

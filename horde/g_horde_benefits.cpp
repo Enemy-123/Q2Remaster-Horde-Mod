@@ -545,6 +545,10 @@ static void AutoBuyCategory(edict_t* player, BenefitCategory category) {
                       &player->client->pers.ability_points :
                       &player->client->pers.weapon_points;
 
+    const char* category_name = (category == BenefitCategory::ABILITY) ? "ABILITY" : "WEAPON";
+    gi.Com_PrintFmt("[DEBUG] AutoBuyCategory for {}: category={}, points={}\n",
+        player_name, category_name, *points);
+
     // Use the appropriate priority list
     const BenefitID* priority_list;
     size_t list_size;
@@ -565,9 +569,7 @@ static void AutoBuyCategory(edict_t* player, BenefitCategory category) {
 
         // Skip if already owned
         if (ClassicPlayerHasBenefit(player, benefit_id)) {
-            if (is_bot) {
-                // gi.Com_PrintFmt("[DEBUG] {} already has {}, skipping\n", player_name, benefit_name);
-            }
+            gi.Com_PrintFmt("[DEBUG] {} already has {}, skipping\n", player_name, benefit_name);
             continue;
         }
 
@@ -580,49 +582,37 @@ static void AutoBuyCategory(edict_t* player, BenefitCategory category) {
 
         // Check if can afford
         if (*points < cost) {
-            if (is_bot) {
-                // gi.Com_PrintFmt("[DEBUG] {} cannot afford {} (cost={}, points={})\n",
-                    // player_name, benefit_name, cost, *points);
-            }
+            gi.Com_PrintFmt("[DEBUG] {} cannot afford {} (cost={}, points={})\n",
+                player_name, benefit_name, cost, *points);
             continue;
         }
 
         // Check wave requirements (for auto-buy only)
         int32_t min_wave = g_benefitsData.min_levels[i];
         if (current_wave_level < min_wave) {
-            if (is_bot) {
-                // gi.Com_PrintFmt("[DEBUG] {} wave req not met for {} (wave={}, min={})\n",
-                    // player_name, benefit_name, current_wave_level, min_wave);
-            }
+            gi.Com_PrintFmt("[DEBUG] {} wave req not met for {} (wave={}, min={})\n",
+                player_name, benefit_name, current_wave_level, min_wave);
             continue;
         }
 
         // Check prerequisites
         auto prereq = g_benefitsData.prerequisites[i];
         if (prereq != BenefitID::NONE && !ClassicPlayerHasBenefit(player, prereq)) {
-            if (is_bot) {
-                const char* prereq_name = g_benefitsData.names[static_cast<size_t>(prereq)];
-                // gi.Com_PrintFmt("[DEBUG] {} missing prereq {} for {}\n",
-                //     player_name, prereq_name, benefit_name);
-            }
+            const char* prereq_name = g_benefitsData.names[static_cast<size_t>(prereq)];
+            gi.Com_PrintFmt("[DEBUG] {} missing prereq {} for {}\n",
+                player_name, prereq_name, benefit_name);
             continue;
         }
 
         // Purchase the benefit
-        if (is_bot) {
-            // gi.Com_PrintFmt("[DEBUG] {} attempting to purchase {} (cost={})\n",
-            //     player_name, benefit_name, cost);
-        }
+        gi.Com_PrintFmt("[DEBUG] {} attempting to purchase {} (cost={})\n",
+            player_name, benefit_name, cost);
 
         if (BotPurchaseBenefit(player, benefit_id, cost)) {
             player->client->pers.auto_purchased_benefits_mask |= (1u << static_cast<uint8_t>(benefit_id));
-            if (is_bot) {
-                // gi.Com_PrintFmt("[DEBUG] {} successfully purchased {}!\n", player_name, benefit_name);
-            }
+            gi.Com_PrintFmt("[DEBUG] {} successfully purchased {}!\n", player_name, benefit_name);
         } else {
-            if (is_bot) {
-                // gi.Com_PrintFmt("[DEBUG] {} FAILED to purchase {}!\n", player_name, benefit_name);
-            }
+            gi.Com_PrintFmt("[DEBUG] {} FAILED to purchase {}!\n", player_name, benefit_name);
         }
     }
 }

@@ -1152,7 +1152,7 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 			}
 		}
 
-		
+
 	// PvM Mode: Skip old wave-based bonus system entirely (uses XP/level system instead)
 	if (g_vortex->integer)
 	{
@@ -1220,7 +1220,7 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 	// NON-PVM MODE (Old wave-based bonus system for bots)
 	// ==============================================
 
-	const bool is_late_joiner = !client->pers.received_late_join_ammo;
+	// Note: is_late_joiner already declared at top of function
 	const int wave = current_wave_level;
 
 	//
@@ -1239,7 +1239,7 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 	// In RPG Mode (vortex=1), only bots get points (humans use upgrade menu)
 	// In Classic Mode (vortex=0), both humans and bots get points for auto-buy
 	//
-	if (is_late_joiner && (g_vortex->integer == 0 || (ent->svflags & SVF_BOT)))
+	if ((is_late_joiner && !g_vortex->integer) || (g_vortex->integer && (ent->svflags & SVF_BOT)))
 	{
 		// Enable auto-buy by default for late joiners
 		client->pers.auto_buy_benefit_bot = true;
@@ -1319,6 +1319,7 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 	client->pers.max_ammo[AMMO_TRAP] = ammo.trap;
 
 	// Apply skill bonuses (vitality, max ammo)
+	if (g_vortex->integer)
 	ApplySkillBonuses(ent);
 
 	//
@@ -1327,37 +1328,38 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 	client->pers.inventory[IT_ITEM_MENU] = 1;
 	client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
 
-	// Give non-bot players sentry gun and strogg summoner in horde mode (if they have the skill)
-	if (g_horde->integer && !(ent->svflags & SVF_BOT)) {
-		if (client->pers.skills.sentrygun > 0) {
-			client->pers.inventory[IT_ITEM_SENTRYGUN] = 1;
-		}
-		client->pers.inventory[IT_ITEM_STROGGSUMM] = 1;
-	}
-
-	//
-	// BOT TECH INITIALIZATION
-	//
-	if ((ent->svflags & SVF_BOT) && ent->client->resp.ctf_team != CTF_NOTEAM)
+	// Give non-bot players sentry gun and strogg summoner in vortex mode (if they have the skill)
+	if (g_vortex->integer && !(ent->svflags & SVF_BOT))
 	{
-		bool bot_has_tech = false;
-		for (size_t i = 0; i < IT_TOTAL && !bot_has_tech; i++)
 		{
-			if ((itemlist[i].flags & IF_TECH) && client->pers.inventory[i] > 0)
-				bot_has_tech = true;
+			if (client->pers.skills.sentrygun > 0)
+			client->pers.inventory[IT_ITEM_SENTRYGUN] = 1;
+
+			if (client->pers.skills.monster_summon > 0)
+				client->pers.inventory[IT_ITEM_STROGGSUMM] = 1;
 		}
 
-		if (!bot_has_tech)
-			client->pers.inventory[IT_TECH_STRENGTH] = 1;
+		//
+		// BOT TECH INITIALIZATION
+		//
+		if ((ent->svflags & SVF_BOT) && ent->client->resp.ctf_team != CTF_NOTEAM)
+		{
+			bool bot_has_tech = false;
+			for (size_t i = 0; i < IT_TOTAL && !bot_has_tech; i++)
+			{
+				if ((itemlist[i].flags & IF_TECH) && client->pers.inventory[i] > 0)
+					bot_has_tech = true;
+			}
+
+			if (!bot_has_tech)
+				client->pers.inventory[IT_TECH_STRENGTH] = 1;
+		}
+
+		// NOTE: Weapon and ammo loadouts are now handled via g_start_items,
+		// which is dynamically updated each wave by Horde_UpdateStartItemsForWave()
+		// and applied in InitClientPersistant via Player_GiveStartItems()
 	}
-
-	// NOTE: Weapon and ammo loadouts are now handled via g_start_items,
-	// which is dynamically updated each wave by Horde_UpdateStartItemsForWave()
-	// and applied in InitClientPersistant via Player_GiveStartItems()
 }
-
-
-
 // Modified InitClientPersistant
 void InitClientPersistant(edict_t* ent, gclient_t* client)
 {
@@ -1406,7 +1408,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 		client->pers.horde_power_cubes = 0;
 
 		// Initialize PC Regen to level 1 by default in horde/PvM modes (non-resettable)
-		if (g_horde->integer || pvm->integer)
+		if (g_vortex->integer)
 		{
 			client->pers.skills.free_pc_regen = 1;
 			client->pers.skills.pc_regen = 1;
@@ -1474,7 +1476,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 			client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 
 		// Process start items (skip in PvM mode)
-		if (!IsPvMMode())
+		if (!IsPvMMode() || g_horde->integer)
 		{
 			if (g_start_items && *g_start_items->string)
 				Player_GiveStartItems(ent, g_start_items->string);
@@ -1517,7 +1519,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	// Try last weapon, fallback to NoAmmoWeaponChange, then Blaster
 	//
 
-	if (!IsPvMMode())
+	if (!g_vortex->integer) // fixed: PvM always starts with respawn weapon
 	{
 		if (client->pers.lastweapon && client->pers.inventory[client->pers.lastweapon->id] > 0)
 		{
