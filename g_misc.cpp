@@ -102,13 +102,18 @@ edict_t* ThrowGib(edict_t* self, const char* gibname, int damage, gib_type_t typ
 {
 	// Network optimization: Convert to temp entity instead of spawning gib
 	// Can be forced via g_nolag cvar or GIB_BECOME_TE flag
+	// FIX: Only create TE effect for the gib, DO NOT free the parent entity!
 	if ((type & GIB_BECOME_TE) || (g_nolag && g_nolag->integer && !(type & GIB_HEAD)))
 	{
 		vec3_t size = self->size * 0.5f;
 		vec3_t origin = (self->absmin + vec3_t{ 1, 1, 1 }) + size;
 		vec3_t gib_origin = origin + vec3_t{ crandom(), crandom(), crandom() }.scaled(size);
 
-	BecomeTE(self);
+		// Just create the visual effect at the gib position, don't free the parent entity
+		gi.WriteByte(svc_temp_entity);
+		gi.WriteByte(TE_BFG_EXPLOSION);
+		gi.WritePosition(gib_origin);
+		gi.multicast(gib_origin, MULTICAST_PVS, false);
 
 		return nullptr;
 	}
