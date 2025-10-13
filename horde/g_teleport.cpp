@@ -70,7 +70,7 @@ void Cmd_TeleportForward_f(edict_t* ent)
         return;
 
     // Check if player has the teleport_fwd skill
-    if (!ent->client->pers.skills.teleport_fwd)
+    if (g_vortex->integer && !ent->client->pers.skills.teleport_fwd)
     {
         gi.LocClient_Print(ent, PRINT_HIGH, "You need to unlock Teleport Forward skill first!\n");
         return;
@@ -78,7 +78,7 @@ void Cmd_TeleportForward_f(edict_t* ent)
 
     // Check if player has enough power cubes
     constexpr int32_t TELEPORT_CUBE_COST = 25;
-    if (ent->client->pers.horde_power_cubes < TELEPORT_CUBE_COST)
+    if (g_vortex->integer && ent->client->pers.horde_power_cubes < TELEPORT_CUBE_COST)
     {
         gi.LocClient_Print(ent, PRINT_HIGH, "Need {} power cubes to teleport (you have {})\n", TELEPORT_CUBE_COST, ent->client->pers.horde_power_cubes);
         return;
