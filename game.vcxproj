@@ -156,6 +156,7 @@ echo Data files deployed (only new/modified files copied)</Command>
     <ClInclude Include="horde\horde_spawning.h" />
     <ClInclude Include="horde\p_brain_morph.h" />
     <ClInclude Include="horde\p_flyer_morph.h" />
+    <ClInclude Include="horde\weapon_id.h" />
     <ClInclude Include="memory_safety.h" />
     <ClInclude Include="monster_constants.h" />
     <ClInclude Include="m_actor.h" />
@@ -232,6 +233,7 @@ echo Data files deployed (only new/modified files copied)</Command>
     <ClCompile Include="horde\horde_spawning.cpp" />
     <ClCompile Include="horde\p_brain_morph.cpp" />
     <ClCompile Include="horde\p_flyer_morph.cpp" />
+    <ClCompile Include="horde\weapon_id.cpp" />
     <ClCompile Include="m_gunner_vanilla.cpp" />
     <ClCompile Include="g_ai.cpp" />
     <ClCompile Include="g_chase.cpp" />
