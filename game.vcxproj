@@ -69,7 +69,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>FMT_HEADER_ONLY;KEX_Q2_GAME;KEX_Q2GAME_EXPORTS;KEX_Q2GAME_DYNAMIC;_CRT_SECURE_NO_WARNINGS;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard>stdcpp23</LanguageStandard>
       <DisableSpecificWarnings>4267;4244</DisableSpecificWarnings>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <!-- CHANGE 2: Use the static debug runtime library -->
@@ -99,7 +99,7 @@ echo Data files deployed (only new/modified files copied)</Command>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>FMT_HEADER_ONLY;KEX_Q2_GAME;KEX_Q2GAME_EXPORTS;KEX_Q2GAME_DYNAMIC;_CRT_SECURE_NO_WARNINGS;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard>stdcpp23</LanguageStandard>
       <DisableSpecificWarnings>4267;4244</DisableSpecificWarnings>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <!-- CHANGE 2: Use the static release runtime library -->
