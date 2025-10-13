@@ -33,14 +33,14 @@ constexpr int32_t MAX_EFFECTIVE_LEVEL_BOOST = 20;
 // g_spawn_point_map now in g_spawn_system
 
 
-std::flat_map<int, trap_state_t> g_trap_states;
-std::flat_map<int, EmitterState> g_emitter_states;
+boost::container::flat_map<int, trap_state_t> g_trap_states;
+boost::container::flat_map<int, EmitterState> g_emitter_states;
 
 //aiming for special entities for idview.cpp
 std::vector<edict_t*> g_targetable_special_entities;
 
 // Track monster to family mapping for reference counting
-std::flat_map<int, AssetFamilyID> g_monster_family_map;
+boost::container::flat_map<int, AssetFamilyID> g_monster_family_map;
 // Provides a direct list of spawn point edicts for easy iteration
 std::vector<edict_t*> g_spawn_point_list;
 // The actual number of spawn points found on the map
@@ -48,8 +48,8 @@ size_t g_num_spawn_points = 0;
 
 // spawn_map_needs_build now in g_spawn_system
 
-// *** NEW: Use std::flat_map instead of a giant static array ***
-static std::flat_map<int, gtime_t> last_boss_teleport_attempt_time;  // C++23 - per-boss teleport tracking 
+// *** NEW: Use boost::container::flat_map instead of a giant static array ***
+static boost::container::flat_map<int, gtime_t> last_boss_teleport_attempt_time;  // C++23 - per-boss teleport tracking 
 
 // Forward declaration for the new map-building function
 void BuildSpawnPointMap();
@@ -6067,7 +6067,7 @@ private:
     };
     
     static constexpr size_t MAX_CACHE_SIZE = 32;
-    std::flat_map<horde::MonsterTypeID, MonsterTypeCache> type_cache;  // C++23 - hot path cache
+    boost::container::flat_map<horde::MonsterTypeID, MonsterTypeCache> type_cache;  // C++23 - hot path cache
 
     // FIXED: Evict oldest entry when cache is full
     void EvictOldestCacheEntry() {

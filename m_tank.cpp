@@ -17,7 +17,7 @@ All tank variants unified in a single file
 #include "monster_constants.h"
 #include <algorithm>
 #include <numeric>
-#include <flat_map>  // C++23
+#include <boost/container/flat_map.hpp>
 
 // Forward declarations for all variants
 // Standard tank functions
@@ -121,7 +121,7 @@ struct TeleportTargetCache {
 };
 
 // Static cache for tank teleportation
-static std::flat_map<int, TeleportTargetCache> g_teleport_cache;  // C++23 - integer keys for better cache locality
+static boost::container::flat_map<int, TeleportTargetCache> g_teleport_cache;  // C++23 - integer keys for better cache locality
 
 // Cache management functions
 static void CleanupTeleportCache() {

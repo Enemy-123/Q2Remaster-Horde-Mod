@@ -3,7 +3,7 @@
 
 #include "g_local.h"
 #include <string>
-#include <flat_map>  // C++23 flat_map for better cache locality
+#include <boost/container/flat_map.hpp>
 #include "horde/horde_ids.h"
 
 extern std::vector<edict_t*> g_targetable_special_entities;
@@ -52,7 +52,7 @@ trap_state_t* GetTrapState(const edict_t* ent);
 trap_state_t* CreateTrapState(edict_t* ent);
 void RemoveTrapState(const edict_t* ent);
 
-extern std::flat_map<int, trap_state_t> g_trap_states;
+extern boost::container::flat_map<int, trap_state_t> g_trap_states;
 
 // LASERS
 struct EmitterState
@@ -80,7 +80,7 @@ struct EmitterState
 };
 
 // --- CHANGE #1 & #2: Same changes as above for safety and correctness.
-extern std::flat_map<int, EmitterState> g_emitter_states;
+extern boost::container::flat_map<int, EmitterState> g_emitter_states;
 
 // --- CHANGE #3: Add helper functions for laser state management.
 EmitterState* GetEmitterState(const edict_t* ent);
