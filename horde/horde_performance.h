@@ -2,7 +2,7 @@
 
 #include <array>
 #include <vector>
-#include <unordered_map>
+#include <flat_map>  // C++23
 #include <bitset>
 #include <cmath>
 #include <algorithm>
@@ -68,7 +68,7 @@ class SpawnPointSpatialIndex {
         }
     };
 
-    std::unordered_map<uint32_t, Cell> grid_cells;
+    std::flat_map<uint32_t, Cell> grid_cells;  // C++23 - CRITICAL for spatial query performance
     std::vector<edict_t*> all_spawn_points;
 
     static uint32_t GetCellKey(const vec3_t& pos) {

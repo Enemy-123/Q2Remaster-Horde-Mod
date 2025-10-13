@@ -4,6 +4,7 @@
 #include "../g_local.h"
 #include "g_horde.h"
 #include <set>
+#include <flat_set>  // C++23
 #include <algorithm>  // For std::count_if and std::shuffle
 #include "g_horde_benefits.h"
 #include "horde_ids.h"
@@ -32,14 +33,14 @@ constexpr int32_t MAX_EFFECTIVE_LEVEL_BOOST = 20;
 // g_spawn_point_map now in g_spawn_system
 
 
-std::unordered_map<int, trap_state_t> g_trap_states;
-std::unordered_map<int, EmitterState> g_emitter_states;
+std::flat_map<int, trap_state_t> g_trap_states;
+std::flat_map<int, EmitterState> g_emitter_states;
 
 //aiming for special entities for idview.cpp
 std::vector<edict_t*> g_targetable_special_entities;
 
 // Track monster to family mapping for reference counting
-std::unordered_map<int, AssetFamilyID> g_monster_family_map;
+std::flat_map<int, AssetFamilyID> g_monster_family_map;
 // Provides a direct list of spawn point edicts for easy iteration
 std::vector<edict_t*> g_spawn_point_list;
 // The actual number of spawn points found on the map
@@ -47,8 +48,8 @@ size_t g_num_spawn_points = 0;
 
 // spawn_map_needs_build now in g_spawn_system
 
-// *** NEW: Use std::unordered_map instead of a giant static array ***
-static std::unordered_map<int, gtime_t> last_boss_teleport_attempt_time; 
+// *** NEW: Use std::flat_map instead of a giant static array ***
+static std::flat_map<int, gtime_t> last_boss_teleport_attempt_time;  // C++23 - per-boss teleport tracking 
 
 // Forward declaration for the new map-building function
 void BuildSpawnPointMap();
@@ -64,9 +65,9 @@ std::vector<const MonsterTypeInfo *> g_eligible_monsters_for_wave;
 std::vector<size_t> g_eligible_item_indices_for_wave;
 
 // Progressive monster unlocking system for memory management
-static std::unordered_set<horde::MonsterTypeID> g_excluded_monsters_this_map;
-std::unordered_set<horde::MonsterTypeID> g_precached_monsters_this_map; // Non-static for external access
-std::unordered_set<std::string> g_precached_models_this_map; // Non-static for external access
+static std::flat_set<horde::MonsterTypeID> g_excluded_monsters_this_map;  // C++23 - excluded monsters cache
+std::flat_set<horde::MonsterTypeID> g_precached_monsters_this_map; // C++23 - Non-static for external access
+std::unordered_set<std::string> g_precached_models_this_map; // Keep as unordered_set (string keys benefit from hashing)
 static int g_map_rotation_seed = 0;
 static int g_last_precache_wave = 0;
 constexpr int MONSTERS_TO_EXCLUDE_PER_MAP = 28; // Exclude about 28 monsters per map to reduce memory pressure
@@ -1207,7 +1208,7 @@ HordeState g_horde_local;
 
 int16_t current_wave_level = g_horde_local.level;
 bool next_wave_message_sent = false;
-auto auto_spawned_bosses = std::unordered_set<edict_t *>{};
+auto auto_spawned_bosses = std::flat_set<edict_t *>{};  // C++23 - boss tracking
 
 // Function to get the current map size (for use by horde_boss.cpp)
 horde::MapSize GetCurrentMapSize()
@@ -6066,7 +6067,7 @@ private:
     };
     
     static constexpr size_t MAX_CACHE_SIZE = 32;
-    std::unordered_map<horde::MonsterTypeID, MonsterTypeCache> type_cache;
+    std::flat_map<horde::MonsterTypeID, MonsterTypeCache> type_cache;  // C++23 - hot path cache
 
     // FIXED: Evict oldest entry when cache is full
     void EvictOldestCacheEntry() {

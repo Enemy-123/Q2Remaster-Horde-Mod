@@ -106,11 +106,20 @@ CMakeFiles/Q2HordeModDLL.dir/horde/g_fire.cpp.obj: \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/uniform_int_dist.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/stl_tempbuf.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/ranges_algo.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/optional \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/exception \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/exception_ptr.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/cxxabi_init_exception.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/typeinfo \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/hash_bytes.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/nested_exception.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/enable_special_members.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/functional_hash.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/invoke.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/ranges_algobase.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/ranges_base.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/max_size_type.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/numbers \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/invoke.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/ranges_util.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/pstl/glue_algorithm_defs.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/pstl/execution_defs.h \
@@ -124,8 +133,6 @@ CMakeFiles/Q2HordeModDLL.dir/horde/g_fire.cpp.obj: \
  /usr/x86_64-w64-mingw32/include/corecrt_wctype.h \
  /usr/x86_64-w64-mingw32/include/_mingw_stat64.h \
  /usr/x86_64-w64-mingw32/include/sec_api/wchar_s.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/functional_hash.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/hash_bytes.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/iosfwd \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/stringfwd.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/memoryfwd.h \
@@ -142,7 +149,6 @@ CMakeFiles/Q2HordeModDLL.dir/horde/g_fire.cpp.obj: \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/uses_allocator.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/refwrap.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/std_function.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/typeinfo \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/unordered_map \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/unordered_map.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/hashtable.h \
@@ -153,7 +159,6 @@ CMakeFiles/Q2HordeModDLL.dir/horde/g_fire.cpp.obj: \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/allocator.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/x86_64-w64-mingw32/bits/c++allocator.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/new_allocator.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/enable_special_members.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/node_handle.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/erase_if.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/memory_resource.h \
@@ -163,14 +168,13 @@ CMakeFiles/Q2HordeModDLL.dir/horde/g_fire.cpp.obj: \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/stl_vector.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/stl_bvector.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/vector.tcc \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/formatfwd.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/move_only_function.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/mofunc_impl.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/fmt/format.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/fmt/base.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/fmt/format.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/stdexcept \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/exception \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/exception_ptr.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/cxxabi_init_exception.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/nested_exception.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/string \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/localefwd.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/x86_64-w64-mingw32/bits/c++locale.h \
@@ -238,13 +242,21 @@ CMakeFiles/Q2HordeModDLL.dir/horde/g_fire.cpp.obj: \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../ctf/p_ctf_menu.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../horde/g_horde.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../horde/horde_ids.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/flat_set \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../horde/horde_monster_data.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bitset \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/horde_performance.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/flat_map \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/ranges \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/iterator \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/stream_iterator.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/variant \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/monostate.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/parse_numbers.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/elements_of.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/chrono \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/chrono.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/ratio \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/parse_numbers.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/sstream \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/istream \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/ios \
@@ -252,6 +264,9 @@ CMakeFiles/Q2HordeModDLL.dir/horde/g_fire.cpp.obj: \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/basic_ios.tcc \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/ostream \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/ostream.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/format \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/unicode.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/unicode-data.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/ostream.tcc \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/istream.tcc \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/sstream.tcc \
@@ -264,10 +279,4 @@ CMakeFiles/Q2HordeModDLL.dir/horde/g_fire.cpp.obj: \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/chrono_io.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/iomanip \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/quoted_string.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/format \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/optional \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/monostate.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/formatfwd.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/unicode.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/unicode-data.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/g_horde_phys.h

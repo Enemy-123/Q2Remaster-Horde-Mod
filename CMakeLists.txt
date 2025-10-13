@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
 project(Q2HordeMod LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -25,7 +25,7 @@ target_include_directories(Q2HordeModDLL PRIVATE
 
 # Compile options for GCC/MinGW
 target_compile_options(Q2HordeModDLL PRIVATE
-    -std=c++20
+    -std=c++23
     -Wnull-dereference
     -Wno-unused-parameter
     -Wno-error

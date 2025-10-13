@@ -4,14 +4,14 @@
 #include "../bots/bot_includes.h"
 #include "g_horde_benefits.h"
 #include "horde_ids.h"
-#include <unordered_map>
+#include <flat_map>  // C++23
 
 [[nodiscard]] constexpr float SHORT2ANGLE(int16_t x) {
     return static_cast<float>(x) * (360.0f / 65536.0f);
 }
 
 // Static storage for morph data - using entity userdata would be cleaner but this works
-std::unordered_map<edict_t*, morph_data_t> s_morph_data;
+std::flat_map<edict_t*, morph_data_t> s_morph_data;  // C++23 - per-player morph state
 
 morph_data_t* GetMorphData(edict_t* ent) {
     auto it = s_morph_data.find(ent);

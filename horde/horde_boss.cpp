@@ -4,6 +4,7 @@
 #include "../shared.h"
 #include "horde_spawning.h"
 #include <algorithm>
+#include <flat_set>  // C++23
 #include <cmath>
 
 // Global boss variables
@@ -14,7 +15,7 @@ static std::array<BossWaveInfo, static_cast<size_t>(horde::MonsterTypeID::MAX_TY
 
 // External references
 extern int16_t current_wave_level;  // Note: defined as int16_t in g_horde.cpp
-extern std::unordered_set<edict_t *> auto_spawned_bosses;
+extern std::flat_set<edict_t *> auto_spawned_bosses;  // C++23
 
 // External function to get current map size
 extern horde::MapSize GetCurrentMapSize();
