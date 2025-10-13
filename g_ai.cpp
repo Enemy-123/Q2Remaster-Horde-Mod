@@ -1395,7 +1395,7 @@ bool FindTarget(edict_t* self)
 	}
 
 	// Early cooldown check - prevent processing if already on cooldown (prevents animation looping)
-	if (g_horde->integer && heardit && !self->monsterinfo.isfriendlyspawn ||
+	if ((g_horde->integer && heardit && !self->monsterinfo.isfriendlyspawn) ||
 		(g_horde->integer && heardit && !self->monsterinfo.issummoned))
 	{
 		if (self->monsterinfo.lastnoisecooldown > level.time)
@@ -1573,7 +1573,7 @@ bool FindTarget(edict_t* self)
 		self->monsterinfo.sight(self, self->enemy);
 
 	// Late cooldown set - only set cooldown on successful target acquisition
-	if (g_horde->integer && heardit && !self->monsterinfo.isfriendlyspawn ||
+	if ((g_horde->integer && heardit && !self->monsterinfo.isfriendlyspawn) ||
 		(g_horde->integer && heardit && !self->monsterinfo.issummoned))
 	{
 		self->monsterinfo.lastnoisecooldown = level.time + 3.5_sec; //hordehear cooldown, without the cooldown, monsters will be looping on each noise they hear and will be looking very awful changing animations in each frame

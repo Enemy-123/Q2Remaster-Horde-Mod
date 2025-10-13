@@ -163,7 +163,7 @@ void CheckBotAndApplyBenefit(const int32_t wave) {
 struct BonusMapping {
 	std::string_view benefit_name;
 	std::string_view display_text; // The full name for menus
-	std::string_view short_name;   // The shorter name for the scoreboard
+	std::string_view short_name = "";   // The shorter name for the scoreboard (optional, defaults to empty)
 };
 
 

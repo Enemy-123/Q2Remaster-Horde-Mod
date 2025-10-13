@@ -383,7 +383,7 @@ static void SetLevelName(pmenu_t *p)
 	levelname[0] = '*';								 // Prefix with '*' for centered title look
 	if (g_edicts[0].message && *g_edicts[0].message) // Check if worldspawn has a message (level title)
 		Q_strlcpy(levelname + 1, g_edicts[0].message, sizeof(levelname) - 1);
-	else if (level.mapname && *level.mapname) // Fallback to map filename
+	else if (*level.mapname) // Fallback to map filename
 		Q_strlcpy(levelname + 1, level.mapname, sizeof(levelname) - 1);
 	else
 		Q_strlcpy(levelname + 1, "Unknown Level", sizeof(levelname) - 1); // Final fallback
@@ -731,7 +731,7 @@ void OpenMapCategoryMenu(edict_t *ent)
 	idx++;
 
 	// Current map
-	if (level.mapname && *level.mapname)
+	if (*level.mapname)
 	{
 		G_FmtTo(map_category_menu[idx].text, "Current: {}", level.mapname);
 	}
@@ -1013,7 +1013,7 @@ void VoteMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		const std::string &map_name = (*current_map_list)[map_index];
 
 		// Check if it's the current map (but only if not voting for a mode change)
-		if (ent->client->pending_mode_vote == 0 && level.mapname && Q_strcasecmp(map_name.c_str(), level.mapname) == 0)
+		if (ent->client->pending_mode_vote == 0 && Q_strcasecmp(map_name.c_str(), level.mapname) == 0)
 		{
 			gi.LocClient_Print(ent, PRINT_HIGH, "Can't vote for the current map.\n");
 			return; // Stay in the menu

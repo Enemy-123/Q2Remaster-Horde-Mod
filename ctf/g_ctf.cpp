@@ -304,7 +304,7 @@ void CTFAssignSkin(edict_t* ent, const char* s)
 	else
 		t = "male/";
 
-	ent->client->resp.ctf_team;
+	// Note: Line removed - was a no-op statement with no effect
 	t = G_Fmt("{}\\{}\\default", ent->client->pers.netname, s);
 
 
@@ -3177,7 +3177,7 @@ void HordeJoinTeam(edict_t* ent, pmenuhnd_t* p)
 {
 	// For cooperative/single player/PvM modes, directly join team 1 if techs are disabled
 	// This will transition the player from spectator-like state (CTF_NOTEAM) to active play
-	if (coop->integer || !deathmatch->integer && !g_allow_techs->integer || pvm->integer) {
+	if (coop->integer || (!deathmatch->integer && !g_allow_techs->integer) || pvm->integer) {
 		CTFJoinTeam(ent, CTF_TEAM1);
 	} else if (g_horde->integer && !pvm->integer) {
 		// Otherwise open tech menu for selection

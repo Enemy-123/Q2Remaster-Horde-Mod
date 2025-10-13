@@ -583,7 +583,9 @@ void SP_monster_hover(edict_t* self)
     // FIX: This is the new central logic. It sets the monster_type_id from the classname
     // if it hasn't been set already. This makes the system work for all spawn methods.
 	if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) // Check if it hasn't been set yet
-        self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::HOVER);    const spawn_temp_t& st = ED_GetSpawnTemp();
+		self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::HOVER);
+
+	const spawn_temp_t& st = ED_GetSpawnTemp();
 
     if (!M_AllowSpawn(self)) {
         G_FreeEdict(self);

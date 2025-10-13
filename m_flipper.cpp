@@ -354,7 +354,7 @@ void SP_monster_flipper(edict_t *self)
 
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::FLIPPER);
 
-	(!self->s.scale);
+	if (!self->s.scale)
 		self->s.scale = 1.5f;
 
 	sound_pain1.assign("flipper/flppain1.wav");

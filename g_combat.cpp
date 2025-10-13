@@ -1448,7 +1448,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 				return;
 			}
 
-			if (&targ->monsterinfo) {
+			if (targ->svflags & SVF_MONSTER) {
 				targ->monsterinfo.damage_blood += take;
 				targ->monsterinfo.damage_attacker = attacker;
 				targ->monsterinfo.damage_inflictor = inflictor;

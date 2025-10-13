@@ -2544,7 +2544,7 @@ void ReadGameJson(const char* jsonString)
 	uint32_t max_clients = game.maxclients;
 
 	// pull version
-	uint32_t save_version;
+	uint32_t save_version = 0; // Initialize to 0 to ensure defined behavior if read fails
 	read_save_type_json(json["save_version"], &save_version, &save_version_type, "save_version");
 
 	game = {};
@@ -2657,7 +2657,7 @@ void ReadLevelJson(const char* jsonString)
 	globals.num_edicts = game.maxclients + 1;
 
 	// pull version
-	uint32_t save_version;
+	uint32_t save_version = 0; // Initialize to 0 to ensure defined behavior if read fails
 	read_save_type_json(json["save_version"], &save_version, &save_version_type, "save_version");
 
 	// read level

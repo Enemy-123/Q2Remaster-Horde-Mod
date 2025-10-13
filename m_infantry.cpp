@@ -1172,7 +1172,9 @@ constexpr spawnflags_t SPAWNFLAG_INFANTRY_NOJUMPING = 8_spawnflag;
 void SP_monster_infantry_vanilla(edict_t* self)
 {
 	if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN)
-	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::INFANTRY_VANILLA);	const spawn_temp_t& st = ED_GetSpawnTemp();
+		self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::INFANTRY_VANILLA);
+
+	const spawn_temp_t& st = ED_GetSpawnTemp();
 
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
