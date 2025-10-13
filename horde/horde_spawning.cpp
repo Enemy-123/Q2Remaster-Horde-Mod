@@ -183,6 +183,13 @@ static struct EmergencySpawnHistory {
         }
         return false;
     }
+
+    // Reset history on map change or game reset
+    void Reset() {
+        positions.fill(vec3_origin);
+        spawn_times.fill(0_sec);
+        write_index = 0;
+    }
 } g_emergency_spawn_history;
 
 /// Checks if position is too close to other positions in batch or recent emergency spawns
@@ -895,9 +902,52 @@ int ExecuteEmergencySpawnProcedure(int32_t spawnable_this_call,
     if (emergency_spawned_count > 0)
     {
         g_spawn_system.consecutive_spawn_failures = 0; // Reset failures on any success
+        g_spawn_system.consecutive_emergency_failures = 0; // Reset emergency failures too
         if (developer->integer)
             gi.Com_PrintFmt("EMERGENCY SPAWN PROCEDURE: Spawned {}.\n", emergency_spawned_count);
     }
+    else
+    {
+        // FIX: Track consecutive emergency spawn failures
+        g_spawn_system.consecutive_emergency_failures++;
+
+        // FIX: Reset recovery mode if emergency spawning is also failing repeatedly
+        if (g_recovery_mode_active && 
+            g_spawn_system.consecutive_emergency_failures >= HordeConstants::MAX_CONSECUTIVE_EMERGENCY_FAILURES_BEFORE_RESET)
+        {
+            if (developer->integer)
+            {
+                gi.Com_PrintFmt("RECOVERY MODE RESET: Emergency spawning failed {} times. "
+                               "Resetting to normal wave type and clearing failures.\n",
+                               g_spawn_system.consecutive_emergency_failures);
+            }
+
+            // Reset recovery mode
+            g_recovery_mode_active = false;
+            current_wave_type = g_spawn_system.original_wave_type_before_recovery;
+            g_spawn_system.original_wave_type_before_recovery = MonsterWaveType::None;
+
+            // Reset failure counters to give the system a fresh start
+            g_spawn_system.consecutive_spawn_failures = 0;
+            g_spawn_system.consecutive_emergency_failures = 0;
+
+            // Force a spawn cache rebuild to try different spawn points
+            g_spawn_system.need_spawn_cache_reset = true;
+        }
+    }
 
     return emergency_spawned_count;
+}
+
+// ============================================================================
+// EMERGENCY SPAWN HISTORY RESET
+// ============================================================================
+
+void ResetEmergencySpawnHistory()
+{
+    g_emergency_spawn_history.Reset();
+    if (developer && developer->integer > 1)
+    {
+        gi.Com_PrintFmt("INFO: Emergency spawn history cleared.\\n");
+    }
 }

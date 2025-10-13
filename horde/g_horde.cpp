@@ -3693,8 +3693,12 @@ void ResetGame()
 	need_frame_timer_reset = true;
 	need_queue_monitor_reset = true;
 	g_spawn_system.consecutive_spawn_failures = 0;
+	g_spawn_system.consecutive_emergency_failures = 0;
 	g_recovery_mode_active = false;
 	g_spawn_system.original_wave_type_before_recovery = MonsterWaveType::None;
+
+	// FIX: Clear emergency spawn history to prevent stale positions from previous map
+	ResetEmergencySpawnHistory();
 
 	g_horde_local = HordeState();
 	g_horde_local.level = 0;
@@ -7209,6 +7213,10 @@ static void Horde_InitLevel(const int32_t lvl)
 	g_horde_retaliation_last_trigger_time = 0_sec;
 	ResetChampionMonsterState();
 	waves_since_ambush++;
+
+	// FIX: Clear emergency spawn history at the start of each wave
+	// Old spawn positions from previous waves are no longer relevant
+	ResetEmergencySpawnHistory();
 
 	// Initialize monster rotation for wave 1 (first wave of a new map)
 	if (lvl == 1) {

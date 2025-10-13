@@ -44,6 +44,7 @@ namespace HordeConstants
 	// --- Spawn Failure & Recovery ---
 	inline constexpr int MAX_CONSECUTIVE_FAILURES_BEFORE_RECOVERY = 5;
 	inline constexpr int MAX_CONSECUTIVE_FAILURES_BEFORE_EMERGENCY = 10;
+	inline constexpr int MAX_CONSECUTIVE_EMERGENCY_FAILURES_BEFORE_RESET = 20;  // Reset recovery mode after this many failed emergency spawns
 	inline constexpr int MAX_SPAWN_ATTEMPTS_PER_CYCLE = 50;
 	inline constexpr int MAX_UNSTICK_ATTEMPTS = 3;
 

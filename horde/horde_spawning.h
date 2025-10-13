@@ -98,6 +98,7 @@ struct SpawnSystemState {
 
     // --- Failure Tracking & Recovery ---
     int32_t consecutive_spawn_failures = 0;
+    int32_t consecutive_emergency_failures = 0;  // Track emergency spawn failures for recovery mode failsafe
     MonsterWaveType original_wave_type_before_recovery = MonsterWaveType::None;
 
     // --- Reset Flags ---
@@ -123,6 +124,7 @@ struct SpawnSystemState {
         spawn_validation_cache.clear();
 
         consecutive_spawn_failures = 0;
+        consecutive_emergency_failures = 0;
         original_wave_type_before_recovery = MonsterWaveType::None;
 
         need_spawn_cache_reset = false;
@@ -245,6 +247,9 @@ int ExecuteEmergencySpawnProcedure(
     int32_t spawnable_this_call,
     int32_t currentLevel,
     float champion_chance_param);
+
+// Resets the emergency spawn history (called during game reset/map change)
+void ResetEmergencySpawnHistory();
 
 // ============================================================================
 // EXTERNAL FUNCTIONS FROM g_horde.cpp (needed by horde_spawning.cpp)
