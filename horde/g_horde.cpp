@@ -4,7 +4,7 @@
 #include "../g_local.h"
 #include "g_horde.h"
 #include <set>
-#include <flat_set>  // C++23
+#include <boost/container/flat_set.hpp>
 #include <algorithm>  // For std::count_if and std::shuffle
 #include "g_horde_benefits.h"
 #include "horde_ids.h"
@@ -65,8 +65,8 @@ std::vector<const MonsterTypeInfo *> g_eligible_monsters_for_wave;
 std::vector<size_t> g_eligible_item_indices_for_wave;
 
 // Progressive monster unlocking system for memory management
-static std::flat_set<horde::MonsterTypeID> g_excluded_monsters_this_map;  // C++23 - excluded monsters cache
-std::flat_set<horde::MonsterTypeID> g_precached_monsters_this_map; // C++23 - Non-static for external access
+static boost::container::flat_set<horde::MonsterTypeID> g_excluded_monsters_this_map;  // C++23 - excluded monsters cache
+boost::container::flat_set<horde::MonsterTypeID> g_precached_monsters_this_map; // C++23 - Non-static for external access
 std::unordered_set<std::string> g_precached_models_this_map; // Keep as unordered_set (string keys benefit from hashing)
 static int g_map_rotation_seed = 0;
 static int g_last_precache_wave = 0;
@@ -1208,7 +1208,7 @@ HordeState g_horde_local;
 
 int16_t current_wave_level = g_horde_local.level;
 bool next_wave_message_sent = false;
-auto auto_spawned_bosses = std::flat_set<edict_t *>{};  // C++23 - boss tracking
+auto auto_spawned_bosses = boost::container::flat_set<edict_t *>{};  // C++23 - boss tracking
 
 // Function to get the current map size (for use by horde_boss.cpp)
 horde::MapSize GetCurrentMapSize()

@@ -8,7 +8,7 @@
 #include <vector>
 #include <array>
 #include <unordered_set>
-#include <flat_set>  // C++23
+#include <boost/container/flat_set.hpp>
 
 constexpr const char* HORDE_MOD_VERSION_STRING = "*Horde BETA MOD v0.00996";
 
@@ -219,7 +219,7 @@ extern std::unordered_set<std::string> g_precached_sounds;
 extern int32_t g_total_precached_models;
 extern int32_t g_total_precached_sounds;
 extern std::array<bool, 128> g_precached_monster_types_flags; // Precache flags for each monster type
-extern std::flat_set<horde::MonsterTypeID> g_precached_monsters_this_map; // C++23 - Monster types precached this map
+extern boost::container::flat_set<horde::MonsterTypeID> g_precached_monsters_this_map; // C++23 - Monster types precached this map
 extern std::unordered_set<std::string> g_precached_models_this_map; // Models loaded this map (string keys benefit from hashing)
 
 // --- Operator Overloads for MonsterWaveType ---
