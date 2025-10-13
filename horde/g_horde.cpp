@@ -540,13 +540,14 @@ struct SpawnPointCacheArray
 {
 	std::vector<SpawnPointCache> data;
 
-	// Access operator now uses the compact index map
+	// FIX: Access operator should NOT have side effects - removed BuildSpawnPointMap() call
+	// The map must be built explicitly before accessing the cache to avoid race conditions
 	SpawnPointCache& operator[](const edict_t* ent) {
-		// First check if map needs building
+		// Assert in debug builds if map wasn't built - this catches programming errors
 		if (g_spawn_system.spawn_map_needs_build) {
-			gi.Com_PrintFmt("WARNING: Accessing spawn point cache before BuildSpawnPointMap() - building now\n");
-			BuildSpawnPointMap();
-			g_spawn_system.spawn_map_needs_build = false;
+			gi.Com_PrintFmt("ERROR: Accessing spawn point cache before BuildSpawnPointMap() was called!\n");
+			gi.Com_PrintFmt("ERROR: This is a programming error - BuildSpawnPointMap() must be called explicitly.\n");
+			assert(false && "spawn_map_needs_build flag set - BuildSpawnPointMap() was not called!");
 		}
 
 		auto it = g_spawn_system.spawn_point_map.find(ent->s.number);
@@ -998,7 +999,15 @@ edict_t* SelectNextShuffledSpawnPoint(TFilter filter)
 
 	return std::nullopt;
 }
+// FIX: Time-sliced spawn point cache cleanup to avoid iterating all points every frame
 static void CleanupSpawnPointCache() {
+	// Only run this operation every 5 frames to reduce per-frame cost
+	static int cleanup_frame_counter = 0;
+	if (++cleanup_frame_counter < 5) {
+		return;
+	}
+	cleanup_frame_counter = 0;
+
 	// Reset cache entries but preserve allocated size
 	for (auto& cache : spawn_point_cache.data) {
 		cache = {};  // Reset to default state
@@ -1074,11 +1083,19 @@ uint16_t g_totalMonstersInWave = 0; // Reducido de uint32_t
 gtime_t horde_message_end_time = 0_sec;
 gtime_t SPAWN_POINT_COOLDOWN = 2.8_sec; // spawns Cooldown
 
+// FIX: Time-sliced cooldown checking to reduce per-frame overhead on large maps
 static void CheckAndReduceSpawnCooldowns()
 {
 	if (GetStroggsNum() > 6 || IsBossWave()) {
 		return;
 	}
+
+	// Only run this operation every 3 frames to reduce per-frame cost
+	static int cooldown_frame_counter = 0;
+	if (++cooldown_frame_counter < 3) {
+		return;
+	}
+	cooldown_frame_counter = 0;
 
 	bool found_cooldowns_to_reset = false;
 	const gtime_t current_time = level.time;
@@ -3291,9 +3308,12 @@ constexpr int MIN_VERTICAL_VELOCITY = 400;
 // void RestoreFog();
 
 // Asegúrate de limpiar entidades muertas
+// NOTE: This function uses active_or_dead_monsters() iterator for efficient monster iteration.
+// The second loop over all edicts is necessary for gibs/projectiles as they are not monsters.
+// This is only called during wave cleanup/skipwave, not every frame, so performance is acceptable.
 void Horde_CleanBodies()
 {
-	// Clean up dead monsters
+	// Clean up dead monsters - uses optimized iterator
 	for (edict_t *ent : active_or_dead_monsters())
 	{
 		if (ent->deadflag || ent->health <= 0)
@@ -3310,6 +3330,7 @@ void Horde_CleanBodies()
 	}
 
 	// Clean up gibs, bodyque, and stuck projectiles
+	// NOTE: This linear scan is necessary as gibs/projectiles are not indexed separately
 	for (int i = game.maxclients + 1; i < static_cast<int>(globals.num_edicts); i++)
 	{
 		edict_t* ent = &g_edicts[i];
@@ -3616,6 +3637,16 @@ void ResetGame()
 
 	//resetting idview special entities
 	g_targetable_special_entities.clear();
+
+	// FIX: Clear monster family map to prevent incorrect state across map changes
+	g_monster_family_map.clear();
+
+	// FIX: Clear progressive precaching state for proper monster rotation on server restart
+	g_excluded_monsters_this_map.clear();
+	g_precached_monsters_this_map.clear();
+	g_precached_models_this_map.clear();
+	// Note: g_map_rotation_seed is intentionally NOT reset here to maintain rotation across waves
+
 	// recent spawns
 	g_recent_spawns.positions.fill(vec3_origin);
 	g_recent_spawns.cooldowns_until.fill(0_sec);
