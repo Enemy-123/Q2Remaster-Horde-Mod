@@ -133,7 +133,7 @@ TOUCH(PVM_BackpackTouch)(edict_t *backpack, edict_t *other, const trace_t &tr, b
             other->client->pers.inventory[i] += count;
 
             // Clamp to max
-            if (item->ammo && item->ammo < AMMO_MAX)
+            if (item->ammo && item->ammo < IT_TOTAL)
             {
                 int max_ammo = other->client->pers.max_ammo[item->ammo];
                 if (other->client->pers.inventory[i] > max_ammo)

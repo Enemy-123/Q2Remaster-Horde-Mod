@@ -1158,11 +1158,14 @@ void MonsterCommand(edict_t* player)
 	}
 
 	// Update last command timer (used for 'double-click' commands)
-	player->client->lastCommand = level.time + gtime_t::from_sec(2.0f);
-	if (tr.ent)
-		player->client->lastEnt = tr.ent;
-	else
-		player->client->lastEnt = nullptr;
+	// Safety check - should never be null here, but compiler static analysis requires it
+	if (player->client) {
+		player->client->lastCommand = level.time + gtime_t::from_sec(2.0f);
+		if (tr.ent)
+			player->client->lastEnt = tr.ent;
+		else
+			player->client->lastEnt = nullptr;
+	}
 }
 
 // Command all selected monsters to follow the player
