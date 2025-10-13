@@ -1896,6 +1896,7 @@ struct monsterinfo_t
 	vec3_t last_valid_move;          // Last successful movement direction for momentum
 	gtime_t corridor_check_time;     // Last time corridor detection was performed (optimization)
 	int corridor_blocked_dirs;       // Cached corridor blocked direction count
+	int corridor_tight_blocked_dirs; // Cached tight corridor blocked direction count (single-file detection)
 
 	// NOTE: if adding new elements, make sure to add them
 	// in g_save.cpp too!

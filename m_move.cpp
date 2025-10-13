@@ -5,6 +5,7 @@
 #include "g_local.h"
 #include "horde/horde_ids.h"
 #include "horde/p_flyer_morph.h"
+#include "horde/g_horde_phys.h"
 
 // ============================================================================
 // Movement Constants - Extracted for performance and maintainability
@@ -23,7 +24,8 @@ constexpr float REPULSION_MULTI_MONSTER_SCALE = 0.7f;
 constexpr float REPULSION_STRENGTH_DEFAULT = 0.25f;
 constexpr float REPULSION_STRENGTH_BOSS = 0.1f;
 constexpr float REPULSION_STRENGTH_COMBAT = 0.5f;
-constexpr float REPULSION_STRENGTH_CORRIDOR = 0.3f;
+constexpr float REPULSION_STRENGTH_CORRIDOR = 0.1f;       // Reduced from 0.3 to 0.1
+constexpr float REPULSION_STRENGTH_TIGHT_CORRIDOR = 0.0f; // New: completely disable in very tight spaces
 constexpr float REPULSION_MIN_THRESHOLD_SQ = 1.0f;
 constexpr int REPULSION_MAX_NEARBY_MONSTERS = 8;
 constexpr int REPULSION_CROWDING_THRESHOLD = 4;
@@ -31,7 +33,9 @@ constexpr gtime_t REPULSION_CACHE_TIME = 150_ms;
 
 // Corridor detection constants
 constexpr float CORRIDOR_CHECK_DISTANCE = 64.0f;
+constexpr float CORRIDOR_CHECK_DISTANCE_TIGHT = 48.0f;  // New: tighter check for single-file corridors
 constexpr int CORRIDOR_BLOCKED_THRESHOLD = 2;
+constexpr int CORRIDOR_BLOCKED_TIGHT_THRESHOLD = 3;     // New: all 4 directions blocked = tight corridor
 
 // Combat range constants
 constexpr float COMBAT_RANGE_MELEE = 64.0f;
@@ -118,13 +122,18 @@ static vec3_t CalculateMonsterRepulsion(edict_t* ent)
 	if (personal_space <= 0)
 		personal_space = GetMonsterPersonalSpace(ent);
 
-	// Search for nearby monsters
+	// Search for nearby monsters using spatial grid (O(1) instead of O(n))
 	const float search_radius = personal_space * MONSTER_PERSONAL_SPACE_SEARCH_MULTIPLIER;
 	const float personal_space_sq = personal_space * personal_space; // Squared for faster comparison
-	edict_t* other = nullptr;
 	int nearby_count = 0;
 
-	while ((other = findradius(other, ent->s.origin, search_radius)) != nullptr)
+	// Use ProximityGrid for massive performance improvement over findradius
+	// This reduces complexity from O(n) to O(1) using spatial partitioning
+	std::span<edict_t* const> nearby_entities = HordePhys::g_monster_grid.IsBuilt()
+		? HordePhys::g_monster_grid.QueryRadius(ent->s.origin, search_radius)
+		: std::span<edict_t* const>{};
+
+	for (edict_t* other : nearby_entities)
 	{
 		// Skip self, non-monsters, and dead things
 		if (other == ent || !other->inuse || !(other->svflags & SVF_MONSTER))
@@ -204,31 +213,51 @@ static void ApplyMonsterRepulsion(edict_t* ent, vec3_t& move, bool in_combat)
 		// Check if we're in a narrow space (corridor) - optimized with early exits
 		const vec3_t& origin = ent->s.origin;
 		int blocked_dirs = 0;
+		int tight_blocked_dirs = 0;
 
 		// Use simpler line traces instead of full bbox traces for better performance
+		// Check all 4 cardinal directions at two distances (normal and tight)
 		if (gi.traceline(origin, origin + vec3_t{-CORRIDOR_CHECK_DISTANCE, 0, 0}, ent, MASK_SOLID).fraction < 1.0f)
 			blocked_dirs++;
 		if (gi.traceline(origin, origin + vec3_t{CORRIDOR_CHECK_DISTANCE, 0, 0}, ent, MASK_SOLID).fraction < 1.0f)
 			blocked_dirs++;
+		if (gi.traceline(origin, origin + vec3_t{0, -CORRIDOR_CHECK_DISTANCE, 0}, ent, MASK_SOLID).fraction < 1.0f)
+			blocked_dirs++;
+		if (gi.traceline(origin, origin + vec3_t{0, CORRIDOR_CHECK_DISTANCE, 0}, ent, MASK_SOLID).fraction < 1.0f)
+			blocked_dirs++;
 
-		// Early exit if already found corridor
-		if (blocked_dirs < CORRIDOR_BLOCKED_THRESHOLD)
+		// Additional check for VERY tight corridors (single monster width)
+		if (blocked_dirs >= CORRIDOR_BLOCKED_THRESHOLD)
 		{
-			if (gi.traceline(origin, origin + vec3_t{0, CORRIDOR_CHECK_DISTANCE, 0}, ent, MASK_SOLID).fraction < 1.0f)
-				blocked_dirs++;
-			if (blocked_dirs < CORRIDOR_BLOCKED_THRESHOLD &&
-				gi.traceline(origin, origin + vec3_t{0, -CORRIDOR_CHECK_DISTANCE, 0}, ent, MASK_SOLID).fraction < 1.0f)
-				blocked_dirs++;
+			if (gi.traceline(origin, origin + vec3_t{-CORRIDOR_CHECK_DISTANCE_TIGHT, 0, 0}, ent, MASK_SOLID).fraction < 1.0f)
+				tight_blocked_dirs++;
+			if (gi.traceline(origin, origin + vec3_t{CORRIDOR_CHECK_DISTANCE_TIGHT, 0, 0}, ent, MASK_SOLID).fraction < 1.0f)
+				tight_blocked_dirs++;
+			if (gi.traceline(origin, origin + vec3_t{0, -CORRIDOR_CHECK_DISTANCE_TIGHT, 0}, ent, MASK_SOLID).fraction < 1.0f)
+				tight_blocked_dirs++;
+			if (gi.traceline(origin, origin + vec3_t{0, CORRIDOR_CHECK_DISTANCE_TIGHT, 0}, ent, MASK_SOLID).fraction < 1.0f)
+				tight_blocked_dirs++;
 		}
 
 		// Cache the result
 		ent->monsterinfo.corridor_blocked_dirs = blocked_dirs;
+		ent->monsterinfo.corridor_tight_blocked_dirs = tight_blocked_dirs;
 		ent->monsterinfo.corridor_check_time = level.time + CORRIDOR_CACHE_TIME;
 	}
 
-	// In tight spaces, reduce repulsion to allow passage
-	if (ent->monsterinfo.corridor_blocked_dirs >= CORRIDOR_BLOCKED_THRESHOLD)
+	// PERFORMANCE FIX: Better corridor handling to prevent traffic jams
+	// In very tight spaces (3-4 directions blocked at close range), completely disable lateral repulsion
+	// This allows monsters to pass each other in single-file corridors without getting stuck
+	if (ent->monsterinfo.corridor_tight_blocked_dirs >= CORRIDOR_BLOCKED_TIGHT_THRESHOLD)
+	{
+		// Tight corridor detected - disable repulsion completely to allow passage
+		repulsion_strength = REPULSION_STRENGTH_TIGHT_CORRIDOR;
+	}
+	else if (ent->monsterinfo.corridor_blocked_dirs >= CORRIDOR_BLOCKED_THRESHOLD)
+	{
+		// Regular corridor - reduce repulsion significantly
 		repulsion_strength *= REPULSION_STRENGTH_CORRIDOR;
+	}
 
 	// Blend repulsion with intended movement
 	const vec3_t original_move = move;
@@ -255,6 +284,7 @@ void InitMonsterAntiStack(edict_t* ent)
 	// Initialize corridor caching
 	ent->monsterinfo.corridor_check_time = 0_sec;
 	ent->monsterinfo.corridor_blocked_dirs = 0;
+	ent->monsterinfo.corridor_tight_blocked_dirs = 0;
 
 	// Set preferred combat range based on monster type
 	if (ent->monsterinfo.melee)
@@ -1023,25 +1053,35 @@ if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::
 	{
 		ent->monsterinfo.bad_move_time = level.time + BAD_MOVE_TIME_PENALTY;
 
-		// Improved collision recovery with validation
+		// Improved collision recovery with smooth yaw interpolation
 		if (ent->monsterinfo.bump_time < level.time && chosen_forward.fraction < 1.0f)
 		{
 			// Calculate slide velocity
 			vec3_t slide_dir = SlideClipVelocity(AngleVectors(vec3_t{ 0.f, ent->ideal_yaw, 0.f }).forward, chosen_forward.plane.normal, 1.0f);
-			
+
 			// Validate the slide direction
 			if (slide_dir.lengthSquared() > 0.1f)
 			{
 				float new_yaw = vectoyaw(slide_dir);
-				
-				// Check if new direction is significantly different and not just oscillating
-				float yaw_diff = fabsf(ent->ideal_yaw - new_yaw);
-				if (yaw_diff > 180.f)
-					yaw_diff = 360.f - yaw_diff;
 
-				if (yaw_diff > DIRECTION_YAW_MIN_DIFF && yaw_diff < DIRECTION_YAW_MAX_DIFF)
+				// Check if new direction is significantly different and not just oscillating
+				float yaw_diff = new_yaw - ent->ideal_yaw;
+				// Normalize to -180 to 180 range
+				if (yaw_diff > 180.f)
+					yaw_diff -= 360.f;
+				else if (yaw_diff < -180.f)
+					yaw_diff += 360.f;
+
+				float abs_yaw_diff = fabsf(yaw_diff);
+				if (abs_yaw_diff > DIRECTION_YAW_MIN_DIFF && abs_yaw_diff < DIRECTION_YAW_MAX_DIFF)
 				{
-					ent->ideal_yaw = new_yaw;
+					// PERFORMANCE FIX: Smooth yaw interpolation instead of instant snap
+					// Apply 40% of the rotation per frame to eliminate jerky wall-sliding
+					// This creates natural-looking turns while maintaining responsiveness
+					ent->ideal_yaw += yaw_diff * 0.4f;
+					// Normalize back to 0-360 range
+					ent->ideal_yaw = anglemod(ent->ideal_yaw);
+
 					ent->monsterinfo.random_change_time = level.time + RANDOM_CHANGE_BASE;
 					ent->monsterinfo.bump_time = level.time + BUMP_TIME_DELAY;
 					return true;
