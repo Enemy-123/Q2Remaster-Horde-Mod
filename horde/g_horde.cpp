@@ -4747,13 +4747,33 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 	if (self->teleport_time > level.time)
 		return false;
 
-	// --- 2. Global Rate Limiting ---
+	// --- 2. Global Rate Limiting (ADAPTIVE BASED ON REMAINING MONSTERS) ---
+	const int32_t remaining_monsters = GetStroggsNum();
+
 	if (level.time > HordeConstants::g_teleport_rate_reset_time)
 	{
 		HordeConstants::g_teleport_rate_count = 0;
 		HordeConstants::g_teleport_rate_reset_time = level.time + HordeConstants::GLOBAL_TELEPORT_RESET_INTERVAL;
 	}
-	int max_teleports = HordeConstants::MAX_TELEPORTS_PER_INTERVAL + ((g_insane->integer || g_chaotic->integer) ? 1 : 0);
+
+	// ADAPTIVE RATE LIMITING: Much more aggressive when few monsters remain
+	int max_teleports;
+	if (remaining_monsters <= 3)
+	{
+		// Very aggressive - allow up to 10 teleports when 3 or fewer monsters
+		max_teleports = 10;
+	}
+	else if (remaining_monsters <= 6)
+	{
+		// Aggressive - allow up to 6 teleports when 4-6 monsters remain
+		max_teleports = 6;
+	}
+	else
+	{
+		// Normal rate limiting for higher monster counts
+		max_teleports = HordeConstants::MAX_TELEPORTS_PER_INTERVAL + ((g_insane->integer || g_chaotic->integer) ? 1 : 0);
+	}
+
 	if (HordeConstants::g_teleport_rate_count >= max_teleports)
 	{
 		return false;
@@ -4852,7 +4872,18 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 			{
 				// Use shorter timeout for monsters that were never visible (prioritize them)
 				// Use longer grace period for monsters that had visibility then lost it
-				gtime_t timeout_duration = self->monsterinfo.was_ever_visible_to_player ? 3_sec : 1_sec;
+				// ALSO: Make timeout much shorter when few monsters remain
+				gtime_t timeout_duration;
+				if (remaining_monsters <= 6)
+				{
+					// Very aggressive timeout when few monsters remain
+					timeout_duration = 0.5_sec; // Teleport almost immediately
+				}
+				else
+				{
+					timeout_duration = self->monsterinfo.was_ever_visible_to_player ? 3_sec : 1_sec;
+				}
+
 				if (level.time > self->monsterinfo.unreachable_start_time + timeout_duration)
 				{
 					needs_teleport = true;
@@ -4877,7 +4908,11 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 			if (self->monsterinfo.no_enemy_timeout_start_time == 0_sec)
 				self->monsterinfo.no_enemy_timeout_start_time = level.time;
 
-			const gtime_t no_enemy_timeout = HordeConstants::GetNoEnemyTimeout(mapSize);
+			gtime_t no_enemy_timeout = HordeConstants::GetNoEnemyTimeout(mapSize);
+			// Reduce timeout when few monsters remain
+			if (remaining_monsters <= 6)
+				no_enemy_timeout = 3_sec;
+
 			if (level.time > self->monsterinfo.no_enemy_timeout_start_time + no_enemy_timeout)
 			{
 				needs_teleport = true;
@@ -4903,9 +4938,14 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 			// Check inactivity timeout (only if last_activity_time was initialized)
 			if (self->monsterinfo.last_activity_time > 0_sec && self->max_health > 0)
 			{
-				const gtime_t timeout_duration = (self->health < self->max_health) ?
+				gtime_t timeout_duration = (self->health < self->max_health) ?
 					HordeConstants::GetDamagedMonsterTimeout(mapSize) :
 					HordeConstants::GetNoDamageTimeout(mapSize);
+
+				// Reduce timeout when few monsters remain
+				if (remaining_monsters <= 6)
+					timeout_duration = 5_sec;
+
 				const char* timeout_reason = (self->health < self->max_health) ?
 					"Damaged Monster Inactivity" : "No Damage Timeout (Failsafe)";
 
@@ -4925,7 +4965,8 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 	static gtime_t last_debug_print = 0_sec;
 	if (developer->integer && (level.time > last_debug_print + 1_sec))
 	{
-		gi.Com_PrintFmt("[CATS] Trigger for {}: {}.\n", self->classname, reason_str);
+		gi.Com_PrintFmt("[CATS] Trigger for {}: {}. Remaining: {}, MaxTeleports: {}\n",
+			self->classname, reason_str, remaining_monsters, max_teleports);
 		last_debug_print = level.time;
 	}
 
