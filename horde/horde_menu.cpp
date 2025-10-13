@@ -6470,12 +6470,13 @@ private:
 	std::vector<PlayerScore> team_players;
 	std::vector<PlayerScore> spectators;
 	int total_score;
+	size_t players_actually_rendered;  // Track actual rendered count for spectator positioning
 
 	static constexpr size_t MAX_SPECTATORS_TO_DISPLAY = 8;
 
 public:
 	ScoreboardLayout(edict_t *player_ent, size_t reserve_size = MAX_CTF_STAT_LENGTH)
-		: layout_builder(reserve_size), ent(player_ent), total_score(0)
+		: layout_builder(reserve_size), ent(player_ent), total_score(0), players_actually_rendered(0)
 	{
 	}
 
@@ -6594,11 +6595,17 @@ public:
 				header_y));
 		}
 
+		// Calculate actual space needed for spectators + footer dynamically
+		size_t footer_space = level.intermissiontime ? 120 : 100;
+		size_t spectator_entry_size = g_vortex->integer ? 90 : 85;
+		size_t spectator_space = std::min(spectators.size(), MAX_SPECTATORS_TO_DISPLAY) * spectator_entry_size;
+		size_t total_reserve = footer_space + spectator_space + 50;  // 50 byte safety margin
+
 		// Loop through players - optimized format (set Y once per player)
 		for (size_t i = 0; i < std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY); ++i)
 		{
-			// Safety check: reserve ~300 bytes for spectators + footer
-			if (layout_builder.size() >= MAX_CTF_STAT_LENGTH - 300)
+			// Dynamic safety check: reserve only what's actually needed
+			if (layout_builder.size() >= MAX_CTF_STAT_LENGTH - total_reserve)
 			{
 				break;
 			}
@@ -6624,6 +6631,9 @@ public:
 					"if 0 yv {} xv -140 string \"{}\" xv 70 string \"{}\"  xv 120 string \"{}\" endif \n",
 					y, player_name, player.score, player.ping));
 			}
+
+			// Track actual count of rendered players for spectator positioning
+			players_actually_rendered = i + 1;
 		}
 	}
 
@@ -6633,7 +6643,8 @@ public:
 		if (layout_builder.size() < MAX_CTF_STAT_LENGTH - LAYOUT_SAFETY_MARGIN && !spectators.empty())
 		{
 			// Calculate the starting Y position for the spectator list, leaving a gap after the player list.
-			int y = PLAYER_Y_START + (std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY) + 1) * PLAYER_Y_SPACING;
+			// Use players_actually_rendered to position based on what was actually displayed, not total player count
+			int y = PLAYER_Y_START + (players_actually_rendered + 1) * PLAYER_Y_SPACING;
 
 			// Add the "Spectators & AFK" header
 			layout_builder.append(fmt::format(
