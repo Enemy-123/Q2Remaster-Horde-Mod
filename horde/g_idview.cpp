@@ -78,16 +78,16 @@ EntityType GetEntityType(const edict_t* ent) {
 	return EntityType::Other;
 }
 
-const char* FormatEntityInfo_Fast(edict_t* ent) {
-    static char info_buffer[256];
-
-    if (!ent || !ent->inuse) {
-        info_buffer[0] = '\0';
-        return info_buffer;
+const char* FormatEntityInfo_Fast(edict_t* ent, char* buffer, size_t buffer_size) {
+    if (!ent || !ent->inuse || !buffer || buffer_size == 0) {
+        if (buffer && buffer_size > 0) {
+            buffer[0] = '\0';
+        }
+        return buffer;
     }
 
-    char* out = info_buffer;
-    char* const end = info_buffer + sizeof(info_buffer);
+    char* out = buffer;
+    char* const end = buffer + buffer_size;
 
     const EntityType type = GetEntityType(ent);
 
@@ -148,8 +148,8 @@ const char* FormatEntityInfo_Fast(edict_t* ent) {
     case EntityType::Other: {
         auto special_id = static_cast<horde::SpecialEntityTypeID>(ent->special_type_id);
         if (special_id == horde::SpecialEntityTypeID::UNKNOWN) {
-            info_buffer[0] = '\0';
-            return info_buffer;
+            buffer[0] = '\0';
+            return buffer;
         }
 
         edict_t* stats_source = ent;
@@ -234,7 +234,7 @@ const char* FormatEntityInfo_Fast(edict_t* ent) {
         *(end - 1) = '\0';
     }
 
-    return info_buffer;
+    return buffer;
 }
 
 struct IDViewConfig {
@@ -382,7 +382,8 @@ void SetIDView(edict_t* ent) {
 	// This block is now executed every throttled frame for a selected target, ensuring
 	// that dynamic data like health and armor is kept up-to-date.
 	if (current_target) {
-		 const char* info = FormatEntityInfo_Fast(current_target);
+		char info_buffer[256];
+		const char* info = FormatEntityInfo_Fast(current_target, info_buffer, sizeof(info_buffer));
 		if (info && info[0] != '\0') {
 			// The game engine is smart enough not to send a network update
 			// if the configstring content hasn't changed.

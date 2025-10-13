@@ -88,86 +88,86 @@ namespace horde {
         // Fill in all monster type mappings
         s_monsterTypeMap = {
             // Basic infantry
-            {"monster_soldier_light", MonsterTypeID::SOLDIER_LIGHT},       // 1
-            {"monster_soldier", MonsterTypeID::SOLDIER},                     // 2
-            {"monster_soldier_ss", MonsterTypeID::SOLDIER_SS},               // 3
-            {"monster_soldier_hypergun", MonsterTypeID::SOLDIER_HYPERGUN},   // 4
-            {"monster_soldier_ripper", MonsterTypeID::SOLDIER_RIPPER},       // 5
-            {"monster_soldier_lasergun", MonsterTypeID::SOLDIER_LASERGUN},   // 6
+            {"monster_soldier_light", MonsterTypeID::SOLDIER_LIGHT},       // 0
+            {"monster_soldier", MonsterTypeID::SOLDIER},                     // 1
+            {"monster_soldier_ss", MonsterTypeID::SOLDIER_SS},               // 2
+            {"monster_soldier_hypergun", MonsterTypeID::SOLDIER_HYPERGUN},   // 47
+            {"monster_soldier_ripper", MonsterTypeID::SOLDIER_RIPPER},       // 48
+            {"monster_soldier_lasergun", MonsterTypeID::SOLDIER_LASERGUN},   // 49
 
             // Infantry units
-            {"monster_infantry", MonsterTypeID::INFANTRY},                   // 7
-            {"monster_infantry_vanilla", MonsterTypeID::INFANTRY_VANILLA},   // 8
+            {"monster_infantry", MonsterTypeID::INFANTRY},                   // 3
+            {"monster_infantry_vanilla", MonsterTypeID::INFANTRY_VANILLA},   // 4
 
             // Gunner types
-            {"monster_gunner", MonsterTypeID::GUNNER},                       // 9
-            {"monster_gunner_vanilla", MonsterTypeID::GUNNER_VANILLA},       // 10
-            {"monster_guncmdr", MonsterTypeID::GUNCMDR},                     // 11
-            {"monster_guncmdr_vanilla", MonsterTypeID::GUNCMDR_VANILLA},     // 12
-            {"monster_guncmdrkl", MonsterTypeID::GUNCMDR_KL},                // 13
+            {"monster_gunner", MonsterTypeID::GUNNER},                       // 5
+            {"monster_gunner_vanilla", MonsterTypeID::GUNNER_VANILLA},       // 6
+            {"monster_guncmdr", MonsterTypeID::GUNCMDR},                     // 42
+            {"monster_guncmdr_vanilla", MonsterTypeID::GUNCMDR_VANILLA},     // 43
+            {"monster_guncmdrkl", MonsterTypeID::GUNCMDR_KL},                // 44
 
             // Support units
-            {"monster_medic", MonsterTypeID::MEDIC},                         // 14
-            {"monster_medic_commander", MonsterTypeID::MEDIC_COMMANDER},     // 15
+            {"monster_medic", MonsterTypeID::MEDIC},                         // 7
+            {"monster_medic_commander", MonsterTypeID::MEDIC_COMMANDER},     // 41
 
             // Gladiator variants
-            {"monster_gladiator", MonsterTypeID::GLADIATOR},                 // 16
-            {"monster_gladb", MonsterTypeID::GLADIATOR_B},                   // 17
-            {"monster_gladc", MonsterTypeID::GLADIATOR_C},                   // 18
+            {"monster_gladiator", MonsterTypeID::GLADIATOR},                 // 8
+            {"monster_gladb", MonsterTypeID::GLADIATOR_B},                   // 9
+            {"monster_gladc", MonsterTypeID::GLADIATOR_C},                   // 10
 
             // Tank variants
-            {"monster_tank", MonsterTypeID::TANK},                           // 19
-            {"monster_tank_commander", MonsterTypeID::TANK_COMMANDER},       // 20
-            {"monster_tank_64", MonsterTypeID::TANK_64},                     // 21
-            {"monster_tank_spawner", MonsterTypeID::TANK_SPAWNER},           // 22
-            {"monster_runnertank", MonsterTypeID::RUNNERTANK},               // 23
+            {"monster_tank", MonsterTypeID::TANK},                           // 11
+            {"monster_tank_commander", MonsterTypeID::TANK_COMMANDER},       // 12
+            {"monster_tank_64", MonsterTypeID::TANK_64},                     // 13
+            {"monster_tank_spawner", MonsterTypeID::TANK_SPAWNER},           // 45
+            {"monster_runnertank", MonsterTypeID::RUNNERTANK},               // 14
 
             // Chick variants
-            {"monster_chick", MonsterTypeID::CHICK},                         // 24
-            {"monster_chick_heat", MonsterTypeID::CHICK_HEAT},               // 25
-            {"monster_chickkl", MonsterTypeID::CHICKKL},                     // 26
+            {"monster_chick", MonsterTypeID::CHICK},                         // 15
+            {"monster_chick_heat", MonsterTypeID::CHICK_HEAT},               // 16
+            {"monster_chickkl", MonsterTypeID::CHICKKL},                     // 17
 
             // Small units
-            {"monster_parasite", MonsterTypeID::PARASITE},                   // 27
-            {"monster_brain", MonsterTypeID::BRAIN},                         // 27
-            {"monster_stalker", MonsterTypeID::STALKER},                     // 28
+            {"monster_parasite", MonsterTypeID::PARASITE},                   // 18
+            {"monster_brain", MonsterTypeID::BRAIN},                         // 19
+            {"monster_stalker", MonsterTypeID::STALKER},                     // 30
 
             // Flying units
-            {"monster_flyer", MonsterTypeID::FLYER},                         // 29
-            {"monster_hover", MonsterTypeID::HOVER},                         // 30
-            {"monster_hover_vanilla", MonsterTypeID::HOVER_VANILLA},         // 31
-            {"monster_floater", MonsterTypeID::FLOATER},                     // 32
-            {"monster_floater_tracker", MonsterTypeID::FLOATER_TRACKER},     // 33
-            {"monster_fixbot", MonsterTypeID::FIXBOT},                       // 34
-            {"monster_fixbotkl", MonsterTypeID::FIXBOT_KL},                  // 35
-            {"monster_daedalus", MonsterTypeID::DAEDALUS},                   // 36
-            {"monster_daedalus_bomber", MonsterTypeID::DAEDALUS_BOMBER},     // 37
+            {"monster_flyer", MonsterTypeID::FLYER},                         // 20
+            {"monster_hover", MonsterTypeID::HOVER},                         // 21
+            {"monster_hover_vanilla", MonsterTypeID::HOVER_VANILLA},         // 22
+            {"monster_floater", MonsterTypeID::FLOATER},                     // 28
+            {"monster_floater_tracker", MonsterTypeID::FLOATER_TRACKER},     // 29
+            {"monster_fixbot", MonsterTypeID::FIXBOT},                       // 26
+            {"monster_fixbotkl", MonsterTypeID::FIXBOT_KL},                  // 27
+            {"monster_daedalus", MonsterTypeID::DAEDALUS},                   // 50
+            {"monster_daedalus_bomber", MonsterTypeID::DAEDALUS_BOMBER},     // 51
 
             // Mutant types
-            {"monster_mutant", MonsterTypeID::MUTANT},                       // 38
-            {"monster_redmutant", MonsterTypeID::REDMUTANT},                 // 39
-            {"monster_berserk", MonsterTypeID::BERSERK},                     // 40
-            {"monster_gekk", MonsterTypeID::GEKK},                           // 41
+            {"monster_mutant", MonsterTypeID::MUTANT},                       // 23
+            {"monster_redmutant", MonsterTypeID::REDMUTANT},                 // 24
+            {"monster_berserk", MonsterTypeID::BERSERK},                     // 25
+            {"monster_gekk", MonsterTypeID::GEKK},                           // 31
 
             // Special fog wave bosses
-            {"monster_berserkerkl", MonsterTypeID::BERSERKERKL},             // 42
-            {"monster_gekkkl", MonsterTypeID::GEKKKL},                       // 43
+            {"monster_berserkerkl", MonsterTypeID::BERSERKERKL},             // 82
+            {"monster_gekkkl", MonsterTypeID::GEKKKL},                       // 83
 
             // Arachnid types
-            {"monster_spider", MonsterTypeID::SPIDER},                       // 42
-            {"monster_arachnid2", MonsterTypeID::ARACHNID2},                 // 43
-            {"monster_gm_arachnid", MonsterTypeID::GM_ARACHNID},             // 44
-            {"monster_psxarachnid", MonsterTypeID::PSX_ARACHNID},            // 45
+            {"monster_spider", MonsterTypeID::SPIDER},                       // 32
+            {"monster_arachnid2", MonsterTypeID::ARACHNID2},                 // 33
+            {"monster_gm_arachnid", MonsterTypeID::GM_ARACHNID},             // 34
+            {"monster_psxarachnid", MonsterTypeID::PSX_ARACHNID},            // 35
 
             // Shambler types
-            {"monster_shambler", MonsterTypeID::SHAMBLER},                   // 46
-            {"monster_shambler_small", MonsterTypeID::SHAMBLER_SMALL},       // 47
-            {"monster_shamblerkl", MonsterTypeID::SHAMBLER_KL},              // 48
+            {"monster_shambler", MonsterTypeID::SHAMBLER},                   // 36
+            {"monster_shambler_small", MonsterTypeID::SHAMBLER_SMALL},       // 37
+            {"monster_shamblerkl", MonsterTypeID::SHAMBLER_KL},              // 38
 
             // Special units
-            {"monster_janitor", MonsterTypeID::JANITOR},                     // 49
-            {"monster_janitor2", MonsterTypeID::JANITOR2},                   // 50
-            {"monster_perrokl", MonsterTypeID::PERRO_KL},                    // 51
+            {"monster_janitor", MonsterTypeID::JANITOR},                     // 39
+            {"monster_janitor2", MonsterTypeID::JANITOR2},                   // 40
+            {"monster_perrokl", MonsterTypeID::PERRO_KL},                    // 46
 
             // Boss units
             {"monster_boss2", MonsterTypeID::BOSS2},                         // 52
@@ -198,11 +198,11 @@ namespace horde {
             {"misc_easterchick2", MonsterTypeID::EASTERCHICK2}, // 74
             {"monster_commander_body", MonsterTypeID::COMMANDER_BODY},  // 75
             {"misc_bigviper", MonsterTypeID::BIGVIPER}, // 76
-            {"monster_kamikaze", MonsterTypeID::KAMIKAZE}, // 77
-            {"monster_arachnid", MonsterTypeID::ARACHNID}, // 78
+            {"monster_kamikaze", MonsterTypeID::KAMIKAZE}, // 78
+            {"monster_arachnid", MonsterTypeID::ARACHNID}, // 77
             {"monster_supertank", MonsterTypeID::SUPERTANK}, // 79
             {"monster_supertankkl", MonsterTypeID::SUPERTANKKL}, // 80
-            {"monster_flipper", MonsterTypeID::FLIPPER}, // 80
+            {"monster_flipper", MonsterTypeID::FLIPPER}, // 81
         };
     
         // Initialize the reverse mapping
@@ -279,6 +279,10 @@ namespace horde {
 
     void SpawnPointTimeTracker::Reset() {
         m_lastSpawnTimes.clear();
+        // Pre-allocate to max_edicts to avoid reallocations during gameplay
+        if (globals.max_edicts > 0) {
+            m_lastSpawnTimes.reserve(globals.max_edicts);
+        }
     }
 
     void SpawnPointTimeTracker::SetLastSpawnTime(const edict_t* point, gtime_t time) {
@@ -525,10 +529,22 @@ namespace horde {
             Initialize();
         }
 
+        // First try direct lookup (most maps will be lowercase already)
         auto it = s_mapIDMap.find(map_name);
         if (it != s_mapIDMap.end()) [[likely]] {
             return it->second;
         }
+
+        // If not found, convert to lowercase and try again for case-insensitive lookup
+        std::string lowercase_name = map_name;
+        std::transform(lowercase_name.begin(), lowercase_name.end(), lowercase_name.begin(),
+                       [](unsigned char c){ return std::tolower(c); });
+
+        it = s_mapIDMap.find(lowercase_name);
+        if (it != s_mapIDMap.end()) {
+            return it->second;
+        }
+
         return MapID::UNKNOWN;
     }
 
