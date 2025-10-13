@@ -635,12 +635,17 @@ USE(Use_Plat) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 
 TOUCH(Touch_Plat_Center) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
+	if (!ent)
+		return;
+
 	if (!other->client)
 		return;
 
 	if (other->health <= 0)
 		return;
 
+	if (!ent->enemy)
+		return;
 	ent = ent->enemy; // now point at the plat, not the trigger
 	if (ent->moveinfo.state == STATE_BOTTOM)
 		plat_go_up(ent);
