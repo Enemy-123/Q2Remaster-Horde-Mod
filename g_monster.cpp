@@ -1477,7 +1477,7 @@ THINK(monster_think) (edict_t* self) -> void
 
 	// Monster upkeep system - drain 1 cube per second per summoned monster (asynchronous)
 	// Each monster has its own timer, so they drain independently based on spawn time
-	if (g_horde->integer && self->monsterinfo.issummoned && self->chain && self->chain->client)
+	if (g_vortex->integer && self->monsterinfo.issummoned && self->chain && self->chain->client)
 	{
 		// Check if it's time to drain a cube (1 second interval)
 		if (level.time >= self->monsterinfo.upkeep_time)

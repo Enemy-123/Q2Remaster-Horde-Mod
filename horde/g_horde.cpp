@@ -6334,9 +6334,10 @@ struct RewardInfo
 };
 
 // Define the rewards ONLY ONCE in this array
-static const std::array<RewardInfo, 3> TOP_DAMAGER_REWARDS = {{
-	{IT_ITEM_BANDOLIER, 79}, // More common
-	{IT_ITEM_PACK, 20}, // More common
+static const std::array<RewardInfo, 4> TOP_DAMAGER_REWARDS = {{
+	{IT_ITEM_BANDOLIER, 60}, // More common
+	{IT_ITEM_SENTRYGUN, 20}, // More common
+	{IT_ITEM_STROGGSUMM, 19}, // More common
 	{IT_AMMO_NUKE, 1}		 // lessss common
 }};
 
@@ -6360,7 +6361,7 @@ static const int TOTAL_REWARD_WEIGHT = []
 static const char* GiveTopDamagerReward(const PlayerStats& topDamager, std::string_view playerName)
 {
 	// Quick validation with early return
-	if (!topDamager.player || !topDamager.player->inuse || !topDamager.player->client)
+	if (!topDamager.player || !topDamager.player->inuse || !topDamager.player->client || (g_vortex->integer))
 		return nullptr;
 
 	const int roll = irandom(1, TOTAL_REWARD_WEIGHT);
