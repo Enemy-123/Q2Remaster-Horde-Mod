@@ -13,7 +13,7 @@
     },
     {
       "name": "boost-container",
-      "version>=": "1.84.0"
+      "version>=": "1.89.0"
     }
   ]
 }

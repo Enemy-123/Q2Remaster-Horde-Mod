@@ -92,7 +92,7 @@ struct SpawnSystemState {
     int32_t cached_flying_spawn_count = 0;
 
     // --- Spawn Point Data ---
-    std::flat_map<int, uint16_t> spawn_point_map;  // C++23 flat_map for better cache locality
+    boost::container::flat_map<int, uint16_t> spawn_point_map;  // C++23 flat_map for better cache locality
     SpawnPointsSoA spawn_points_data;
     std::vector<CachedSpawnPointData> spawn_validation_cache;
 
