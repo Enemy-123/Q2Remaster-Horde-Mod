@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <unordered_map>
+#include <flat_map>  // C++23
 #include <string>
 #include <array>
 
@@ -482,8 +483,8 @@ struct MonsterLevelScaling
 // Monsters configuration - maps MonsterTypeID to stats
 struct MonstersConfig
 {
-	std::unordered_map<uint8_t, MonsterStatsConfig> monsters;
-	std::unordered_map<std::string, MonsterLevelScaling> level_scaling;
+	std::flat_map<uint8_t, MonsterStatsConfig> monsters;  // C++23 - small integer keys (0-255) for frequent lookups
+	std::unordered_map<std::string, MonsterLevelScaling> level_scaling;  // String keys benefit from hashing
 };
 
 // Map-specific override configuration
