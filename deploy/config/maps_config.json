@@ -120,7 +120,7 @@
       "map_size": "big"
     },
     "rdm11": {
-      "monster_cap": -1,
+      "monster_cap": 32,
       "enable_grid": true,
       "enable_loadent": false,
       "map_size": "big"
