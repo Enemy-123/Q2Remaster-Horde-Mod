@@ -1317,9 +1317,9 @@ edict_t* Drop_Item(edict_t* ent, gitem_t* item)
 	if ((g_horde->integer && P_UseCoopInstancedItems()) || (G_IsCooperative() && P_UseCoopInstancedItems()))
 		dropped->svflags |= SVF_INSTANCED;
 
-	// In Horde mode, if a non-player (monster) drops sentrygun or stroggsumm items,
+	// In vortex mode, if a non-player (monster) drops sentrygun or stroggsumm items,
 	// make them invisible to human players (non-bots only see them if they're bots)
-	if (g_horde->integer && !ent->client) {
+	if (g_vortex->integer && !ent->client) {
 		// Check if this is a sentrygun or stroggsumm item
 		if (item->id == IT_ITEM_SENTRYGUN || item->id == IT_ITEM_STROGGSUMM) {
 			// Mark item as "picked up" by all non-bot players to make it invisible to them
