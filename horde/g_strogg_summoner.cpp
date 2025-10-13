@@ -419,7 +419,6 @@ void Use_StroggSummon_Impl(edict_t* ent, gitem_t* item)
 	// --- 4. Placement Logic ---
 	vec3_t forward;
 	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
-	vec3_t const base_spawn_angles = { 0, ent->client->v_angle[YAW], 0 };
 
 	// Generate random distance and height for placement
 	float const distance = irandom(40.f, 125.f);
