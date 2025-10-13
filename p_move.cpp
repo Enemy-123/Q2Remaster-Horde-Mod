@@ -39,15 +39,21 @@ inline bool PM_NeedsLandTime()
 }
 
 // [Paril-KEX] generic code to detect & fix a stuck object
+// Suppress GCC false-positive array-bounds warning for std::sort on small arrays
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
 stuck_result_t G_FixStuckObject_Generic(vec3_t& origin, const vec3_t& own_mins, const vec3_t& own_maxs, std::function<stuck_object_trace_fn_t> trace)
 {
 	if (!trace(origin, own_mins, own_maxs, origin).startsolid)
 		return stuck_result_t::GOOD_POSITION;
 
-	struct {
+	struct good_pos_t {
 		float distance;
 		vec3_t origin;
-	} good_positions[6];
+	};
+	std::array<good_pos_t, 6> good_positions;
 	size_t num_good_positions = 0;
 
 	constexpr struct {
@@ -168,14 +174,18 @@ stuck_result_t G_FixStuckObject_Generic(vec3_t& origin, const vec3_t& own_mins, 
 		if (tr.startsolid)
 			continue;
 
-		good_positions[num_good_positions].origin = new_origin;
-		good_positions[num_good_positions].distance = delta.lengthSquared();
-		num_good_positions++;
+		// Safety check: ensure we don't exceed array bounds
+		if (num_good_positions < good_positions.size())
+		{
+			good_positions[num_good_positions].origin = new_origin;
+			good_positions[num_good_positions].distance = delta.lengthSquared();
+			num_good_positions++;
+		}
 	}
 
 	if (num_good_positions)
 	{
-		std::sort(&good_positions[0], &good_positions[num_good_positions - 1], [](const auto& a, const auto& b) { return a.distance < b.distance; });
+		std::sort(good_positions.begin(), good_positions.begin() + num_good_positions, [](const auto& a, const auto& b) { return a.distance < b.distance; });
 
 		origin = good_positions[0].origin;
 
@@ -184,6 +194,9 @@ stuck_result_t G_FixStuckObject_Generic(vec3_t& origin, const vec3_t& own_mins, 
 
 	return stuck_result_t::NO_GOOD_POSITION;
 }
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
 // all of the locals will be zeroed before each
 // pmove, just to make damn sure we don't have
