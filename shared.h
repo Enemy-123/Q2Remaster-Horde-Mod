@@ -181,7 +181,7 @@ extern bool Horde_TeleportMonster(edict_t* self, const vec3_t& destination_origi
 
 const char* GetPlayerName(const edict_t* player);
 extern const char* GetDisplayName(const edict_t* ent);
-extern const char* GetTitleFromFlags(bonus_flags_t bonus_flags) noexcept;
+extern std::string_view GetTitleFromFlags(bonus_flags_t bonus_flags) noexcept;
 extern bool IsPlayerDefense(const edict_t* ent);
 extern void VerifyAndAdjustBots();
 extern bool GetPredictedScaledBounds(horde::MonsterTypeID typeId, vec3_t& out_mins, vec3_t& out_maxs);

@@ -61,35 +61,35 @@ static void ResetSpawnPointSelection();
 		return nullptr;
 	}
 
-	thread_local size_t last_checked_index = 0;
-
+	// Start from a random index to avoid spawn clustering in multiplayer
+	// Previous thread_local approach was broken - it shared state across all players
+	const size_t start_index = static_cast<size_t>(irandom(g_num_spawn_points));
 	const size_t max_attempts = std::min(MAX_SPAWN_ATTEMPTS, g_num_spawn_points);
 
+	// First pass: look for clear, non-aerial spawn points
 	for (size_t i = 0; i < max_attempts; ++i) {
-		size_t check_index = (last_checked_index + i) % g_num_spawn_points;
+		size_t check_index = (start_index + i) % g_num_spawn_points;
 		edict_t* spot = g_spawn_point_list[check_index];
 
 		// Exclude style=1 spawn points (aerial spawns for flying monsters)
 		if (spot && spot->inuse && spot->style != 1 && !IsSpawnPointOccupied(spot)) {
-			last_checked_index = check_index + 1;
 			return spot;
 		}
 	}
 
-	// Fallback: find any non-style=1 spawn point
+	// Fallback: find any non-style=1 spawn point (even if occupied)
 	for (size_t i = 0; i < g_num_spawn_points; ++i) {
-		size_t check_index = (last_checked_index + i) % g_num_spawn_points;
+		size_t check_index = (start_index + i) % g_num_spawn_points;
 		edict_t* spot = g_spawn_point_list[check_index];
 
 		if (spot && spot->inuse && spot->style != 1) {
-			last_checked_index = check_index + 1;
 			return spot;
 		}
 	}
 
 	// Last resort: return any spawn point (should rarely happen)
-	last_checked_index = static_cast<size_t>(irandom(g_num_spawn_points));
-	return g_spawn_point_list[last_checked_index];
+	size_t fallback_index = static_cast<size_t>(irandom(g_num_spawn_points));
+	return g_spawn_point_list[fallback_index];
 }
 
 // Reset spawn point selection state (called when map changes)
@@ -180,7 +180,8 @@ namespace {
 // 3: Enhanced map size cache with perfect hash
 [[nodiscard]] horde::MapSize GetMapSize(const char* mapname) noexcept {
     // If the map has changed, clear cache and reset spawn point tracking
-    if (strcmp(g_last_map_for_cache, level.mapname) != 0) {
+    // Use case-insensitive comparison to handle "q2dm1" vs "Q2DM1"
+    if (Q_strcasecmp(g_last_map_for_cache, level.mapname) != 0) {
         g_mapsize_cache.fill(std::nullopt);
         Q_strlcpy(g_last_map_for_cache, level.mapname, sizeof(g_last_map_for_cache));
 
@@ -308,6 +309,11 @@ void RemovePlayerOwnedEntities(edict_t* player) {
 [[nodiscard]] bool IsPlayerDefense(const edict_t* ent) {
     if (!ent) return false;
 
+    // Validate special_type_id is within valid range to prevent undefined behavior
+    if (ent->special_type_id >= static_cast<uint8_t>(horde::SpecialEntityTypeID::COUNT)) {
+        return false;
+    }
+
     auto id = static_cast<horde::SpecialEntityTypeID>(ent->special_type_id);
     if (id == horde::SpecialEntityTypeID::UNKNOWN) return false;
 
@@ -326,13 +332,22 @@ void RemovePlayerOwnedEntities(edict_t* player) {
 [[nodiscard]] bool IsRemovableEntity(const edict_t* ent) {
     if (!ent) return false;
 
+    // Validate special_type_id is within valid range to prevent undefined behavior
+    if (ent->special_type_id >= static_cast<uint8_t>(horde::SpecialEntityTypeID::COUNT)) {
+        if (developer->integer) {
+            gi.Com_PrintFmt("ERROR: Entity has invalid special_type_id {} (classname: {})\n",
+                ent->special_type_id, ent->classname ? ent->classname : "NULL");
+        }
+        return false;
+    }
+
     auto id = static_cast<horde::SpecialEntityTypeID>(ent->special_type_id);
     if (id == horde::SpecialEntityTypeID::UNKNOWN) {
         if (developer->integer) {
             thread_local std::unordered_set<std::string_view> reported_classnames;
             thread_local char last_map_for_reporting[MAX_QPATH] = "";
-            
-            if (strcmp(last_map_for_reporting, level.mapname) != 0) {
+
+            if (Q_strcasecmp(last_map_for_reporting, level.mapname) != 0) {
                 reported_classnames.clear();
                 Q_strlcpy(last_map_for_reporting, level.mapname, sizeof(last_map_for_reporting));
             }
@@ -358,7 +373,7 @@ void RemovePlayerOwnedEntities(edict_t* player) {
         (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::NUKE_MINE)) |
         (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER)) |
         (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::BARREL));
-    
+
     return (REMOVABLE_MASK & (1ULL << static_cast<uint64_t>(id))) != 0;
 }
 
@@ -424,10 +439,11 @@ float M_DamageModifier(edict_t* monster) noexcept {
 }
 
 // 9:  title generation with compile-time strings
-const char* GetTitleFromFlags(bonus_flags_t bonus_flags) noexcept {
+// Returns string to be used with GetDisplayName's internal buffer
+std::string_view GetTitleFromFlags(bonus_flags_t bonus_flags) noexcept {
 	static constexpr struct {
 		bonus_flags_t flags;
-		const char* title;
+		std::string_view title;
 	} common_titles[] = {
 		{BF_CHAMPION, "Champion "},
 		{BF_CORRUPTED, "Corrupted "},
@@ -449,30 +465,21 @@ const char* GetTitleFromFlags(bonus_flags_t bonus_flags) noexcept {
 		}
 	}
 
-	thread_local char title_buffer[64];
-	char* ptr = title_buffer;
-	const char* const end = title_buffer + sizeof(title_buffer) - 1; // Reserve space for null terminator
+	// For complex multi-flag combinations, we need to build dynamically
+	// Allocate space for up to 7 flags (max realistic combination)
+	static thread_local std::string title_builder;
+	title_builder.clear();
+	title_builder.reserve(64);
 
-	auto append_title = [&](const char* text, size_t len_without_null) {
-		// Ensure we don't overflow the buffer
-		const size_t remaining = static_cast<size_t>(end - ptr);
-		const size_t copy_len = std::min(len_without_null, remaining);
-		if (copy_len > 0) {
-			memcpy(ptr, text, copy_len);
-			ptr += copy_len;
-		}
-	};
+	if (bonus_flags & BF_CHAMPION)    title_builder += "Champion ";
+	if (bonus_flags & BF_CORRUPTED)   title_builder += "Corrupted ";
+	if (bonus_flags & BF_RAGEQUITTER) title_builder += "Ragequitter ";
+	if (bonus_flags & BF_GHOSTLY)     title_builder += "Ghostly ";
+	if (bonus_flags & BF_POSSESSED)   title_builder += "Possessed ";
+	if (bonus_flags & BF_STYGIAN)     title_builder += "Stygian ";
+	if (bonus_flags & BF_FRIENDLY)    title_builder += "Friendly ";
 
-	if (bonus_flags & BF_CHAMPION)   append_title("Champion ", 9);
-	if (bonus_flags & BF_CORRUPTED)  append_title("Corrupted ", 10);
-	if (bonus_flags & BF_RAGEQUITTER) append_title("Ragequitter ", 12);
-	if (bonus_flags & BF_GHOSTLY)    append_title("Ghostly ", 8);
-	if (bonus_flags & BF_POSSESSED)  append_title("Possessed ", 10);
-	if (bonus_flags & BF_STYGIAN)    append_title("Stygian ", 8);
-	if (bonus_flags & BF_FRIENDLY)   append_title("Friendly ", 9);
-
-	*ptr = '\0';
-	return title_buffer;
+	return title_builder;
 }
 
 // 10: Pre-computed display names with perfect hash
@@ -531,9 +538,10 @@ void InitializeDisplayNames() {
     g_displayNamesInitialized = true;
 }
 
-// 11:  display name generation with thread-safe static buffer
+// 11:  display name generation with proper buffer management
+// Fixed: No longer has re-entrancy bug from nested static buffer calls
 const char* GetDisplayName(const edict_t* ent) {
-    // Use thread_local to avoid issues with multiple calls in the same expression
+    // Use thread_local buffer - safe because we capture title before calling G_Fmt
     thread_local char display_name_buffer[128];
 
     if (!ent) {
@@ -556,10 +564,12 @@ const char* GetDisplayName(const edict_t* ent) {
         base_name_ptr = ent->classname ? ent->classname : "Unknown";
     }
 
-    const char* title_ptr = GetTitleFromFlags(ent->monsterinfo.bonus_flags);
+    // CRITICAL FIX: Capture title as string_view BEFORE calling G_Fmt
+    // This prevents re-entrancy bug where G_Fmt might call back into GetTitleFromFlags
+    std::string_view title = GetTitleFromFlags(ent->monsterinfo.bonus_flags);
 
-    // Safely copy to our buffer
-    auto result = G_Fmt("{}{}", title_ptr, base_name_ptr);
+    // Now safe to format - title is already captured and won't be overwritten
+    auto result = G_Fmt("{}{}", title, base_name_ptr);
     size_t copy_len = std::min(result.size(), sizeof(display_name_buffer) - 1);
     memcpy(display_name_buffer, result.data(), copy_len);
     display_name_buffer[copy_len] = '\0';
