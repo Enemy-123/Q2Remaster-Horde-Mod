@@ -10,6 +10,7 @@
 namespace horde {
 	struct MapSize;
 	enum class MapID : uint16_t;
+	enum class WeaponID : uint8_t;
 }
 
 // Configuration for entity limits
@@ -458,17 +459,9 @@ struct MonsterStatsConfig
 	float armor_scale = 1.0f;          // Boss: 1.5x
 	float power_armor_scale = 1.0f;    // Boss: 1.5x
 
-
-//// =======================================================================
-// ADD THIS NEW BLOCK OF CODE
-// =======================================================================
-// Load weapon damage overrides
-
-	std::unordered_map<std::string, int> weapon_damage_overrides; 
-// =======================================================================
-// END OF NEW CODE
-// =======================================================================
-
+	// Weapon damage overrides - OPTIMIZED using array-based lookup (O(1) instead of O(log n))
+	// Index using horde::WeaponID enum. Value of 0 means "use global damage"
+	std::array<int, 24> weapon_damage_overrides{}; // 24 = horde::WeaponID::MAX_WEAPONS
 };
 
 // Monster level scaling configuration (level-based progression)

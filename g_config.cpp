@@ -2,6 +2,7 @@
 #include "g_local.h"
 #include "shared.h"
 #include "horde/horde_ids.h"
+#include "horde/weapon_id.h"
 #include "horde/g_pvm.h"
 #include <json/json.h>
 #include <fstream>
@@ -194,10 +195,7 @@ void Config_LoadMonsters(const char* basedir)
 			config.armor_scale = GetJsonFloat(monster_data, "armor_scale", 1.0f);
 			config.power_armor_scale = GetJsonFloat(monster_data, "power_armor_scale", 1.0f);
 
-			// =======================================================================
-			// ADD THIS NEW BLOCK OF CODE
-			// =======================================================================
-			// Load weapon damage overrides
+			// Load weapon damage overrides - OPTIMIZED using array-based WeaponID lookup
 			if (monster_data.isMember("weapon_damage") && monster_data["weapon_damage"].isObject())
 			{
 				const Json::Value &overrides = monster_data["weapon_damage"];
@@ -205,13 +203,20 @@ void Config_LoadMonsters(const char* basedir)
 				{
 					if (overrides[weapon_name].isInt())
 					{
-						config.weapon_damage_overrides[weapon_name] = overrides[weapon_name].asInt();
+						// Convert weapon name string to WeaponID enum (one-time cost during config loading)
+						horde::WeaponID weapon_id = horde::WeaponRegistry::GetWeaponID(weapon_name.c_str());
+						if (weapon_id != horde::WeaponID::UNKNOWN)
+						{
+							// Store in array using WeaponID as index for O(1) lookup
+							config.weapon_damage_overrides[static_cast<size_t>(weapon_id)] = overrides[weapon_name].asInt();
+						}
+						else
+						{
+							gi.Com_PrintFmt("Config: WARNING - Unknown weapon '{}' in {} config\n", weapon_name, monster_name);
+						}
 					}
 				}
 			}
-			// =======================================================================
-			// END OF NEW CODE
-			// =======================================================================
 
 			g_config.monsters.monsters[monster_id] = config;
 			loaded_count++;
@@ -1025,38 +1030,40 @@ int GetGlobalWeaponDamage(const char* weapon_name)
 	return g_config.global_weapon_damage.*(it->second);
 }
 
-// Get specific weapon damage for a monster
-// In g_config.cpp
+// Get specific weapon damage for a monster - OPTIMIZED with O(1) array lookup
 int GetMonsterWeaponDamage(uint8_t monster_type_id, const char* weapon_name)
 {
 	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
 	int base_damage = 0;
 
-	// =======================================================================
-	// START OF MODIFIED LOGIC
-	// =======================================================================
-	// Step 1: Try to find a monster-specific override first.
-	if (config)
+	// Step 1: Convert weapon name to WeaponID ONCE (instead of repeated string lookups)
+	horde::WeaponID weapon_id = horde::WeaponRegistry::GetWeaponID(weapon_name);
+	if (weapon_id == horde::WeaponID::UNKNOWN) [[unlikely]]
 	{
-		auto it = config->weapon_damage_overrides.find(weapon_name);
-		if (it != config->weapon_damage_overrides.end())
+		gi.Com_PrintFmt("WARNING: GetMonsterWeaponDamage - Unknown weapon '{}', returning 0\n", weapon_name);
+		return 0;
+	}
+
+	// Step 2: Try to find a monster-specific override using O(1) array lookup
+	if (config) [[likely]]
+	{
+		size_t weapon_index = static_cast<size_t>(weapon_id);
+		int override_damage = config->weapon_damage_overrides[weapon_index];
+		if (override_damage != 0)
 		{
-			base_damage = it->second; // Found an override! Use it.
+			base_damage = override_damage; // Found an override! Use it.
 		}
 	}
 
-	// Step 2: If no override was found, fall back to the global weapon damage.
+	// Step 3: If no override was found, fall back to the global weapon damage
 	if (base_damage == 0)
 	{
 		base_damage = GetGlobalWeaponDamage(weapon_name);
 	}
-	// =======================================================================
-	// END OF MODIFIED LOGIC
-	// =======================================================================
 
 	if (base_damage == 0)
 	{
-		gi.Com_PrintFmt("WARNING: GetMonsterWeaponDamage - Unknown weapon '{}', returning 0\n", weapon_name);
+		gi.Com_PrintFmt("WARNING: GetMonsterWeaponDamage - No damage value for weapon '{}', returning 0\n", weapon_name);
 		return 0;
 	}
 

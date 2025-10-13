@@ -1,4 +1,5 @@
 #include "horde_ids.h"
+#include "weapon_id.h"
 #include "g_horde.h"
 #include <algorithm>
 
@@ -28,6 +29,7 @@ namespace horde {
         MonsterTypeRegistry::Initialize();
         MapOriginRegistry::Initialize(); // This will now initialize origins and sizes
         SpecialTypeRegistry::Initialize();
+        WeaponRegistry::Initialize();
 
         // Reset the trackers
         g_monsterSpawnTracker.Reset();
