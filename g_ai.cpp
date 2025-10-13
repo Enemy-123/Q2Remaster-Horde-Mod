@@ -129,8 +129,64 @@ Returns nullptr if no valid player found.
 */
 static edict_t* FindNearestValidPlayer(edict_t* self)
 {
+	// Performance optimization: Use cached result if still valid
+	// This reduces O(n*m) iterations where n=monsters, m=players
+	// Cache is valid for 500ms (0.5 seconds) to balance responsiveness with performance
+	if (self->monsterinfo.next_target_search_time > level.time)
+	{
+		// Validate cached player is still targetable
+		if (self->monsterinfo.cached_nearest_player &&
+			self->monsterinfo.cached_nearest_player->inuse &&
+			self->monsterinfo.cached_nearest_player->health > 0 &&
+			!EntIsSpectating(self->monsterinfo.cached_nearest_player))
+		{
+			if (self->monsterinfo.cached_nearest_player->client)
+			{
+				// Recheck invisible/protected status (can change quickly)
+				if (self->monsterinfo.cached_nearest_player->client->invisible_time > level.time &&
+					self->monsterinfo.cached_nearest_player->client->invisibility_fade_time <= level.time)
+				{
+					// Player became invisible, invalidate cache
+					self->monsterinfo.cached_nearest_player = nullptr;
+					self->monsterinfo.next_target_search_time = 0_ms;
+				}
+				else if (self->monsterinfo.cached_nearest_player->client->menu_protected)
+				{
+					// Player became menu-protected, invalidate cache
+					self->monsterinfo.cached_nearest_player = nullptr;
+					self->monsterinfo.next_target_search_time = 0_ms;
+				}
+				else
+				{
+					return self->monsterinfo.cached_nearest_player;
+				}
+			}
+			else
+			{
+				return self->monsterinfo.cached_nearest_player;
+			}
+		}
+		else
+		{
+			// Cached player invalid, clear cache
+			self->monsterinfo.cached_nearest_player = nullptr;
+			self->monsterinfo.next_target_search_time = 0_ms;
+		}
+	}
+
+	// Cache expired or invalid, perform expensive search
 	edict_t* nearest_player = nullptr;
 	float nearest_distance_sq = FLT_MAX;
+	
+	// Distance culling: Skip search if monster is extremely far from all players
+	// This is a coarse optimization - we check a simple max distance threshold
+	constexpr float MAX_SEARCH_DISTANCE = 4096.0f; // 4096 units
+	constexpr float MAX_SEARCH_DISTANCE_SQ = MAX_SEARCH_DISTANCE * MAX_SEARCH_DISTANCE;
+	
+	// Early exit threshold: If we find a player within this distance, stop searching
+	// This assumes "close enough" is good enough for targeting
+	constexpr float CLOSE_ENOUGH_DISTANCE = 512.0f; // About 512 units
+	constexpr float CLOSE_ENOUGH_DISTANCE_SQ = CLOSE_ENOUGH_DISTANCE * CLOSE_ENOUGH_DISTANCE;
 
 	// Find the nearest player that's alive, not a spectator, and targetable
 	for (auto client : active_players_no_spect())
@@ -153,13 +209,30 @@ static edict_t* FindNearestValidPlayer(edict_t* self)
 		if (client->inuse && client->health > 0)
 		{
 			const float dist_squared = DistanceSquared(self->s.origin, client->s.origin);
+			
+			// Distance culling: Skip if beyond max search distance
+			if (dist_squared > MAX_SEARCH_DISTANCE_SQ) {
+				continue;
+			}
+			
 			if (dist_squared < nearest_distance_sq)
 			{
 				nearest_player = client;
 				nearest_distance_sq = dist_squared;
+				
+				// Early exit: If player is close enough, stop searching
+				if (dist_squared < CLOSE_ENOUGH_DISTANCE_SQ) {
+					break;
+				}
 			}
 		}
 	}
+
+	// Cache the result for 500ms (0.5 seconds)
+	// This means up to 5 ticks (at 10 Hz) will reuse this result
+	// Balances responsiveness (players can move ~400 units in 0.5s) with performance
+	self->monsterinfo.cached_nearest_player = nearest_player;
+	self->monsterinfo.next_target_search_time = level.time + 500_ms;
 
 	return nearest_player;
 }

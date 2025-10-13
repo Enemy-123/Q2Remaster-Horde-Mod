@@ -1947,6 +1947,10 @@ struct monsterinfo_t
 
 	// Monster upkeep system (asynchronous per-monster cube drain)
 	gtime_t  upkeep_time;          // Timer for next cube drain (1 cube per second per monster)
+
+	// Performance optimization: cached target search
+	edict_t* cached_nearest_player = nullptr;  // Cached result of FindNearestValidPlayer
+	gtime_t  next_target_search_time = 0_ms;   // When to perform next expensive target search
 };;;;
 
 // non-monsterinfo save stuff
