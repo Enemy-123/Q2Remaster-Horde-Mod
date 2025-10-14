@@ -1098,8 +1098,8 @@ MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 		}
 		else
 		{
-			// If no clear shot, continue running toward enemy
-			runnertank_run(self);
+			// If no clear shot, let normal AI handle movement
+			return;
 		}
 	}
 	// Medium range attack selection
@@ -1122,8 +1122,8 @@ MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 		}
 		else
 		{
-			// If no clear shot, continue running toward enemy
-			runnertank_run(self);
+			// If no clear shot, let normal AI handle movement
+			return;
 		}
 	}
 	// Long range attack selection
@@ -1141,8 +1141,8 @@ MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 		}
 		else
 		{
-			// If no attack is possible, continue running toward enemy
-			runnertank_run(self);
+			// If no attack is possible, let normal AI handle movement
+			return;
 		}
 	}
 }
