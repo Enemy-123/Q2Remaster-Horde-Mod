@@ -453,7 +453,10 @@ void G_InitEdict(edict_t* e)
 	const int32_t saved_spawn_count = e->spawn_count; // Preserve spawn count across clears
 	const svflags_t saved_svflags = e->svflags; // Save the original flags before they are cleared
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wclass-memaccess"
 	memset(e, 0, sizeof(*e)); // Zero out the entire structure
+#pragma GCC diagnostic pop
 
 	e->client = saved_client; // Restore the client pointer
 	e->spawn_count = saved_spawn_count; // Restore the spawn count
@@ -620,7 +623,10 @@ THINK(G_FreeEdict) (edict_t* ed) -> void {
     int32_t id = ed->spawn_count + 1;
 
     // Clear entity data
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wclass-memaccess"
     memset(ed, 0, sizeof(*ed));
+#pragma GCC diagnostic pop
 
     // Restore essential fields
     ed->s.number = ed - g_edicts;

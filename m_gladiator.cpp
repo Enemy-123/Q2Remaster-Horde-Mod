@@ -648,10 +648,9 @@ void SP_monster_gladiator(edict_t* self)
 	// Armor setup based on actual monster_type_id (not hardcoded GLADIATOR)
 	// This ensures each variant gets the correct armor type from its JSON config
 	uint8_t type_id = self->monsterinfo.monster_type_id;
-	
+
 	// Get armor configuration dynamically based on monster_type_id
 	int base_armor = GetMonsterBaseArmor(type_id);
-	int base_power_armor = GetMonsterBasePowerArmor(type_id);
 	item_id_t power_armor_type = static_cast<item_id_t>(GetMonsterPowerArmorType(type_id));
 
 	// Set power armor if configured

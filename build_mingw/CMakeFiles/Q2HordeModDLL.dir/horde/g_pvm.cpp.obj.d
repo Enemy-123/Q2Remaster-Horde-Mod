@@ -227,6 +227,117 @@ CMakeFiles/Q2HordeModDLL.dir/horde/g_pvm.cpp.obj: \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../q_vec3.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../game.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../g_config.h \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/flat_map.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/config.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/config/user.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/config/detail/select_compiler_config.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/config/compiler/gcc.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/config/detail/select_stdlib_config.hpp \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/version \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/config/stdlib/libstdcpp3.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/config/detail/select_platform_config.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/config/platform/win32.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/config/detail/suffix.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/config/helper_macros.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/config/detail/cxx_composite.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/detail/config_begin.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/detail/workaround.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/allocator_traits.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/container_fwd.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/detail/std_fwd.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/detail/std_ns_begin.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/detail/std_ns_end.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/detail/mpl.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/detail/type_traits.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/detail/config_begin.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/detail/workaround.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/detail/meta_utils.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/detail/meta_utils_core.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/detail/addressof.hpp \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/cassert \
+ /usr/x86_64-w64-mingw32/include/assert.h \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/detail/config_end.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/intrusive/detail/mpl.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/intrusive/detail/config_begin.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/intrusive/detail/config_end.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/detail/config_end.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/detail/type_traits.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/detail/placement_new.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/detail/is_pair.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/detail/addressof.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/intrusive/pointer_traits.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/intrusive/detail/workaround.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/intrusive/pointer_rebind.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/detail/pointer_element.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/utility_core.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/core.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/intrusive/detail/has_member_function_callable_with.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/detail/fwd_macros.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/new_allocator.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/throw_exception.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/detail/flat_tree.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/vector.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/options.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/intrusive/pack_options.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/detail/advanced_insert_int.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/detail/copy_move_algo.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/detail/iterator.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/intrusive/detail/iterator.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/intrusive/detail/std_fwd.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/detail/iterator_traits.hpp \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/iterator \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/stream_iterator.h \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/detail/iterator_to_raw_pointer.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/detail/to_raw_pointer.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/detail/construct_in_place.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/detail/iterators.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/detail/value_init.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/intrusive/detail/reverse_iterator.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/detail/reverse_iterator.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/detail/variadic_templates_tools.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/detail/destroyers.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/detail/version_type.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/adl_move_swap.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/iterator.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/traits.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/assert.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/detail/force_ptr.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/detail/launder.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/detail/algorithm.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/intrusive/detail/algorithm.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/detail/alloc_helpers.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/detail/allocation_type.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/detail/next_capacity.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/detail/min_max.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/detail/value_functors.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/intrusive/detail/value_functors.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/detail/move_helpers.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/algo/adaptive_merge.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/algo/detail/adaptive_sort_merge.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/algo/move.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/algo/detail/merge.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/algo/detail/basic_op.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/detail/destruct_n.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/algo/predicate.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/algo/detail/search.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/algo/detail/insertion_sort.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/detail/placement_new.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/algo/detail/merge_sort.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/algo/detail/heap_sort.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/algo/detail/is_sorted.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/cstdint.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/algo/unique.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/algo/detail/set_difference.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/detail/is_sorted.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/detail/is_contiguous_container.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/detail/is_container.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/intrusive/detail/minimal_pair_header.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/algo/adaptive_sort.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/move/algo/detail/pdqsort.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/detail/container_or_allocator_rebind.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/detail/container_rebind.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/detail/pair.hpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/intrusive/detail/minimal_less_equal_header.hpp \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/charconv \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/span \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/utility \
@@ -242,6 +353,6 @@ CMakeFiles/Q2HordeModDLL.dir/horde/g_pvm.cpp.obj: \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../ctf/p_ctf_menu.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../horde/g_horde.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../horde/horde_ids.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/flat_set \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/boost/container/flat_set.hpp \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../horde/horde_monster_data.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bitset

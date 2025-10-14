@@ -1760,9 +1760,9 @@ void Compass_Update(edict_t* ent, bool first)
 
 	// Calculate proper client index
 	int32_t player_index = ent->client - game.clients;
-	
+
 	// Bounds check for player index
-	if (player_index < 0 || player_index >= MAX_SPLIT_PLAYERS)
+	if (player_index < 0 || player_index >= static_cast<int32_t>(MAX_SPLIT_PLAYERS))
 		return;
 
 	vec3_t*& points = level.poi_points[player_index];
@@ -1841,9 +1841,9 @@ static void Use_Compass(edict_t* ent, gitem_t* inv)
 
 	// Calculate proper client index
 	int32_t player_index = ent->client - game.clients;
-	
+
 	// Bounds check for player index
-	if (player_index < 0 || player_index >= MAX_SPLIT_PLAYERS)
+	if (player_index < 0 || player_index >= static_cast<int32_t>(MAX_SPLIT_PLAYERS))
 	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "Invalid player index for compass");
 		return;

@@ -1534,7 +1534,6 @@ MONSTERINFO_SIDESTEP(runnertank_sidestep) (edict_t* self) -> bool
 	self->velocity = dodge_velocity + preserved_velocity;
 
 	// Variable pause time based on evasion intensity
-	float pause_duration = (evasion_multiplier > 1.2f) ? 1.2f : 0.8f;
 	self->monsterinfo.pausetime = level.time + random_time(0.8_sec, 1.5_sec);
 
 	return true;

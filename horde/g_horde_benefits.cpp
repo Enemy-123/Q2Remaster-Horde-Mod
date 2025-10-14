@@ -554,16 +554,9 @@ static const BenefitID AUTO_UPGRADE_PRIORITY_WEAPONS[] = {
 static void AutoBuyCategory(edict_t* player, BenefitCategory category) {
     if (!player || !player->client) return;
 
-    bool is_bot = (player->svflags & SVF_BOT);
-    const char* player_name = GetPlayerName(player);
-
     int32_t* points = (category == BenefitCategory::ABILITY) ?
                       &player->client->pers.ability_points :
                       &player->client->pers.weapon_points;
-
-    const char* category_name = (category == BenefitCategory::ABILITY) ? "ABILITY" : "WEAPON";
-    // gi.Com_PrintFmt("[DEBUG] AutoBuyCategory for {}: category={}, points={}\n",
-    //     player_name, category_name, *points);
 
     // Use the appropriate priority list
     const BenefitID* priority_list;
@@ -581,11 +574,9 @@ static void AutoBuyCategory(edict_t* player, BenefitCategory category) {
     for (size_t idx = 0; idx < list_size && *points > 0; ++idx) {
         BenefitID benefit_id = priority_list[idx];
         size_t i = static_cast<size_t>(benefit_id);
-        const char* benefit_name = g_benefitsData.names[i];
 
         // Skip if already owned
         if (ClassicPlayerHasBenefit(player, benefit_id)) {
-            // gi.Com_PrintFmt("[DEBUG] {} already has {}, skipping\n", player_name, benefit_name);
             continue;
         }
 
@@ -598,37 +589,24 @@ static void AutoBuyCategory(edict_t* player, BenefitCategory category) {
 
         // Check if can afford
         if (*points < cost) {
-            // gi.Com_PrintFmt("[DEBUG] {} cannot afford {} (cost={}, points={})\n",
-            //     player_name, benefit_name, cost, *points);
             continue;
         }
 
         // Check wave requirements (for auto-buy only)
         int32_t min_wave = g_benefitsData.min_levels[i];
         if (current_wave_level < min_wave) {
-            // gi.Com_PrintFmt("[DEBUG] {} wave req not met for {} (wave={}, min={})\n",
-            //     player_name, benefit_name, current_wave_level, min_wave);
             continue;
         }
 
         // Check prerequisites
         auto prereq = g_benefitsData.prerequisites[i];
         if (prereq != BenefitID::NONE && !ClassicPlayerHasBenefit(player, prereq)) {
-            const char* prereq_name = g_benefitsData.names[static_cast<size_t>(prereq)];
-            // gi.Com_PrintFmt("[DEBUG] {} missing prereq {} for {}\n",
-            //     player_name, prereq_name, benefit_name);
             continue;
         }
 
         // Purchase the benefit
-        // gi.Com_PrintFmt("[DEBUG] {} attempting to purchase {} (cost={})\n",
-        //     player_name, benefit_name, cost);
-
         if (BotPurchaseBenefit(player, benefit_id, cost)) {
             player->client->pers.auto_purchased_benefits_mask |= (1u << static_cast<uint8_t>(benefit_id));
-            // gi.Com_PrintFmt("[DEBUG] {} successfully purchased {}!\n", player_name, benefit_name);
-        } else {
-            // gi.Com_PrintFmt("[DEBUG] {} FAILED to purchase {}!\n", player_name, benefit_name);
         }
     }
 }
@@ -637,32 +615,16 @@ static void AutoBuyCategory(edict_t* player, BenefitCategory category) {
 void CheckBotAutoBuy(edict_t* player) {
     if (!player || !player->client) return;
 
-    bool is_bot = (player->svflags & SVF_BOT);
-    const char* player_name = GetPlayerName(player);
-
     // Update last check time (for tracking purposes, no longer used for throttling)
     player->client->pers.last_auto_buy_check = level.time;
 
-    // gi.Com_PrintFmt("[DEBUG] CheckBotAutoBuy for {}: ability_pts={}, weapon_pts={}, auto_buy_ability={}, auto_buy_weapon={}\n",
-    //     player_name,
-    //     player->client->pers.ability_points,
-    //     player->client->pers.weapon_points,
-    //     player->client->pers.auto_buy_benefit_bot,
-    //     player->client->pers.auto_buy_benefit_weapons_bot);
-
     // Auto-buy abilities if enabled and player has points
     if (player->client->pers.auto_buy_benefit_bot && player->client->pers.ability_points > 0) {
-        // if (is_bot) {
-        //     gi.Com_PrintFmt("[DEBUG] {} calling AutoBuyCategory for ABILITY\n", player_name);
-        // }
         AutoBuyCategory(player, BenefitCategory::ABILITY);
     }
 
     // Auto-buy weapons if enabled and player has points
     if (player->client->pers.auto_buy_benefit_weapons_bot && player->client->pers.weapon_points > 0) {
-        // if (is_bot) {
-        //     gi.Com_PrintFmt("[DEBUG] {} calling AutoBuyCategory for WEAPON\n", player_name);
-        // }
         AutoBuyCategory(player, BenefitCategory::WEAPON);
     }
 }
@@ -676,25 +638,13 @@ bool BotPurchaseBenefit(edict_t* player, BenefitID benefit_id, int32_t cost) {
         return false;
     }
 
-    bool is_bot = (player->svflags & SVF_BOT);
-    const char* player_name = GetPlayerName(player);
-    const char* benefit_name = g_benefitsData.names[static_cast<size_t>(benefit_id)];
-
     // Check if player can afford it
     if (!BotCanAffordBenefit(player, benefit_id, cost)) {
-        if (is_bot) {
-            // gi.Com_PrintFmt("[DEBUG] {} cannot afford {} in BotPurchaseBenefit\n", player_name, benefit_name);
-        }
-        // gi.LocClient_Print(player, PRINT_HIGH, "Not enough points!\n");
         return false;
     }
 
     // Check if already owned
     if (ClassicPlayerHasBenefit(player, benefit_id)) {
-        if (is_bot) {
-            // gi.Com_PrintFmt("[DEBUG] {} already owns {} in BotPurchaseBenefit\n", player_name, benefit_name);
-        }
-        // gi.LocClient_Print(player, PRINT_HIGH, "Already owned!\n");
         return false;
     }
 
@@ -704,21 +654,10 @@ bool BotPurchaseBenefit(edict_t* player, BenefitID benefit_id, int32_t cost) {
     // Check prerequisites
     auto prereq = g_benefitsData.prerequisites[static_cast<size_t>(benefit_id)];
     if (prereq != BenefitID::NONE && !ClassicPlayerHasBenefit(player, prereq)) {
-        const char* prereq_name = g_benefitsData.names[static_cast<size_t>(prereq)];
-        if (is_bot) {
-            // gi.Com_PrintFmt("[DEBUG] {} missing prereq {} for {} in BotPurchaseBenefit\n",
-                // player_name, prereq_name, benefit_name);
-        }
-        // gi.LocClient_Print(player, PRINT_HIGH, "Requires {} first!\n", prereq_name);
         return false;
     }
 
     // Purchase the benefit
-    if (is_bot) {
-        // gi.Com_PrintFmt("[DEBUG] {} spending points and activating {} in BotPurchaseBenefit\n",
-            // player_name, benefit_name);
-    }
-
     BotSpendPoints(player, benefit_id, cost);
     BotActivateBenefit(player, benefit_id);
     BotShowBenefitMessage(player, benefit_id);
@@ -737,8 +676,6 @@ bool BotPurchaseBenefit(edict_t* player, BenefitID benefit_id, int32_t cost) {
 void BotShowBenefitMessage(edict_t* player, BenefitID benefit_id) {
     if (!player || !player->client) return;
 
-    size_t index = static_cast<size_t>(benefit_id);
-
     // Send center print message (big screen message)
     // gi.LocCenter_Print(player, "{}", g_benefitsData.center_msgs[index]);
 
@@ -752,33 +689,14 @@ void ProcessWaveRewards(int32_t wave) {
     for (auto player : active_players()) {
         if (!player || !player->client) continue;
 
-        bool is_bot = (player->svflags & SVF_BOT);
-        const char* player_name = GetPlayerName(player);
-
         // Ability points every 4 waves starting from wave 4
         if (wave >= 4 && (wave % 4) == 0) {
             BotEarnAbilityPoints(player, 1);
-            // Notify all players in Classic Mode
-            if (!is_bot) {
-                // gi.LocClient_Print(player, PRINT_HIGH, "+1 Ability Point! (Total: {})\n",
-                //           player->client->pers.ability_points);
-            } else {
-                // gi.Com_PrintFmt("[DEBUG] Bot {} earned ability point. Total: {}\n",
-                //     player_name, player->client->pers.ability_points);
-            }
         }
 
         // Weapon points every 8 waves starting from wave 8
         if (wave >= 8 && (wave % 8) == 0) {
             BotEarnWeaponPoints(player, 1);
-            // Only notify human players
-            // if (!is_bot) {
-            //     // gi.LocClient_Print(player, PRINT_HIGH, "+1 Weapon Point! (Total: {})\n",
-            //     //           player->client->pers.weapon_points);
-            // } else {
-            //     // gi.Com_PrintFmt("[DEBUG] Bot {} earned weapon point. Total: {}\n",
-            //     //     player_name, player->client->pers.weapon_points);
-            // }
         }
 
         // Check for auto-buy after earning points

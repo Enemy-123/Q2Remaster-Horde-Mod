@@ -184,9 +184,13 @@ def setup_fake_powershell(script_dir):
     os.chmod(powershell_path, 0o755)
     return fake_bin_dir
 
-def build_with_mingw(script_dir, deploy_path, build_type):
+def build_with_mingw(script_dir, deploy_path, build_type, sanitizer='none'):
     """Build using MinGW with improved compatibility flags."""
     print("=== Building with MinGW ===")
+    if sanitizer != 'none':
+        print(f"*** Sanitizer enabled: {sanitizer.upper()} ***")
+        if sanitizer == 'asan':
+            print("WARNING: ASan with MinGW cross-compilation may have limited reliability")
 
     build_dir = os.path.join(script_dir, "build_mingw")
     vcpkg_installed_dir = os.path.join(script_dir, "vcpkg_installed")
@@ -205,7 +209,17 @@ def build_with_mingw(script_dir, deploy_path, build_type):
 
     # Enhanced linker flags for better Windows compatibility
     enhanced_linker_flags = "-static-libgcc -static-libstdc++ -lpthread"
-    enhanced_cxx_flags = "-mthreads -fexceptions -DWINVER=0x0601 -D_WIN32_WINNT=0x0601"
+    enhanced_cxx_flags = "-Wall -Wextra -mthreads -fexceptions -DWINVER=0x0601 -D_WIN32_WINNT=0x0601"
+
+    # Add sanitizer flags if requested
+    if sanitizer == 'asan':
+        sanitizer_flags = "-fsanitize=address -fno-omit-frame-pointer -g"
+        enhanced_cxx_flags += f" {sanitizer_flags}"
+        enhanced_linker_flags += f" {sanitizer_flags}"
+    elif sanitizer == 'ubsan':
+        sanitizer_flags = "-fsanitize=undefined -fno-omit-frame-pointer -g"
+        enhanced_cxx_flags += f" {sanitizer_flags}"
+        enhanced_linker_flags += f" {sanitizer_flags}"
 
     cmake_configure_command = [
         "cmake", "..",
@@ -245,6 +259,8 @@ def main():
     parser.add_argument('deploy_path', help='Directory where game_x64.dll should be installed')
     parser.add_argument('build_type', choices=['Debug', 'Release', 'RelWithDebInfo'],
                        help='CMake build type')
+    parser.add_argument('--sanitizer', choices=['asan', 'ubsan', 'none'], default='none',
+                       help='Enable sanitizer (asan=Address Sanitizer, ubsan=Undefined Behavior Sanitizer)')
 
     args = parser.parse_args()
 
@@ -264,10 +280,12 @@ def main():
 
     # Build with MinGW
     try:
-        dll_path = build_with_mingw(script_dir, args.deploy_path, args.build_type)
+        dll_path = build_with_mingw(script_dir, args.deploy_path, args.build_type, args.sanitizer)
         print(f"\n✓ MinGW build successful!")
         print(f"✓ DLL: {dll_path}")
         print("✓ Requires libwinpthread-1.dll")
+        if args.sanitizer != 'none':
+            print(f"✓ Sanitizer {args.sanitizer.upper()} enabled - expect performance impact and detailed error reporting")
 
         if not os.path.isfile(dll_path):
             print(f"❌ Error: Expected DLL not found at {dll_path}")

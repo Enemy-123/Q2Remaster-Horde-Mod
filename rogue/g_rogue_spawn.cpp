@@ -232,8 +232,7 @@ THINK(spawngrow_think) (edict_t *self) -> void
 	}
 
 	// Debug output to diagnose timing issue
-	static int debug_counter = 0;
-	// if (developer && developer->integer && (debug_counter++ % 100 == 0)) {
+	// if (developer && developer->integer) {
 	// 	gi.Com_PrintFmt("spawngrow_think entity #{}: level.time = {:.3f}s, timestamp = {:.3f}s, remaining = {:.3f}s\n",
 	// 		self - g_edicts,
 	// 		level.time.seconds(),

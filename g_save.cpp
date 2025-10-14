@@ -2043,6 +2043,9 @@ bool write_save_type_json(const void* data, const save_type_t* type, bool null_f
 {
 	switch (type->id)
 	{
+	case ST_INVALID:
+		// ST_INVALID is never valid, should not be encountered
+		return false;
 	case ST_BOOL:
 		if (null_for_empty && TYPED_DATA_IS_EMPTY(type, !*(const bool*)data))
 			return false;
@@ -2653,7 +2656,10 @@ void ReadLevelJson(const char* jsonString)
 	Json::Value json = parseJson(jsonString);
 
 	// wipe all the entities
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wclass-memaccess"
 	memset(g_edicts, 0, game.maxentities * sizeof(g_edicts[0]));
+#pragma GCC diagnostic pop
 	globals.num_edicts = game.maxclients + 1;
 
 	// pull version

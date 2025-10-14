@@ -157,7 +157,7 @@ static bool loc_CanSee(edict_t* targ, edict_t* inflictor)
 
 void CTFSpawn()
 {
-	memset(&ctfgame, 0, sizeof(ctfgame));
+	ctfgame = {};
 	CTFSetupTechSpawn();
 
 	if (competition->integer > 1)
@@ -1041,7 +1041,7 @@ void SetCTFStats(edict_t* ent)
 			static int random_ach_image = 0;
 
 			// Only pick a new random image once at the start of intermission
-			if (level.intermission_server_frame == gi.ServerFrame())
+			if (level.intermission_server_frame == static_cast<int32_t>(gi.ServerFrame()))
 			{
 				int const ach_images[] = {
 					imageindex_ach_eou7,
@@ -1779,7 +1779,7 @@ gitem_t* CTFWhat_Tech(edict_t* ent)
 	int i;
 
 	i = 0;
-	for (; i < q_countof(tech_ids); i++)
+	for (; i < static_cast<int>(q_countof(tech_ids)); i++)
 	{
 		if (ent->client->pers.inventory[tech_ids[i]])
 		{
@@ -1957,7 +1957,7 @@ void CTFDeadDropTech(edict_t *ent)
 		int i;
 
 		i = 0;
-		for (; i < q_countof(tech_ids); i++)
+		for (; i < static_cast<int>(q_countof(tech_ids)); i++)
 		{
 			if (ent->client->pers.inventory[tech_ids[i]])
 			{
@@ -2592,12 +2592,12 @@ void CTFAssignGhost(edict_t* ent)
 	// Simplified: Just track player stats (kills, deaths, etc.) in ghost struct
 	// No reconnect codes - just persistent stat tracking
 	int ghost;
-	
-	for (ghost = 0; ghost < MAX_CLIENTS; ghost++)
+
+	for (ghost = 0; ghost < static_cast<int>(MAX_CLIENTS); ghost++)
 		if (!ctfgame.ghosts[ghost].ent)
 			break;
-			
-	if (ghost == MAX_CLIENTS)
+
+	if (ghost == static_cast<int>(MAX_CLIENTS))
 		return; // No slots available
 		
 	ctfgame.ghosts[ghost].team = ent->client->resp.ctf_team;
@@ -3144,7 +3144,7 @@ void CTFJoinTeam(edict_t* ent, ctfteam_t desired_team)
 	ent->svflags &= ~SVF_NOCLIENT;
 	ent->client->resp.ctf_team = desired_team;
 	ent->client->resp.ctf_state = 0;
-	char const value[MAX_INFO_VALUE] = { 0 };
+	//	char const value[MAX_INFO_VALUE] = { 0 };
 	//	gi.Info_ValueForKey(ent->client->pers.userinfo, "skin", value, sizeof(value));
 	//	CTFAssignSkin(ent, value);
 

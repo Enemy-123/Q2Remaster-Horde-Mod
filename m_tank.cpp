@@ -124,10 +124,6 @@ struct TeleportTargetCache {
 static boost::container::flat_map<int, TeleportTargetCache> g_teleport_cache;  // C++23 - integer keys for better cache locality
 
 // Cache management functions
-static void CleanupTeleportCache() {
-	g_teleport_cache.clear();
-}
-
 static TeleportTargetCache& GetOrCreateTargetCache(edict_t* target) {
 	auto& cache = g_teleport_cache[target->s.number];
 	if (cache.IsStale(target)) {

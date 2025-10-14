@@ -213,7 +213,7 @@ void G_UpdateAdrenalineBasedDeployables(int current_wave_level)
         if (!player->client) continue;
 
         const int player_num = player - g_edicts - 1;
-        if (player_num < 0 || player_num >= MAX_CLIENTS) continue;
+        if (player_num < 0 || player_num >= static_cast<int>(MAX_CLIENTS)) continue;
 
         const int current_adrenaline = player->client->pers.adrenaline_count;
 

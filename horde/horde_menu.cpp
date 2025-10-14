@@ -525,7 +525,7 @@ void OpenCooperativeCampaignMenu(edict_t *ent)
 	ent->client->menu_protection_start = level.time;
 
 	// Build the campaign menu
-	memset(coop_campaign_menu, 0, sizeof(coop_campaign_menu));
+	for (auto& e : coop_campaign_menu) e = {};
 	int idx = 0;
 
 	// Title
@@ -705,7 +705,7 @@ void OpenMapCategoryMenu(edict_t *ent)
 	ent->client->menu_protection_start = level.time;
 
 	// Build the menu dynamically
-	memset(map_category_menu, 0, sizeof(map_category_menu));
+	for (auto& e : map_category_menu) e = {};
 	int idx = 0;
 
 	// Check if we're in mode voting flow (user has selected a mode)
@@ -887,7 +887,7 @@ void OpenModeSelectionMenu(edict_t *ent)
 	ent->client->pending_mode_vote = 0;
 
 	// Build the menu
-	memset(mode_selection_menu, 0, sizeof(mode_selection_menu));
+	for (auto& e : mode_selection_menu) e = {};
 	int idx = 0;
 
 	// Title
@@ -1733,12 +1733,12 @@ void OpenRespawnWeaponMenu(edict_t *ent)
 	ent->client->menu_protection_start = level.time;
 
 	// Clear menu
-	memset(respawn_weapon_menu, 0, sizeof(respawn_weapon_menu));
+	for (auto& e : respawn_weapon_menu) e = {};
 	int count = 0;
 
 	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr)
 	{
-		if (count < RESPAWN_WEAPON_MENU_SIZE)
+		if (count < static_cast<int>(RESPAWN_WEAPON_MENU_SIZE))
 		{
 			Q_strlcpy(respawn_weapon_menu[count].text, text, sizeof(respawn_weapon_menu[count].text));
 			respawn_weapon_menu[count].align = align;
@@ -1857,7 +1857,7 @@ void OpenMiscMenu(edict_t *ent, int cursor_position)
 	ent->client->menu_protection_start = level.time;
 
 	static pmenu_t entries[16]; // Increased from 15 to 16 for BFG mode option
-	memset(entries, 0, sizeof(entries));
+	for (auto& e : entries) e = {};
 	int count = 0;
 
 	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr)
@@ -1998,7 +1998,7 @@ void OpenHUDMenu(edict_t *ent)
 pmenuhnd_t *CreateHUDMenu(edict_t *ent)
 {
 	static pmenu_t entries[HUD_MENU_MAX_ENTRIES];
-	memset(entries, 0, sizeof(entries));
+	for (auto& e : entries) e = {};
 
 	size_t count = 0;
 
@@ -2177,7 +2177,7 @@ void OpenAdminMenu(edict_t *ent)
 	ent->client->menu_protection_start = level.time;
 
 	static pmenu_t admin_menu[15];
-	memset(admin_menu, 0, sizeof(admin_menu));
+	for (auto& e : admin_menu) e = {};
 	int count = 0;
 
 	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr)
@@ -2505,7 +2505,7 @@ pmenuhnd_t *CreateHordeMenu(edict_t *ent)
 	}
 
 	static pmenu_t entries[20];
-	memset(entries, 0, sizeof(entries));
+	for (auto& e : entries) e = {};
 	int count = 0;
 
 	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr)
@@ -2671,7 +2671,7 @@ void AbilityDetailMenuHandler(edict_t *ent, pmenuhnd_t *p)
 
 			// Create detail menu for the same ability
 			static pmenu_t detail_menu[32];
-			memset(detail_menu, 0, sizeof(detail_menu));
+			for (auto& e : detail_menu) e = {};
 			int menu_index = 0;
 
 			const UpgradeDefinition* def = FindUpgradeByID(upgrade_id);
@@ -2774,7 +2774,7 @@ pmenuhnd_t *CreateAbilityDetailMenu(edict_t *ent, const char* upgrade_id)
 		return nullptr;
 
 	static pmenu_t detail_menu[32];
-	memset(detail_menu, 0, sizeof(detail_menu));
+	for (auto& e : detail_menu) e = {};
 	int menu_index = 0;
 
 	int8_t current_level = GetSkillLevel(ent, upgrade_id);
@@ -2923,7 +2923,7 @@ pmenuhnd_t *CreateAbilitiesMenu(edict_t *ent)
 		return nullptr;
 
 	static pmenu_t abilities_menu[32];
-	memset(abilities_menu, 0, sizeof(abilities_menu));
+	for (auto& e : abilities_menu) e = {};
 	int menu_index = 0;
 
 	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg1 = nullptr)
@@ -3100,7 +3100,7 @@ pmenuhnd_t *CreateWeaponsMenu(edict_t *ent)
 		return nullptr;
 
 	static pmenu_t weapons_menu[32];
-	memset(weapons_menu, 0, sizeof(weapons_menu));
+	for (auto& e : weapons_menu) e = {};
 	int menu_index = 0;
 
 	// Header
@@ -3251,7 +3251,7 @@ pmenuhnd_t *CreateUpgradeMenu(edict_t *ent)
 		return nullptr;
 
 	static pmenu_t upgrade_menu[64];
-	memset(upgrade_menu, 0, sizeof(upgrade_menu));
+	for (auto& e : upgrade_menu) e = {};
 	int menu_index = 0;
 
 	// Check vortex mode to determine menu type
@@ -3417,7 +3417,7 @@ void OpenWeaponUpgradeMenu(edict_t *ent)
 	ent->client->menu_protected = true;
 	ent->client->menu_protection_start = level.time;
 
-	memset(weapon_upgrade_menu, 0, sizeof(weapon_upgrade_menu));
+	for (auto& e : weapon_upgrade_menu) e = {};
 	int count = 0;
 
 	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
@@ -3777,7 +3777,7 @@ void OpenRLUpgradeMenu(edict_t *ent, int cursor_pos)
 	ent->client->menu_protected = true;
 	ent->client->menu_protection_start = level.time;
 
-	memset(rl_upgrade_menu, 0, sizeof(rl_upgrade_menu));
+	for (auto& e : rl_upgrade_menu) e = {};
 	int count = 0;
 
 	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
@@ -3956,7 +3956,7 @@ void OpenGLUpgradeMenu(edict_t *ent, int cursor_pos)
 	ent->client->menu_protected = true;
 	ent->client->menu_protection_start = level.time;
 
-	memset(gl_upgrade_menu, 0, sizeof(gl_upgrade_menu));
+	for (auto& e : gl_upgrade_menu) e = {};
 	int count = 0;
 
 	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
@@ -4148,7 +4148,7 @@ void OpenMGUpgradeMenu(edict_t *ent, int cursor_pos)
 	ent->client->menu_protected = true;
 	ent->client->menu_protection_start = level.time;
 
-	memset(mg_upgrade_menu, 0, sizeof(mg_upgrade_menu));
+	for (auto& e : mg_upgrade_menu) e = {};
 	int count = 0;
 
 	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
@@ -4330,7 +4330,7 @@ void OpenCGUpgradeMenu(edict_t *ent, int cursor_pos)
 	ent->client->menu_protected = true;
 	ent->client->menu_protection_start = level.time;
 
-	memset(cg_upgrade_menu, 0, sizeof(cg_upgrade_menu));
+	for (auto& e : cg_upgrade_menu) e = {};
 	int count = 0;
 
 	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
@@ -4506,7 +4506,7 @@ void OpenSGUpgradeMenu(edict_t *ent, int cursor_pos)
 	ent->client->menu_protected = true;
 	ent->client->menu_protection_start = level.time;
 
-	memset(sg_upgrade_menu, 0, sizeof(sg_upgrade_menu));
+	for (auto& e : sg_upgrade_menu) e = {};
 	int count = 0;
 
 	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
@@ -4652,7 +4652,7 @@ void OpenSSGUpgradeMenu(edict_t *ent, int cursor_pos)
 	ent->client->menu_protected = true;
 	ent->client->menu_protection_start = level.time;
 
-	memset(ssg_upgrade_menu, 0, sizeof(ssg_upgrade_menu));
+	for (auto& e : ssg_upgrade_menu) e = {};
 	int count = 0;
 
 	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
@@ -4802,7 +4802,7 @@ void OpenHGUpgradeMenu(edict_t *ent, int cursor_pos)
 	ent->client->menu_protected = true;
 	ent->client->menu_protection_start = level.time;
 
-	memset(hg_upgrade_menu, 0, sizeof(hg_upgrade_menu));
+	for (auto& e : hg_upgrade_menu) e = {};
 	int count = 0;
 
 	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
@@ -4961,7 +4961,7 @@ void OpenProxUpgradeMenu(edict_t *ent, int cursor_pos)
 	ent->client->menu_protected = true;
 	ent->client->menu_protection_start = level.time;
 
-	memset(prox_upgrade_menu, 0, sizeof(prox_upgrade_menu));
+	for (auto& e : prox_upgrade_menu) e = {};
 	int count = 0;
 
 	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
@@ -5150,7 +5150,7 @@ void OpenBlasterUpgradeMenu(edict_t *ent, int cursor_pos)
 	ent->client->menu_protected = true;
 	ent->client->menu_protection_start = level.time;
 
-	memset(blaster_upgrade_menu, 0, sizeof(blaster_upgrade_menu));
+	for (auto& e : blaster_upgrade_menu) e = {};
 	int count = 0;
 
 	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
@@ -5293,7 +5293,7 @@ void OpenHyperblasterUpgradeMenu(edict_t *ent, int cursor_pos)
 	ent->client->menu_protected = true;
 	ent->client->menu_protection_start = level.time;
 
-	memset(hyperblaster_upgrade_menu, 0, sizeof(hyperblaster_upgrade_menu));
+	for (auto& e : hyperblaster_upgrade_menu) e = {};
 	int count = 0;
 
 	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
@@ -5436,7 +5436,7 @@ void OpenETFUpgradeMenu(edict_t *ent, int cursor_pos)
 	ent->client->menu_protected = true;
 	ent->client->menu_protection_start = level.time;
 
-	memset(etf_upgrade_menu, 0, sizeof(etf_upgrade_menu));
+	for (auto& e : etf_upgrade_menu) e = {};
 	int count = 0;
 
 	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
@@ -5593,7 +5593,7 @@ void OpenIonRipperUpgradeMenu(edict_t *ent, int cursor_pos)
 	ent->client->menu_protected = true;
 	ent->client->menu_protection_start = level.time;
 
-	memset(ionripper_upgrade_menu, 0, sizeof(ionripper_upgrade_menu));
+	for (auto& e : ionripper_upgrade_menu) e = {};
 	int count = 0;
 
 	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
@@ -5736,7 +5736,7 @@ void OpenRailgunUpgradeMenu(edict_t *ent, int cursor_pos)
 	ent->client->menu_protected = true;
 	ent->client->menu_protection_start = level.time;
 
-	memset(railgun_upgrade_menu, 0, sizeof(railgun_upgrade_menu));
+	for (auto& e : railgun_upgrade_menu) e = {};
 	int count = 0;
 
 	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
@@ -5893,7 +5893,7 @@ void OpenBFGUpgradeMenu(edict_t *ent, int cursor_pos)
 	ent->client->menu_protected = true;
 	ent->client->menu_protection_start = level.time;
 
-	memset(bfg_upgrade_menu, 0, sizeof(bfg_upgrade_menu));
+	for (auto& e : bfg_upgrade_menu) e = {};
 	int count = 0;
 
 	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
@@ -6081,7 +6081,8 @@ void Open20mmCannonUpgradeMenu(edict_t *ent, int cursor_pos)
 	ent->client->menu_protected = true;
 	ent->client->menu_protection_start = level.time;
 
-	memset(cannon20mm_upgrade_menu, 0, sizeof(cannon20mm_upgrade_menu));
+	// Clear menu
+	for (auto& e : cannon20mm_upgrade_menu) e = {};
 	int count = 0;
 
 	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
@@ -6238,7 +6239,7 @@ void OpenPlasmabeamUpgradeMenu(edict_t *ent, int cursor_pos)
 	ent->client->menu_protected = true;
 	ent->client->menu_protection_start = level.time;
 
-	memset(plasmabeam_upgrade_menu, 0, sizeof(plasmabeam_upgrade_menu));
+	for (auto& e : plasmabeam_upgrade_menu) e = {};
 	int count = 0;
 
 	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
@@ -6887,7 +6888,7 @@ void OpenChainfistUpgradeMenu(edict_t *ent, int cursor_pos)
 	ent->client->menu_protected = true;
 	ent->client->menu_protection_start = level.time;
 
-	memset(chainfist_upgrade_menu, 0, sizeof(chainfist_upgrade_menu));
+	for (auto& e : chainfist_upgrade_menu) e = {};
 	int count = 0;
 
 	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
@@ -7031,7 +7032,7 @@ void OpenTeslaUpgradeMenu(edict_t *ent, int cursor_pos)
 	ent->client->menu_protected = true;
 	ent->client->menu_protection_start = level.time;
 
-	memset(tesla_upgrade_menu, 0, sizeof(tesla_upgrade_menu));
+	for (auto& e : tesla_upgrade_menu) e = {};
 	int count = 0;
 
 	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
@@ -7201,7 +7202,7 @@ void OpenTrapUpgradeMenu(edict_t *ent, int cursor_pos)
 	ent->client->menu_protected = true;
 	ent->client->menu_protection_start = level.time;
 
-	memset(trap_upgrade_menu, 0, sizeof(trap_upgrade_menu));
+	for (auto& e : trap_upgrade_menu) e = {};
 	int count = 0;
 
 	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
@@ -7360,7 +7361,7 @@ void OpenPhalanxUpgradeMenu(edict_t *ent, int cursor_pos)
 	ent->client->menu_protected = true;
 	ent->client->menu_protection_start = level.time;
 
-	memset(phalanx_upgrade_menu, 0, sizeof(phalanx_upgrade_menu));
+	for (auto& e : phalanx_upgrade_menu) e = {};
 	int count = 0;
 
 	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
@@ -7530,7 +7531,7 @@ void OpenDisruptorUpgradeMenu(edict_t *ent, int cursor_pos)
 	ent->client->menu_protected = true;
 	ent->client->menu_protection_start = level.time;
 
-	memset(disruptor_upgrade_menu, 0, sizeof(disruptor_upgrade_menu));
+	for (auto& e : disruptor_upgrade_menu) e = {};
 	int count = 0;
 
 	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr, const char *arg = nullptr)
@@ -7769,7 +7770,6 @@ void BonusAbilitiesMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	}
 
 	const pmenu_t* selected_entry = &p->entries[p->cur];
-	const char* selected_text = selected_entry->text;
 	const char* arg = selected_entry->text_arg1;
 
 	if (!arg || arg[0] == '\0') {
@@ -7842,7 +7842,7 @@ void OpenBonusAbilitiesMenu(edict_t* ent, int cursor_position) {
 	ent->client->menu_protection_start = level.time;
 
 	static pmenu_t entries[64];
-	memset(entries, 0, sizeof(entries));
+	for (auto& e : entries) e = {};
 	int count = 0;
 
 	auto add_entry = [&](const char* text, int align, SelectFunc_t func = nullptr, const char* text_arg = nullptr) {
@@ -7954,7 +7954,6 @@ void BonusWeaponsMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	}
 
 	const pmenu_t* selected_entry = &p->entries[p->cur];
-	const char* selected_text = selected_entry->text;
 	const char* arg = selected_entry->text_arg1;
 
 	if (!arg || arg[0] == '\0') {
@@ -8032,7 +8031,7 @@ void OpenBonusWeaponsMenu(edict_t* ent, int cursor_position) {
 	ent->client->menu_protection_start = level.time;
 
 	static pmenu_t entries[64];
-	memset(entries, 0, sizeof(entries));
+	for (auto& e : entries) e = {};
 	int count = 0;
 
 	auto add_entry = [&](const char* text, int align, SelectFunc_t func = nullptr, const char* text_arg = nullptr) {
@@ -8220,7 +8219,7 @@ void OpenBonusManagementMenu(edict_t* ent, int cursor_position) {
 	ent->client->menu_protection_start = level.time;
 
 	static pmenu_t entries[32];
-	memset(entries, 0, sizeof(entries));
+	for (auto& e : entries) e = {};
 	int count = 0;
 
 	auto add_entry = [&](const char* text, int align, SelectFunc_t func = nullptr, const char* text_arg = nullptr) {

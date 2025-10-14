@@ -4,8 +4,12 @@
 #include <unordered_map>
 #include <filesystem> // For path operations
 #ifdef _WIN32
+    #ifndef WIN32_LEAN_AND_MEAN
     #define WIN32_LEAN_AND_MEAN
+    #endif
+    #ifndef NOMINMAX
     #define NOMINMAX
+    #endif
     #include <windows.h> // For GetModuleFileName, MAX_PATH
     #include <direct.h> // For _mkdir on Windows
 #else

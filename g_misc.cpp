@@ -537,7 +537,7 @@ constexpr spawnflags_t SPAWNFLAG_LIGHT_ALLOW_IN_DM = 2_spawnflag;
 
 USE(light_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
-	if (self->style >= MAX_LIGHTSTYLES)
+	if (self->style >= static_cast<int>(MAX_LIGHTSTYLES))
 		return;
 
 	if (self->spawnflags.has(SPAWNFLAG_LIGHT_START_OFF))
@@ -624,7 +624,7 @@ void setup_shadow_lights()
 // this will work without changing the save/load code.
 void G_LoadShadowLights()
 {
-	for (size_t i = 0; i < level.shadow_light_count; i++)
+	for (int i = 0; i < static_cast<int>(level.shadow_light_count); i++)
 	{
 		const char* cstr = gi.get_configstring(CS_SHADOWLIGHTS + i);
 		const char* token = COM_ParseEx(&cstr, ";");
@@ -731,7 +731,7 @@ void SP_light(edict_t* self)
 		else if (*self->style_on >= '0' && *self->style_on <= '9')
 		{
 			int style_idx = atoi(self->style_on);
-			if (style_idx < MAX_LIGHTSTYLES)
+			if (style_idx < static_cast<int>(MAX_LIGHTSTYLES))
 				self->style_on = gi.get_configstring(CS_LIGHTS + style_idx);
 		}
 		if (!self->style_off || !*self->style_off)
@@ -739,11 +739,11 @@ void SP_light(edict_t* self)
 		else if (*self->style_off >= '0' && *self->style_off <= '9')
 		{
 			int style_idx = atoi(self->style_off);
-			if (style_idx < MAX_LIGHTSTYLES)
+			if (style_idx < static_cast<int>(MAX_LIGHTSTYLES))
 				self->style_off = gi.get_configstring(CS_LIGHTS + style_idx);
 		}
 
-		if (self->style < MAX_LIGHTSTYLES)
+		if (self->style < static_cast<int>(MAX_LIGHTSTYLES))
 		{
 			if (self->spawnflags.has(SPAWNFLAG_LIGHT_START_OFF))
 				gi.configstring(CS_LIGHTS + self->style, self->style_off);
@@ -1883,7 +1883,7 @@ USE(target_string_use) (edict_t* self, edict_t* other, edict_t* activator) -> vo
 		if (!e->count)
 			continue;
 		n = e->count - 1;
-		if (n > l)
+		if (n > static_cast<int>(l))
 		{
 			e->s.frame = 12;
 			continue;

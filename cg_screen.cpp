@@ -139,7 +139,7 @@ static void CG_AddNotify(hud_data_t& data, const char* msg, bool is_chat)
     if (scr_maxlines->integer <= 0)
         return;
 
-    const int max = min(MAX_NOTIFY, (size_t)scr_maxlines->integer);
+    const size_t max = min(MAX_NOTIFY, static_cast<size_t>(scr_maxlines->integer));
 
     for (; i < max; i++)
         if (!data.notify[i].is_active)
@@ -414,7 +414,7 @@ void CG_ParseCenterPrint(const char* str, int isplit, bool instant) // [Sam-KEX]
         if (auto purpose_index = bind.find_first_of(':'); purpose_index != std::string::npos)
             center.binds.emplace_back(cl_bind_t{ bind.substr(0, purpose_index), bind.substr(purpose_index + 1) });
         else
-            center.binds.emplace_back(cl_bind_t{ bind });
+            center.binds.emplace_back(cl_bind_t{ bind, "" });
 
         string = string.substr(end_of_bind + 1);
     }
@@ -872,7 +872,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
             if (!skip_depth)
             {
                 value = ps->stats[atoi(token)];
-                if (value >= MAX_IMAGES)
+                if (static_cast<size_t>(value) >= MAX_IMAGES)
                     cgi.Com_Error("Pic >= MAX_IMAGES");
 
                 const char* const pic = cgi.get_configstring(CS_IMAGES + value);
@@ -910,7 +910,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
             if (!skip_depth)
             {
                 value = atoi(token);
-                if (value >= MAX_CLIENTS || value < 0)
+                if (static_cast<size_t>(value) >= MAX_CLIENTS || value < 0)
                     cgi.Com_Error("client >= MAX_CLIENTS");
             }
 
@@ -967,7 +967,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
             if (!skip_depth)
             {
                 value = atoi(token);
-                if (value >= MAX_CLIENTS || value < 0)
+                if (static_cast<size_t>(value) >= MAX_CLIENTS || value < 0)
                     cgi.Com_Error("client >= MAX_CLIENTS");
             }
 
@@ -1146,14 +1146,14 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
             if (!skip_depth)
             {
                 index = atoi(token);
-                if (index < 0 || index >= MAX_STATS)
+                if (index < 0 || static_cast<size_t>(index) >= MAX_STATS)
                     cgi.Com_Error("Bad stat_string index");
                 index = ps->stats[index];
 
                 if (cgi.CL_ServerProtocol() <= PROTOCOL_VERSION_3XX)
                     index = CS_REMAP(index).start / CS_MAX_STRING_LENGTH;
 
-                if (index < 0 || index >= MAX_CONFIGSTRINGS)
+                if (index < 0 || static_cast<size_t>(index) >= MAX_CONFIGSTRINGS)
                     cgi.Com_Error("Bad stat_string index");
 
                 const char* configstring = cgi.get_configstring(index);
@@ -1271,14 +1271,14 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
             if (!skip_depth)
             {
                 index = atoi(token);
-                if (index < 0 || index >= MAX_STATS)
+                if (index < 0 || static_cast<size_t>(index) >= MAX_STATS)
                     cgi.Com_Error("Bad stat_string index");
                 index = ps->stats[index];
 
                 if (cgi.CL_ServerProtocol() <= PROTOCOL_VERSION_3XX)
                     index = CS_REMAP(index).start / CS_MAX_STRING_LENGTH;
 
-                if (index < 0 || index >= MAX_CONFIGSTRINGS)
+                if (index < 0 || static_cast<size_t>(index) >= MAX_CONFIGSTRINGS)
                     cgi.Com_Error("Bad stat_string index");
 
                 const char* configstring = cgi.get_configstring(index);
@@ -1300,14 +1300,14 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
             if (!skip_depth)
             {
                 index = atoi(token);
-                if (index < 0 || index >= MAX_STATS)
+                if (index < 0 || static_cast<size_t>(index) >= MAX_STATS)
                     cgi.Com_Error("Bad stat_string index");
                 index = ps->stats[index];
 
                 if (cgi.CL_ServerProtocol() <= PROTOCOL_VERSION_3XX)
                     index = CS_REMAP(index).start / CS_MAX_STRING_LENGTH;
 
-                if (index < 0 || index >= MAX_CONFIGSTRINGS)
+                if (index < 0 || static_cast<size_t>(index) >= MAX_CONFIGSTRINGS)
                     cgi.Com_Error("Bad stat_string index");
 
                 const char* configstring = cgi.get_configstring(index);
@@ -1333,14 +1333,14 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
             if (!skip_depth)
             {
                 index = atoi(token);
-                if (index < 0 || index >= MAX_STATS)
+                if (index < 0 || static_cast<size_t>(index) >= MAX_STATS)
                     cgi.Com_Error("Bad stat_string index");
                 index = ps->stats[index];
 
                 if (cgi.CL_ServerProtocol() <= PROTOCOL_VERSION_3XX)
                     index = CS_REMAP(index).start / CS_MAX_STRING_LENGTH;
 
-                if (index < 0 || index >= MAX_CONFIGSTRINGS)
+                if (index < 0 || static_cast<size_t>(index) >= MAX_CONFIGSTRINGS)
                     cgi.Com_Error("Bad stat_string index");
 
                 const char* configstring = cgi.get_configstring(index);
@@ -1359,14 +1359,14 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
             if (!skip_depth)
             {
                 index = atoi(token);
-                if (index < 0 || index >= MAX_STATS)
+                if (index < 0 || static_cast<size_t>(index) >= MAX_STATS)
                     cgi.Com_Error("Bad stat_string index");
                 index = ps->stats[index];
 
                 if (cgi.CL_ServerProtocol() <= PROTOCOL_VERSION_3XX)
                     index = CS_REMAP(index).start / CS_MAX_STRING_LENGTH;
 
-                if (index < 0 || index >= MAX_CONFIGSTRINGS)
+                if (index < 0 || static_cast<size_t>(index) >= MAX_CONFIGSTRINGS)
                     cgi.Com_Error("Bad stat_string index");
 
                 const char* configstring = cgi.get_configstring(index);
@@ -1386,7 +1386,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
             if (!token) break;
             int32_t num_args = atoi(token);
 
-            if (num_args < 0 || num_args >= MAX_LOCALIZATION_ARGS)
+            if (num_args < 0 || static_cast<size_t>(num_args) >= MAX_LOCALIZATION_ARGS)
                 cgi.Com_Error("Bad loc string");
 
             // parse base
@@ -1415,7 +1415,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
             if (!token) break;
             int32_t num_args = atoi(token);
 
-            if (num_args < 0 || num_args >= MAX_LOCALIZATION_ARGS)
+            if (num_args < 0 || static_cast<size_t>(num_args) >= MAX_LOCALIZATION_ARGS)
                 cgi.Com_Error("Bad loc string");
 
             // parse base
@@ -1449,7 +1449,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
             if (!token) break;
             int32_t num_args = atoi(token);
 
-            if (num_args < 0 || num_args >= MAX_LOCALIZATION_ARGS)
+            if (num_args < 0 || static_cast<size_t>(num_args) >= MAX_LOCALIZATION_ARGS)
                 cgi.Com_Error("Bad loc string");
 
             // parse base
@@ -1481,7 +1481,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
             if (!token) break;
             int32_t num_args = atoi(token);
 
-            if (num_args < 0 || num_args >= MAX_LOCALIZATION_ARGS)
+            if (num_args < 0 || static_cast<size_t>(num_args) >= MAX_LOCALIZATION_ARGS)
                 cgi.Com_Error("Bad loc string");
 
             // parse base
@@ -1553,7 +1553,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
             if (!skip_depth)
             {
                 value = atoi(token);
-                if (value >= MAX_CLIENTS || value < 0)
+                if (static_cast<size_t>(value) >= MAX_CLIENTS || value < 0)
                     cgi.Com_Error("client >= MAX_CLIENTS");
 
                 const std::string_view path = G_Fmt("/tags/{}", cgi.CL_GetClientDogtag(value));
@@ -1569,7 +1569,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
 
             if (!skip_depth)
             {
-                if (value >= q_countof(hud_temp.table_rows[0].table_cells))
+                if (static_cast<size_t>(value) >= q_countof(hud_temp.table_rows[0].table_cells))
                     cgi.Com_Error("table too big");
 
                 hud_temp.num_columns = value;
@@ -1587,7 +1587,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
                 {
                     token = cgi.Localize(token, nullptr, 0);
                     Q_strlcpy(hud_temp.table_rows[0].table_cells[i].text, token, sizeof(hud_temp.table_rows[0].table_cells[i].text));
-                    hud_temp.column_widths[i] = max(hud_temp.column_widths[i], (size_t)cgi.SCR_MeasureFontString(hud_temp.table_rows[0].table_cells[i].text, scale).x);
+                    hud_temp.column_widths[i] = max(hud_temp.column_widths[i], static_cast<size_t>(cgi.SCR_MeasureFontString(hud_temp.table_rows[0].table_cells[i].text, scale).x));
                 }
             }
             if (!token) break;
@@ -1601,7 +1601,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
 
             if (!skip_depth)
             {
-                if (hud_temp.num_rows >= q_countof(hud_temp.table_rows))
+                if (static_cast<size_t>(hud_temp.num_rows) >= q_countof(hud_temp.table_rows))
                 {
                     cgi.Com_Error("table too big");
                     return;
@@ -1617,7 +1617,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
                 if (!skip_depth)
                 {
                     Q_strlcpy(row.table_cells[i].text, token, sizeof(row.table_cells[i].text));
-                    hud_temp.column_widths[i] = max(hud_temp.column_widths[i], (size_t)cgi.SCR_MeasureFontString(row.table_cells[i].text, scale).x);
+                    hud_temp.column_widths[i] = max(hud_temp.column_widths[i], static_cast<size_t>(cgi.SCR_MeasureFontString(row.table_cells[i].text, scale).x));
                 }
             }
             if (!token) break;
@@ -1661,7 +1661,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
             if (!skip_depth)
             {
                 index = atoi(token);
-                if (index < 0 || index >= MAX_STATS)
+                if (index < 0 || static_cast<size_t>(index) >= MAX_STATS)
                     cgi.Com_Error("Bad stat_string index");
                 index = ps->stats[index] - 1;
 
@@ -1694,7 +1694,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
             float x = ((hud_vrect.x + (hud_vrect.width * 0.5f)) * scale) - (bar_width * 0.5f);
 
             // 2 health bars, hardcoded
-            for (size_t i = 0; i < 2; i++, stat++)
+            for (int i = 0; i < 2; i++, stat++)
             {
                 if (!(*stat & 0b10000000))
                     continue;
@@ -1764,7 +1764,7 @@ static void CG_DrawInventory(const player_state_t* ps, const std::array<int16_t,
 
     num = 0;
     selected_num = 0;
-    for (i = 0; i < MAX_ITEMS; i++) {
+    for (i = 0; i < static_cast<int>(MAX_ITEMS); i++) {
         if (i == selected) {
             selected_num = num;
         }
@@ -1775,9 +1775,9 @@ static void CG_DrawInventory(const player_state_t* ps, const std::array<int16_t,
     }
 
     // determine scroll point
-    top = selected_num - DISPLAY_ITEMS / 2;
-    if (num - top < DISPLAY_ITEMS)
-        top = num - DISPLAY_ITEMS;
+    top = selected_num - static_cast<int>(DISPLAY_ITEMS) / 2;
+    if (num - top < static_cast<int>(DISPLAY_ITEMS))
+        top = num - static_cast<int>(DISPLAY_ITEMS);
     if (top < 0)
         top = 0;
 
@@ -1796,7 +1796,7 @@ static void CG_DrawInventory(const player_state_t* ps, const std::array<int16_t,
     y += 27 * scale;
     x += 22 * scale;
 
-    for (i = top; i < num && i < top + DISPLAY_ITEMS; i++)
+    for (i = top; i < num && i < top + static_cast<int>(DISPLAY_ITEMS); i++)
     {
         item = index[i];
 

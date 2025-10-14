@@ -43,8 +43,6 @@ constexpr float CHAIN_LIGHTNING_DAMAGE_MULT = 0.5f;    // 50% of tesla damage fo
 constexpr int MAX_CHAIN_TARGETS_PER_VICTIM = 3;        // Max chain targets per tesla victim (increased)
 constexpr int CHAIN_LIGHTNING_MAX_EFFECTS_PER_FRAME = 30; // Much higher limit for chain effects per frame
 
-static int chain_lightning_effects_this_frame = 0;
-
 void tesla_remove(edict_t *self)
 {
 	self->takedamage = false;

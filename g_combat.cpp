@@ -822,18 +822,10 @@ static constexpr std::array<WeaponMultiplier, 8> WEAPON_MULTIPLIERS = { {
 	{IT_WEAPON_GLAUNCHER, 0.5f}
 } };
 
-static int64_t CalculateRealDamage(const edict_t* targ, int64_t take, int64_t initial_health) {
-	if (!targ) return take;
-	if (targ->svflags & SVF_DEADMONSTER) return std::min<int64_t>(take, 5);
-	if (initial_health <= 0) return std::min<int64_t>(take, 10);
-
-	int64_t real_damage = std::min<int64_t>(take, initial_health);
-	if (targ->health <= 0) {
-		// Ensure abs() result is cast to int64_t before comparison if targ->gib_health is int
-		real_damage += std::min<int64_t>(static_cast<int64_t>(abs(targ->gib_health)), initial_health);
-	}
-	return real_damage;
-}
+// REMOVED: CalculateRealDamage - Function was never used in codebase
+// If needed in the future, reimplementation should consider:
+// - Calculating actual damage dealt to entity accounting for overkill/gibs
+// - Used for damage tracking/statistics systems
 
 static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_damage, const mod_t& mod) {
     // Fast path early returns for improved performance

@@ -573,13 +573,10 @@ void ChickBombSpell(edict_t* self)
 
 	// Calculate distance to saved/enemy location
 	float dist_to_enemy = (target_pos - self->s.origin).length();
-	float height_diff = fabs(target_pos.z - self->s.origin.z);
 
 	// Distance-based selection:
 	// - Carpet bomb: 200-600 range, same height (within 128 units)
 	// - Area bomb: 400+ range (has overlap for flexibility)
-	bool prefer_carpet = (dist_to_enemy >= 200 && dist_to_enemy <= 600 && height_diff < 128);
-	bool prefer_area = (dist_to_enemy > 400);
 
 	// Too close for any bombspell (under 200 units) - skip this attack
 	if (dist_to_enemy < 200)
@@ -802,7 +799,6 @@ void ChickRocket(edict_t* self)
 		if (!(trace.startsolid || trace.allsolid || (trace.fraction < 0.5f)))
 		{
 			// RAFAEL
-			int damage = M_ROCKET_DMG(self);
 			if (self->s.skinnum > 1)
 				monster_fire_heat(self, start, dir, M_HEAT_DMG(self), rocketSpeed, MZ2_CHICK_ROCKET_1, 0.075f);
 			else
@@ -1130,13 +1126,6 @@ mframe_t chick_frames_end_slash[] = {
 MMOVE_T(chick_move_end_slash) = { FRAME_attak213, FRAME_attak216, chick_frames_end_slash, chick_run };
 
 // CHICKKL melee frames - uses bomb spells instead of slash
-static void chickkl_reslash(edict_t* self)
-{
-	if (M_HasValidTarget(self) && visible(self, self->enemy))
-		return; // Continue with another slash
-	M_SetAnimation(self, &chick_move_end_slash);
-}
-
 mframe_t chickkl_frames_slash[] = {
 	{ ai_charge, 1 },
 	{ ai_charge, -7, monster_footstep },

@@ -67,7 +67,7 @@ void PVM_DropBackpack(edict_t *player)
     gclient_t *temp_client = (gclient_t *)gi.TagMalloc(sizeof(gclient_t), TAG_GAME);
     if (temp_client)
     {
-        memset(temp_client, 0, sizeof(gclient_t));
+        *temp_client = {};
         temp_client->pers.inventory = player->client->pers.inventory;
         backpack->client = temp_client;
     }

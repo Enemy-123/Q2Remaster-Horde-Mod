@@ -399,8 +399,6 @@ void hover_fire_grenades(edict_t* self)
     if (!M_HasEnemy(self))
         return;
 
-    int config_speed = M_GRENADE_SPEED(self);
-    float const GRENADE_SPEED = config_speed > 0 ? static_cast<float>(config_speed) : 760.f;
     vec3_t forward, right, up, aim, target, offset{};
     monster_muzzleflash_id_t flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_1;
     bool blindfire = self->monsterinfo.aiflags & AI_MANUAL_STEERING;

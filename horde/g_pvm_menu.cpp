@@ -179,8 +179,7 @@ void PvM_OpenStatsMenu(edict_t* player)
     player->client->menu_protected = true;
     player->client->menu_protection_start = level.time;
 
-    static pmenu_t entries[20];  // Increased for more entries
-    memset(entries, 0, sizeof(entries));
+    static pmenu_t entries[20] = {};  // Increased for more entries
     int count = 0;
 
     auto add_entry = [&](const char* text, int align, SelectFunc_t func = nullptr)
@@ -291,9 +290,6 @@ void PvM_CheckLevelUp(edict_t* player)
         player->client->pers.weapon_points += 4; // Grant 4 weapon points per level
 
         // Every 5 levels, auto-grant +1 vitality and +1 max ammo (free, not using skill points)
-        bool got_free_vitality = false;
-        bool got_free_max_ammo = false;
-        
         if (current_level % 5 == 0)
         {
             // Auto-grant vitality if not at cap (using unified skills system)
@@ -301,7 +297,6 @@ void PvM_CheckLevelUp(edict_t* player)
             {
                 player->client->pers.skills.vitality++;
                 player->client->pers.skills.free_vitality++;  // Track as free bonus
-                got_free_vitality = true;
 
                 // Apply vitality bonus immediately (+10 max health)
                 int32_t health_bonus = 10;
@@ -316,7 +311,6 @@ void PvM_CheckLevelUp(edict_t* player)
             {
                 player->client->pers.skills.max_ammo++;
                 player->client->pers.skills.free_max_ammo++;  // Track as free bonus
-                got_free_max_ammo = true;
 
                 // Apply max ammo bonus immediately
                 player->client->pers.max_ammo[AMMO_SHELLS] += 10;
@@ -332,7 +326,7 @@ void PvM_CheckLevelUp(edict_t* player)
             }
         }
 
-        
+
         // Show level-up message
         gi.LocClient_Print(player, PRINT_TYPEWRITER,
                            "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n*****LEVEL UP!*****\n\n\n\n\n\n\n\n\n\n\nYou are now level {}!\n+2 Skill Point\n+4 Weapon Points\nOpen Menu for upgrading skills",

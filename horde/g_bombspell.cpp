@@ -240,8 +240,7 @@ THINK(carpetbomb_think)(edict_t* self) -> void
         }
     }
 
-    // Create temporary entity for explosion to avoid modifying self during damage
-    vec3_t temp_origin = self->s.origin;
+    // Save original position before temporarily moving to explosion point
     self->s.origin = explosion_pos;
 
     // Use team-safe radius damage to avoid hitting owner and teammates
@@ -354,8 +353,7 @@ THINK(carpetslam_think)(edict_t* self) -> void
     gi.positioned_sound(slam_pos, self, CHAN_AUTO, gi.soundindex("mutant/thud1.wav"), 1, ATTN_NORM, 0);
     gi.positioned_sound(slam_pos, self, CHAN_VOICE, gi.soundindex("world/explod2.wav"), 0.75f, ATTN_NORM, 0);
 
-    // Create temporary entity for damage calculation
-    vec3_t temp_origin = self->s.origin;
+    // Save original position before temporarily moving to slam point
     self->s.origin = slam_pos;
 
     // Use T_SlamRadiusDamage for the slam effect with upward knockback
@@ -462,8 +460,7 @@ THINK(bombarea_think)(edict_t* self) -> void
         return;
     }
 
-    // Calculate time remaining and think time
-    float time_remaining = (self->timestamp - level.time).seconds();
+    // Calculate think time
     thinktime = 0.3f + 0.2f * frandom();  // Slower interval (was 0.15-0.25, now 0.3-0.5)
 
     // Start from the area center
@@ -502,7 +499,6 @@ void BombArea(edict_t* ent)//, float skill_mult, float cost_mult)
     vec3_t angles, offset;
     vec3_t forward, right, start, end;
     trace_t tr;
-    int cost = COST_FOR_BOMB;// * cost_mult;
 
     if (!ent || !ent->client || IsPlayerMenuProtected(ent) || ClientIsSpectating(ent->client))
         return;
@@ -710,7 +706,6 @@ void BombPerson(edict_t* target, edict_t* owner, int damage)
 // Main command handler for bomb player
 void Cmd_BombPlayer(edict_t* ent)
 {
-    int cost = COST_FOR_BOMB;// * cost_mult;
     vec3_t forward, right, start, end, offset;
     trace_t tr;
 

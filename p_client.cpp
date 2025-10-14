@@ -2936,7 +2936,7 @@ void PutClientInServer(edict_t* ent)
 		if (is_coop && resp.score > client->pers.score)
 			client->pers.score = resp.score;
 		else if (!is_coop)
-			memset(&resp, 0, sizeof(resp));
+			resp = {};
 	}
 
 	// Clear client data while preserving persistant info and camera settings
@@ -2951,7 +2951,7 @@ void PutClientInServer(edict_t* ent)
 
 	bool saved_auto_eyecam = client->auto_eyecam;
 	bool saved_use_eyecam = client->use_eyecam;
-	memset(client, 0, sizeof(*client));
+	*client = {};
 	client->pers = saved;
 	client->resp = resp;
 	client->auto_eyecam = saved_auto_eyecam;
@@ -4550,7 +4550,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 
 		// NO EARLY RETURN FOR MORPHED PLAYERS - they need pmove!
 
-		memset(&pm, 0, sizeof(pm));
+		pm = {};
 
 		// Check if the player is morphed and set appropriate physics
 		if (IsMorphed(ent))

@@ -352,7 +352,6 @@ bool RecentBosses::contains(horde::MonsterTypeID boss_id, size_t limit) const
 		return false;
 
 	// Only check the most recent 'limit' entries
-	const size_t check_count = std::min(count, limit);
 	const size_t start_index = (count > limit) ? (count - limit) : 0;
 
 	for (size_t i = start_index; i < count; ++i)
@@ -391,8 +390,6 @@ void BossEligibilityCache::initialize()
 		{
 			for (size_t map_id_idx = 0; map_id_idx < MAP_ID_COUNT; ++map_id_idx)
 			{
-				const horde::MapID mapId = static_cast<horde::MapID>(map_id_idx);
-
 				const BossDataSoA* boss_list_soa = nullptr;
 
 				// Determine which boss list based on map size index
@@ -952,7 +949,6 @@ void SpawnBossAutomatically()
 	// HYBRID APPROACH: Try relaxed validation first, then alternative spawns if needed
 	const bool is_flying = IsFlying(boss_pick_result.typeId);
 	vec3_t final_spawn_origin;
-	bool spawn_valid = false;
 
 	// Step 1: Clear and validate primary spawn with relaxed boss checks
 	ClearSpawnArea(spawn_origin, predicted_mins, predicted_maxs);
@@ -962,7 +958,6 @@ void SpawnBossAutomatically()
 	{
 		final_spawn_origin = primary_validation.adjusted_position;
 		PushEntitiesAway(final_spawn_origin, PUSH_ITERATIONS, PUSH_BASE_RADIUS, PUSH_BASE_STRENGTH, PUSH_PLAYER_STRENGTH, PUSH_MONSTER_STRENGTH);
-		spawn_valid = true;
 
 		if (developer->integer)
 			gi.Com_PrintFmt("SpawnBossAutomatically: Primary spawn validated at {}\n", final_spawn_origin);
@@ -971,8 +966,6 @@ void SpawnBossAutomatically()
 	else if (TryAlternativeSpawnPoints(spawn_origin, predicted_mins, predicted_maxs, is_flying,
 		PUSH_ITERATIONS, PUSH_BASE_RADIUS, PUSH_BASE_STRENGTH, PUSH_PLAYER_STRENGTH, PUSH_MONSTER_STRENGTH, final_spawn_origin))
 	{
-		spawn_valid = true;
-
 		if (developer->integer)
 			gi.Com_PrintFmt("SpawnBossAutomatically: Using alternative spawn at {}\n", final_spawn_origin);
 	}
@@ -1112,17 +1105,6 @@ bool CheckAndTeleportBoss(edict_t *self, BossTeleportReason reason)
 	// Early validation
 	if (!self || !self->inuse || self->deadflag || !self->monsterinfo.IS_BOSS || !g_horde->integer)
 	{
-		if (developer->integer)
-		{
-			const char* reason_str = (reason == BossTeleportReason::DROWNING) ? "drowning" :
-									 (reason == BossTeleportReason::TRIGGER_HURT) ? "trigger_hurt" : "unknown";
-			gi.Com_PrintFmt("CTB: Early exit for {}. InUse:{} Dead:{} IsBoss:{} HordeInt:{}\n",
-							self->classname ? self->classname : "unknown",
-							self->inuse,
-							self->deadflag,
-							self->monsterinfo.IS_BOSS,
-							g_horde->integer);
-		}
 		return false;
 	}
 

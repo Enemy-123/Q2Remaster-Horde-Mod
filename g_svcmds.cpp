@@ -305,7 +305,7 @@ static edict_t* FindPlayerByName(const char* name)
 		return nullptr;
 
 	// Try exact match first
-	for (int i = 0; i < game.maxclients; i++)
+	for (uint32_t i = 0; i < game.maxclients; i++)
 	{
 		edict_t* player = g_edicts + 1 + i;
 		if (!player->inuse || !player->client)
@@ -317,7 +317,7 @@ static edict_t* FindPlayerByName(const char* name)
 	}
 
 	// Try partial match (case-insensitive substring)
-	for (int i = 0; i < game.maxclients; i++)
+	for (uint32_t i = 0; i < game.maxclients; i++)
 	{
 		edict_t* player = g_edicts + 1 + i;
 		if (!player->inuse || !player->client)
@@ -453,7 +453,7 @@ void SVCmd_ResetPlayer_f()
 		player->client->pers.weapon_points = 0;
 		
 		// Reset skills
-		memset(&player->client->pers.skills, 0, sizeof(player->client->pers.skills));
+		player->client->pers.skills = {};
 		
 		gi.LocClient_Print(player, PRINT_HIGH, "Your character has been reset by an admin!\n");
 		

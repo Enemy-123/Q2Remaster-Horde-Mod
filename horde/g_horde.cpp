@@ -735,7 +735,7 @@ void BuildSpawnPointMap()
 	if (bounds_source_count == 0) {
 		gi.Com_Print("Fallback: Calculating bounds from runtime entities...\n");
 
-		for (int i = game.maxclients + 1; i < globals.num_edicts; i++) {
+		for (int i = game.maxclients + 1; i < static_cast<int>(globals.num_edicts); i++) {
 			edict_t* ent = &g_edicts[i];
 			if (!ent->inuse) continue;
 
@@ -2149,7 +2149,6 @@ static inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpeci
 	// --- Part 1: Check for Special Waves ---
 	if (!forceSpecialWave && !WasLastWaveSpecial())
 	{
-		const int32_t numHumanPlayers = GetNumHumanPlayers();
 		for (size_t i = 0; i < g_specialWaves.WAVE_COUNT; ++i)
 		{
 			// Fast checks on contiguous SoA data
@@ -2619,23 +2618,8 @@ static float ApplySpecialModifiers(float weight, size_t i, const MonsterSelectio
 	return weight;
 }
 
-// This function now takes the index `i` and the context `ctx`
-// to check for compatibility.
-static bool IsMonsterCompatible(size_t i, const MonsterSelectionContext &ctx)
-{
-	const horde::MonsterTypeID currentId = static_cast<horde::MonsterTypeID>(i);
-
-	if (g_monsterData.minWaves[i] > ctx.effectiveLevel)
-		return false;
-	if (ctx.waveTypeForFiltering != MonsterWaveType::None && !IsValidMonsterForWave(currentId, ctx.waveTypeForFiltering))
-		return false;
-
-	const bool monster_is_flying = IsFlying(currentId);
-	if (ctx.isSpawnPointFlying && !monster_is_flying)
-		return false;
-
-	return true;
-}
+// REMOVED: IsMonsterCompatible - Functionality now inlined in BuildMonsterCache
+// The checks are now performed directly during cache building for better performance
 
 static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionContext& ctx)
 {
@@ -3379,7 +3363,9 @@ void AppendHordeMessage(const char* message, gtime_t duration)
 		AppendHordeMessage_impl(std::string_view(message), duration);
 }
 
-static void AppendHordeMessage(std::string_view message, gtime_t duration = 5_sec)
+// Internal string_view overload - marked inline to avoid unused function warning
+// This is called through the const char* version above
+static inline void AppendHordeMessage(std::string_view message, gtime_t duration = 5_sec)
 {
 	AppendHordeMessage_impl(message, duration);
 }
@@ -4055,11 +4041,7 @@ static void UpdateTimeAcceleration(const WaveConditionContext &ctx)
 		const gtime_t elapsed = ctx.currentTime - g_horde_local.accelerationStartTime;
 		const float t = std::clamp(elapsed.seconds() / g_horde_local.accelerationDuration.seconds(), 0.0f, 1.0f);
 
-		// Linear interpolation: lerp from start value to target
-		const float start_value = (elapsed == 0_sec) ? g_horde_local.timeAcceleration :
-			(g_horde_local.timeAcceleration - (g_horde_local.targetTimeAcceleration - g_horde_local.timeAcceleration) * t / (1.0f - t + 0.001f));
-
-		// Simpler approach: exponential smoothing (feels more natural)
+		// Exponential smoothing (feels more natural)
 		const float smooth_rate = 5.0f; // Higher = faster convergence
 		const float delta = (g_horde_local.targetTimeAcceleration - g_horde_local.timeAcceleration) * smooth_rate * gi.frame_time_s;
 		g_horde_local.timeAcceleration += delta;
@@ -5371,42 +5353,8 @@ int32_t ManageSpawnCountsAndQueue(const horde::MapSize &mapSize, int32_t availab
 
 // --- Helper Function Implementations ---
 
-// RebuildSpawnPointCacheIfNeeded moved to horde_spawning.cpp
-static void RebuildSpawnPointCacheIfNeeded_REMOVED_SEE_horde_spawning_cpp()
-{
-	if (!g_spawn_system.spawn_points_cached || g_spawn_system.need_spawn_cache_reset)
-	{
-		// Ensure spawn map is built first
-		if (g_spawn_system.spawn_map_needs_build) {
-			BuildSpawnPointMap();
-			g_spawn_system.spawn_map_needs_build = false;
-		}
-		// Reserve capacity before copying to avoid reallocation
-		g_spawn_system.potential_spawn_points.clear();
-		g_spawn_system.potential_spawn_points.reserve(g_spawn_point_list.size());
-		g_spawn_system.potential_spawn_points = g_spawn_point_list;
-
-		g_spawn_system.cached_flying_spawn_count = 0;
-		for (const auto* point : g_spawn_system.potential_spawn_points) {
-			if (point->style == 1) {
-				g_spawn_system.cached_flying_spawn_count++;
-			}
-		}
-
-		if (!g_spawn_system.potential_spawn_points.empty())
-		{
-			std::shuffle(g_spawn_system.potential_spawn_points.begin(), g_spawn_system.potential_spawn_points.end(), mt_rand);
-		}
-
-		g_spawn_system.spawn_point_shuffle_index = 0;
-		g_spawn_system.spawn_points_cached = true;
-		g_spawn_system.need_spawn_cache_reset = false;
-		g_spawn_system.consecutive_spawn_failures = 0;
-
-		if (developer->integer)
-			gi.Com_PrintFmt("Spawn Point Cache Rebuilt: {} points shuffled ({} flying).\n", g_spawn_system.potential_spawn_points.size(), g_spawn_system.cached_flying_spawn_count);
-	}
-}
+// REMOVED: RebuildSpawnPointCacheIfNeeded moved to horde_spawning.cpp
+// See horde_spawning.cpp line 735 for the active implementation
 
 bool CheckHardCapAndLog(int32_t activeMonsters, int32_t hardCap, int32_t softCap, horde_state_t currentState, int32_t currentLevel)
 {
@@ -6276,7 +6224,6 @@ public:
     void ProcessSpawnPlan() {
         if (g_spawn_system.spawn_plan.empty()) return;
 
-        int total_planned = static_cast<int>(g_spawn_system.spawn_plan.size());
         int total_spawned = 0;
         int total_validation_failures = 0;
         int total_spawn_failures = 0;

@@ -885,7 +885,7 @@ void Cmd_AlertAll_f(edict_t* ent)
 	if (!G_CheatCheck(ent))
 		return;
 
-	for (size_t i = 0; i < globals.num_edicts; i++)
+	for (uint32_t i = 0; i < globals.num_edicts; i++)
 	{
 		edict_t* t = &g_edicts[i];
 
@@ -1109,9 +1109,9 @@ void Cmd_Inven_f(edict_t* ent)
 	cl->showinventory = true;
 
 	gi.WriteByte(svc_inventory);
-	for (i = 0; i < IT_TOTAL; i++)
+	for (i = 0; i < static_cast<int>(IT_TOTAL); i++)
 		gi.WriteShort(cl->pers.inventory[i]);
-	for (; i < MAX_ITEMS; i++)
+	for (; i < static_cast<int>(MAX_ITEMS); i++)
 		gi.WriteShort(0);
 	gi.unicast(ent, true);
 }

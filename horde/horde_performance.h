@@ -155,7 +155,7 @@ public:
     }
 
     const MonsterTypeProperties* GetProperties(int type_id) {
-        if (type_id < 0 || type_id >= MAX_MONSTER_TYPES)
+        if (type_id < 0 || type_id >= static_cast<int>(MAX_MONSTER_TYPES))
             return nullptr;
 
         if (!cached[type_id])
@@ -165,7 +165,7 @@ public:
     }
 
     void CacheProperties(int type_id, const MonsterTypeProperties& props) {
-        if (type_id < 0 || type_id >= MAX_MONSTER_TYPES)
+        if (type_id < 0 || type_id >= static_cast<int>(MAX_MONSTER_TYPES))
             return;
 
         cache[type_id] = props;

@@ -1333,7 +1333,10 @@ const char* ED_ParseEdict(const char* data, edict_t* ent, spawn_temp_t& st)
 	}
 
 	if (!init)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wclass-memaccess"
 		memset(ent, 0, sizeof(*ent));
+#pragma GCC diagnostic pop
 
 	if (coop->integer && g_hardcoop->integer && ent->classname) {
 		perform_replacement(ent, GetHardCoopReplacements(),
@@ -1525,7 +1528,9 @@ static void G_PrecacheStartItems()
 constexpr size_t MAX_ENTITY_FILE_SIZE = 0x40000; // 256 KB
 
 //#define NOMINMAX
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN // Also good practice
+#endif
 #include <windows.h>
 #include <filesystem>
 #include <fstream>
@@ -1653,8 +1658,11 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 
 	gi.FreeTags(TAG_LEVEL);
 
-	memset(&level, 0, sizeof(level));
+	level = {};
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wclass-memaccess"
 	memset(g_edicts, 0, game.maxentities * sizeof(g_edicts[0]));
+#pragma GCC diagnostic pop
 
 	// Initialize global spawner limits for spawner monsters in horde mode
 	level.global_spawner_limit = 20;

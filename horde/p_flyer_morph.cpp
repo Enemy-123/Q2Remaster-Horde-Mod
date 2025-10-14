@@ -28,7 +28,7 @@ flyer_data_t* GetFlyerData(edict_t* ent) {
 
 void InitMorphData(edict_t* ent, morph_type_t type) {
     morph_data_t& data = s_morph_data[ent];
-    memset(&data, 0, sizeof(data));
+    data = {};
     data.morph_type = type;
     data.ability_level = 1; // Default ability level
 }
@@ -50,156 +50,6 @@ void ClearFlyerData(edict_t* ent) {
 bool IsMorphed(edict_t* ent) {
     auto* data = GetMorphData(ent);
     return data && data->morph_type != MORPH_NONE;
-}
-
-// ==================== Flight Physics ====================
-
-static void FlyerBrakeVertical(edict_t* ent) {
-    if (ent->velocity[2] > 0) {
-        ent->velocity[2] -= FLYER_BRAKE_SPEED;
-        if (ent->velocity[2] < 0)
-            ent->velocity[2] = 0;
-    } else if (ent->velocity[2] < 0) {
-        ent->velocity[2] += FLYER_BRAKE_SPEED;
-        if (ent->velocity[2] > 0)
-            ent->velocity[2] = 0;
-    }
-}
-
-static void FlyerBrakeHorizontal(edict_t* ent) {
-    // Brake X velocity
-    if (ent->velocity[0] > 0) {
-        ent->velocity[0] -= FLYER_BRAKE_SPEED;
-        if (ent->velocity[0] < 0)
-            ent->velocity[0] = 0;
-    } else if (ent->velocity[0] < 0) {
-        ent->velocity[0] += FLYER_BRAKE_SPEED;
-        if (ent->velocity[0] > 0)
-            ent->velocity[0] = 0;
-    }
-
-    // Brake Y velocity
-    if (ent->velocity[1] > 0) {
-        ent->velocity[1] -= FLYER_BRAKE_SPEED;
-        if (ent->velocity[1] < 0)
-            ent->velocity[1] = 0;
-    } else if (ent->velocity[1] < 0) {
-        ent->velocity[1] += FLYER_BRAKE_SPEED;
-        if (ent->velocity[1] > 0)
-            ent->velocity[1] = 0;
-    }
-}
-
-static void FlyerAccelerate(edict_t* ent, const vec3_t& dir, float speed, float max_speed) {
-    vec3_t move = ent->velocity + (dir * speed);
-    float nspd = move.length();
-    float cspd = ent->velocity.length();
-    float value = max_speed - cspd;
-    float max = 60.0f; // maximum brake speed
-
-    if ((speed > 0) && (speed > value) && (nspd > cspd)) {
-        if (value > -max)
-            speed = value;
-        else
-            speed = -max;
-        vec3_t newdir = ent->velocity;
-        newdir.normalize();
-        move = ent->velocity + (newdir * speed);
-    } else if ((speed < 0) && (-speed > value) && (nspd > cspd)) {
-        if (value > -max)
-            speed = value;
-        else
-            speed = -max;
-        vec3_t newdir = ent->velocity;
-        newdir.normalize();
-        move = ent->velocity + (newdir * speed);
-    }
-
-    ent->velocity = move;
-}
-
-static void FlyerVerticalThrust(edict_t* ent, float speed, float max_speed) {
-    float max = 60.0f;
-    float cspd = ent->velocity[2];
-    float nspd = cspd + speed;
-    float delta = max_speed - fabsf(cspd);
-
-    if (speed > 0) { // going up
-        if ((delta > speed) || (nspd < 0))
-            ent->velocity[2] += speed;
-        else if (delta > 0)
-            ent->velocity[2] += delta;
-        else if (delta < 0) {
-            if (delta < -max)
-                ent->velocity[2] -= max;
-            else
-                ent->velocity[2] += delta;
-        }
-    } else { // going down
-        if ((delta > -speed) || (nspd > 0))
-            ent->velocity[2] += speed;
-        else if (delta > 0)
-            ent->velocity[2] -= delta;
-        else if (delta < 0) {
-            if (delta < -max)
-                ent->velocity[2] += max;
-            else
-                ent->velocity[2] += delta;
-        }
-    }
-}
-
-static void PlayerAutoThrust(edict_t* ent, const usercmd_t& ucmd) {
-    vec3_t forward, right, up;
-    AngleVectors(ent->client->v_angle, &forward, &right, &up);
-
-    float speed = 400.0f; // Base flying speed
-    auto* data = GetFlyerData(ent);
-    if (data && data->ability_level > 3) {
-        speed += (data->ability_level - 3) * 50;
-    }
-
-    // Calculate desired movement velocity
-    vec3_t move_vel = { 0, 0, 0 };
-
-    // Forward/backward movement with vertical component based on view pitch
-    // This makes flying feel like spectator/noclip mode
-    if (ucmd.forwardmove > 0) {
-        move_vel = move_vel + (forward * speed);
-    } else if (ucmd.forwardmove < 0) {
-        move_vel = move_vel + (forward * -speed);
-    }
-
-    // Strafe movement (stays horizontal)
-    if (ucmd.sidemove > 0) {
-        vec3_t right_horizontal = right;
-        right_horizontal[2] = 0;  // Remove vertical component
-        right_horizontal.normalize();
-        move_vel = move_vel + (right_horizontal * speed);
-    } else if (ucmd.sidemove < 0) {
-        vec3_t right_horizontal = right;
-        right_horizontal[2] = 0;  // Remove vertical component
-        right_horizontal.normalize();
-        move_vel = move_vel + (right_horizontal * -speed);
-    }
-
-    // Optional: Add jump/crouch for direct vertical movement
-    // This gives additional control beyond pitch-based movement
-    if (ucmd.buttons & BUTTON_JUMP) {
-        move_vel[2] += speed * 0.5f;  // Slower direct vertical
-    } else if (ucmd.buttons & BUTTON_CROUCH) {
-        move_vel[2] -= speed * 0.5f;
-    }
-
-    // Apply movement with momentum for smoother flight
-    float momentum = 0.85f;  // Slightly higher momentum for smoother flight
-    ent->velocity = (ent->velocity * momentum) + (move_vel * (1.0f - momentum));
-
-    // Cap maximum velocity
-    float vel = ent->velocity.length();
-    if (vel > FLYER_MAX_VELOCITY) {
-        ent->velocity = ent->velocity.normalized() * FLYER_MAX_VELOCITY;
-    }
 }
 
 // ==================== Combat Functions ====================
@@ -574,6 +424,12 @@ void Cmd_PlayerToFlyer_f(edict_t* ent) {
     // Initialize flyer data
     InitFlyerData(ent);
     auto* data = GetFlyerData(ent);
+
+    // Check if data was successfully initialized
+    if (!data) {
+        gi.LocClient_Print(ent, PRINT_HIGH, "Failed to initialize morph data.\n");
+        return;
+    }
 
     // Set ability level based on player stats if available
     data->ability_level = 1 + (ent->client->resp.score / 100); // Example scaling
