@@ -138,6 +138,7 @@
         "cstdbool": "cpp",
         "ctgmath": "cpp",
         "execution": "cpp",
-        "version": "cpp"
+        "version": "cpp",
+        "slist": "cpp"
     }
 }

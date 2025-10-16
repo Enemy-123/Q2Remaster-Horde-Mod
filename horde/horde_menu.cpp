@@ -6377,12 +6377,14 @@ void PlasmabeamUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	}
 }
 
+
 /////////////////////////////////////////////
-//////SCOREBOARD//////////
+		//////SCOREBOARD//////////
 /////////////////////////////////////////////
 
+
 // Make sure we're using the correct fmt namespace for format
-// namespace fmt_game = fmt;
+//namespace fmt_game = fmt;
 
 // Constants
 
@@ -6391,70 +6393,47 @@ constexpr int PLAYER_Y_START = 42;
 constexpr int PLAYER_Y_SPACING = 8;
 constexpr int LAYOUT_SAFETY_MARGIN = 50;
 static constexpr size_t MAX_BONUS_STRING_LENGTH = 400; 
+
 /**
  *  StringBuilder
  * Helper class for efficient string concatenation
  */
-class StringBuilder
-{
+class StringBuilder {
 private:
 	std::string buffer;
-	size_t max_size;
 
 public:
-	explicit StringBuilder(size_t reserved_size = 256)
-	{
-		// Clamp reserved size to prevent overflow
-		reserved_size = std::min(reserved_size, MAX_STRING_BUILD_SIZE);
-		max_size = MAX_STRING_BUILD_SIZE;
-		try
-		{
-			buffer.reserve(reserved_size);
-		}
-		catch (const std::bad_alloc &)
-		{
-			gi.Com_Print("WARNING: Failed to reserve string builder memory\n");
-		}
+	explicit StringBuilder(size_t reserved_size = 256) {
+		buffer.reserve(reserved_size);
 	}
 
-	StringBuilder &append(std::string_view text)
-	{
-		// Use safe append with size checking
-		if (!safe_string_append(buffer, text, max_size))
-		{
-			if (developer && developer->integer)
-			{
-				gi.Com_Print("WARNING: StringBuilder reached max size, truncating\n");
-			}
-		}
+	StringBuilder& append(std::string_view text) {
+		buffer.append(text);
 		return *this;
 	}
 
-	std::string str() const
-	{
+	std::string str() const {
 		return buffer;
 	}
 
-	size_t size() const
-	{
+	size_t size() const {
 		return buffer.size();
 	}
 };
+
 
 /**
  * PlayerScore
  * Contains player score information for the scoreboard
  */
-struct PlayerScore
-{
+struct PlayerScore {
 	unsigned int index;
 	int score;
 	int ping;
 	bool is_dead;
 
 	// Sort players by score in descending order
-	bool operator>(const PlayerScore &other) const
-	{
+	bool operator>(const PlayerScore& other) const {
 		return score > other.score;
 	}
 };
@@ -6463,59 +6442,46 @@ struct PlayerScore
  * ScoreboardLayout
  * Handles scoreboard layout generation
  */
-class ScoreboardLayout
-{
+class ScoreboardLayout {
 private:
 	StringBuilder layout_builder;
-	const edict_t *ent;
+	const edict_t* ent;
 	std::vector<PlayerScore> team_players;
 	std::vector<PlayerScore> spectators;
 	int total_score;
-	size_t players_actually_rendered;  // Track actual rendered count for spectator positioning
-
-	static constexpr size_t MAX_SPECTATORS_TO_DISPLAY = 8;
 
 public:
-	ScoreboardLayout(edict_t *player_ent, size_t reserve_size = MAX_CTF_STAT_LENGTH)
-		: layout_builder(reserve_size), ent(player_ent), total_score(0), players_actually_rendered(0)
-	{
+	ScoreboardLayout(edict_t* player_ent, size_t reserve_size = MAX_CTF_STAT_LENGTH)
+		: layout_builder(reserve_size), ent(player_ent), total_score(0) {
 	}
 
-	void collectPlayers()
-	{
-		for (unsigned int i = 0; i < game.maxclients; i++)
-		{
-			const edict_t *const cl_ent = g_edicts + 1 + i;
+	void collectPlayers() {
+		for (unsigned int i = 0; i < game.maxclients; i++) {
+			const edict_t* const cl_ent = g_edicts + 1 + i;
 			if (!cl_ent->inuse)
 				continue;
 
-			const gclient_t *const cl = &game.clients[i];
+			const gclient_t* const cl = &game.clients[i];
 
+			// Create player score entry
 			PlayerScore player = {
 				i,
 				cl->resp.score,
 				std::clamp(cl->ping, 0, 999),
-				(cl_ent->deadflag != 0)};
+				(cl_ent->deadflag != 0)  // Using deadflag to determine if player is dead
+			};
 
-			if (cl->resp.ctf_team == CTF_TEAM1)
-			{
-				if (!safe_push_back(team_players, player, MAX_SAFE_CONTAINER_SIZE))
-				{
-					gi.Com_Print("WARNING: Too many team players for scoreboard\n");
-				}
-				else
-				{
-					total_score += player.score;
-				}
+			// Sort into appropriate team
+			if (cl->resp.ctf_team == CTF_TEAM1) {
+				team_players.push_back(player);
+				total_score += player.score;
 			}
-			else if (cl->resp.ctf_team == CTF_NOTEAM)
-			{
-				if (!safe_push_back(spectators, player, MAX_SAFE_CONTAINER_SIZE))
-				{
-					gi.Com_Print("WARNING: Too many spectators for scoreboard\n");
-				}
+			else if (cl->resp.ctf_team == CTF_NOTEAM) {
+				spectators.push_back(player);
 			}
 		}
+
+		// Sort team players by score
 		std::sort(team_players.begin(), team_players.end(), std::greater<>());
 	}
 
@@ -6543,6 +6509,7 @@ public:
 				gi.ServerFrame() + ((gtime_t::from_min(timelimit->value) - level.time)).milliseconds() / gi.frame_time_ms));
 		}
 	}
+
 
 		void addTeamScore()
 	{
@@ -6579,11 +6546,13 @@ public:
 		}
 	}
 
-	void addPlayerList()
-	{
-		// Add column headers - Name, Score, Lv, Ping (user's preferred order)
+	void addPlayerList() {
+
+
+
+
 		int header_y = PLAYER_Y_START - PLAYER_Y_SPACING;
-		if (g_vortex->integer)
+				if (g_vortex->integer)
 		{
 			layout_builder.append(fmt::format(
 				"if 0 yv {} xv -140 string2 \"Name\" xv 70 string2 \"Score\" xv 120 string2 \"Lv\" xv 160 string2 \"Ping\" endif \n",
@@ -6595,78 +6564,43 @@ public:
 				"if 0 yv {} xv -140 string2 \"Name\" xv 70 string2 \"Score\" xv 120 string2 \"Ping\" endif \n",
 				header_y));
 		}
-
-		// Calculate actual space needed for spectators + footer dynamically
-		size_t footer_space = level.intermissiontime ? 120 : 100;
-		size_t spectator_entry_size = g_vortex->integer ? 90 : 85;
-		size_t spectator_space = std::min(spectators.size(), MAX_SPECTATORS_TO_DISPLAY) * spectator_entry_size;
-		size_t total_reserve = footer_space + spectator_space + 50;  // 50 byte safety margin
-
-		// Loop through players - optimized format (set Y once per player)
-		for (size_t i = 0; i < std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY); ++i)
-		{
-			// Dynamic safety check: reserve only what's actually needed
-			if (layout_builder.size() >= MAX_CTF_STAT_LENGTH - total_reserve)
-			{
-				break;
-			}
-
-			const auto &player = team_players[i];
-			edict_t *player_ent = g_edicts + 1 + player.index;
+		for (size_t i = 0; i < std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY); ++i) {
+			const auto& player = team_players[i];
+		edict_t *player_ent = g_edicts + 1 + player.index;
+		const char *player_name = GetPlayerName(player_ent);
 			int y = PLAYER_Y_START + i * PLAYER_Y_SPACING;
-			int32_t player_level = player_ent->client->pers.pvm_level;
 
-			const char *player_name = GetPlayerName(player_ent);
-
-			if (g_vortex->integer)
-			{
-				// Optimized format: set Y once, then just X positions (saves ~40 bytes per player)
+			// Add death indicator if player is dead
+			if (player.is_dead) {
 				layout_builder.append(fmt::format(
-				"if 0 yv {} xv -140 string \"{}\" xv 70 string \"{}\" xv 120 string \"{}\" xv 160 string \"{}\" endif \n",
-				y, player_name, player.score, player_level, player.ping));
+					"if 0 xv -185 yv {} string \"[Dead]\" endif ", y));
 			}
-			else
-			{
-				// Optimized format: set Y once, then just X positions (saves ~40 bytes per player)
+
+			// Add player information
 				layout_builder.append(fmt::format(
 					"if 0 yv {} xv -140 string \"{}\" xv 70 string \"{}\"  xv 120 string \"{}\" endif \n",
 					y, player_name, player.score, player.ping));
-			}
-
-			// Track actual count of rendered players for spectator positioning
-			players_actually_rendered = i + 1;
 		}
 	}
 
-	void addSpectators()
-	{
-		// Only add spectators if there's enough buffer space and there are spectators to show.
-		if (layout_builder.size() < MAX_CTF_STAT_LENGTH - LAYOUT_SAFETY_MARGIN && !spectators.empty())
-		{
-			// Calculate the starting Y position for the spectator list, leaving a gap after the player list.
-			// Use players_actually_rendered to position based on what was actually displayed, not total player count
-			int y = PLAYER_Y_START + (players_actually_rendered + 1) * PLAYER_Y_SPACING;
+	void addSpectators() {
+		// Only add spectators if there's enough space and there are spectators
+		if (layout_builder.size() < MAX_CTF_STAT_LENGTH - LAYOUT_SAFETY_MARGIN && !spectators.empty()) {
+			// Calculate vertical position after team players
+			int y = PLAYER_Y_START + (std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY) + 2) * PLAYER_Y_SPACING;
 
-			// Add the "Spectators & AFK" header
+			// Add spectator header
 			layout_builder.append(fmt::format(
-				"if 0 xv -90 yv {} string2 \"Spectators\" endif \n", y));
+				"if 0 xv -90 yv {} loc_string2 0 \"Spectators & AFK\" endif \n", y));
 			y += PLAYER_Y_SPACING;
 
-			// Loop through spectators using optimized format
-			size_t spectators_to_display = std::min(spectators.size(), MAX_SPECTATORS_TO_DISPLAY);
-			for (size_t i = 0; i < spectators_to_display; ++i)
-			{
-				// Dynamic margin: intermission footer is ~110 bytes, normal footer is ~90 bytes
-				size_t footer_reserve = level.intermissiontime ? 120 : 100;
-				if (layout_builder.size() >= MAX_CTF_STAT_LENGTH - footer_reserve)
-				{
-					break;
-				}
+			// Add each spectator
+			
+			for (const auto& spec : spectators) {
 
-				const auto &spec = spectators[i];
 				edict_t *spec_ent = g_edicts + 1 + spec.index;
 				const char *spec_name = GetPlayerName(spec_ent);
-
+				
 				// Optimized format: Name, Score, Ping (spectators don't have levels)
 				if (!g_vortex->integer)
 				{
@@ -6680,14 +6614,6 @@ public:
 					y, spec_name, spec.score, spec.ping));}
 
 				y += PLAYER_Y_SPACING;
-			}
-
-			// If there are more spectators than we can display, add the "... and X more" message.
-			if (spectators.size() > spectators_to_display)
-			{
-				layout_builder.append(fmt::format(
-					"if 0 xv -90 yv {} string2 \"... and {} more\" endif \n",
-					y, spectators.size() - spectators_to_display));
 			}
 		}
 	}
@@ -6717,93 +6643,8 @@ public:
 		}
 	}
 
-	std::string build()
-	{
+	std::string build() {
 		return layout_builder.str();
-	}
-
-	/**
-	 * @brief Safely truncates layout string to ensure no unmatched if/endif blocks
-	 * @param layout The layout string to truncate
-	 * @param max_length Maximum length to truncate to
-	 * @return Safely truncated layout string
-	 */
-	static std::string safeTruncateLayout(const std::string& layout, size_t max_length)
-	{
-		if (layout.size() <= max_length)
-			return layout;
-
-		// We need to find a safe truncation point where all if/ifgef statements have matching endif
-		// Start from max_length and work backwards to find a complete block
-
-		size_t truncate_pos = max_length;
-
-		// Search backwards for the last complete "endif \n" pattern
-		// This ensures we don't cut in the middle of a statement
-		while (truncate_pos > 0)
-		{
-			// Look for "endif \n" or "endif " pattern
-			if ((truncate_pos >= 6 && layout.substr(truncate_pos - 6, 6) == "endif ") ||
-			    (truncate_pos >= 7 && layout.substr(truncate_pos - 7, 7) == "endif \n"))
-			{
-				// Found a potential endif, now verify all if/ifgef statements are matched
-				std::string test_layout = layout.substr(0, truncate_pos);
-
-				// Count if/ifgef and endif statements using simple word boundary matching
-				int if_count = 0;
-				int endif_count = 0;
-
-				size_t pos = 0;
-				while (pos < test_layout.size())
-				{
-					// Look for "if " (with space after to ensure word boundary)
-					if (pos + 3 <= test_layout.size() && test_layout.substr(pos, 3) == "if ")
-					{
-						// Make sure it's not "endif" or "ifgef"
-						if (pos == 0 || test_layout[pos - 1] == ' ' || test_layout[pos - 1] == '\n')
-						{
-							if_count++;
-							pos += 3;
-							continue;
-						}
-					}
-
-					// Look for "ifgef "
-					if (pos + 6 <= test_layout.size() && test_layout.substr(pos, 6) == "ifgef ")
-					{
-						if_count++;
-						pos += 6;
-						continue;
-					}
-
-					// Look for "endif"
-					if (pos + 5 <= test_layout.size() && test_layout.substr(pos, 5) == "endif")
-					{
-						// Make sure it's actually a word boundary (followed by space or newline or end)
-						if (pos + 5 >= test_layout.size() || test_layout[pos + 5] == ' ' || test_layout[pos + 5] == '\n')
-						{
-							endif_count++;
-							pos += 5;
-							continue;
-						}
-					}
-
-					pos++;
-				}
-
-				// If counts match, we found a safe truncation point
-				if (if_count == endif_count)
-				{
-					return test_layout;
-				}
-			}
-
-			truncate_pos--;
-		}
-
-		// If we couldn't find a safe truncation point, return empty string
-	//	gi.Com_Print("WARNING: Could not find safe truncation point for scoreboard layout\n");
-		return "";
 	}
 };
 
@@ -6812,8 +6653,7 @@ public:
  * @param ent The player entity to display the scoreboard for
  * @param killer The entity that killed the player (if any)
  */
-void HordeScoreboardMessage(edict_t *ent, edict_t *killer)
-{
+void HordeScoreboardMessage(edict_t* ent, edict_t* killer) {
 	// Create scoreboard layout generator
 	ScoreboardLayout layout(ent);
 
@@ -6830,35 +6670,9 @@ void HordeScoreboardMessage(edict_t *ent, edict_t *killer)
 	// Get final layout string
 	std::string final_layout = layout.build();
 
-	// Ensure we don't exceed layout size limits with SAFE truncation
-	if (final_layout.size() >= MAX_CTF_STAT_LENGTH)
-	{
-		// Use smart truncation to prevent cutting off mid-if/endif block
-		final_layout = ScoreboardLayout::safeTruncateLayout(final_layout, MAX_CTF_STAT_LENGTH - 1);
-
-		if (developer && developer->integer)
-		{
-		//	gi.Com_PrintFmt("Scoreboard truncated from {} to {} bytes\n",
-				// layout.build().size(), final_layout.size());
-		}
-	}
-
-	//	gi.Com_PrintFmt("--- BEGIN SCOREBOARD LAYOUT ---\n{}\n--- END SCOREBOARD LAYOUT ---\n", final_layout.c_str());
-
-	// Debug: log layout size during intermission
-	if (developer && developer->integer && level.intermissiontime)
-	{
-	//	gi.Com_PrintFmt("Intermission scoreboard size: {} bytes (limit: {})\n",
-			// final_layout.size(), MAX_CTF_STAT_LENGTH);
-	}
-
-	// Validate layout before sending to client
-	if (!ValidateLayoutString(final_layout, "HordeScoreboardMessage"))
-	{
-		// If validation fails, don't send corrupted layout
-		if (developer && developer->integer)
-		//	gi.Com_Print("ERROR: HordeScoreboardMessage layout failed validation, not sending\n");
-		return;
+	// Ensure we don't exceed layout size limits
+	if (final_layout.size() >= MAX_CTF_STAT_LENGTH) {
+		final_layout.resize(MAX_CTF_STAT_LENGTH - 1);
 	}
 
 	// Send to client
@@ -6867,6 +6681,7 @@ void HordeScoreboardMessage(edict_t *ent, edict_t *killer)
 }
 
 // --- END OF FILE horde_menu.cpp ---
+
 
 /////////////////////////////////////////////
 // CHAINFIST UPGRADE SUBMENU
