@@ -282,7 +282,11 @@
         "flechette": 10,
         "rocket": 30,
         "heat": 40,
-        "slam": 75
+        "slam": 75,
+        "grenade": 50
+      },
+      "weapon_speed": {
+        "grenade": 1500
       }
     },
     "tank_64": {
@@ -293,7 +297,11 @@
       "health_scale": 1.2,
       "weapon_damage": {
         "blaster2": 26,
-        "heat": 45
+        "heat": 45,
+        "grenade": 50
+      },
+      "weapon_speed": {
+        "grenade": 1500
       }
     },
     "runnertank": {
@@ -773,6 +781,9 @@
         "rocket": 30,
         "ionripper": 25,
         "grenade": 40
+      },
+      "weapon_speed": {
+        "grenade": 1300
       }
     },
     "tank_spawner": {
