@@ -391,9 +391,12 @@ static void guardian_grenade(edict_t* self)
 	// Incrementar el contador para la próxima granada
 	self->count++;
 
-	// Predecir la posición del objetivo
+	// Predecir la posición del objetivo con eye height
 	float const time_to_target = (self->enemy->s.origin - start).length() / speed;
-	vec3_t  const predicted_pos = self->enemy->s.origin + (self->enemy->velocity * time_to_target);
+	vec3_t predicted_pos = self->enemy->s.origin + (self->enemy->velocity * time_to_target);
+	
+	// Add eye height for better aim at player's upper body/head
+	predicted_pos[2] += self->enemy->viewheight;
 
 	aim = predicted_pos - start;
 	const float dist = aim.length();
