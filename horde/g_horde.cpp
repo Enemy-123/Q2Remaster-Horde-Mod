@@ -2626,7 +2626,8 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 	cache_ref.clear();
 
 	// Get PVM random monsters if active
-	const std::vector<horde::MonsterTypeID>* pvm_monsters = PVM_GetRandomMonsters();
+	const horde::MonsterTypeID* pvm_monsters = PVM_GetRandomMonsters();
+	const int pvm_monster_count = PVM_GetRandomMonsterCount();
 
 	// FIXED: Single-pass iteration with consistent precache logic
 	for (const MonsterTypeInfo* monster_info : g_eligible_monsters_for_wave)
@@ -2642,8 +2643,8 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 		if (pvm_monsters) {
 			// Check if this monster is in the random selection
 			bool in_random_list = false;
-			for (const auto& pvm_monster : *pvm_monsters) {
-				if (pvm_monster == monster_info->typeId) {
+			for (int j = 0; j < pvm_monster_count; ++j) {
+				if (pvm_monsters[j] == monster_info->typeId) {
 					in_random_list = true;
 					break;
 				}
@@ -2685,8 +2686,8 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 			// PvM Mode: Use random monster list for fallback too
 			if (pvm_monsters) {
 				bool in_random_list = false;
-				for (const auto& pvm_monster : *pvm_monsters) {
-					if (pvm_monster == monster_info->typeId) {
+				for (int k = 0; k < pvm_monster_count; ++k) {
+					if (pvm_monsters[k] == monster_info->typeId) {
 						in_random_list = true;
 						break;
 					}
@@ -3179,16 +3180,18 @@ static void PrecacheAllMonsters()
 	// PVM Mode: Precache all random monsters for this map
 	if (IsPvMMode())
 	{
-		const std::vector<horde::MonsterTypeID>* pvm_monsters = PVM_GetRandomMonsters();
+		const horde::MonsterTypeID* pvm_monsters = PVM_GetRandomMonsters();
+		const int pvm_monster_count = PVM_GetRandomMonsterCount();
 		if (pvm_monsters)
 		{
 			if (developer->integer)
 			{
-				gi.Com_PrintFmt("PVM PRECACHE: Loading {} random monsters for this map...\n", pvm_monsters->size());
+				gi.Com_PrintFmt("PVM PRECACHE: Loading {} random monsters for this map...\n", pvm_monster_count);
 			}
 
-			for (const auto& monster_id : *pvm_monsters)
+			for (int i = 0; i < pvm_monster_count; ++i)
 			{
+				const auto& monster_id = pvm_monsters[i];
 				const char *classname = horde::MonsterTypeRegistry::GetClassname(monster_id);
 				if (classname && *classname)
 				{
@@ -7246,18 +7249,20 @@ static void Horde_InitLevel(const int32_t lvl)
 	}
 
 	// PVM Mode: Use pre-selected random monsters for the entire map
-	const std::vector<horde::MonsterTypeID>* pvm_monsters = PVM_GetRandomMonsters();
+	const horde::MonsterTypeID* pvm_monsters = PVM_GetRandomMonsters();
+	const int pvm_monster_count = PVM_GetRandomMonsterCount();
 	if (pvm_monsters)
 	{
 		// Add all random monsters to eligible list (no wave restrictions in PVM)
-		for (const auto& monster_id : *pvm_monsters)
+		for (int i = 0; i < pvm_monster_count; ++i)
 		{
+			const auto& monster_id = pvm_monsters[i];
 			// Find the monster info
-			for (size_t i = 0; i < MONSTER_DATA_COUNT; ++i)
+			for (size_t j = 0; j < MONSTER_DATA_COUNT; ++j)
 			{
-				if (monsterTypes[i].typeId == monster_id)
+				if (monsterTypes[j].typeId == monster_id)
 				{
-					if (!safe_push_back(g_eligible_monsters_for_wave, &monsterTypes[i], MAX_SAFE_CONTAINER_SIZE)) {
+					if (!safe_push_back(g_eligible_monsters_for_wave, &monsterTypes[j], MAX_SAFE_CONTAINER_SIZE)) {
 						gi.Com_Print("WARNING: Eligible monsters list full\n");
 						break;
 					}

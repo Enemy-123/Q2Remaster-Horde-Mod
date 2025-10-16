@@ -292,8 +292,7 @@ void InitGame()
 
 	Hook_InitGame();
 	Barrel_InitGame();
-	InitializeMonsterMoveSets(); //jump animations
-	
+
 	InitSave();
 
 	// seed RNG

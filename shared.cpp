@@ -1451,36 +1451,23 @@ bool TeleportSelf(edict_t* ent) {
 	return true;
 }
 
-// 25:  jump move detection with compile-time initialization
-static std::vector<const mmove_t*> g_jump_moves;
-
-void InitializeMonsterMoveSets() {
-    if (!g_jump_moves.empty()) {
-        return;
-    }
-
-    g_jump_moves.reserve(32);
-    
-    const mmove_t* jump_moves[] = {
-        &berserk_move_jump, &berserk_move_jump2,
-        &brain_move_jumpattack, &brain_move_jump, &brain_move_jump2,
-        &chick_move_jump, &chick_move_jump2,
-        &guncmdr_move_jump, &guncmdr_move_jump2,
-        &gunner_move_jump, &gunner_move_jump2,
-        &gunner_vanilla_move_jump, &gunner_vanilla_move_jump2,
-        &infantry_move_jump, &infantry_move_jump2,
-        &mutant_move_jump, &mutant_move_jump_up, &mutant_move_jump_down,
-        &parasite_move_jump_up, &parasite_move_jump_down,
-        &redmutant_move_jump, &redmutant_move_jump_up, &redmutant_move_jump_down,
-        &runnertank_move_jump, &runnertank_move_jump2,
-        &soldier_move_jump, &soldier_move_jump2,
-        &stalker_move_jump_straightup, &stalker_move_jump_up, &stalker_move_jump_down,
-        &gekk_move_jump_up, &gekk_move_jump_down
-    };
-
-    g_jump_moves.assign(std::begin(jump_moves), std::end(jump_moves));
-    std::sort(g_jump_moves.begin(), g_jump_moves.end());
-}
+// 25:  jump move detection - zero heap allocation with compile-time array
+static constexpr std::array<const mmove_t*, 32> g_jump_moves = {
+    &berserk_move_jump, &berserk_move_jump2,
+    &brain_move_jumpattack, &brain_move_jump, &brain_move_jump2,
+    &chick_move_jump, &chick_move_jump2,
+    &guncmdr_move_jump, &guncmdr_move_jump2,
+    &gunner_move_jump, &gunner_move_jump2,
+    &gunner_vanilla_move_jump, &gunner_vanilla_move_jump2,
+    &infantry_move_jump, &infantry_move_jump2,
+    &mutant_move_jump, &mutant_move_jump_up, &mutant_move_jump_down,
+    &parasite_move_jump_up, &parasite_move_jump_down,
+    &redmutant_move_jump, &redmutant_move_jump_up, &redmutant_move_jump_down,
+    &runnertank_move_jump, &runnertank_move_jump2,
+    &soldier_move_jump, &soldier_move_jump2,
+    &stalker_move_jump_straightup, &stalker_move_jump_up, &stalker_move_jump_down,
+    &gekk_move_jump_up, &gekk_move_jump_down
+};
 
 bool IsMonsterJumping(const edict_t* self) {
     if (!self || !self->monsterinfo.active_move) {
@@ -1488,7 +1475,8 @@ bool IsMonsterJumping(const edict_t* self) {
     }
 
     const mmove_t* current_move = self->monsterinfo.active_move.pointer();
-    return std::binary_search(g_jump_moves.cbegin(), g_jump_moves.cend(), current_move);
+    // Linear search - with 31 entries, likely faster than binary search due to cache locality
+    return std::find(g_jump_moves.begin(), g_jump_moves.end(), current_move) != g_jump_moves.end();
 }
 
 bool horde_fog_active = false;  // Tracks if boss fog is currently active

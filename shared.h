@@ -105,7 +105,6 @@ enum class BossTeleportReason {
     TRIGGER_HURT,
 //    STUCK
 };
-void InitializeMonsterMoveSets();
 bool M_AdjustBlindfireTarget(edict_t* self, const vec3_t& start, const vec3_t& target, const vec3_t& right, vec3_t& out_dir);
 bool CheckAndTeleportBoss(edict_t* boss, const BossTeleportReason reason);
 void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size, edict_t* spawned_entity);
@@ -243,10 +242,6 @@ extern const mmove_t redmutant_move_jump_down;
 // Runner Tank
 extern const mmove_t runnertank_move_jump;
 extern const mmove_t runnertank_move_jump2;
-
-// Shocker
-extern const mmove_t shocker_move_jump;
-extern const mmove_t shocker_move_jump2;
 
 // Soldier
 extern const mmove_t soldier_move_jump;

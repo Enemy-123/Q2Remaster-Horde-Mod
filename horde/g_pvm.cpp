@@ -266,7 +266,8 @@ bool PVM_IsValidMonster(int minWave)
 
 // Monsters excluded from PVM random selection
 // Add monster types here that should never appear in PVM mode
-static const std::vector<horde::MonsterTypeID> g_pvm_excluded_monsters = {
+// Heap optimization: Changed from std::vector to std::array (compile-time, zero heap allocation)
+static constexpr std::array<horde::MonsterTypeID, 20> g_pvm_excluded_monsters = {
     // Example exclusions (uncomment to exclude):
     horde::MonsterTypeID::JANITOR2,        // Special fog wave boss
     horde::MonsterTypeID::JANITOR,        // Special fog wave boss
@@ -294,20 +295,17 @@ static const std::vector<horde::MonsterTypeID> g_pvm_excluded_monsters = {
 // Check if a monster type is excluded from PVM
 bool PVM_IsMonsterExcluded(horde::MonsterTypeID typeId)
 {
-    for (const auto& excluded : g_pvm_excluded_monsters)
-    {
-        if (excluded == typeId)
-            return true;
-    }
-    return false;
+    return std::find(g_pvm_excluded_monsters.begin(), g_pvm_excluded_monsters.end(), typeId) != g_pvm_excluded_monsters.end();
 }
 
-static std::vector<horde::MonsterTypeID> g_pvm_random_monsters;
+// Heap optimization: Changed from std::vector to std::array (compile-time, zero heap allocation)
+static std::array<horde::MonsterTypeID, PVM_RANDOM_MONSTER_COUNT> g_pvm_random_monsters;
+static int g_pvm_random_monster_count = 0;
 
 // Initialize random monster selection for the current map
 void PVM_InitRandomMonsters()
 {
-    g_pvm_random_monsters.clear();
+    g_pvm_random_monster_count = 0;
 
     if (!IsPvMMode())
         return;
@@ -323,17 +321,18 @@ void PVM_InitRandomMonsters()
         }
     }
 
-    // If we have fewer than 10 monsters, use all of them
+    // If we have fewer than PVM_RANDOM_MONSTER_COUNT monsters, use all of them
     if (valid_monsters.size() <= PVM_RANDOM_MONSTER_COUNT)
     {
-        g_pvm_random_monsters = valid_monsters;
-        // gi.Com_PrintFmt("PVM: Using all {} available monsters (wave {}+)\n", 
+        g_pvm_random_monster_count = static_cast<int>(valid_monsters.size());
+        std::copy(valid_monsters.begin(), valid_monsters.end(), g_pvm_random_monsters.begin());
+        // gi.Com_PrintFmt("PVM: Using all {} available monsters (wave {}+)\n",
         //                valid_monsters.size(), PVM_MIN_WAVE);
         return;
     }
 
-    // Randomly select 10 monsters
-    // Use Fisher-Yates shuffle for first 10 elements
+    // Randomly select PVM_RANDOM_MONSTER_COUNT monsters
+    // Use Fisher-Yates shuffle for first N elements
     std::vector<horde::MonsterTypeID> shuffled = valid_monsters;
     for (int i = 0; i < PVM_RANDOM_MONSTER_COUNT; i++)
     {
@@ -341,17 +340,26 @@ void PVM_InitRandomMonsters()
         std::swap(shuffled[i], shuffled[j]);
     }
 
-    // Take first 10
-    g_pvm_random_monsters.assign(shuffled.begin(), shuffled.begin() + PVM_RANDOM_MONSTER_COUNT);
+    // Copy first PVM_RANDOM_MONSTER_COUNT elements to array
+    g_pvm_random_monster_count = PVM_RANDOM_MONSTER_COUNT;
+    std::copy(shuffled.begin(), shuffled.begin() + PVM_RANDOM_MONSTER_COUNT, g_pvm_random_monsters.begin());
 
     // gi.Com_PrintFmt("PVM: Selected {} random monsters for this map\n", PVM_RANDOM_MONSTER_COUNT);
 }
 
-// Get the list of randomly selected monsters for this map
-const std::vector<horde::MonsterTypeID>* PVM_GetRandomMonsters()
+// Get the count of randomly selected monsters for this map
+int PVM_GetRandomMonsterCount()
 {
-    if (!IsPvMMode() || g_pvm_random_monsters.empty())
+    if (!IsPvMMode())
+        return 0;
+    return g_pvm_random_monster_count;
+}
+
+// Get the list of randomly selected monsters for this map
+const horde::MonsterTypeID* PVM_GetRandomMonsters()
+{
+    if (!IsPvMMode() || g_pvm_random_monster_count == 0)
         return nullptr;
-    
-    return &g_pvm_random_monsters;
+
+    return g_pvm_random_monsters.data();
 }
