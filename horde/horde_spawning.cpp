@@ -193,16 +193,16 @@ static struct EmergencySpawnHistory {
 } g_emergency_spawn_history;
 
 /// Checks if position is too close to other positions in batch or recent emergency spawns
-static bool IsTooCloseToBatchPositions(const vec3_t& position, const std::vector<vec3_t>& batch_positions) noexcept
+static bool IsTooCloseToBatchPositions(const vec3_t& position, const std::array<vec3_t, HordeConstants::EMERGENCY_SPAWN_LIMIT_PER_CALL>& batch_positions, int batch_count) noexcept
 {
     const horde::MapSize& mapSize = g_horde_local.current_map_size;
     const float min_spacing = GetEmergencySpacingForMap(mapSize);
     const float min_spacing_sq = min_spacing * min_spacing;
 
-    // Check current batch
-    for (const vec3_t& batch_pos : batch_positions)
+    // Check current batch (only up to batch_count)
+    for (int i = 0; i < batch_count; ++i)
     {
-        if ((position - batch_pos).lengthSquared() < min_spacing_sq)
+        if ((position - batch_positions[i]).lengthSquared() < min_spacing_sq)
             return true;
     }
 
@@ -215,14 +215,15 @@ static bool FindSpacedEmergencyPosition(
     vec3_t& out_position,
     vec3_t& out_angles,
     horde::MonsterTypeID typeId,
-    const std::vector<vec3_t>& batch_positions)
+    const std::array<vec3_t, HordeConstants::EMERGENCY_SPAWN_LIMIT_PER_CALL>& batch_positions,
+    int batch_count)
 {
     for (int attempt = 0; attempt < HordeConstants::MAX_EMERGENCY_POSITION_ATTEMPTS; ++attempt)
     {
         if (!FindEmergencySpawnPositionNearPlayer(out_position, out_angles, typeId))
             return false;
 
-        if (!IsTooCloseToBatchPositions(out_position, batch_positions))
+        if (!IsTooCloseToBatchPositions(out_position, batch_positions, batch_count))
             return true;
     }
     return false;
@@ -863,7 +864,9 @@ int ExecuteEmergencySpawnProcedure(int32_t spawnable_this_call,
                                     float champion_chance_param)
 {
     int emergency_spawned_count = 0;
-    std::vector<vec3_t> batch_spawn_positions; // Track positions used in this batch
+    // Heap optimization: Changed from std::vector to std::array (compile-time, zero heap allocation)
+    std::array<vec3_t, HordeConstants::EMERGENCY_SPAWN_LIMIT_PER_CALL> batch_spawn_positions;
+    int batch_position_count = 0;
 
     const int spawn_limit = std::min(spawnable_this_call, HordeConstants::EMERGENCY_SPAWN_LIMIT_PER_CALL);
 
@@ -873,7 +876,7 @@ int ExecuteEmergencySpawnProcedure(int32_t spawnable_this_call,
 
         // Find spawn position with spacing from other monsters in this batch
         vec3_t emergency_origin, emergency_angles;
-        if (!FindSpacedEmergencyPosition(emergency_origin, emergency_angles, emergency_type, batch_spawn_positions))
+        if (!FindSpacedEmergencyPosition(emergency_origin, emergency_angles, emergency_type, batch_spawn_positions, batch_position_count))
         {
             if (developer->integer)
                 gi.Com_PrintFmt("EMERGENCY SPAWN FAILED for type {}. (From ExecuteEmergencySpawnProcedure)\n",
@@ -887,7 +890,9 @@ int ExecuteEmergencySpawnProcedure(int32_t spawnable_this_call,
             continue;
 
         // Track position in both current batch and persistent history
-        batch_spawn_positions.push_back(emergency_origin);
+        if (batch_position_count < HordeConstants::EMERGENCY_SPAWN_LIMIT_PER_CALL) {
+            batch_spawn_positions[batch_position_count++] = emergency_origin;
+        }
         g_emergency_spawn_history.AddPosition(emergency_origin);
         ApplyMonsterSpawnEffects(monster);
 

@@ -4579,14 +4579,18 @@ static edict_t *FindBestPlayerTargetForTeleport()
 	// If no one has spree or damage, just pick a random active player
 	if (!target_player)
 	{
-		std::vector<edict_t *> active;
+		// Heap optimization: Changed from std::vector to std::array (compile-time, zero heap allocation)
+		std::array<edict_t*, 32> active;
+		int active_count = 0;
 		for (auto *p : active_players_no_spect())
 		{
-			active.push_back(p);
+			if (active_count < 32) {
+				active[active_count++] = p;
+			}
 		}
-		if (!active.empty())
+		if (active_count > 0)
 		{
-			target_player = random_element(active);
+			target_player = active[irandom(active_count)];
 		}
 	}
 
@@ -5091,12 +5095,16 @@ void HandleSpawnPhaseAggression(edict_t *monster)
 				}
 
 				if (!target_player) {
-					std::vector<edict_t*> candidates;
+					// Heap optimization: Changed from std::vector to std::array (compile-time, zero heap allocation)
+					std::array<edict_t*, 32> candidates;
+					int candidate_count = 0;
 					for (auto* p : active_players_no_spect()) {
-						candidates.push_back(p);
+						if (candidate_count < 32) {
+							candidates[candidate_count++] = p;
+						}
 					}
-					if (!candidates.empty()) {
-						target_player = random_element(candidates);
+					if (candidate_count > 0) {
+						target_player = candidates[irandom(candidate_count)];
 					}
 				}
 
