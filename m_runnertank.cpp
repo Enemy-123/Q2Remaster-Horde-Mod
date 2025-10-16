@@ -113,16 +113,6 @@ MONSTERINFO_STAND(runnertank_stand) (edict_t* self) -> void
 
 void runnertank_walk(edict_t* self);
 
-#if 0
-mframe_t runnertank_frames_start_walk[] = {
-	{ ai_walk },
-	{ ai_walk, 6 },
-	{ ai_walk, 6 },
-	{ ai_walk, 11, runnertank_footstep }
-};
-MMOVE_T(runnertank_move_start_walk) = { FRAME_walk01, FRAME_walk04, runnertank_frames_start_walk, runnertank_walk };
-#endif
-
 // Animación de caminata corregida
 mframe_t runnertank_frames_walk[] = {
 	{ ai_walk, 4 }, { ai_walk, 5 }, { ai_walk, 3 }, { ai_walk, 2 },
@@ -138,7 +128,15 @@ mframe_t runnertank_frames_walk[] = {
 };
 MMOVE_T(runnertank_move_walk) = { FRAME_walk01, FRAME_walk38, runnertank_frames_walk, runnertank_walk };
 
-#if 0
+
+mframe_t runnertank_frames_start_walk[] = {
+	{ ai_walk },
+	{ ai_walk, 6 },
+	{ ai_walk, 6 },
+	{ ai_walk, 11, runnertank_footstep }
+};
+MMOVE_T(runnertank_move_start_walk) = { FRAME_walk01, FRAME_walk04, runnertank_frames_start_walk, runnertank_walk };
+
 mframe_t runnertank_frames_stop_walk[] = {
 	{ ai_walk, 3 },
 	{ ai_walk, 3 },
@@ -147,28 +145,36 @@ mframe_t runnertank_frames_stop_walk[] = {
 	{ ai_walk, 4, runnertank_footstep }
 };
 MMOVE_T(runnertank_move_stop_walk) = { FRAME_walk21, FRAME_walk25, runnertank_frames_stop_walk, runnertank_stand };
-#endif
+
 void runnertank_run(edict_t* self);
 
-// Nuevas animaciones para inicio y fin de caminata/carrera
-mframe_t runnertank_frames_start_walk[] = {
-	{ ai_walk, 0 }, { ai_walk, 3 }, { ai_walk, 3 }, { ai_walk, 3 }
-};
-MMOVE_T(runnertank_move_start_walk) = { FRAME_walk01, FRAME_walk04, runnertank_frames_start_walk, runnertank_walk };
+// // Nuevas animaciones para inicio y fin de caminata/carrera
+// mframe_t runnertank_frames_start_walk[] = {
+// 	{ ai_walk, 0 }, { ai_walk, 3 }, { ai_walk, 3 }, { ai_walk, 3 }
+// };
+// MMOVE_T(runnertank_move_start_walk) = { FRAME_walk01, FRAME_walk04, runnertank_frames_start_walk, runnertank_walk };
 
-mframe_t runnertank_frames_stop_walk[] = {
-	{ ai_walk, 3 }, { ai_walk, 3 }, { ai_walk, 2 }, { ai_walk, 2 },
-	{ ai_walk, 0, runnertank_footstep }
-};
-MMOVE_T(runnertank_move_stop_walk) = { FRAME_walk34, FRAME_walk38, runnertank_frames_stop_walk, runnertank_stand };
+// mframe_t runnertank_frames_stop_walk[] = {
+// 	{ ai_walk, 3 }, { ai_walk, 3 }, { ai_walk, 2 }, { ai_walk, 2 },
+// 	{ ai_walk, 0, runnertank_footstep }
+// };
+// MMOVE_T(runnertank_move_stop_walk) = { FRAME_walk34, FRAME_walk38, runnertank_frames_stop_walk, runnertank_stand };
 
 void runnertank_walk_to_run(edict_t* self);
 void runnertank_stop_run_to_attack(edict_t* self);
 
+//mframe_t runnertank_frames_start_run[] = {
+//	{ ai_run },
+//	{ ai_run, 6 },
+//	{ ai_run, 6 },
+//	{ ai_run, 11, runnertank_footstep }
+//};
+//MMOVE_T(runnertank_move_start_run) = { FRAME_walk01, FRAME_walk04, runnertank_frames_start_run, runnertank_run };
+
 mframe_t runnertank_frames_start_run[] = {
-	{ ai_run, 8 }, { ai_run, 8 }, { ai_run, 8 }, { ai_run, 8, runnertank_footstep }
+	{ ai_run, 6 }, { ai_run, 5 }, { ai_run, 7, runnertank_footstep }
 };
-MMOVE_T(runnertank_move_start_run) = { FRAME_walk01, FRAME_walk04, runnertank_frames_start_run, runnertank_walk_to_run };
+MMOVE_T(runnertank_move_start_run) = { FRAME_walk35, FRAME_walk38, runnertank_frames_start_run, runnertank_walk_to_run };
 
 
 // Ajustar la función de caminata para una transición más suave
@@ -184,54 +190,22 @@ MONSTERINFO_WALK(runnertank_walk) (edict_t* self) -> void
 	}
 }
 
-
-void runnertank_unstuck(edict_t* self)
-{
-	static int stuck_count = 0;
-
-	// Usar el método length() de vec3_t directamente
-	if (self->velocity.length() < 10.0f)
-	{
-		stuck_count++;
-		if (stuck_count > 5)
-		{
-			// Intenta moverse en una dirección aleatoria
-			self->ideal_yaw = frandom() * 360;
-			M_ChangeYaw(self);
-			stuck_count = 0;
-		}
-	}
-	else
-	{
-		stuck_count = 0;
-	}
-}
 //
 // run
 //
-
-
-
-//mframe_t runnertank_frames_start_run[] = {
-//	{ ai_run },
-//	{ ai_run, 6 },
-//	{ ai_run, 6 },
-//	{ ai_run, 11, runnertank_footstep }
-//};
-//MMOVE_T(runnertank_move_start_run) = { FRAME_walk01, FRAME_walk04, runnertank_frames_start_run, runnertank_run };
 //
 // Actualizar la animación de carrera
 mframe_t runnertank_frames_run[] = {
-	{ ai_run, 16, nullptr },
+	{ ai_run, 14, runnertank_footstep }, 
 	{ ai_run, 18, nullptr },
 	{ ai_run, 15, nullptr },
-	{ ai_run, 14, runnertank_footstep }, // Remover la llamada lambda
 	{ ai_run, 15, nullptr },
+	{ ai_run, 15, nullptr },
+	{ ai_run, 19, runnertank_footstep },
 	{ ai_run, 15, nullptr },
 	{ ai_run, 13, nullptr },
-	{ ai_run, 19, runnertank_footstep },
 	{ ai_run, 18, nullptr },
-	{ ai_run, 17, nullptr } // Remover la llamada lambda
+	{ ai_run, 17, nullptr }
 };
 MMOVE_T(runnertank_move_run) = { FRAME_run01, FRAME_run10, runnertank_frames_run, nullptr };
 
@@ -341,24 +315,31 @@ MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 		M_SetAnimation(self, &runnertank_move_stand);
 		return;
 	}
-
-	if (self->monsterinfo.active_move == &runnertank_move_walk ||
-		self->monsterinfo.active_move == &runnertank_move_start_walk)
+	else
 	{
 		M_SetAnimation(self, &runnertank_move_run);
-	}
-	else if (self->monsterinfo.active_move != &runnertank_move_run)
-	{
-		M_SetAnimation(self, &runnertank_move_start_run);
+		return;
 	}
 
-	// Try to attack if we have a valid target and attack cooldown has expired
-	if (M_HasValidTarget(self) && level.time >= self->monsterinfo.attack_finished)
-	{
-		// Increased chance from 0.3 to 0.5 for more responsive attacking
-		if (frandom() < 0.5f)
-			runnertank_attack(self);
-	}
+	// // ALWAYS set animation first to prevent getting stuck
+	// if (self->monsterinfo.active_move == &runnertank_move_walk ||
+	// 	self->monsterinfo.active_move == &runnertank_move_start_walk)
+	// {
+	// 	M_SetAnimation(self, &runnertank_move_run);
+	// }
+	// else if (self->monsterinfo.active_move != &runnertank_move_run &&
+	// 		 self->monsterinfo.active_move != &runnertank_move_start_run)
+	// {
+	// 	M_SetAnimation(self, &runnertank_move_start_run);
+	// }
+
+	// 	M_SetAnimation(self, &runnertank_move_run)
+	// // Try to attack if we have a valid target and attack cooldown has expired
+	// // Attack will override the run animation if successful
+	// if (M_HasValidTarget(self) && level.time >= self->monsterinfo.attack_finished)
+	// {
+	// 		runnertank_attack(self);
+	// }
 }
 //
 // pain
@@ -1385,7 +1366,7 @@ void runnertank_check_jump_landing(edict_t* self)
 		}
 
 		// If no valid target or too far, just do the slam effect and continue
-		runnertankStrike(self);
+		//runnertankStrike(self);
 		// Continue with normal animation
 		return;
 	}
@@ -1732,7 +1713,7 @@ void SP_monster_runnertank(edict_t* self)
 	self->yaw_speed = 20; // Better tracking but not too fast
 
 	self->s.renderfx |= RF_CUSTOMSKIN;
-	self->s.skinnum = gi.imageindex("models/monsters/tank/skin.pcx");
+	self->s.skinnum = gi.imageindex("models/vault/monsters/tank/skin.pcx");
 
 	gi.linkentity(self);
 
