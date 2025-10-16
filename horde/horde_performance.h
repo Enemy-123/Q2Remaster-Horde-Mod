@@ -23,6 +23,7 @@ class FastMathCache {
     bool initialized = false;
 
 public:
+    // Call this explicitly at level load for best performance
     void Initialize() {
         if (initialized) return;
         for (int i = 0; i < MAX_VALUE; ++i) {
@@ -33,16 +34,27 @@ public:
     }
 
     float GetSqrt(int value) {
-        if (value < 0 || value >= MAX_VALUE)
+        // Handle negative values - sqrt of negative is undefined
+        if (value < 0) {
+            #ifdef _DEBUG
+            gi.Com_PrintFmt("WARNING: GetSqrt called with negative value: {}\n", value);
+            #endif
+            value = 0;  // Clamp to 0 for safety
+        }
+        
+        if (value >= MAX_VALUE)
             return std::sqrt(static_cast<float>(value));
-        if (!initialized) Initialize();
+        
+        if (!initialized) Initialize();  // Lazy init for safety
         return sqrt_values[value];
     }
 
     float GetSquared(int value) {
+        // Negative values are valid for squaring
         if (value < 0 || value >= MAX_VALUE)
             return static_cast<float>(value * value);
-        if (!initialized) Initialize();
+        
+        if (!initialized) Initialize();  // Lazy init for safety
         return squared_values[value];
     }
 };
@@ -58,17 +70,25 @@ class SpawnPointSpatialIndex {
         static constexpr size_t MAX_SPAWNS_PER_CELL = 16;
         std::array<edict_t*, MAX_SPAWNS_PER_CELL> spawn_points{};
         size_t count = 0;
+        bool overflow_warned = false;
 
-        void clear() { count = 0; }
+        void clear() { 
+            count = 0; 
+            overflow_warned = false;
+        }
 
         void add(edict_t* spawn) {
             if (count < MAX_SPAWNS_PER_CELL) {
                 spawn_points[count++] = spawn;
+            } else if (!overflow_warned) {
+                // Critical: Too many spawns in one cell - some will be ignored!
+                gi.Com_PrintFmt("WARNING: Spawn cell overflow! More than {} spawn points in one area. Consider increasing MAX_SPAWNS_PER_CELL.\n", MAX_SPAWNS_PER_CELL);
+                overflow_warned = true;
             }
         }
     };
 
-    boost::container::flat_map<uint32_t, Cell> grid_cells;  // C++23 - CRITICAL for spatial query performance
+    boost::container::flat_map<uint32_t, Cell> grid_cells;  // Sorted map for spatial query performance
     std::vector<edict_t*> all_spawn_points;
 
     static uint32_t GetCellKey(const vec3_t& pos) {
@@ -145,35 +165,24 @@ struct MonsterTypeProperties {
 };
 
 class MonsterTypeCache {
-    static constexpr size_t MAX_MONSTER_TYPES = 256;
-    std::array<MonsterTypeProperties, MAX_MONSTER_TYPES> cache{};
-    std::array<bool, MAX_MONSTER_TYPES> cached{};
+    // Use flat_map instead of array - saves memory and supports arbitrary IDs
+    boost::container::flat_map<int, MonsterTypeProperties> cache;
 
 public:
-    MonsterTypeCache() {
-        cached.fill(false);
-    }
-
     const MonsterTypeProperties* GetProperties(int type_id) {
-        if (type_id < 0 || type_id >= static_cast<int>(MAX_MONSTER_TYPES))
+        auto it = cache.find(type_id);
+        if (it == cache.end())
             return nullptr;
 
-        if (!cached[type_id])
-            return nullptr;
-
-        return &cache[type_id];
+        return &it->second;
     }
 
     void CacheProperties(int type_id, const MonsterTypeProperties& props) {
-        if (type_id < 0 || type_id >= static_cast<int>(MAX_MONSTER_TYPES))
-            return;
-
         cache[type_id] = props;
-        cached[type_id] = true;
     }
 
     void Clear() {
-        cached.fill(false);
+        cache.clear();
     }
 };
 
@@ -212,6 +221,8 @@ public:
         size_t idx = ptr - pool.data();
         if (idx < N) {
             used[idx] = false;
+            // CRITICAL: Call destructor before placement new to prevent memory leaks
+            ptr->~T();
             new (ptr) T(); // Reset to default state
         }
     }
@@ -306,11 +317,22 @@ class DistanceCache {
     size_t current_index = 0;
 
     static uint32_t HashPositions(const vec3_t& p1, const vec3_t& p2) {
-        // Simple hash combining position components
-        uint32_t h1 = static_cast<uint32_t>(p1.x) ^ (static_cast<uint32_t>(p1.y) << 11) ^
-                      (static_cast<uint32_t>(p1.z) << 22);
-        uint32_t h2 = static_cast<uint32_t>(p2.x) ^ (static_cast<uint32_t>(p2.y) << 11) ^
-                      (static_cast<uint32_t>(p2.z) << 22);
+        // Order-independent hash with better distribution
+        // Use FNV-1a style hashing for better distribution
+        auto hash_vec = [](const vec3_t& v) -> uint32_t {
+            uint32_t hash = 2166136261u; // FNV offset basis
+            hash ^= static_cast<uint32_t>(v.x);
+            hash *= 16777619u; // FNV prime
+            hash ^= static_cast<uint32_t>(v.y);
+            hash *= 16777619u;
+            hash ^= static_cast<uint32_t>(v.z);
+            hash *= 16777619u;
+            return hash;
+        };
+
+        uint32_t h1 = hash_vec(p1);
+        uint32_t h2 = hash_vec(p2);
+        // Commutative operation - order doesn't matter
         return h1 ^ h2;
     }
 
@@ -319,10 +341,10 @@ public:
         uint32_t hash = HashPositions(pos1, pos2);
         size_t idx = hash % CACHE_SIZE;
 
-        // Check if cached
+        // Check if cached - need to check both orderings
         if (cache[idx].timestamp + CACHE_LIFETIME > level.time &&
-            cache[idx].pos1 == pos1 &&
-            cache[idx].pos2 == pos2) {
+            ((cache[idx].pos1 == pos1 && cache[idx].pos2 == pos2) ||
+             (cache[idx].pos1 == pos2 && cache[idx].pos2 == pos1))) {
             return cache[idx].distance_sq;
         }
 
@@ -364,13 +386,22 @@ class VisibilityCache {
 	std::array<CacheEntry, CACHE_SIZE> cache;
 
 	static uint32_t HashEntities(int id1, int id2) {
-		// Ensure consistent hashing regardless of order
+		// Ensure consistent hashing regardless of order with better distribution
 		if (id1 > id2) std::swap(id1, id2);
-		return static_cast<uint32_t>(id1) ^ (static_cast<uint32_t>(id2) << 16);
+
+		// FNV-1a hash for better distribution
+		uint32_t hash = 2166136261u; // FNV offset basis
+		hash ^= static_cast<uint32_t>(id1);
+		hash *= 16777619u; // FNV prime
+		hash ^= static_cast<uint32_t>(id2);
+		hash *= 16777619u;
+		return hash;
 	}
 
 public:
-	bool CheckVisibility(edict_t* ent1, edict_t* ent2, std::function<bool(edict_t*, edict_t*)> visibility_fn, bool& cached) {
+	// Template version - no std::function overhead, direct function call
+	template<typename VisibilityFunc>
+	bool CheckVisibility(edict_t* ent1, edict_t* ent2, VisibilityFunc visibility_fn, bool& cached) {
 		if (!ent1 || !ent2) {
 			cached = false;
 			return false;
@@ -392,7 +423,7 @@ public:
 			return cache[idx].visible;
 		}
 
-		// Calculate and cache
+		// Calculate and cache - direct function call, no virtual dispatch
 		bool visible = visibility_fn(ent1, ent2);
 
 		cache[idx].entity_id1 = id1;
