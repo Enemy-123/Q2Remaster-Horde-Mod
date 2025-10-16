@@ -135,31 +135,34 @@ static edict_t* spawn_strogg_monster(edict_t* player, const vec3_t& origin, cons
 		int weight;
 	};
 
-	std::vector<SummonableMonster> available_monsters;
+	// Heap optimization: Changed from std::vector to std::array (compile-time, zero heap allocation)
+	constexpr int MAX_SUMMONABLE_MONSTERS = 8;
+	std::array<SummonableMonster, MAX_SUMMONABLE_MONSTERS> available_monsters;
+	int available_count = 0;
 
 	// In horde mode: Check precached monsters first, but allow all if none are precached
 	if (g_horde->integer) {
 		// Try to use precached monsters first
-		if (g_precached_monster_types_flags[static_cast<size_t>(horde::MonsterTypeID::GUNNER)])
-			available_monsters.push_back({horde::MonsterTypeID::GUNNER, SP_monster_gunner, 13});
-		if (g_precached_monster_types_flags[static_cast<size_t>(horde::MonsterTypeID::CHICK)])
-			available_monsters.push_back({horde::MonsterTypeID::CHICK, SP_monster_chick, 13});
-		if (g_precached_monster_types_flags[static_cast<size_t>(horde::MonsterTypeID::DAEDALUS_BOMBER)])
-			available_monsters.push_back({horde::MonsterTypeID::DAEDALUS_BOMBER, SP_monster_daedalus_bomber, 13});
-		if (g_precached_monster_types_flags[static_cast<size_t>(horde::MonsterTypeID::SPIDER)])
-			available_monsters.push_back({horde::MonsterTypeID::SPIDER, SP_monster_spider, 13});
-		if (g_precached_monster_types_flags[static_cast<size_t>(horde::MonsterTypeID::SHAMBLER_SMALL)])
-			available_monsters.push_back({horde::MonsterTypeID::SHAMBLER_SMALL, SP_monster_shambler_small, 13});
-		if (g_precached_monster_types_flags[static_cast<size_t>(horde::MonsterTypeID::INFANTRY)])
-			available_monsters.push_back({horde::MonsterTypeID::INFANTRY, SP_monster_infantry, 6});
-		if (g_precached_monster_types_flags[static_cast<size_t>(horde::MonsterTypeID::MEDIC)])
-			available_monsters.push_back({horde::MonsterTypeID::MEDIC, SP_monster_medic, 20});
-		if (g_precached_monster_types_flags[static_cast<size_t>(horde::MonsterTypeID::BRAIN)])
-			available_monsters.push_back({horde::MonsterTypeID::BRAIN, SP_monster_brain, 9});
+		if (g_precached_monster_types_flags[static_cast<size_t>(horde::MonsterTypeID::GUNNER)] && available_count < MAX_SUMMONABLE_MONSTERS)
+			available_monsters[available_count++] = {horde::MonsterTypeID::GUNNER, SP_monster_gunner, 13};
+		if (g_precached_monster_types_flags[static_cast<size_t>(horde::MonsterTypeID::CHICK)] && available_count < MAX_SUMMONABLE_MONSTERS)
+			available_monsters[available_count++] = {horde::MonsterTypeID::CHICK, SP_monster_chick, 13};
+		if (g_precached_monster_types_flags[static_cast<size_t>(horde::MonsterTypeID::DAEDALUS_BOMBER)] && available_count < MAX_SUMMONABLE_MONSTERS)
+			available_monsters[available_count++] = {horde::MonsterTypeID::DAEDALUS_BOMBER, SP_monster_daedalus_bomber, 13};
+		if (g_precached_monster_types_flags[static_cast<size_t>(horde::MonsterTypeID::SPIDER)] && available_count < MAX_SUMMONABLE_MONSTERS)
+			available_monsters[available_count++] = {horde::MonsterTypeID::SPIDER, SP_monster_spider, 13};
+		if (g_precached_monster_types_flags[static_cast<size_t>(horde::MonsterTypeID::SHAMBLER_SMALL)] && available_count < MAX_SUMMONABLE_MONSTERS)
+			available_monsters[available_count++] = {horde::MonsterTypeID::SHAMBLER_SMALL, SP_monster_shambler_small, 13};
+		if (g_precached_monster_types_flags[static_cast<size_t>(horde::MonsterTypeID::INFANTRY)] && available_count < MAX_SUMMONABLE_MONSTERS)
+			available_monsters[available_count++] = {horde::MonsterTypeID::INFANTRY, SP_monster_infantry, 6};
+		if (g_precached_monster_types_flags[static_cast<size_t>(horde::MonsterTypeID::MEDIC)] && available_count < MAX_SUMMONABLE_MONSTERS)
+			available_monsters[available_count++] = {horde::MonsterTypeID::MEDIC, SP_monster_medic, 20};
+		if (g_precached_monster_types_flags[static_cast<size_t>(horde::MonsterTypeID::BRAIN)] && available_count < MAX_SUMMONABLE_MONSTERS)
+			available_monsters[available_count++] = {horde::MonsterTypeID::BRAIN, SP_monster_brain, 9};
 
 		// If no monsters are precached yet (early game), allow all monsters - precaching will happen dynamically
-		if (available_monsters.empty()) {
-			available_monsters = {
+		if (available_count == 0) {
+			available_monsters = {{
 				{horde::MonsterTypeID::GUNNER, SP_monster_gunner, 13},
 				{horde::MonsterTypeID::CHICK, SP_monster_chick, 13},
 				{horde::MonsterTypeID::DAEDALUS_BOMBER, SP_monster_daedalus_bomber, 13},
@@ -168,11 +171,12 @@ static edict_t* spawn_strogg_monster(edict_t* player, const vec3_t& origin, cons
 				{horde::MonsterTypeID::INFANTRY, SP_monster_infantry, 6},
 				{horde::MonsterTypeID::MEDIC, SP_monster_medic, 20},
 				{horde::MonsterTypeID::BRAIN, SP_monster_brain, 9}
-			};
+			}};
+			available_count = 8;
 		}
 	} else {
 		// Non-horde mode: use all monsters
-		available_monsters = {
+		available_monsters = {{
 			{horde::MonsterTypeID::GUNNER, SP_monster_gunner, 13},
 			{horde::MonsterTypeID::CHICK, SP_monster_chick, 13},
 			{horde::MonsterTypeID::DAEDALUS_BOMBER, SP_monster_daedalus_bomber, 13},
@@ -181,19 +185,20 @@ static edict_t* spawn_strogg_monster(edict_t* player, const vec3_t& origin, cons
 			{horde::MonsterTypeID::INFANTRY, SP_monster_infantry, 6},
 			{horde::MonsterTypeID::MEDIC, SP_monster_medic, 20},
 			{horde::MonsterTypeID::BRAIN, SP_monster_brain, 9}
-		};
+		}};
+		available_count = 8;
 	}
 
 	// If no monsters available (shouldn't happen), fail spawn
-	if (available_monsters.empty()) {
+	if (available_count == 0) {
 		G_FreeEdict(monster);
 		return nullptr;
 	}
 
 	// Calculate total weight
 	int total_weight = 0;
-	for (const auto& m : available_monsters) {
-		total_weight += m.weight;
+	for (int i = 0; i < available_count; ++i) {
+		total_weight += available_monsters[i].weight;
 	}
 
 	// Randomly select based on weight
@@ -201,7 +206,8 @@ static edict_t* spawn_strogg_monster(edict_t* player, const vec3_t& origin, cons
 	int cumulative = 0;
 	horde::MonsterTypeID selected_type = horde::MonsterTypeID::UNKNOWN;
 
-	for (const auto& m : available_monsters) {
+	for (int i = 0; i < available_count; ++i) {
+		const auto& m = available_monsters[i];
 		cumulative += m.weight;
 		if (roll < cumulative) {
 			selected_type = m.type;

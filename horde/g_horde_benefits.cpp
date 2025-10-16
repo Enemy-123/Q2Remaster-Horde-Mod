@@ -192,8 +192,9 @@ std::string GetActiveBonusesString() {
 		{"Energy Shells", "Energy Shells"}
 	} };
 
-    std::vector<std::string_view> active_bonuses;
-	active_bonuses.reserve(bonus_mappings.size());
+    // Heap optimization: Changed from std::vector to std::array (compile-time, zero heap allocation)
+    std::array<std::string_view, 12> active_bonuses;
+	int active_count = 0;
 
     bool has_vampire_upgraded = has_benefit(BenefitID::VAMPIRE_UPGRADED);
 
@@ -206,25 +207,27 @@ std::string GetActiveBonusesString() {
             // Find the corresponding display text
             for(const auto& mapping : bonus_mappings) {
                 if (strcmp(g_benefitsData.names[i], mapping.benefit_name.data()) == 0) {
-                    active_bonuses.push_back(mapping.display_text);
+                    if (active_count < 12) {
+                        active_bonuses[active_count++] = mapping.display_text;
+                    }
                     break;
                 }
             }
         }
     }
 
-    if (active_bonuses.empty()) {
+    if (active_count == 0) {
 		return "";
 	}
 
     // Use std::string to format the result
     std::string result;
-    result.reserve(active_bonuses.size() * 30);
+    result.reserve(active_count * 30);
 
-    for (size_t i = 0; i < active_bonuses.size(); ++i) {
+    for (int i = 0; i < active_count; ++i) {
         result += "* ";
         result += active_bonuses[i];
-        if (i < active_bonuses.size() - 1) {
+        if (i < active_count - 1) {
             result += "\n";
         }
     }
@@ -255,8 +258,9 @@ std::string GetPlayerActiveBonusesString(edict_t* player) {
         {"Energy Shells", "Energy Shells"}
     } };
 
-    std::vector<std::string_view> active_bonuses;
-    active_bonuses.reserve(bonus_mappings.size());
+    // Heap optimization: Changed from std::vector to std::array (compile-time, zero heap allocation)
+    std::array<std::string_view, 13> active_bonuses;
+    int active_count = 0;
 
     bool has_vampire_upgraded = ClassicPlayerHasBenefit(player, BenefitID::VAMPIRE_UPGRADED);
 
@@ -269,25 +273,27 @@ std::string GetPlayerActiveBonusesString(edict_t* player) {
             // Find the corresponding display text
             for(const auto& mapping : bonus_mappings) {
                 if (strcmp(g_benefitsData.names[i], mapping.benefit_name.data()) == 0) {
-                    active_bonuses.push_back(mapping.display_text);
+                    if (active_count < 13) {
+                        active_bonuses[active_count++] = mapping.display_text;
+                    }
                     break;
                 }
             }
         }
     }
 
-    if (active_bonuses.empty()) {
+    if (active_count == 0) {
         return "";
     }
 
     // Use std::string to format the result
     std::string result;
-    result.reserve(active_bonuses.size() * 30);
+    result.reserve(active_count * 30);
 
-    for (size_t i = 0; i < active_bonuses.size(); ++i) {
+    for (int i = 0; i < active_count; ++i) {
         result += "* ";
         result += active_bonuses[i];
-        if (i < active_bonuses.size() - 1) {
+        if (i < active_count - 1) {
             result += "\n";
         }
     }
