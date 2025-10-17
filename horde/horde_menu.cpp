@@ -6625,8 +6625,12 @@ public:
 			const char *help_text = (ent->client->resp.ctf_team != CTF_TEAM1)
 										? "Use Inventory <KEY> to toggle Horde Menu."
 										: "Use Horde Menu on Powerup Wheel or press Inventory <KEY> to toggle Horde Menu.";
-			layout_builder.append(fmt::format(
-				"if 0 xv 0 yb -55 cstring2 \"{}\" endif \n", help_text));
+
+			// Check if we have enough space for the help text (reserve ~150 bytes)
+			if (layout_builder.size() < MAX_CTF_STAT_LENGTH - 150) {
+				layout_builder.append(fmt::format(
+					"if 0 xv 0 yb -55 cstring2 \"{}\" endif \n", help_text));
+			}
 		}
 		else
 		{
@@ -6635,11 +6639,15 @@ public:
 									  ? "MAKE THEM PAY!"
 									  : "THEY WILL REGRET THIS!";
 
-			// It will display the message after a 5-second delay.
-			layout_builder.append(fmt::format(
-				"ifgef {} yb -48 xv 0 loc_cstring2 0 \"{}\" endif \n",
-				level.intermission_server_frame + (5_sec).frames(),
-				message));
+			// Only add intermission message if we have enough space to avoid truncation
+			// The ifgef block needs ~100 chars, so reserve 150 to be safe
+			if (layout_builder.size() < MAX_CTF_STAT_LENGTH - 150) {
+				// It will display the message after a 5-second delay.
+				layout_builder.append(fmt::format(
+					"ifgef {} yb -48 xv 0 loc_cstring2 0 \"{}\" endif \n",
+					level.intermission_server_frame + (5_sec).frames(),
+					message));
+			}
 		}
 	}
 
@@ -6672,6 +6680,8 @@ void HordeScoreboardMessage(edict_t* ent, edict_t* killer) {
 
 	// Ensure we don't exceed layout size limits
 	if (final_layout.size() >= MAX_CTF_STAT_LENGTH) {
+		gi.Com_PrintFmt("WARNING: Scoreboard layout exceeded size limit ({} >= {}), truncating may cause issues\n",
+						final_layout.size(), MAX_CTF_STAT_LENGTH);
 		final_layout.resize(MAX_CTF_STAT_LENGTH - 1);
 	}
 
