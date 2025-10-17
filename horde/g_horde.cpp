@@ -6773,6 +6773,34 @@ void Horde_RunFrame()
 // Función para manejar el evento de reinicio
 void HandleResetEvent()
 {
+	// FIX: Reset player benefits on map change for horde mode (but not vortex mode)
+	// In vortex mode, benefits should persist across map changes
+	// This happens BEFORE ResetGame() to ensure players are fully initialized
+
+		for (uint32_t i = 0; i < game.maxclients; i++) {
+			edict_t* player = g_edicts + 1 + i;
+			if (!player || !player->inuse || !player->client)
+				continue;
+
+			// Reset all benefits masks (vampire, ammo_regen, etc.)
+			player->client->pers.active_abilities_mask = 0;
+			player->client->pers.active_weapons_mask = 0;
+			player->client->pers.purchased_benefits_mask = 0;
+			player->client->pers.auto_purchased_benefits_mask = 0;
+
+			// Reset bonus points to 0 (fresh start for new map)
+			player->client->pers.ability_points = 0;
+			player->client->pers.weapon_points = 0;
+
+			// Reset BFG mode to default
+			player->client->pers.bfg_mode = BFGMode::NORMAL;
+
+			if (developer && developer->integer) {
+				gi.Com_PrintFmt("INFO: Reset benefits for player {} ({})\n",
+					i + 1, player->client->pers.netname);
+			}
+		}
+
 	ResetGame();
 }
 

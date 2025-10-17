@@ -2193,9 +2193,9 @@ void OpenAdminMenu(edict_t *ent)
 
 	add_entry("*Admin Menu*", PMENU_ALIGN_CENTER);
 	add_entry("", PMENU_ALIGN_CENTER);
-	add_entry("Add 5 Ability Points (Bots)", PMENU_ALIGN_LEFT, AdminMenuHandler);
-	add_entry("Add 5 Weapon Points (Bots)", PMENU_ALIGN_LEFT, AdminMenuHandler);
-	add_entry("Add 10 Points (Bots)", PMENU_ALIGN_LEFT, AdminMenuHandler);
+	add_entry("Add 5 Ability Points (All)", PMENU_ALIGN_LEFT, AdminMenuHandler);
+	add_entry("Add 5 Weapon Points (All)", PMENU_ALIGN_LEFT, AdminMenuHandler);
+	add_entry("Add 10 Points (All)", PMENU_ALIGN_LEFT, AdminMenuHandler);
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("Give All Weapons (All)", PMENU_ALIGN_LEFT, AdminMenuHandler);
 	// God mode commented out - can break game balance
@@ -2245,7 +2245,7 @@ void AdminMenuHandler(edict_t *ent, pmenuhnd_t *p)
 				gi.LocClient_Print(player, PRINT_HIGH, "{} granted you 5 ability points!\n", adminName);
 			}
 		}
-		gi.LocClient_Print(ent, PRINT_HIGH, "Gave 5 bonus ability points to all bots.\n");
+		gi.LocClient_Print(ent, PRINT_HIGH, "Gave 5 bonus ability points to all players.\n");
 	}
 	else if (strcmp(text, "Add 5 Weapon Points (All)") == 0)
 	{
@@ -2260,7 +2260,7 @@ void AdminMenuHandler(edict_t *ent, pmenuhnd_t *p)
 				gi.LocClient_Print(player, PRINT_HIGH, "{} granted you 5 weapon points!\n", adminName);
 			}
 		}
-		gi.LocClient_Print(ent, PRINT_HIGH, "Gave 5 bonus weapon points to all bots.\n");
+		gi.LocClient_Print(ent, PRINT_HIGH, "Gave 5 bonus weapon points to all players.\n");
 	}
 	else if (strcmp(text, "Add 10 Points (All)") == 0)
 	{
@@ -2277,7 +2277,7 @@ void AdminMenuHandler(edict_t *ent, pmenuhnd_t *p)
 				gi.LocClient_Print(player, PRINT_HIGH, "{} granted you 10 ability and weapon points!\n", adminName);
 			}
 		}
-		gi.LocClient_Print(ent, PRINT_HIGH, "Gave 10 bonus points of each type to all bots.\n");
+		gi.LocClient_Print(ent, PRINT_HIGH, "Gave 10 bonus points of each type to all players.\n");
 	}
 	else if (strcmp(text, "Give All Weapons") == 0)
 	{
