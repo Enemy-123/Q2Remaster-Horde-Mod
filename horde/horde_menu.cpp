@@ -6492,12 +6492,12 @@ public:
 			// string2 is better than loc_string2 here it seems
 			// Element 1: Wave Number (aligned left)
 			layout_builder.append(fmt::format(
-				"if 0 xv -140 yv -5 string2 \"Wave: {}\" endif \n",
+				"xv -140 yv -5 string2 \"Wave: {}\" \n",
 				last_wave_number));
 
 			// Element 2: Stroggs Remaining (aligned further to the right)
 			layout_builder.append(fmt::format(
-				"if 0 xv -40 yv -5 string2 \"Stroggs: {}\" endif \n",
+				"xv -40 yv -5 string2 \"Stroggs: {}\" \n",
 				GetStroggsNum()));
 		}
 
@@ -6505,7 +6505,7 @@ public:
 		if (timelimit->value)
 		{
 			layout_builder.append(fmt::format(
-				"if 0 xv 340 yv -33 time_limit {} endif \n",
+				"xv 340 yv -33 time_limit {} \n",
 				gi.ServerFrame() + ((gtime_t::from_min(timelimit->value) - level.time)).milliseconds() / gi.frame_time_ms));
 		}
 	}
@@ -6514,9 +6514,9 @@ public:
 		void addTeamScore()
 	{
 		const char *horde_dogtag_path = "/tags/etqw_strogg.png";
-		// Display Strogg team icon - MUST wrap in if/endif to prevent unmatched statements
+		// Display Strogg team icon
 		layout_builder.append(fmt::format(
-			"if 0 xv -140 yv 3 picn {} endif \n", horde_dogtag_path));
+			"xv -140 yv 3 picn {} \n", horde_dogtag_path));
 
 		if (!level.intermissiontime)
 		{
@@ -6536,7 +6536,7 @@ public:
 					}
 				}
 				layout_builder.append(fmt::format(
-					"if 0 xv 208 yv 8 string \"{}\" endif \n", activeBonuses));
+					"xv 208 yv 8 string \"{}\" \n", activeBonuses));
 			}
 		}
 		else
@@ -6555,13 +6555,13 @@ public:
 				if (g_vortex->integer)
 		{
 			layout_builder.append(fmt::format(
-				"if 0 yv {} xv -140 string2 \"Name\" xv 70 string2 \"Score\" xv 120 string2 \"Lv\" xv 160 string2 \"Ping\" endif \n",
+				"yv {} xv -140 string2 \"Name\" xv 70 string2 \"Score\" xv 120 string2 \"Lv\" xv 160 string2 \"Ping\" \n",
 				header_y));
 		}
 		else
 		{
 			layout_builder.append(fmt::format(
-				"if 0 yv {} xv -140 string2 \"Name\" xv 70 string2 \"Score\" xv 120 string2 \"Ping\" endif \n",
+				"yv {} xv -140 string2 \"Name\" xv 70 string2 \"Score\" xv 120 string2 \"Ping\" \n",
 				header_y));
 		}
 		for (size_t i = 0; i < std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY); ++i) {
@@ -6573,12 +6573,12 @@ public:
 			// Add death indicator if player is dead
 			if (player.is_dead) {
 				layout_builder.append(fmt::format(
-					"if 0 xv -185 yv {} string \"[Dead]\" endif ", y));
+					"xv -185 yv {} string \"[Dead]\" ", y));
 			}
 
 			// Add player information
 				layout_builder.append(fmt::format(
-					"if 0 yv {} xv -140 string \"{}\" xv 70 string \"{}\"  xv 120 string \"{}\" endif \n",
+					"yv {} xv -140 string \"{}\" xv 70 string \"{}\"  xv 120 string \"{}\" \n",
 					y, player_name, player.score, player.ping));
 		}
 	}
@@ -6591,26 +6591,26 @@ public:
 
 			// Add spectator header
 			layout_builder.append(fmt::format(
-				"if 0 xv -90 yv {} loc_string2 0 \"Spectators & AFK\" endif \n", y));
+				"xv -90 yv {} loc_string2 0 \"Spectators & AFK\" \n", y));
 			y += PLAYER_Y_SPACING;
 
 			// Add each spectator
-			
+
 			for (const auto& spec : spectators) {
 
 				edict_t *spec_ent = g_edicts + 1 + spec.index;
 				const char *spec_name = GetPlayerName(spec_ent);
-				
+
 				// Optimized format: Name, Score, Ping (spectators don't have levels)
 				if (!g_vortex->integer)
 				{
 					layout_builder.append(fmt::format(
-					"if 0 yv {} xv -140 string2 \"{}\" xv 70 string2 \"{}\" xv 120 string2 \"{}\" endif \n",
+					"yv {} xv -140 string2 \"{}\" xv 70 string2 \"{}\" xv 120 string2 \"{}\" \n",
 					y, spec_name, spec.score, spec.ping));
 				}
 				else	{
 				layout_builder.append(fmt::format(
-					"if 0 yv {} xv -140 string2 \"{}\" xv 70 string2 \"{}\" xv 160 string2 \"{}\" endif \n",
+					"yv {} xv -140 string2 \"{}\" xv 70 string2 \"{}\" xv 160 string2 \"{}\" \n",
 					y, spec_name, spec.score, spec.ping));}
 
 				y += PLAYER_Y_SPACING;
@@ -6629,7 +6629,7 @@ public:
 			// Check if we have enough space for the help text (reserve ~150 bytes)
 			if (layout_builder.size() < MAX_CTF_STAT_LENGTH - 150) {
 				layout_builder.append(fmt::format(
-					"if 0 xv 0 yb -55 cstring2 \"{}\" endif \n", help_text));
+					"xv 0 yb -55 cstring2 \"{}\" \n", help_text));
 			}
 		}
 		else
