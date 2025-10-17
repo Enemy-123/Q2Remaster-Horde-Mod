@@ -161,6 +161,9 @@ void plat2_operate(edict_t* ent, edict_t* other)
 	trigger = ent;
 	ent = ent->enemy; // now point at the plat, not the trigger
 
+	if (!ent || !ent->inuse)
+		return;
+
 	if (ent->plat2flags & PLAT2_MOVING)
 		return;
 
