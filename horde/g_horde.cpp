@@ -6777,8 +6777,11 @@ void HandleResetEvent()
 	// In vortex mode, benefits should persist across map changes
 	// This happens BEFORE ResetGame() to ensure players are fully initialized
 
-		for (uint32_t i = 0; i < game.maxclients; i++) {
-			edict_t* player = g_edicts + 1 + i;
+	if (!g_vortex && !g_vortex->integer)
+	{
+		for (uint32_t i = 0; i < game.maxclients; i++)
+		{
+			edict_t *player = g_edicts + 1 + i;
 			if (!player || !player->inuse || !player->client)
 				continue;
 
@@ -6795,11 +6798,13 @@ void HandleResetEvent()
 			// Reset BFG mode to default
 			player->client->pers.bfg_mode = BFGMode::NORMAL;
 
-			if (developer && developer->integer) {
+			if (developer && developer->integer)
+			{
 				gi.Com_PrintFmt("INFO: Reset benefits for player {} ({})\n",
-					i + 1, player->client->pers.netname);
+								i + 1, player->client->pers.netname);
 			}
 		}
+	}
 
 	ResetGame();
 }
