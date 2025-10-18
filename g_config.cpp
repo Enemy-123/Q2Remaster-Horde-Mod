@@ -218,6 +218,29 @@ void Config_LoadMonsters(const char* basedir)
 				}
 			}
 
+			// Load weapon speed overrides - OPTIMIZED using array-based WeaponID lookup
+			if (monster_data.isMember("weapon_speed") && monster_data["weapon_speed"].isObject())
+			{
+				const Json::Value &overrides = monster_data["weapon_speed"];
+				for (const auto &weapon_name : overrides.getMemberNames())
+				{
+					if (overrides[weapon_name].isInt())
+					{
+						// Convert weapon name string to WeaponID enum (one-time cost during config loading)
+						horde::WeaponID weapon_id = horde::WeaponRegistry::GetWeaponID(weapon_name.c_str());
+						if (weapon_id != horde::WeaponID::UNKNOWN)
+						{
+							// Store in array using WeaponID as index for O(1) lookup
+							config.weapon_speed_overrides[static_cast<size_t>(weapon_id)] = overrides[weapon_name].asInt();
+						}
+						else
+						{
+							gi.Com_PrintFmt("Config: WARNING - Unknown weapon '{}' in {} config (speed)\n", weapon_name, monster_name);
+						}
+					}
+				}
+			}
+
 			g_config.monsters.monsters[monster_id] = config;
 			loaded_count++;
 		}
@@ -1125,7 +1148,27 @@ int GetGlobalWeaponSpeed(const char* weapon_name)
 // Get specific weapon speed for a monster
 int GetMonsterWeaponSpeed(uint8_t monster_type_id, const char* weapon_name)
 {
-	// Get global base speed
+	// Get monster config
+	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
+
+	// Step 1: Convert weapon name to WeaponID
+	horde::WeaponID weapon_id = horde::WeaponRegistry::GetWeaponID(weapon_name);
+	if (weapon_id != horde::WeaponID::UNKNOWN) [[likely]]
+	{
+		// Step 2: Try to find a monster-specific speed override using O(1) array lookup
+		if (config) [[likely]]
+		{
+			size_t weapon_index = static_cast<size_t>(weapon_id);
+			int override_speed = config->weapon_speed_overrides[weapon_index];
+			if (override_speed != 0)
+			{
+				// Found an override! Use it directly (no speed_scale applied)
+				return override_speed;
+			}
+		}
+	}
+
+	// Step 3: No override found - use global base speed with speed_scale
 	int base_speed = GetGlobalWeaponSpeed(weapon_name);
 	if (base_speed == 0)
 	{
@@ -1133,11 +1176,8 @@ int GetMonsterWeaponSpeed(uint8_t monster_type_id, const char* weapon_name)
 		return 0;
 	}
 
-	// Get monster config for speed scale
-	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
-	float speed_scale = config ? config->speed_scale : 1.0f;
-
 	// Apply monster speed scale
+	float speed_scale = config ? config->speed_scale : 1.0f;
 	int speed = static_cast<int>(base_speed * speed_scale);
 
 	return speed;

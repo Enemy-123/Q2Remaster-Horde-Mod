@@ -462,7 +462,11 @@ struct MonsterStatsConfig
 	// Weapon damage overrides - OPTIMIZED using array-based lookup (O(1) instead of O(log n))
 	// Index using horde::WeaponID enum. Value of 0 means "use global damage"
 	std::array<int, 24> weapon_damage_overrides{}; // 24 = horde::WeaponID::MAX_WEAPONS
-};
+	
+	// Weapon speed overrides - OPTIMIZED using array-based lookup (O(1) instead of O(log n))
+	// Index using horde::WeaponID enum. Value of 0 means "use global speed with speed_scale"
+	std::array<int, 24> weapon_speed_overrides{}; // 24 = horde::WeaponID::MAX_WEAPONS
+};;
 
 // Monster level scaling configuration (level-based progression)
 struct MonsterLevelScaling
