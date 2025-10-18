@@ -6812,6 +6812,15 @@ void HandleResetEvent()
 // Get the remaining time for the current wave
 gtime_t GetWaveTimer()
 {
+	// Don't show a timer during non-active states (warmup, cleanup, rest)
+	// Only show timer during spawning and active_wave states
+	if (g_horde_local.state == horde_state_t::warmup ||
+		g_horde_local.state == horde_state_t::cleanup ||
+		g_horde_local.state == horde_state_t::rest)
+	{
+		return 0_sec;
+	}
+
 	const gtime_t currentTime = level.time;
 
 	// Calculate the time remaining on the absolute wave timer.
