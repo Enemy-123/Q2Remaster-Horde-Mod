@@ -557,7 +557,7 @@ static const BenefitID AUTO_UPGRADE_PRIORITY_WEAPONS[] = {
 };
 
 // Helper function to auto-buy from a specific category using priority order
-static void AutoBuyCategory(edict_t* player, BenefitCategory category) {
+static void AutoBuyCategory(edict_t* player, BenefitCategory category, bool ignore_wave_requirements = false) {
     if (!player || !player->client) return;
 
     int32_t* points = (category == BenefitCategory::ABILITY) ?
@@ -598,10 +598,12 @@ static void AutoBuyCategory(edict_t* player, BenefitCategory category) {
             continue;
         }
 
-        // Check wave requirements (for auto-buy only)
-        int32_t min_wave = g_benefitsData.min_levels[i];
-        if (current_wave_level < min_wave) {
-            continue;
+        // Check wave requirements (skip for admin bonus points)
+        if (!ignore_wave_requirements) {
+            int32_t min_wave = g_benefitsData.min_levels[i];
+            if (current_wave_level < min_wave) {
+                continue;
+            }
         }
 
         // Check prerequisites
@@ -618,7 +620,7 @@ static void AutoBuyCategory(edict_t* player, BenefitCategory category) {
 }
 
 // Auto-buy system implementation
-void CheckBotAutoBuy(edict_t* player) {
+void CheckBotAutoBuy(edict_t* player, bool ignore_wave_requirements) {
     if (!player || !player->client) return;
 
     // Update last check time (for tracking purposes, no longer used for throttling)
@@ -626,12 +628,12 @@ void CheckBotAutoBuy(edict_t* player) {
 
     // Auto-buy abilities if enabled and player has points
     if (player->client->pers.auto_buy_benefit_bot && player->client->pers.ability_points > 0) {
-        AutoBuyCategory(player, BenefitCategory::ABILITY);
+        AutoBuyCategory(player, BenefitCategory::ABILITY, ignore_wave_requirements);
     }
 
     // Auto-buy weapons if enabled and player has points
     if (player->client->pers.auto_buy_benefit_weapons_bot && player->client->pers.weapon_points > 0) {
-        AutoBuyCategory(player, BenefitCategory::WEAPON);
+        AutoBuyCategory(player, BenefitCategory::WEAPON, ignore_wave_requirements);
     }
 }
 

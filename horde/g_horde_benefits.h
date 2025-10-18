@@ -108,7 +108,7 @@ bool BotPurchaseBenefit(edict_t* player, BenefitID benefit_id, int32_t cost);
 void BotShowBenefitMessage(edict_t* player, BenefitID benefit_id);
 
 // Auto-buy system
-void CheckBotAutoBuy(edict_t* player);
+void CheckBotAutoBuy(edict_t* player, bool ignore_wave_requirements = false);
 void ProcessWaveRewards(int32_t wave);
 
 // Point management and restore system

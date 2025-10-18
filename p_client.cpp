@@ -1252,10 +1252,11 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 		client->pers.bot_has_manually_disabled_auto_buy = false;
 
 		// Calculate bonus points based on wave progress
-		client->pers.ability_points = (wave >= HordeConstants::ABILITY_POINT_WAVE_INTERVAL)
+		// Use += to preserve admin-given bonus points (don't overwrite)
+		client->pers.ability_points += (wave >= HordeConstants::ABILITY_POINT_WAVE_INTERVAL)
 			? (wave / HordeConstants::ABILITY_POINT_WAVE_INTERVAL) : 0;
 
-		client->pers.weapon_points = (wave >= HordeConstants::WEAPON_POINT_WAVE_INTERVAL)
+		client->pers.weapon_points += (wave >= HordeConstants::WEAPON_POINT_WAVE_INTERVAL)
 			? (wave / HordeConstants::WEAPON_POINT_WAVE_INTERVAL) : 0;
 
 		// Notify if points awarded
@@ -1265,9 +1266,36 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 				"Late join bonus: {} ability points, {} weapon points awarded based on current wave!\n",
 				client->pers.ability_points, client->pers.weapon_points);
 
-			// Trigger auto-buy immediately for late joiner bots
-			CheckBotAutoBuy(ent);
+			// Only auto-buy if NO admin bonus points exist
+			// (Admin bonus auto-buy will handle it later to ensure all points are spent together)
+			if (client->pers.admin_bonus_ability_points == 0 &&
+			    client->pers.admin_bonus_weapon_points == 0)
+			{
+				CheckBotAutoBuy(ent);
+			}
 		}
+	}
+
+	//
+	// AUTO-BUY ADMIN BONUS POINTS ON RESPAWN (Classic Mode only)
+	//
+	// If player has admin-given bonus points and dies without spending them,
+	// auto-buy upgrades on respawn to prevent point loss (Classic mode only)
+	if (!g_vortex->integer &&
+	    (client->pers.admin_bonus_ability_points > 0 ||
+	     client->pers.admin_bonus_weapon_points > 0))
+	{
+		// Enable auto-buy flags to ensure CheckBotAutoBuy works
+		client->pers.auto_buy_benefit_bot = true;
+		client->pers.auto_buy_benefit_weapons_bot = true;
+
+		// Trigger auto-buy to spend the admin bonus points (ignore wave requirements)
+		CheckBotAutoBuy(ent, true);
+
+		// Clear admin bonus tracking after auto-buy
+		// (The actual points in ability_points/weapon_points are consumed by CheckBotAutoBuy)
+		client->pers.admin_bonus_ability_points = 0;
+		client->pers.admin_bonus_weapon_points = 0;
 	}
 
 	// Cache wave level for multiple checks
@@ -1505,6 +1533,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 		if (is_horde)
 		{
 			// Load character data BEFORE initializing (needed for respawn weapon)
+			// Note: Character_Load now properly saves/restores admin bonus points
 			Character_Load(ent);
 
 			Horde_InitClientPersistant(ent, client);
