@@ -6388,7 +6388,7 @@ void PlasmabeamUpgradeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 
 // Constants
 
-constexpr size_t MAX_PLAYERS_TO_DISPLAY = 16;
+constexpr size_t MAX_PLAYERS_TO_DISPLAY = 14;
 constexpr int PLAYER_Y_START = 42;
 constexpr int PLAYER_Y_SPACING = 8;
 constexpr int LAYOUT_SAFETY_MARGIN = 50;
@@ -6576,10 +6576,15 @@ public:
 					"xv -185 yv {} string \"[Dead]\" ", y));
 			}
 
-			// Add player information
+			// Add player information (truncate name to prevent overflow)
+				std::string display_name = player_name;
+				if (display_name.length() > 20) {
+					display_name.resize(17);
+					display_name += "...";
+				}
 				layout_builder.append(fmt::format(
 					"yv {} xv -140 string \"{}\" xv 70 string \"{}\"  xv 120 string \"{}\" \n",
-					y, player_name, player.score, player.ping));
+					y, display_name, player.score, player.ping));
 		}
 	}
 
@@ -6601,17 +6606,24 @@ public:
 				edict_t *spec_ent = g_edicts + 1 + spec.index;
 				const char *spec_name = GetPlayerName(spec_ent);
 
+				// Truncate spectator names to prevent overflow
+				std::string display_spec_name = spec_name;
+				if (display_spec_name.length() > 20) {
+					display_spec_name.resize(17);
+					display_spec_name += "...";
+				}
+
 				// Optimized format: Name, Score, Ping (spectators don't have levels)
 				if (!g_vortex->integer)
 				{
 					layout_builder.append(fmt::format(
 					"yv {} xv -140 string2 \"{}\" xv 70 string2 \"{}\" xv 120 string2 \"{}\" \n",
-					y, spec_name, spec.score, spec.ping));
+					y, display_spec_name, spec.score, spec.ping));
 				}
 				else	{
 				layout_builder.append(fmt::format(
 					"yv {} xv -140 string2 \"{}\" xv 70 string2 \"{}\" xv 160 string2 \"{}\" \n",
-					y, spec_name, spec.score, spec.ping));}
+					y, display_spec_name, spec.score, spec.ping));}
 
 				y += PLAYER_Y_SPACING;
 			}

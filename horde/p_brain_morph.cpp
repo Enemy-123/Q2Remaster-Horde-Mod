@@ -555,10 +555,11 @@ void Cmd_PlayerToBrain_f(edict_t* ent) {
     ent->s.frame = BRAIN_FRAMES_STAND_START; // Start with standing animation
     ent->s.old_frame = ent->s.frame; // Initialize old frame for interpolation
     ent->s.renderfx |= RF_OLD_FRAME_LERP; // Enable smooth frame interpolation
-    ent->s.effects |= EF_QUAD; // Add quad shell effect
+    ent->s.effects |= EF_QUAD | EF_COLOR_SHELL; // Add quad glow and shell effect
+    ent->s.renderfx |= RF_SHELL_BLUE; // Add blue shell rendering
 
-    // Set team for bot recognition
-    ent->monsterinfo.team = ent->client->resp.ctf_team;
+    // Set team - use player team field, not monster field
+    ent->ctf_team = ent->client->resp.ctf_team;
 
     // Use proper brain bounds from monster definition
     ent->mins = { -16, -16, -24 };

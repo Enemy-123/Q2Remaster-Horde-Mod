@@ -327,15 +327,16 @@ void RestoreMorphed(edict_t* ent) {
     // Clear special entity type
     ent->special_type_id = static_cast<uint8_t>(horde::SpecialEntityTypeID::UNKNOWN);
 
-    // Clear quad shell effect
-    ent->s.effects &= ~EF_QUAD;
+    // Clear morph visual effects (quad glow and blue shell)
+    ent->s.effects &= ~(EF_QUAD | EF_COLOR_SHELL);
+    ent->s.renderfx &= ~RF_SHELL_BLUE;
 
     // Store current position before respawn
     vec3_t old_origin = ent->s.origin;
     vec3_t old_angles = ent->s.angles;
     vec3_t old_velocity = ent->velocity;
 
-    // Clear monster team
+    // Clear monster team field (cleanup, though GetEntityTeam uses client->resp.ctf_team for players)
     ent->monsterinfo.team = Team_None;
 
     // Reset movement and physics flags
@@ -456,10 +457,11 @@ void Cmd_PlayerToFlyer_f(edict_t* ent) {
     ent->s.frame = FLYER_FRAMES_STAND_START; // Start with standing animation
     ent->s.old_frame = ent->s.frame; // Initialize old frame for interpolation
     ent->s.renderfx |= RF_OLD_FRAME_LERP; // Enable smooth frame interpolation
-    ent->s.effects |= EF_QUAD; // Add quad shell effect
+    ent->s.effects |= EF_QUAD | EF_COLOR_SHELL; // Add quad glow and shell effect
+    ent->s.renderfx |= RF_SHELL_BLUE; // Add blue shell rendering
 
-    // Set team for bot recognition (don't set isfriendlyspawn to avoid AI treating as friendly summon)
-    ent->monsterinfo.team = ent->client->resp.ctf_team;
+    // Set team - use player team field, not monster field
+    ent->ctf_team = ent->client->resp.ctf_team;
 
     // Use proper flyer bounds from monster definition
     ent->mins = { -16, -16, -24 };
@@ -494,8 +496,6 @@ void Cmd_PlayerToFlyer_f(edict_t* ent) {
 
     // Play transformation sound
     gi.sound(ent, CHAN_WEAPON, gi.soundindex("misc/tele_up.wav"), 1, ATTN_NORM, 0);
-
-    ent->svflags = SVF_PLAYER;
 
     gi.LocClient_Print(ent, PRINT_HIGH, "Transformed into Flyer! Type 'flyer' again to transform back.\n");
 
