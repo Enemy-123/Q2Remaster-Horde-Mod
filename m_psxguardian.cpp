@@ -89,7 +89,7 @@ ai_sleep
 honk shoo honk shoo
 ==============
 */
-void ai_sleep(edict_t* self, float dist)
+static void ai_sleep(edict_t* self, float dist)
 {
 }
 
@@ -144,7 +144,7 @@ USE(guardianpsx_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 
 static cached_soundindex sound_step;
 
-void guardianpsx_footstep(edict_t* self)
+static void guardianpsx_footstep(edict_t* self)
 {
 	gi.sound(self, CHAN_BODY, sound_step, 1.f, 0.1f, 0.0f);
 }
@@ -275,7 +275,7 @@ static mframe_t guardianpsx_frames_atk1_out[] = {
 };
 MMOVE_T(guardianpsx_atk1_out) = { FRAME_atk1_out1, FRAME_atk1_out3, guardianpsx_frames_atk1_out, guardianpsx_run };
 
-void guardianpsx_atk1_finish(edict_t* self)
+static void guardianpsx_atk1_finish(edict_t* self)
 {
 	M_SetAnimation(self, &guardianpsx_atk1_out);
 	self->monsterinfo.weapon_sound = 0;
@@ -284,13 +284,13 @@ void guardianpsx_atk1_finish(edict_t* self)
 static cached_soundindex sound_charge;
 static cached_soundindex sound_spin_loop;
 
-void guardianpsx_atk1_charge(edict_t* self)
+static void guardianpsx_atk1_charge(edict_t* self)
 {
 	self->monsterinfo.weapon_sound = sound_spin_loop;
 	gi.sound(self, CHAN_WEAPON, sound_charge, 1.f, ATTN_NORM, 0.f);
 }
 
-void guardianpsx_fire_blaster(edict_t* self)
+static void guardianpsx_fire_blaster(edict_t* self)
 {
 	if (!M_HasValidTarget(self))
 	{
@@ -337,7 +337,7 @@ static mframe_t guardianpsx_frames_atk1_spin[] = {
 };
 MMOVE_T(guardianpsx_move_atk1_spin) = { FRAME_atk1_spin1, FRAME_atk1_spin15, guardianpsx_frames_atk1_spin, guardianpsx_atk1_finish };
 
-void guardianpsx_atk1(edict_t* self)
+static void guardianpsx_atk1(edict_t* self)
 {
 	M_SetAnimation(self, &guardianpsx_move_atk1_spin);
 	self->timestamp = level.time + 650_ms + random_time(1.5_sec);
@@ -361,7 +361,7 @@ static mframe_t guardianpsx_frames_atk2_out[] = {
 };
 MMOVE_T(guardianpsx_move_atk2_out) = { FRAME_atk2_out1, FRAME_atk2_out7, guardianpsx_frames_atk2_out, guardianpsx_run };
 
-void guardianpsx_atk2_out(edict_t* self)
+static void guardianpsx_atk2_out(edict_t* self)
 {
 	M_SetAnimation(self, &guardianpsx_move_atk2_out);
 }
@@ -403,7 +403,7 @@ PRETHINK(guardianpsx_fire_update) (edict_t* laser) -> void
 	dabeam_update(laser, false);
 }
 
-void guardianpsx_laser_fire(edict_t* self)
+static void guardianpsx_laser_fire(edict_t* self)
 {
 	if (!M_HasValidTarget(self))
 	{
@@ -423,7 +423,7 @@ static mframe_t guardianpsx_frames_atk2_fire[] = {
 };
 MMOVE_T(guardianpsx_move_atk2_fire) = { FRAME_atk2_fire1, FRAME_atk2_fire4, guardianpsx_frames_atk2_fire, guardianpsx_atk2_out };
 
-void guardianpsx_atk2(edict_t* self)
+static void guardianpsx_atk2(edict_t* self)
 {
 	M_SetAnimation(self, &guardianpsx_move_atk2_fire);
 }
@@ -444,7 +444,7 @@ static mframe_t guardianpsx_frames_atk2_in[] = {
 };
 MMOVE_T(guardianpsx_move_atk2_in) = { FRAME_atk2_in1, FRAME_atk2_in12, guardianpsx_frames_atk2_in, guardianpsx_atk2 };
 
-void guardianpsx_kick(edict_t* self)
+static void guardianpsx_kick(edict_t* self)
 {
 	if (!M_HasValidTarget(self))
 	{
@@ -534,7 +534,7 @@ THINK(heat_guardianpsx_think) (edict_t* self) -> void
 	// --- END MODIFICATION ---
 
 	// This part runs every frame, but the expensive target acquisition is now throttled.
-	if (M_HasValidTarget(self)) // Only update aim direction if we have a valid target
+	if (M_HasValidTarget(self) && self->enemy) // Only update aim direction if we have a valid target
 	{
 		float const dist_to_target = (self->s.origin - self->enemy->s.origin).length();
 		self->pos1 = heat_guardianpsx_get_dist_vec(self, self->enemy, dist_to_target);
@@ -570,6 +570,8 @@ DIE(guardianpsx_heat_die) (edict_t* self, edict_t* inflictor, edict_t* attacker,
 // RAFAEL
 void fire_guardianpsx_heat(edict_t* self, const vec3_t& start, const vec3_t& dir, const vec3_t& rest_dir, int damage, int speed, float damage_radius, int radius_damage, float turn_fraction)
 {
+	if (!self)
+		return;
 
 	if (!M_HasValidTarget(self))
 	{
@@ -812,7 +814,7 @@ MONSTERINFO_ATTACK(guardianpsx_attack) (edict_t* self) -> void
 // death
 //
 
-void guardianpsx_explode(edict_t* self)
+static void guardianpsx_explode(edict_t* self)
 {
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(TE_EXPLOSION1_BIG);
@@ -892,7 +894,7 @@ DIE(guardianpsx_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int 
 //	gi.sound(self, CHAN_BODY, sound_death, 1.f, 0.1f, 0.0f);
 }
 
-void GuardianPowerArmor(edict_t* self)
+static void GuardianPowerArmor(edict_t* self)
 {
 	self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 	// I don't like this, but it works
@@ -900,7 +902,7 @@ void GuardianPowerArmor(edict_t* self)
 		self->monsterinfo.power_armor_power += 3500 * skill->integer;
 }
 
-void GuardianRespondPowerup(edict_t* self, edict_t* other) // needs test for horde
+static void GuardianRespondPowerup(edict_t* self, edict_t* other) // needs test for horde
 {
 	//if (other->s.effects & (EF_QUAD | EF_DOUBLE | EF_DUALFIRE | EF_PENT))
 	//{

@@ -294,10 +294,10 @@ struct alignas(32) RecentPositions {
     static constexpr size_t NUM_BATCHES = MAX_POSITIONS / BATCH_SIZE;
     
     // SoA layout  for SIMD operations
-    alignas(32) std::array<float, MAX_POSITIONS> x_coords;
-    alignas(32) std::array<float, MAX_POSITIONS> y_coords; 
-    alignas(32) std::array<float, MAX_POSITIONS> z_coords;
-    alignas(32) std::array<gtime_t, MAX_POSITIONS> expiry_times;
+    alignas(32) std::array<float, MAX_POSITIONS> x_coords{};
+    alignas(32) std::array<float, MAX_POSITIONS> y_coords{};
+    alignas(32) std::array<float, MAX_POSITIONS> z_coords{};
+    alignas(32) std::array<gtime_t, MAX_POSITIONS> expiry_times{};
     
     size_t current_index = 0;
     gtime_t last_cleanup_time = 0_sec;
@@ -717,7 +717,7 @@ void BuildSpawnPointMap()
 				// Parse the origin value "x y z"
 				com_token = COM_Parse(&data);
 				if (com_token && *com_token) {
-					vec3_t origin;
+					vec3_t origin{};
 					if (sscanf(com_token, "%f %f %f", &origin.x, &origin.y, &origin.z) == 3) {
 						AddPointToBounds(origin, world_mins, world_maxs);
 						bounds_source_count++;
@@ -2781,9 +2781,9 @@ static horde::MonsterTypeID EmergencyFallbackSelection(const MonsterSelectionCon
 		{
 			// Simplified wave type description for logging
 			const char *wave_type_str = "Unknown";
-			if (ctx.waveTypeForFiltering == MonsterWaveType::Ground)
+			if (HasWaveType(ctx.waveTypeForFiltering, MonsterWaveType::Ground))
 				wave_type_str = "Ground";
-			else if (ctx.waveTypeForFiltering == MonsterWaveType::Flying)
+			else if (HasWaveType(ctx.waveTypeForFiltering, MonsterWaveType::Flying))
 				wave_type_str = "Flying";
 			else if (HasWaveType(ctx.waveTypeForFiltering, MonsterWaveType::Boss))
 				wave_type_str = "Boss";
@@ -4580,7 +4580,7 @@ static edict_t *FindBestPlayerTargetForTeleport()
 	if (!target_player)
 	{
 		// Heap optimization: Changed from std::vector to std::array (compile-time, zero heap allocation)
-		std::array<edict_t*, 32> active;
+		std::array<edict_t*, 32> active{};
 		int active_count = 0;
 		for (auto *p : active_players_no_spect())
 		{
@@ -5096,7 +5096,7 @@ void HandleSpawnPhaseAggression(edict_t *monster)
 
 				if (!target_player) {
 					// Heap optimization: Changed from std::vector to std::array (compile-time, zero heap allocation)
-					std::array<edict_t*, 32> candidates;
+					std::array<edict_t*, 32> candidates{};
 					int candidate_count = 0;
 					for (auto* p : active_players_no_spect()) {
 						if (candidate_count < 32) {
@@ -5773,8 +5773,8 @@ private:
     // Pre-computed candidate positions around each player
     struct PlayerSpawnCandidates {
         edict_t* player = nullptr;
-        std::array<vec3_t, 16> positions;  // Pre-computed positions
-        std::array<float, 16> scores;      // Pre-computed base scores
+        std::array<vec3_t, 16> positions{};  // Pre-computed positions
+        std::array<float, 16> scores{};      // Pre-computed base scores
         uint8_t valid_count = 0;
         gtime_t last_update_time = 0_sec;
     };
@@ -6064,12 +6064,12 @@ private:
     // A batch of monsters to be processed together
     struct SpawnBatch {
         static constexpr size_t MAX_BATCH_SIZE = 8;
-        std::array<SpawnPlanEntry, MAX_BATCH_SIZE> entries;
-        std::array<vec3_t, MAX_BATCH_SIZE> final_origins;
-        std::array<vec3_t, MAX_BATCH_SIZE> final_angles;
-        std::array<bool, MAX_BATCH_SIZE> used_alternatives;
-        std::array<edict_t*, MAX_BATCH_SIZE> spawned_monsters;
-        std::array<bool, MAX_BATCH_SIZE> is_valid; // FIXED: Explicit validity tracking instead of sentinel
+        std::array<SpawnPlanEntry, MAX_BATCH_SIZE> entries{};
+        std::array<vec3_t, MAX_BATCH_SIZE> final_origins{};
+        std::array<vec3_t, MAX_BATCH_SIZE> final_angles{};
+        std::array<bool, MAX_BATCH_SIZE> used_alternatives{};
+        std::array<edict_t*, MAX_BATCH_SIZE> spawned_monsters{};
+        std::array<bool, MAX_BATCH_SIZE> is_valid{}; // FIXED: Explicit validity tracking instead of sentinel
         size_t count = 0;
 
         void Clear() { 
