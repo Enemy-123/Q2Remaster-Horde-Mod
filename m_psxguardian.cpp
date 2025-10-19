@@ -380,6 +380,12 @@ PRETHINK(guardianpsx_fire_update) (edict_t* laser) -> void
 	{
 		edict_t* self = laser->owner;
 
+		if (!self)
+		{
+			G_FreeEdict(laser);
+			return;
+		}
+
 		vec3_t forward, right, target;
 		vec3_t start;
 
