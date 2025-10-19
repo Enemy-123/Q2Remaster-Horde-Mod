@@ -3897,6 +3897,5 @@ void CTFBoot(edict_t* ent)
 
 void CTFSetPowerUpEffect(edict_t* ent, effects_t def)
 {
-
 	ent->s.effects |= def;
 }

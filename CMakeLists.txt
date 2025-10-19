@@ -64,6 +64,29 @@ target_link_libraries(Q2HordeModDLL PRIVATE
 
 # Add Windows system libraries conditionally
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    # If using clang, configure for MinGW cross-compilation
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        execute_process(
+            COMMAND x86_64-w64-mingw32-gcc -print-libgcc-file-name
+            OUTPUT_VARIABLE LIBGCC_FILE
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        get_filename_component(GCC_LIB_DIR ${LIBGCC_FILE} DIRECTORY)
+        target_link_directories(Q2HordeModDLL PRIVATE ${GCC_LIB_DIR})
+        # Use lld and force static linking of libstdc++ and libgcc
+        target_link_options(Q2HordeModDLL PRIVATE
+            -fuse-ld=lld
+            -L${GCC_LIB_DIR}
+            -static-libstdc++
+            -static-libgcc
+        )
+        # Manually link GCC runtime libraries in the correct order
+        target_link_libraries(Q2HordeModDLL PRIVATE
+            ${GCC_LIB_DIR}/libgcc.a
+            ${GCC_LIB_DIR}/libgcc_eh.a
+        )
+    endif()
+
     target_link_libraries(Q2HordeModDLL PRIVATE
         ws2_32 winmm user32 gdi32 ole32 uuid kernel32 advapi32)
 endif()
