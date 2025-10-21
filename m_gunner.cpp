@@ -636,7 +636,7 @@ mframe_t gunner_frames_endfire_chain[] = {
 };
 MMOVE_T(gunner_move_endfire_chain) = { FRAME_attak224, FRAME_attak230, gunner_frames_endfire_chain, gunner_run };
 
-void gunner_blind_check(edict_t* self)
+static void gunner_blind_check(edict_t* self)
 {
 	vec3_t aim;
 

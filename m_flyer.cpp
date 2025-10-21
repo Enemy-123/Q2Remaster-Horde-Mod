@@ -1083,6 +1083,8 @@ void flyer_recharge(edict_t* self)
 
 MONSTERINFO_ATTACK(flyer_attack)(edict_t* self) -> void
 {
+	monster_done_dodge(self);
+
 	if (!M_HasValidTarget(self))
 	{
 		return; // Can't at a non-existent or dead target.

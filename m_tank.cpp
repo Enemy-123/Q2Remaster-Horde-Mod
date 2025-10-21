@@ -1493,13 +1493,16 @@ MONSTERINFO_BLOCKED(tank_blocked) (edict_t* self, float dist) -> bool
 
 MONSTERINFO_ATTACK(tank_attack) (edict_t* self) -> void
 {
+	monster_done_dodge(self);
+
+	// Use helper function for consistent enemy validation
+	if (!M_HasEnemy(self))
+		return;
+
 	vec3_t vec;
 	float  range{};
 	float  r;
 	float chance;
-
-	if (!self->enemy || !self->enemy->inuse)
-		return;
 
 	// --- NEW LOGIC: Determine target type once at the top ---
 	// First, resolve the true target (in case it's a laser beam)
@@ -2634,9 +2637,10 @@ MMOVE_T(tank_move_spawn) = { FRAME_attak221, FRAME_attak238, tank_frames_spawn, 
 // Spawner tank attack patterns
 MONSTERINFO_ATTACK(tank_vanilla_attack) (edict_t* self) -> void
 {
+	monster_done_dodge(self);
 
-	// Early validation
-	if (!self || !self->enemy || !self->enemy->inuse) {
+	// Use helper function for consistent enemy validation
+	if (!M_HasEnemy(self)) {
 		return;
 	}
 

@@ -1755,6 +1755,11 @@ void soldier_jump(edict_t* self, blocked_jump_result_t result)
 
 MONSTERINFO_BLOCKED(soldier_blocked) (edict_t* self, float dist) -> bool
 {
+	// Check plat first (simpler/faster check) - matches gunner pattern
+	if (blocked_checkplat(self, dist))
+		return true;
+
+	// Then check jump if enabled
 	if (self->monsterinfo.can_jump)
 	{
 		if (auto const result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
@@ -1763,9 +1768,6 @@ MONSTERINFO_BLOCKED(soldier_blocked) (edict_t* self, float dist) -> bool
 			return true;
 		}
 	}
-
-	if (blocked_checkplat(self, dist))
-		return true;
 
 	return false;
 }

@@ -457,6 +457,8 @@ MONSTERINFO_ATTACK(hover_start_attack) (edict_t* self) -> void { M_SetAnimation(
 
 void hover_attack(edict_t* self)
 {
+    monster_done_dodge(self);
+
     hover_style_t style(self);
     float strafe_chance = 0.5f;
 

@@ -788,6 +788,8 @@ MMOVE_T(parasite_move_fire_proboscis) = { FRAME_drain01, FRAME_drain18, parasite
 
 MONSTERINFO_ATTACK(parasite_attack) (edict_t* self) -> void
 {
+	monster_done_dodge(self);
+
 	// If an old proboscis entity still exists from a previous attack,
 	// we must forcefully remove it *before* starting the new attack animation.
 	// This cleans the state and prevents the AI from getting stuck or hesitating

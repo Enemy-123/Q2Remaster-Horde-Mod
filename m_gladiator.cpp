@@ -357,17 +357,16 @@ MMOVE_T(gladc_move_attack_gun) = { FRAME_attack1, FRAME_attack9, gladc_frames_at
 
 MONSTERINFO_ATTACK(gladiator_attack) (edict_t* self) -> void
 {
+	monster_done_dodge(self);
+
 	if (!M_HasValidTarget(self))
 	{
 		return; // Stop immediately if the target is invalid.
 	}
 
-	float  range;
-	vec3_t v;
-
-	// a small safe zone
-	v = self->s.origin - self->enemy->s.origin;
-	range = v.length();
+	// Pre-calculate distance once for performance
+	vec3_t const v = self->s.origin - self->enemy->s.origin;
+	float const range = v.length();
 	if (range <= (MELEE_DISTANCE + 32) && self->monsterinfo.melee_debounce_time <= level.time)
 		return;
 	else if (!M_CheckClearShot(self, monster_flash_offset[MZ2_GLADIATOR_RAILGUN_1]))

@@ -571,6 +571,8 @@ void supertankMachineGun(edict_t* self)
 
 MONSTERINFO_ATTACK(supertank_attack) (edict_t* self) -> void
 {
+	monster_done_dodge(self);
+
 	if (!M_HasValidTarget(self))
 	{
 		return; // Stop immediately if the target is invalid.

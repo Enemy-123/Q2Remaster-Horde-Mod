@@ -1015,6 +1015,8 @@ MONSTERINFO_ATTACK(spider_attack) (edict_t* self) -> void
 
 MONSTERINFO_ATTACK(arachnid_attack) (edict_t* self) -> void
 {
+    monster_done_dodge(self);
+
     if (!M_HasValidTarget(self))
     {
         return; // Stop immediately if the target is invalid.

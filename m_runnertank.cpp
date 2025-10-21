@@ -996,6 +996,8 @@ void runnertank_consider_strafe(edict_t* self)
 
 MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 {
+	monster_done_dodge(self);
+
 	if (!M_HasValidTarget(self))
 	{
 		return; // Can't attack a non-existent or dead target.

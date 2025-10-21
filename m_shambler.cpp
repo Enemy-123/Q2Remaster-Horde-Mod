@@ -613,6 +613,8 @@ MMOVE_T(shambler_attack_fireball) = { FRAME_smash01, FRAME_smash12, shambler_fra
 
 MONSTERINFO_ATTACK(shambler_attack) (edict_t* self) -> void
 {
+	monster_done_dodge(self);
+
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::SHAMBLER_SMALL)) {
 		M_SetAnimation(self, &shambler_attack_magic);
 		return;

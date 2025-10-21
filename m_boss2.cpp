@@ -563,16 +563,16 @@ MONSTERINFO_WALK(boss2_walk)(edict_t *self)->void
 
 MONSTERINFO_ATTACK(boss2_attack)(edict_t* self)->void
 {
+	monster_done_dodge(self);
+
 	if (!M_HasValidTarget(self))
 	{
 		return; // Stop immediately if the target is invalid.
 	}
 
-	vec3_t vec;
-	float range;
-
-	vec = self->enemy->s.origin - self->s.origin;
-	range = vec.length();
+	// Pre-calculate distance once for performance
+	vec3_t const vec = self->enemy->s.origin - self->s.origin;
+	float const range = vec.length();
 
 	if (range <= 125 || frandom() <= 0.6f)
 		M_SetAnimation(self, self->spawnflags.has(SPAWNFLAG_BOSS2_N64) ? &boss2_move_attack_hb : &boss2_move_attack_pre_mg);

@@ -547,6 +547,8 @@ MMOVE_T(guardian_move_kick) = { FRAME_kick_in1, FRAME_kick_in13, guardian_frames
 
 MONSTERINFO_ATTACK(guardian_attack) (edict_t* self) -> void
 {
+	monster_done_dodge(self);
+
 	if (!M_HasValidTarget(self))
 	{
 		return; // Can't at a non-existent or dead target.
