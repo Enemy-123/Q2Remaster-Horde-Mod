@@ -846,3 +846,4 @@ build_clang/CMakeFiles/Q2HordeModDLL.dir/xatrix/m_xatrix_gekk.cpp.obj.d
 build_clang/CMakeFiles/Q2HordeModDLL.dir/xatrix/p_xatrix_weapon.cpp.obj.d
 build_clang/lib/libgame_x64.dll.a
 build_clang/install_manifest.txt
+baseq2/characters/unknown.json
