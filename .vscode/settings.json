@@ -2,13 +2,14 @@
     "cmake.toolchainFile": "${workspaceFolder}/vcpkg/scripts/buildsystems/vcpkg.cmake",
     "cmake.configureSettings": {
         "VCPKG_INSTALLED_DIR": "${workspaceFolder}/vcpkg_installed",
-        "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${workspaceFolder}/mingw-w64-x86_64.cmake",
+        "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${workspaceFolder}/clang-w64-x86_64.cmake",
         "VCPKG_TARGET_TRIPLET": "x64-mingw-static",
-        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
         "DEPLOY_DIRECTORY": "/home/perrobjorn/Games/Heroic/Quake II Enhanced/baseq2"
     },
     "cmake.environment": {
-        "jsoncpp_DIR": "${workspaceFolder}/vcpkg_installed/x64-mingw-static/share/jsoncpp"
+        "jsoncpp_DIR": "${workspaceFolder}/vcpkg_installed/x64-mingw-static/share/jsoncpp",
+        "fmt_DIR": "${workspaceFolder}/vcpkg_installed/x64-mingw-static/share/fmt"
     },
 
     "files.associations": {

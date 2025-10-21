@@ -2,7 +2,117 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Build: Debug (for GDB)",
+            "label": "Build: Debug (Clang)",
+            "type": "shell",
+            "command": "python3",
+            "args": [
+                "${workspaceFolder}/build_clang.py",
+                "${input:deployPathInput}",
+                "Debug"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "clear": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Build: Release (Clang)",
+            "type": "shell",
+            "command": "python3",
+            "args": [
+                "${workspaceFolder}/build_clang.py",
+                "${input:deployPathInput}",
+                "Release"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "clear": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Build: RelWithDebInfo (Clang, optimized + symbols)",
+            "type": "shell",
+            "command": "python3",
+            "args": [
+                "${workspaceFolder}/build_clang.py",
+                "${input:deployPathInput}",
+                "RelWithDebInfo"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "clear": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Build: RelWithDebInfo + UBSan (Clang)",
+            "type": "shell",
+            "command": "python3",
+            "args": [
+                "${workspaceFolder}/build_clang.py",
+                "${input:deployPathInput}",
+                "RelWithDebInfo",
+                "--sanitizer",
+                "ubsan"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "clear": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Debug: Build + Launch Debugger",
+            "type": "shell",
+            "command": "python3",
+            "args": [
+                "${workspaceFolder}/debug.py"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "clear": true,
+                "focus": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Debug: Launch Debugger (skip build)",
+            "type": "shell",
+            "command": "python3",
+            "args": [
+                "${workspaceFolder}/debug.py",
+                "--skip-build"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "clear": true,
+                "focus": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Build: Debug (MinGW)",
             "type": "shell",
             "command": "python3",
             "args": [
@@ -19,7 +129,7 @@
             "problemMatcher": []
         },
         {
-            "label": "Build: Release (for distribution)",
+            "label": "Build: Release (MinGW)",
             "type": "shell",
             "command": "python3",
             "args": [
@@ -27,54 +137,13 @@
                 "${input:deployPathInput}",
                 "Release"
             ],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
+            "group": "build",
             "presentation": {
                 "reveal": "always",
                 "panel": "new",
                 "clear": true
             },
             "problemMatcher": []
-        },
-        {
-            "label": "Build: RelWithDebInfo ( with symbols)",
-            "type": "shell",
-            "command": "python3",
-            "args": [
-                "${workspaceFolder}/build_mingw.py",
-                "${input:deployPathInput}",
-                "RelWithDebInfo"
-            ],
-            "group": "build",
-            "presentation": {
-                "reveal": "always",
-                "panel": "new",
-                "clear": true
-            },
-            "problemMatcher": [
-                "$gcc"
-            ]
-        },
-        {
-            "label": "Build: DebugASan (with AddressSanitizer)",
-            "type": "shell",
-            "command": "python3",
-            "args": [
-                "${workspaceFolder}/build_mingw.py",
-                "${input:deployPathInput}",
-                "DebugASan"
-            ],
-            "group": "build",
-            "presentation": {
-                "reveal": "always",
-                "panel": "new",
-                "clear": true
-            },
-            "problemMatcher": [
-                "$gcc"
-            ]
         }
     ],
     "inputs": [
@@ -82,7 +151,7 @@
             "id": "deployPathInput",
             "type": "promptString",
             "description": "Enter the absolute path for mod deployment",
-           "default": "/home/perrobjorn/.steam/steam/steamapps/common/Quake 2/rerelease/baseq2/"
+            "default": "/home/perrobjorn/Games/Heroic/Quake II Enhanced/baseq2"
         }
     ]
 }

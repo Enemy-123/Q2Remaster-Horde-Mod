@@ -3,6 +3,23 @@
 python3 /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/build_mingw.py '/home/perrobjorn/Games/Heroic/Quake II Enhanced/baseq2' Release
 ```
 
+### Debug Command (Automated Debugging)
+One-terminal workflow: builds mod and launches winedbg with auto-configured GDB
+```bash
+# Auto-build and debug (requires: pip install pexpect)
+python3 /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/debug.py
+
+# Debug with UndefinedBehaviorSanitizer
+python3 /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/debug.py --sanitizer ubsan
+
+# Skip build, just launch debugger
+python3 /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/debug.py --skip-build
+
+# Manual mode (no pexpect needed, prints GDB commands to enter manually)
+python3 /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/debug.py --no-auto
+```
+When game crashes, type `bt` at Wine-gdb> prompt for backtrace.
+
 ### Function Macros
 Forward declarations are plain C++, implementations use macros:
 ```cpp
