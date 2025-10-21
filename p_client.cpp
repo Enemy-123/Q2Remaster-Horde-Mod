@@ -4815,16 +4815,26 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 			client->latched_buttons = BUTTON_NONE;
 			if (client->chase_target)
 			{
-				// Simple toggle: auto-adaptive -> freecam
-				client->ps.gunindex = 0;
-				client->ps.gunskin = 0;
-				client->chase_target = nullptr;
-				client->use_eyecam = false;
-				client->ps.pmove.pm_flags &= ~(PMF_NO_POSITIONAL_PREDICTION | PMF_NO_ANGULAR_PREDICTION);
+				// 3-state cycle: auto-adaptive -> locked first-person -> freecam
+				if (client->auto_eyecam)
+				{
+					// State 1 -> State 2: Switch to locked first-person mode
+					client->auto_eyecam = false;
+					client->use_eyecam = true;
+				}
+				else
+				{
+					// State 2 -> State 3: Exit to freecam
+					client->ps.gunindex = 0;
+					client->ps.gunskin = 0;
+					client->chase_target = nullptr;
+					client->use_eyecam = false;
+					client->ps.pmove.pm_flags &= ~(PMF_NO_POSITIONAL_PREDICTION | PMF_NO_ANGULAR_PREDICTION);
+				}
 			}
 			else
 			{
-				// Enter adaptive camera mode from freecam
+				// State 3 -> State 1: Enter auto-adaptive camera mode from freecam
 				GetChaseTarget(ent);
 				client->auto_eyecam = true;
 				client->use_eyecam = false;
