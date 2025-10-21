@@ -31,6 +31,7 @@ constexpr spawnflags_t SPAWNFLAG_SEC_MOVE_FORWARD = 64_spawnflag;
 
 USE(fd_secret_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
 {
+	if (!self || !self->inuse) return;
 	edict_t *ent;
 
 	if (self->flags & FL_TEAMSLAVE)
@@ -43,6 +44,7 @@ USE(fd_secret_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
 
 DIE(fd_secret_killed) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod) -> void
 {
+	if (!self || !self->inuse) return;
 	self->health = self->max_health;
 	self->takedamage = false;
 
@@ -55,6 +57,7 @@ DIE(fd_secret_killed) (edict_t *self, edict_t *inflictor, edict_t *attacker, int
 // Wait after first movement...
 MOVEINFO_ENDFUNC(fd_secret_move1) (edict_t *self) -> void
 {
+	if (!self || !self->inuse) return;
 	self->nextthink = level.time + 1_sec;
 	self->think = fd_secret_move2;
 }
@@ -62,6 +65,7 @@ MOVEINFO_ENDFUNC(fd_secret_move1) (edict_t *self) -> void
 // Start moving sideways w/sound...
 THINK(fd_secret_move2) (edict_t *self) -> void
 {
+	if (!self || !self->inuse) return;
 	Move_Calc(self, self->moveinfo.end_origin, fd_secret_move3);
 }
 
@@ -78,18 +82,21 @@ MOVEINFO_ENDFUNC(fd_secret_move3) (edict_t *self) -> void
 // Move backward...
 THINK(fd_secret_move4) (edict_t *self) -> void
 {
+	if (!self || !self->inuse) return;
 	Move_Calc(self, self->moveinfo.start_origin, fd_secret_move5);
 }
 
 // Wait 1 second...
 MOVEINFO_ENDFUNC(fd_secret_move5) (edict_t *self) -> void
 {
+	if (!self || !self->inuse) return;
 	self->nextthink = level.time + 1_sec;
 	self->think = fd_secret_move6;
 }
 
 THINK(fd_secret_move6) (edict_t *self) -> void
 {
+	if (!self || !self->inuse) return;
 	Move_Calc(self, self->move_origin, fd_secret_done);
 }
 
@@ -105,6 +112,7 @@ MOVEINFO_ENDFUNC(fd_secret_done) (edict_t *self) -> void
 
 MOVEINFO_BLOCKED(secret_blocked) (edict_t *self, edict_t *other) -> void
 {
+	if (!self || !self->inuse) return;
 	if (!(self->flags & FL_TEAMSLAVE))
 		T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 0, DAMAGE_NONE, MOD_CRUSH);
 }
@@ -118,6 +126,7 @@ Prints messages
 */
 TOUCH(secret_touch) (edict_t *self, edict_t *other, const trace_t &tr, bool other_touching_self) -> void
 {
+	if (!self || !self->inuse) return;
 	if (other->health <= 0)
 		return;
 

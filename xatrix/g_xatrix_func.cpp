@@ -17,6 +17,7 @@ constexpr spawnflags_t SPAWNFLAG_ROTATING_LIGHT_ALARM = 2_spawnflag;
 
 THINK(rotating_light_alarm) (edict_t* self) -> void
 {
+	if (!self || !self->inuse) return;
 	if (self->spawnflags.has(SPAWNFLAG_ROTATING_LIGHT_START_OFF))
 	{
 		self->think = nullptr;
@@ -31,6 +32,7 @@ THINK(rotating_light_alarm) (edict_t* self) -> void
 
 DIE(rotating_light_killed) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
+	if (!self || !self->inuse) return;
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(TE_WELDING_SPARKS);
 	gi.WriteByte(30);
@@ -48,6 +50,7 @@ DIE(rotating_light_killed) (edict_t* self, edict_t* inflictor, edict_t* attacker
 
 USE(rotating_light_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
+	if (!self || !self->inuse) return;
 	if (self->spawnflags.has(SPAWNFLAG_ROTATING_LIGHT_START_OFF))
 	{
 		self->spawnflags &= ~SPAWNFLAG_ROTATING_LIGHT_START_OFF;
@@ -120,6 +123,7 @@ The default delay is 1 second
 
 THINK(object_repair_fx) (edict_t* ent) -> void
 {
+	if (!ent || !ent->inuse) return;
 	ent->nextthink = level.time + gtime_t::from_sec(ent->delay);
 
 	if (ent->health <= 100)
@@ -138,6 +142,7 @@ THINK(object_repair_fx) (edict_t* ent) -> void
 
 THINK(object_repair_dead) (edict_t* ent) -> void
 {
+	if (!ent || !ent->inuse) return;
 	G_UseTargets(ent, ent);
 	ent->nextthink = level.time + 10_hz;
 	ent->think = object_repair_fx;
@@ -145,6 +150,7 @@ THINK(object_repair_dead) (edict_t* ent) -> void
 
 THINK(object_repair_sparks) (edict_t* ent) -> void
 {
+	if (!ent || !ent->inuse) return;
 	if (ent->health <= 0)
 	{
 		ent->nextthink = level.time + 10_hz;

@@ -40,6 +40,7 @@ void plat2_kill_danger_area(edict_t* ent)
 
 MOVEINFO_ENDFUNC(plat2_hit_top) (edict_t* ent) -> void
 {
+	if (!ent || !ent->inuse) return;
 	if (!(ent->flags & FL_TEAMSLAVE))
 	{
 		if (ent->moveinfo.sound_end)
@@ -79,6 +80,7 @@ MOVEINFO_ENDFUNC(plat2_hit_top) (edict_t* ent) -> void
 
 MOVEINFO_ENDFUNC(plat2_hit_bottom) (edict_t* ent) -> void
 {
+	if (!ent || !ent->inuse) return;
 	if (!(ent->flags & FL_TEAMSLAVE))
 	{
 		if (ent->moveinfo.sound_end)
@@ -119,6 +121,7 @@ MOVEINFO_ENDFUNC(plat2_hit_bottom) (edict_t* ent) -> void
 
 THINK(plat2_go_down) (edict_t* ent) -> void
 {
+	if (!ent || !ent->inuse) return;
 	if (!(ent->flags & FL_TEAMSLAVE))
 	{
 		if (ent->moveinfo.sound_start)
@@ -135,6 +138,7 @@ THINK(plat2_go_down) (edict_t* ent) -> void
 
 THINK(plat2_go_up) (edict_t* ent) -> void
 {
+	if (!ent || !ent->inuse) return;
 	if (!(ent->flags & FL_TEAMSLAVE))
 	{
 		if (ent->moveinfo.sound_start)
@@ -222,6 +226,7 @@ void plat2_operate(edict_t* ent, edict_t* other)
 
 TOUCH(Touch_Plat_Center2) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
+	if (!ent || !ent->inuse) return;
 	// this requires monsters to actively trigger plats, not just step on them.
 
 	// FIXME - commented out for E3
@@ -240,6 +245,7 @@ TOUCH(Touch_Plat_Center2) (edict_t* ent, edict_t* other, const trace_t& tr, bool
 
 MOVEINFO_BLOCKED(plat2_blocked) (edict_t* self, edict_t* other) -> void
 {
+	if (!self || !self->inuse) return;
 	if (!(other->svflags & SVF_MONSTER) && (!other->client))
 	{
 		// give it a chance to go away on it's own terms (like gibs)
@@ -270,6 +276,7 @@ MOVEINFO_BLOCKED(plat2_blocked) (edict_t* self, edict_t* other) -> void
 
 USE(Use_Plat2) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 {
+	if (!ent || !ent->inuse) return;
 	edict_t* trigger;
 
 	if (ent->moveinfo.state > STATE_BOTTOM)
@@ -297,6 +304,7 @@ USE(Use_Plat2) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 
 USE(plat2_activate) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 {
+	if (!ent || !ent->inuse) return;
 	edict_t* trigger;
 
 	//	if(ent->targetname)
