@@ -2464,8 +2464,13 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 	const char* player_name = GetDisplayName(ent);
 
 	if (is_time_vote) {
-		gi.LocBroadcast_Print(PRINT_CHAT, "{} Has Started a Vote!\n", player_name);
-		gi.LocBroadcast_Print(PRINT_CHAT, "Add Time: +30 minutes\n");
+		if (ctfgame.automatic_vote) {
+			gi.LocBroadcast_Print(PRINT_CHAT, "AUTOMATED VOTE: Wish to add 30 minutes?\n");
+		}
+		else {
+			gi.LocBroadcast_Print(PRINT_CHAT, "{} Has Started a Vote!\n", player_name);
+			gi.LocBroadcast_Print(PRINT_CHAT, "Add Time: +30 minutes\n");
+		}
 	}
 	else if (ctfgame.election == ELECT_MAP) {
 		gi.LocBroadcast_Print(PRINT_CHAT, "{} Has Started a Vote!\n", player_name);
@@ -2876,7 +2881,7 @@ void CTFVoteYes(edict_t* ent)
 
 	if (ent->client->resp.voted)
 	{
-		gi.LocClient_Print(ent, PRINT_HIGH, "You already voted.\n");
+		gi.LocClient_Print(ent, PRINT_HIGH, "You have already voted.\n");
 		return;
 	}
 	// Allow self-voting for mode changes (map, time extension, cooperative mode, pvm, horde)
@@ -2887,17 +2892,16 @@ void CTFVoteYes(edict_t* ent)
 	}
 
 	ent->client->resp.voted = true;
-
 	ctfgame.evotes++;
+	UpdateVoteHUD();
+
 	if (ctfgame.evotes == ctfgame.needvotes)
 	{
 		// the election has been won
 		CTFWinElection();
 		return;
 	}
-	gi.LocBroadcast_Print(PRINT_CHAT, "Yes: {}  No: {}  Needed: {}  Time left: {}s\n",
-		ctfgame.evotes, ctfgame.nvotes, ctfgame.needvotes,
-		(ctfgame.electtime - level.time).seconds<int>());
+	UpdateVoteHUD();
 }
 
 void CTFVoteNo(edict_t* ent)
@@ -2916,7 +2920,7 @@ void CTFVoteNo(edict_t* ent)
 
 	if (ent->client->resp.voted)
 	{
-		gi.LocClient_Print(ent, PRINT_HIGH, "You already voted.\n");
+		gi.LocClient_Print(ent, PRINT_HIGH, "You have already voted.\n");
 		return;
 	}
 	// Skip self-voting check for time extension votes (nobody is the target)
@@ -2954,9 +2958,7 @@ void CTFVoteNo(edict_t* ent)
 		}
 	}
 
-	gi.LocBroadcast_Print(PRINT_CHAT, "Yes: {}  No: {}  Needed: {}  Time left: {}s\n",
-		ctfgame.evotes, ctfgame.nvotes, ctfgame.needvotes,
-		(ctfgame.electtime - level.time).seconds<int>());
+	UpdateVoteHUD();
 }
 
 void CTFReady(edict_t* ent)
