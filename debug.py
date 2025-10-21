@@ -71,12 +71,35 @@ def launch_debugger_pexpect():
         child = pexpect.spawn('/bin/bash', ['-c', cmd], env=env, encoding='utf-8')
         child.logfile = sys.stdout
 
-        # Wait for Wine-gdb> prompt
+        # Wait for Wine-gdb> prompt (handle pager and debuginfod)
         print("Waiting for GDB to initialize...")
-        child.expect('Wine-gdb>', timeout=30)
 
-        # Send GDB commands
-        print("\n[AUTO] Setting solib-search-path...")
+        # Handle potential pager output first
+        index = child.expect(['Wine-gdb>', '--Type.*for more', r'Enable debuginfod.*\?'], timeout=30)
+
+        # If we hit a pager or debuginfod prompt, handle it
+        while index != 0:
+            if index == 1:  # Pager (use space+enter to skip one page at a time, then q at Wine-gdb>)
+                print("[AUTO] Skipping pager...")
+                # Keep pressing space until we see Wine-gdb> prompt or another pager
+                while True:
+                    child.send(' ')  # Space = show next page
+                    idx = child.expect(['Wine-gdb>', '--Type.*for more'], timeout=5)
+                    if idx == 0:  # Reached prompt
+                        index = 0
+                        break
+                # index is now 0 (Wine-gdb>)
+            elif index == 2:  # debuginfod
+                print("[AUTO] Disabling debuginfod...")
+                child.sendline('n')
+                index = child.expect(['Wine-gdb>', '--Type.*for more'], timeout=10)
+
+        # Now at Wine-gdb> prompt, send GDB commands
+        print("\n[AUTO] Disabling pagination...")
+        child.sendline('set pagination off')
+        child.expect('Wine-gdb>', timeout=5)
+
+        print("[AUTO] Setting solib-search-path...")
         child.sendline(f'set solib-search-path "{DEPLOY_PATH}"')
         child.expect('Wine-gdb>', timeout=5)
 
@@ -87,8 +110,19 @@ def launch_debugger_pexpect():
         print("[AUTO] Starting game (continue)...\n")
         child.sendline('c')
 
-        # Hand over to interactive mode
-        child.interact()
+        # Hand over to interactive mode (remove logfile to avoid encoding issues)
+        child.logfile = None
+        try:
+            child.interact()
+        except OSError as e:
+            if e.errno == 25:  # Inappropriate ioctl for device
+                print("\n✗ Cannot enter interactive mode (not running in a TTY)")
+                print("   This happens when running via pipes or in VS Code terminal")
+                print("   Run directly in a real terminal for interactive debugging")
+                # Keep process alive so user can see output
+                child.wait()
+            else:
+                raise
 
     except pexpect.exceptions.TIMEOUT:
         print("\n✗ Timeout waiting for GDB prompt. Try manual mode with --no-auto")
@@ -109,9 +143,11 @@ def launch_debugger_manual():
 
     print("Setting up environment and launching winedbg...")
     print("After GDB initializes, you'll need to run these commands:\n")
+    print('  set pagination off')
     print(f'  set solib-search-path "{DEPLOY_PATH}"')
     print(f'  directory {REPO_DIR}')
     print('  c\n')
+    print("TIP: If you see '--Type <RET> for more--', press 'c' to skip paging.\n")
     print("When the game crashes, type 'bt' to see the backtrace.\n")
 
     # Set up environment
