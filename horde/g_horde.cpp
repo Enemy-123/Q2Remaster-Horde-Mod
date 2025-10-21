@@ -6777,6 +6777,10 @@ void HandleResetEvent()
 	// In vortex mode, benefits should persist across map changes
 	// This happens BEFORE ResetGame() to ensure players are fully initialized
 
+	// Safety check: g_edicts may not be initialized yet during PreInitGame
+	if (!g_edicts)
+		return;
+
 	if (!g_vortex || !g_vortex->integer)
 	{
 		for (uint32_t i = 0; i < game.maxclients; i++)

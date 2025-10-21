@@ -502,6 +502,9 @@ void ShutdownGame()
 
 	gi.FreeTags(TAG_LEVEL);
 	gi.FreeTags(TAG_GAME);
+	
+	// Reset pointers to prevent dangling pointer issues
+	g_edicts = nullptr;
 }
 
 static void* G_GetExtension(const char* name)
