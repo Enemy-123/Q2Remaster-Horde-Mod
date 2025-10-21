@@ -13,6 +13,7 @@ import argparse
 GAME_DIR = "/home/perrobjorn/Games/Heroic/Quake II Enhanced"
 WINEPREFIX = "/home/perrobjorn/Games/Heroic/Prefixes/default/Quake II"
 GAME_EXE = "quake2ex_gog.exe"
+GAME_EXE_FULL_PATH = f"{GAME_DIR}/{GAME_EXE}"
 GAME_ARGS = ["-skipmovies", "+exec", "horde.cfg", "+map", "q2ctf5"]
 DEPLOY_PATH = f"{GAME_DIR}/baseq2"
 REPO_DIR = "/home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod"
@@ -57,16 +58,17 @@ def launch_debugger_pexpect():
     print(f"Arguments: {' '.join(GAME_ARGS)}")
     print("\nWhen the game crashes, type 'bt' to see the backtrace.\n")
 
-    # Build the winedbg command
-    cmd = f"winedbg --gdb {GAME_EXE} {' '.join(GAME_ARGS)}"
+    # Build the winedbg command (use full path with quotes for paths with spaces)
+    cmd = f'winedbg --gdb "{GAME_EXE_FULL_PATH}" {" ".join(GAME_ARGS)}'
 
     # Set up environment
     env = os.environ.copy()
     env['WINEPREFIX'] = WINEPREFIX
+    env['WINEDLLOVERRIDES'] = 'mscoree,mshtml='  # Disable wine-mono/gecko popups
 
     # Launch winedbg with pexpect
     try:
-        child = pexpect.spawn('/bin/bash', ['-c', cmd], cwd=GAME_DIR, env=env, encoding='utf-8')
+        child = pexpect.spawn('/bin/bash', ['-c', cmd], env=env, encoding='utf-8')
         child.logfile = sys.stdout
 
         # Wait for Wine-gdb> prompt
@@ -115,13 +117,13 @@ def launch_debugger_manual():
     # Set up environment
     env = os.environ.copy()
     env['WINEPREFIX'] = WINEPREFIX
+    env['WINEDLLOVERRIDES'] = 'mscoree,mshtml='  # Disable wine-mono/gecko popups
 
-    # Build and run the winedbg command
-    cmd = ['winedbg', '--gdb', GAME_EXE] + GAME_ARGS
+    # Build and run the winedbg command (as shell string with full path)
+    cmd = f'winedbg --gdb "{GAME_EXE_FULL_PATH}" {" ".join(GAME_ARGS)}'
 
     try:
-        os.chdir(GAME_DIR)
-        subprocess.run(cmd, env=env)
+        subprocess.run(cmd, env=env, shell=True)
     except KeyboardInterrupt:
         print("\n\nDebugger interrupted by user")
     except Exception as e:
