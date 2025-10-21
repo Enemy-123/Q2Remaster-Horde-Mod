@@ -144,9 +144,9 @@ void UpdateChaseCam(edict_t* ent)
 		// Remaster equivalent: start = start + (forward * (targ->mins[1] - 64))
 		start = start + (forward * (targ->mins[1] - 64));
 
-		// jump animation lifts
+		// jump animation lifts (reduced from 16 to 12 to reduce ceiling pressure)
 		if (!targ->groundentity)
-			start[2] += 16;
+			start[2] += 12;
 
 		// Primary trace from target origin to camera position
 		// Use bounding box trace to prevent clipping through walls (like barrel_visualize)
@@ -162,23 +162,55 @@ void UpdateChaseCam(edict_t* ent)
 			goal = goal + pullback;
 		}
 
-		// Pad for floors and ceilings (multi-trace collision)
+		// Pad for floors and ceilings (multi-trace collision with camera bounds)
+		// Ceiling check - trace up with camera bounding box
 		o = goal;
-		o[2] += 6;
-		trace = gi.traceline(goal, o, targ, MASK_SOLID);
+		o[2] += 12;  // Increased from 6 to 12 (camera half-height 4 + margin 8)
+		trace = gi.trace(goal, cam_mins, cam_maxs, o, targ, MASK_SOLID);
 		if (trace.fraction < 1)
 		{
 			goal = trace.endpos;
-			goal[2] -= 10;  // Pull down more aggressively to prevent ceiling clip
+			goal[2] -= 16;  // Pull down more aggressively (increased from 10 to 16)
 		}
 
+		// Floor check - trace down with camera bounding box
 		o = goal;
-		o[2] -= 6;
-		trace = gi.traceline(goal, o, targ, MASK_SOLID);
+		o[2] -= 12;  // Increased from 6 to 12 for consistency
+		trace = gi.trace(goal, cam_mins, cam_maxs, o, targ, MASK_SOLID);
 		if (trace.fraction < 1)
 		{
 			goal = trace.endpos;
-			goal[2] += 6;
+			goal[2] += 8;  // Pull up (increased from 6 to 8)
+		}
+
+		// Final validation: ensure camera can see back to player and isn't outside world
+		// Check 1: Can camera trace back to player without obstruction?
+		vec3_t player_center = targ->s.origin;
+		player_center[2] += (targ->viewheight ? targ->viewheight : (targ->absmax[2] - targ->mins[2]) / 2);
+
+		trace = gi.trace(goal, cam_mins, cam_maxs, player_center, targ, MASK_SOLID);
+
+		// Check 2: Is camera absurdly far from player? (stuck through ceiling)
+		float cam_distance_check = (goal - player_center).length();
+
+		if (trace.fraction < 0.95f || cam_distance_check > 200.0f || trace.startsolid || trace.allsolid)
+		{
+			// Camera is in bad position - aggressively pull toward player
+			// Use trace endpoint if available, otherwise move directly toward player
+			if (trace.fraction > 0.0f && trace.fraction < 1.0f)
+			{
+				goal = trace.endpos;
+				// Pull back from the hit point along plane normal
+				vec3_t pullback = trace.plane.normal * 16.0f;
+				goal = goal + pullback;
+			}
+			else
+			{
+				// Direct pull toward player
+				vec3_t to_player = player_center - goal;
+				to_player.normalize();
+				goal = player_center - (to_player * 64.0f);  // Position 64 units from player
+			}
 		}
 
 		// Note: We keep 'angles' as the spectator's cmd_angles throughout

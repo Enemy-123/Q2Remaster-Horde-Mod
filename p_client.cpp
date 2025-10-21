@@ -4821,6 +4821,8 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 					// State 1 -> State 2: Switch to locked first-person mode
 					client->auto_eyecam = false;
 					client->use_eyecam = true;
+					// Update camera immediately to apply new mode
+					UpdateChaseCam(ent);
 				}
 				else
 				{
@@ -4835,7 +4837,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 			else
 			{
 				// State 3 -> State 1: Enter auto-adaptive camera mode from freecam
-				GetChaseTarget(ent);
+				GetChaseTarget(ent);  // This calls UpdateChaseCam internally
 				client->auto_eyecam = true;
 				client->use_eyecam = false;
 			}

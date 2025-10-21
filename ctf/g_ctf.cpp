@@ -2461,7 +2461,7 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 	}
 
 	// Broadcast messages
-	const char* player_name = GetDisplayName(ent);
+	const char* player_name = GetPlayerName(ent);
 
 	if (is_time_vote) {
 		if (ctfgame.automatic_vote) {
