@@ -861,7 +861,6 @@ MONSTERINFO_ATTACK(brain_attack) (edict_t* self) -> void
 
 MONSTERINFO_RUN(brain_run) (edict_t* self) -> void
 {
-	self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
 		M_SetAnimation(self, &brain_move_stand);
 	else
@@ -1216,12 +1215,15 @@ void SP_monster_brain(edict_t* self)
 	self->mins = { -16, -16, -24 };
 	self->maxs = { 16, 16, 32 };
 
-	int base_health = M_BRAIN_INITIAL_HEALTH;
-	if (g_horde && g_horde->integer && current_wave_level > 0) {
-		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
-	} else {
-		self->health = base_health * st.health_multiplier;
+	self->health = M_ADDON_HEALTH(self);
+	self->max_health = self->health;
+
+	if (!st.was_key_specified("power_armor_type") && M_BRAIN_POWER_ARMOR_TYPE != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_BRAIN_POWER_ARMOR_TYPE);
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = M_BRAIN_ADDON_POWER_ARMOR(self);
 	}
+
 	self->gib_health = -90;
 	self->mass = 400;
 	//self->yaw_speed = 400;
@@ -1247,11 +1249,6 @@ void SP_monster_brain(edict_t* self)
 	self->monsterinfo.idle = brain_idle;
 	self->monsterinfo.setskin = brain_setskin;
 	self->monsterinfo.blocked = brain_blocked; // PGM
-
-	if (!st.was_key_specified("power_armor_type"))
-		self->monsterinfo.power_armor_type = M_BRAIN_POWER_ARMOR_TYPE != IT_NULL ? static_cast<item_id_t>(M_BRAIN_POWER_ARMOR_TYPE) : IT_ITEM_POWER_SCREEN;
-	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = M_BRAIN_POWER_ARMOR != 0 ? M_BRAIN_ADDON_POWER_ARMOR(self) : 150;
 
 	gi.linkentity(self);
 

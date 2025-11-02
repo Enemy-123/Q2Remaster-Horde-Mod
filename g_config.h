@@ -475,6 +475,8 @@ struct MonsterLevelScaling
 	int addon_health = 10;
 	int initial_armor = 0;
 	int addon_armor = 0;
+	int initial_power_armor = 0;
+	int addon_power_armor = 0;
 };
 
 // Monsters configuration - maps MonsterTypeID to stats

@@ -290,6 +290,8 @@ void Config_LoadMonsters(const char* basedir)
 			level_scaling.addon_health = GetJsonInt(scaling_data, "addon_health", 10);
 			level_scaling.initial_armor = GetJsonInt(scaling_data, "initial_armor", 0);
 			level_scaling.addon_armor = GetJsonInt(scaling_data, "addon_armor", 0);
+			level_scaling.initial_power_armor = GetJsonInt(scaling_data, "initial_power_armor", 0);
+			level_scaling.addon_power_armor = GetJsonInt(scaling_data, "addon_power_armor", 0);
 
 			g_config.monsters.level_scaling[monster_name] = level_scaling;
 			loaded_count++;
@@ -1483,12 +1485,40 @@ int GetMonsterBasePowerArmor(uint8_t monster_type_id)
 int GetMonsterScaledPowerArmor(uint8_t monster_type_id, int wave_level, bool is_boss)
 {
 	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
-	if (!config)
+	if (!config || config->power_armor_power == 0)
 		return 0;
 
-	int base_power_armor = config->power_armor_power;
-	float power_armor_scale = config->power_armor_scale;
-	return GetScaledPowerArmor(base_power_armor, power_armor_scale, wave_level, is_boss);
+	// Obtener el nombre de la clase para buscar en el escalado por nivel
+	const char* classname = horde::MonsterTypeRegistry::GetClassname(static_cast<horde::MonsterTypeID>(monster_type_id));
+	if (!classname || strncmp(classname, "monster_", 8) != 0)
+	{
+		// Fallback si el nombre de la clase es inválido
+		int base_power_armor = config->power_armor_power;
+		float power_armor_scale = config->power_armor_scale;
+		return GetScaledPowerArmor(base_power_armor, power_armor_scale, wave_level, is_boss); // Llama a la función de escalado global
+	}
+
+	// Extraer el nombre corto (ej: "brain")
+	const char* monster_name = classname + 8;
+
+	// Intentar obtener la configuración de escalado por nivel
+	const MonsterLevelScaling* level_scaling = GetMonsterLevelScaling(monster_name);
+	if (level_scaling && level_scaling->initial_power_armor > 0)
+	{
+		// ¡ÉXITO! Usar el escalado por nivel para power_armor
+		int scaled_power_armor = level_scaling->initial_power_armor + (g_lowest_player_level * level_scaling->addon_power_armor);
+		// Aplicar el multiplicador de escala del monstruo si existe
+		scaled_power_armor = static_cast<int>(scaled_power_armor * config->power_armor_scale);
+		return scaled_power_armor;
+	}
+	else
+	{
+		// Fallback al escalado antiguo (por oleada de Horde) si no hay config de nivel
+		int base_power_armor = config->power_armor_power;
+		float power_armor_scale = config->power_armor_scale;
+		// La función GetScaledPowerArmor se encarga del escalado por oleada
+		return GetScaledPowerArmor(base_power_armor, power_armor_scale, wave_level, is_boss);
+	}
 }
 
 int32_t GetMonsterArmorType(uint8_t monster_type_id)
