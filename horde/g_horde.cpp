@@ -4237,7 +4237,9 @@ inline int8_t GetNumSpectPlayers()
 	return std::count_if(players.begin(), players.end(),
 						 [](const edict_t *const player)
 						 {
-							 return ClientIsSpectating(player->client);
+							 // Only count human spectators, not bot spectators
+							 // Bots shouldn't be spectators, but if they are, we shouldn't spawn more bots for them
+							 return ClientIsSpectating(player->client) && !(player->svflags & SVF_BOT);
 						 });
 }
 
