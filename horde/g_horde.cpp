@@ -1598,7 +1598,7 @@ static void UnifiedAdjustSpawnRate(const horde::MapSize& mapSize, int32_t lvl, i
 	const bool isHardMode = g_insane->integer || g_chaotic->integer;
 	g_horde_local.queued_monsters = CalculateQueuedMonsters(mapSize, safeLevel, isHardMode);
 
-	// Debug output
+//	// Debug output
 // 	if (developer->integer == 3)
 // 	{
 // 		gi.Com_PrintFmt("DEBUG: Wave {} settings:\n", safeLevel);
