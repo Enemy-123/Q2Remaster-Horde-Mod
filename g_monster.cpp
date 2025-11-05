@@ -1998,6 +1998,24 @@ void monster_start_go(edict_t *self)
 		}
 	}
 
+	// Fix armor conflict: if monster has both armor types, keep only the highest value
+	// This runs AFTER all armor setup to ensure no monster has both types active
+	if (self->monsterinfo.armor_power > 0 && self->monsterinfo.power_armor_power > 0)
+	{
+		if (self->monsterinfo.armor_power > self->monsterinfo.power_armor_power)
+		{
+			// Regular armor is higher, remove power armor
+			self->monsterinfo.power_armor_power = 0;
+			self->monsterinfo.power_armor_type = IT_NULL;
+		}
+		else
+		{
+			// Power armor is higher or equal, remove regular armor
+			self->monsterinfo.armor_power = 0;
+			self->monsterinfo.armor_type = IT_NULL;
+		}
+	}
+
 	// Paril: moved here so this applies to swim/fly monsters too
 	if (!(self->flags & FL_STATIONARY))
 	{

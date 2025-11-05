@@ -824,14 +824,14 @@
         "arachnid": {
             "initial_health": 220,
             "addon_health": 45,
-            "initial_armor": 100,
-            "addon_armor": 25
+            "initial_power_armor": 100,
+            "addon_power_armor": 25
         },
         "arachnid2": {
             "initial_health": 350,
             "addon_health": 55,
-            "initial_armor": 120,
-            "addon_armor": 30
+            "initial_power_armor": 120,
+            "addon_power_armor": 30
         },
         "berserk": {
             "initial_health": 195,
@@ -848,26 +848,26 @@
         "berserkerkl": {
             "initial_health": 350,
             "addon_health": 75,
-            "initial_armor": 100,
-            "addon_armor": 35
+            "initial_power_armor": 100,
+            "addon_power_armor": 35
         },
         "boss2_64": {
             "initial_health": 800,
             "addon_health": 100,
-            "initial_armor": 100,
-            "addon_armor": 30
+            "initial_power_armor": 100,
+            "addon_power_armor": 30
         },
         "boss2_mini": {
             "initial_health": 700,
             "addon_health": 90,
-            "initial_armor": 100,
-            "addon_armor": 30
+            "initial_power_armor": 100,
+            "addon_power_armor": 30
         },
         "boss5": {
             "initial_health": 1200,
             "addon_health": 200,
-            "initial_armor": 400,
-            "addon_armor": 100
+            "initial_power_armor": 400,
+            "addon_power_armor": 100
         },
         "brain": {
             "initial_health": 100,
@@ -881,38 +881,38 @@
         "carrier_mini": {
             "initial_health": 500,
             "addon_health": 70,
-            "initial_armor": 150,
-            "addon_armor": 40
+            "initial_power_armor": 150,
+            "addon_power_armor": 40
         },
         "chick": {
             "initial_health": 50,
             "addon_health": 15,
-            "initial_armor": 25,
-            "addon_armor": 15
+            "initial_power_armor": 25,
+            "addon_power_armor": 15
         },
         "chick_heat": {
             "initial_health": 60,
             "addon_health": 15,
-            "initial_armor": 35,
-            "addon_armor": 20
+            "initial_power_armor": 35,
+            "addon_power_armor": 20
         },
         "chickkl": {
             "initial_health": 300,
             "addon_health": 50,
-            "initial_armor": 150,
-            "addon_armor": 40
+            "initial_power_armor": 150,
+            "addon_power_armor": 40
         },
         "daedalus": {
             "initial_health": 120,
             "addon_health": 25,
-            "initial_armor": 80,
-            "addon_armor": 20
+            "initial_power_armor": 80,
+            "addon_power_armor": 20
         },
         "daedalus_bomber": {
             "initial_health": 150,
             "addon_health": 30,
-            "initial_armor": 100,
-            "addon_armor": 25
+            "initial_power_armor": 100,
+            "addon_power_armor": 25
         },
         "enforcer": {
             "initial_health": 50,
@@ -923,14 +923,14 @@
         "fixbot": {
             "initial_health": 110,
             "addon_health": 25,
-            "initial_armor": 25,
-            "addon_armor": 10
+            "initial_power_armor": 25,
+            "addon_power_armor": 10
         },
         "fixbotkl": {
             "initial_health": 1000,
             "addon_health": 150,
-            "initial_armor": 800,
-            "addon_armor": 150
+            "initial_power_armor": 800,
+            "addon_power_armor": 150
         },
         "flipper": {
             "initial_health": 60,
@@ -947,8 +947,8 @@
         "floater_tracker": {
             "initial_health": 200,
             "addon_health": 40,
-            "initial_armor": 70,
-            "addon_armor": 20
+            "initial_power_armor": 70,
+            "addon_power_armor": 20
         },
         "flyer": {
             "initial_health": 50,
@@ -965,8 +965,8 @@
         "gekkkl": {
             "initial_health": 400,
             "addon_health": 60,
-            "initial_armor": 150,
-            "addon_armor": 40
+            "initial_power_armor": 150,
+            "addon_power_armor": 40
         },
         "gladb": {
             "initial_health": 160,
@@ -989,8 +989,8 @@
         "gm_arachnid": {
             "initial_health": 280,
             "addon_health": 50,
-            "initial_armor": 180,
-            "addon_armor": 40
+            "initial_power_armor": 180,
+            "addon_power_armor": 40
         },
         "guncmdr": {
             "initial_health": 250,
@@ -1013,8 +1013,8 @@
         "gunner": {
             "initial_health": 90,
             "addon_health": 25,
-            "initial_armor": 65,
-            "addon_armor": 35
+            "initial_power_armor": 65,
+            "addon_power_armor": 35
         },
         "gunner_vanilla": {
             "initial_health": 75,
@@ -1037,8 +1037,8 @@
         "infantry": {
             "initial_health": 70,
             "addon_health": 45,
-            "initial_armor": 25,
-            "addon_armor": 13
+            "initial_power_armor": 25,
+            "addon_power_armor": 13
         },
         "infantry_vanilla": {
             "initial_health": 65,
@@ -1073,8 +1073,8 @@
         "makron": {
             "initial_health": 800,
             "addon_health": 100,
-            "initial_armor": 250,
-            "addon_armor": 50
+            "initial_power_armor": 250,
+            "addon_power_armor": 50
         },
         "medic": {
             "initial_health": 100,
@@ -1109,8 +1109,8 @@
         "psxarachnid": {
             "initial_health": 400,
             "addon_health": 60,
-            "initial_armor": 400,
-            "addon_armor": 100
+            "initial_power_armor": 400,
+            "addon_power_armor": 100
         },
         "redmutant": {
             "initial_health": 220,
@@ -1145,38 +1145,38 @@
         "soldier": {
             "initial_health": 50,
             "addon_health": 15,
-            "initial_armor": 25,
-            "addon_armor": 15
+            "initial_power_armor": 25,
+            "addon_power_armor": 15
         },
         "soldier_hypergun": {
             "initial_health": 65,
             "addon_health": 15,
-            "initial_armor": 40,
-            "addon_armor": 15
+            "initial_power_armor": 40,
+            "addon_power_armor": 15
         },
         "soldier_lasergun": {
             "initial_health": 40,
             "addon_health": 10,
-            "initial_armor": 40,
-            "addon_armor": 15
+            "initial_power_armor": 40,
+            "addon_power_armor": 15
         },
         "soldier_light": {
             "initial_health": 40,
             "addon_health": 10,
-            "initial_armor": 20,
-            "addon_armor": 10
+            "initial_power_armor": 20,
+            "addon_power_armor": 10
         },
         "soldier_ripper": {
             "initial_health": 70,
             "addon_health": 15,
-            "initial_armor": 40,
-            "addon_armor": 15
+            "initial_power_armor": 40,
+            "addon_power_armor": 15
         },
         "soldier_ss": {
             "initial_health": 60,
             "addon_health": 15,
-            "initial_armor": 40,
-            "addon_armor": 15
+            "initial_power_armor": 40,
+            "addon_power_armor": 15
         },
         "spider": {
             "initial_health": 180,
@@ -1223,14 +1223,14 @@
         "widow": {
             "initial_health": 1200,
             "addon_health": 200,
-            "initial_armor": 400,
-            "addon_armor": 100
+            "initial_power_armor": 400,
+            "addon_power_armor": 100
         },
         "widow1": {
             "initial_health": 500,
             "addon_health": 70,
-            "initial_armor": 180,
-            "addon_armor": 40
+            "initial_power_armor": 180,
+            "addon_power_armor": 40
         }
     }
 }

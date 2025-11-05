@@ -804,7 +804,7 @@ void ApplyPvMLevelScaling(edict_t* monster)
 	// Apply level-based armor scaling to power armor (if monster has power armor configured)
 	if (config->power_armor_power > 0 && monster->monsterinfo.power_armor_power > 0)
 	{
-		int scaled_armor = level_scaling->initial_armor + (scaling_level * level_scaling->addon_armor);
+		int scaled_armor = level_scaling->initial_power_armor + (scaling_level * level_scaling->addon_power_armor);
 		scaled_armor = static_cast<int>(scaled_armor * config->power_armor_scale);
 		monster->monsterinfo.power_armor_power = scaled_armor;
 	}
