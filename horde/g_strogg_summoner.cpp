@@ -50,12 +50,21 @@ void RemoveSummonFromPlayerArray(edict_t* monster)
 // Touch function for summoned Strogg - allows owner to push them
 TOUCH(strogg_summoned_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
-	// Only the owner (summoner) can push the monster
-	// chain now points directly to the player
+	// Bots pass through all summoned Stroggs (no collision)
+	if (other->svflags & SVF_BOT)
+		return;
+
+	// Validate that the toucher is a client and summoner exists
 	if (!other->client || !self->chain || !self->chain->client)
 		return;
 
-	if (other != self->chain)
+	// Check if the summoner is a bot
+	bool summoner_is_bot = (self->chain->svflags & SVF_BOT);
+
+	// Collision rules:
+	// - Bot-summoned: any player can push
+	// - Human-summoned: only the owner can push
+	if (!summoner_is_bot && other != self->chain)
 		return;
 
 	// Don't push if owner is not on ground or not touching properly

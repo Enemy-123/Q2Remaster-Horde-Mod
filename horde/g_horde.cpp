@@ -1066,7 +1066,8 @@ enum class WaveEndReason
 {
 	AllMonstersDead,
 	MonstersRemaining,
-	TimeLimitReached
+	TimeLimitReached,
+	FewMonstersRemaining  // Early wave start when 2-3 monsters remain
 };
 
 inline int8_t GetNumActivePlayers();
@@ -3778,8 +3779,9 @@ struct WaveConditionContext
 
 // --- Forward declarations for new helper functions ---
 static void StartConditionalTimer(const WaveConditionContext &ctx);
-static void ApplyAggressiveTimeReduction(const WaveConditionContext &ctx);
-static void UpdateTimeAcceleration(const WaveConditionContext &ctx);
+// REMOVED: Aggressive time reduction system disabled
+// static void ApplyAggressiveTimeReduction(const WaveConditionContext &ctx);
+// static void UpdateTimeAcceleration(const WaveConditionContext &ctx);
 static void IssueTimeWarnings();
 
 // This is the new main function that orchestrates the wave end checks.
@@ -3798,11 +3800,19 @@ static bool CheckRemainingMonstersCondition(const horde::MapSize &mapSize, WaveE
 
 	// --- 2. Immediate Win/Advance Condition ---
 	// Check if the wave is over because all monsters are gone or an admin forced it.
-	if (allowWaveAdvance || (ctx.liveMonsters == 0 && g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters <= 0))
+	// MODIFIED: Now triggers when ≤3 monsters remain (early wave start for better pacing)
+	if (allowWaveAdvance || (ctx.liveMonsters <= 3 && g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters <= 0))
 	{
 		if (GetStroggsNum() == 0)
 		{
 			reason = WaveEndReason::AllMonstersDead;
+			ResetWaveAdvanceState();
+			return true;
+		}
+		// If 1-3 monsters remain, start next wave (stragglers will remain)
+		else if (ctx.liveMonsters > 0 && ctx.liveMonsters <= 3 && g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters <= 0)
+		{
+			reason = WaveEndReason::FewMonstersRemaining;
 			ResetWaveAdvanceState();
 			return true;
 		}
@@ -3831,35 +3841,30 @@ static bool CheckRemainingMonstersCondition(const horde::MapSize &mapSize, WaveE
 		// If the timer hasn't started yet, check if it should.
 		StartConditionalTimer(ctx);
 	}
-	else
-	{
-		// If the timer is running, check if it should be shortened.
-		ApplyAggressiveTimeReduction(ctx);
-	}
+	// REMOVED: Aggressive time reduction system disabled for better pacing
+	// else
+	// {
+	// 	// If the timer is running, check if it should be shortened.
+	// 	ApplyAggressiveTimeReduction(ctx);
+	// }
 
-	// Update time acceleration smoothly
-	UpdateTimeAcceleration(ctx);
+	// REMOVED: Time acceleration smoothly disabled
+	// UpdateTimeAcceleration(ctx);
 
-	// Apply smooth timer reduction for post-deployment (when timer was set higher than target)
-	if (g_horde_local.conditionTriggered && next_wave_message_sent)
-	{
-		const gtime_t remaining = (g_horde_local.waveEndTime > ctx.currentTime) ? (g_horde_local.waveEndTime - ctx.currentTime) : 0_sec;
-		const gtime_t target_time = g_horde_local.conditionTimeThreshold; // The original target time (e.g., 30s)
-
-		if (remaining > target_time * 1.2f) // Only if significantly above target
-		{
-			// Smoothly reduce timer toward target over time
-			const float reduction_rate = 1.5f; // Faster reduction for post-deployment
-			const gtime_t reduction_amount = (remaining - target_time) * (reduction_rate * gi.frame_time_s);
-			g_horde_local.waveEndTime -= reduction_amount;
-
-			// if (developer->integer > 1)
-			// {
-			// 	gi.Com_PrintFmt("Post-deployment timer reduction: {:.1f}s → target: {:.1f}s\n",
-			// 					remaining.seconds(), target_time.seconds());
-			// }
-		}
-	}
+	// REMOVED: Post-deployment timer reduction disabled
+	// if (g_horde_local.conditionTriggered && next_wave_message_sent)
+	// {
+	// 	const gtime_t remaining = (g_horde_local.waveEndTime > ctx.currentTime) ? (g_horde_local.waveEndTime - ctx.currentTime) : 0_sec;
+	// 	const gtime_t target_time = g_horde_local.conditionTimeThreshold; // The original target time (e.g., 30s)
+	//
+	// 	if (remaining > target_time * 1.2f) // Only if significantly above target
+	// 	{
+	// 		// Smoothly reduce timer toward target over time
+	// 		const float reduction_rate = 1.5f; // Faster reduction for post-deployment
+	// 		const gtime_t reduction_amount = (remaining - target_time) * (reduction_rate * gi.frame_time_s);
+	// 		g_horde_local.waveEndTime -= reduction_amount;
+	// 	}
+	// }
 
 	// --- 5. Issue Warnings and Check for Timer Expiry ---
 	// This runs only if a timer (either the main one or the conditional one) is active.
@@ -4035,109 +4040,111 @@ static void StartConditionalTimer(const WaveConditionContext &ctx)
 	}
 }
 
+// REMOVED: Time acceleration system disabled for better pacing
 // --- Update Time Acceleration (smooth interpolation) ---
-static void UpdateTimeAcceleration(const WaveConditionContext &ctx)
-{
-	// Update interpolation of time acceleration
-	if (std::abs(g_horde_local.timeAcceleration - g_horde_local.targetTimeAcceleration) > 0.01f)
-	{
-		const gtime_t elapsed = ctx.currentTime - g_horde_local.accelerationStartTime;
-		const float t = std::clamp(elapsed.seconds() / g_horde_local.accelerationDuration.seconds(), 0.0f, 1.0f);
+// static void UpdateTimeAcceleration(const WaveConditionContext &ctx)
+// {
+// 	// Update interpolation of time acceleration
+// 	if (std::abs(g_horde_local.timeAcceleration - g_horde_local.targetTimeAcceleration) > 0.01f)
+// 	{
+// 		const gtime_t elapsed = ctx.currentTime - g_horde_local.accelerationStartTime;
+// 		const float t = std::clamp(elapsed.seconds() / g_horde_local.accelerationDuration.seconds(), 0.0f, 1.0f);
+//
+// 		// Exponential smoothing (feels more natural)
+// 		const float smooth_rate = 5.0f; // Higher = faster convergence
+// 		const float delta = (g_horde_local.targetTimeAcceleration - g_horde_local.timeAcceleration) * smooth_rate * gi.frame_time_s;
+// 		g_horde_local.timeAcceleration += delta;
+//
+// 		// Snap to target when close enough or time exceeded
+// 		if (t >= 1.0f || std::abs(g_horde_local.timeAcceleration - g_horde_local.targetTimeAcceleration) < 0.01f)
+// 		{
+// 			g_horde_local.timeAcceleration = g_horde_local.targetTimeAcceleration;
+// 		}
+// 	}
+// }
 
-		// Exponential smoothing (feels more natural)
-		const float smooth_rate = 5.0f; // Higher = faster convergence
-		const float delta = (g_horde_local.targetTimeAcceleration - g_horde_local.timeAcceleration) * smooth_rate * gi.frame_time_s;
-		g_horde_local.timeAcceleration += delta;
-
-		// Snap to target when close enough or time exceeded
-		if (t >= 1.0f || std::abs(g_horde_local.timeAcceleration - g_horde_local.targetTimeAcceleration) < 0.01f)
-		{
-			g_horde_local.timeAcceleration = g_horde_local.targetTimeAcceleration;
-		}
-	}
-}
-
+// REMOVED: Aggressive time reduction system disabled for better pacing
 // Helper to apply the aggressive time reduction when few monsters are left.
-static void ApplyAggressiveTimeReduction(const WaveConditionContext &ctx)
-{
-	// This logic only applies if few monsters are left alive and in the queue.
-	if (ctx.liveMonsters > HordeConstants::MONSTERS_FOR_AGGRESSIVE_REDUCTION || g_horde_local.queued_monsters >= 3)
-	{
-		// Reset acceleration if conditions no longer met
-		if (g_horde_local.targetTimeAcceleration > 1.0f)
-		{
-			g_horde_local.targetTimeAcceleration = 1.0f;
-			g_horde_local.accelerationStartTime = ctx.currentTime;
-		}
-		return;
-	}
-
-	// --- Calculate target time acceleration factor ---
-	float target_acceleration = 1.5f; // Base acceleration
-
-	// Increase acceleration based on how few monsters remain
-	if (ctx.liveMonsters <= 2)
-		target_acceleration = 2.5f;
-	else if (ctx.liveMonsters <= 4)
-		target_acceleration = 2.0f;
-
-	// Reduce acceleration for boss waves (more time to enjoy the fight)
-	if (ctx.isBossWaveActive && boss_spawned_for_wave)
-	{
-		target_acceleration *= 0.7f; // Less aggressive for bosses
-	}
-	else
-	{
-		// High level waves: increase acceleration slightly
-		if (ctx.currentLevel >= 15)
-		{
-			float level_bonus = std::min((ctx.currentLevel - 15) * 0.05f, 0.3f);
-			target_acceleration *= (1.0f + level_bonus);
-		}
-	}
-
-	// Apply map size adjustment (smaller maps = less acceleration needed)
-	if (ctx.mapSize.isSmallMap)
-		target_acceleration *= 0.85f;
-	else if (ctx.mapSize.isMediumMap)
-		target_acceleration *= 0.92f;
-
-	// Cap maximum acceleration
-	target_acceleration = std::min(target_acceleration, 3.0f);
-
-	// --- Start smooth acceleration if not already at target ---
-	if (std::abs(g_horde_local.targetTimeAcceleration - target_acceleration) > 0.1f)
-	{
-		g_horde_local.targetTimeAcceleration = target_acceleration;
-		g_horde_local.accelerationStartTime = ctx.currentTime;
-		g_horde_local.accelerationDuration = 2_sec; // 2 second smooth transition
-
-		// if (developer->integer)
-		// {
-		// 	gi.Com_PrintFmt("Time acceleration initiated: {:.1f}x for {} monsters.\n",
-		// 					target_acceleration, ctx.liveMonsters);
-		// }
-	}
-
-	// --- Optional: Also apply gentle timer reduction (hybrid approach) ---
-	// Calculate a reasonable time limit
-	float base_time = 8.0f + (ctx.liveMonsters * 1.5f);
-
-	if (ctx.isBossWaveActive && boss_spawned_for_wave)
-		base_time *= 1.5f;
-
-	// Gentle reduction over time (30% reduction interpolated over 2 seconds)
-	const gtime_t remaining = (g_horde_local.waveEndTime > ctx.currentTime) ? (g_horde_local.waveEndTime - ctx.currentTime) : 0_sec;
-	const gtime_t desired_time = gtime_t::from_sec(std::max(5.0f, base_time));
-
-	if (remaining > desired_time && remaining > 5_sec)
-	{
-		// Smoothly reduce timer by interpolating toward desired time
-		const float reduction_rate = 0.7f; // 70% of the difference per second
-		const gtime_t reduction_amount = (remaining - desired_time) * (reduction_rate * gi.frame_time_s);
-		g_horde_local.waveEndTime -= reduction_amount;
-	}
-}
+// static void ApplyAggressiveTimeReduction(const WaveConditionContext &ctx)
+// {
+// 	// This logic only applies if few monsters are left alive and in the queue.
+// 	if (ctx.liveMonsters > HordeConstants::MONSTERS_FOR_AGGRESSIVE_REDUCTION || g_horde_local.queued_monsters >= 3)
+// 	{
+// 		// Reset acceleration if conditions no longer met
+// 		if (g_horde_local.targetTimeAcceleration > 1.0f)
+// 		{
+// 			g_horde_local.targetTimeAcceleration = 1.0f;
+// 			g_horde_local.accelerationStartTime = ctx.currentTime;
+// 		}
+// 		return;
+// 	}
+//
+// 	// --- Calculate target time acceleration factor ---
+// 	float target_acceleration = 1.5f; // Base acceleration
+//
+// 	// Increase acceleration based on how few monsters remain
+// 	if (ctx.liveMonsters <= 2)
+// 		target_acceleration = 2.5f;
+// 	else if (ctx.liveMonsters <= 4)
+// 		target_acceleration = 2.0f;
+//
+// 	// Reduce acceleration for boss waves (more time to enjoy the fight)
+// 	if (ctx.isBossWaveActive && boss_spawned_for_wave)
+// 	{
+// 		target_acceleration *= 0.7f; // Less aggressive for bosses
+// 	}
+// 	else
+// 	{
+// 		// High level waves: increase acceleration slightly
+// 		if (ctx.currentLevel >= 15)
+// 		{
+// 			float level_bonus = std::min((ctx.currentLevel - 15) * 0.05f, 0.3f);
+// 			target_acceleration *= (1.0f + level_bonus);
+// 		}
+// 	}
+//
+// 	// Apply map size adjustment (smaller maps = less acceleration needed)
+// 	if (ctx.mapSize.isSmallMap)
+// 		target_acceleration *= 0.85f;
+// 	else if (ctx.mapSize.isMediumMap)
+// 		target_acceleration *= 0.92f;
+//
+// 	// Cap maximum acceleration
+// 	target_acceleration = std::min(target_acceleration, 3.0f);
+//
+// 	// --- Start smooth acceleration if not already at target ---
+// 	if (std::abs(g_horde_local.targetTimeAcceleration - target_acceleration) > 0.1f)
+// 	{
+// 		g_horde_local.targetTimeAcceleration = target_acceleration;
+// 		g_horde_local.accelerationStartTime = ctx.currentTime;
+// 		g_horde_local.accelerationDuration = 2_sec; // 2 second smooth transition
+//
+// 		// if (developer->integer)
+// 		// {
+// 		// 	gi.Com_PrintFmt("Time acceleration initiated: {:.1f}x for {} monsters.\n",
+// 		// 					target_acceleration, ctx.liveMonsters);
+// 		// }
+// 	}
+//
+// 	// --- Optional: Also apply gentle timer reduction (hybrid approach) ---
+// 	// Calculate a reasonable time limit
+// 	float base_time = 8.0f + (ctx.liveMonsters * 1.5f);
+//
+// 	if (ctx.isBossWaveActive && boss_spawned_for_wave)
+// 		base_time *= 1.5f;
+//
+// 	// Gentle reduction over time (30% reduction interpolated over 2 seconds)
+// 	const gtime_t remaining = (g_horde_local.waveEndTime > ctx.currentTime) ? (g_horde_local.waveEndTime - ctx.currentTime) : 0_sec;
+// 	const gtime_t desired_time = gtime_t::from_sec(std::max(5.0f, base_time));
+//
+// 	if (remaining > desired_time && remaining > 5_sec)
+// 	{
+// 		// Smoothly reduce timer by interpolating toward desired time
+// 		const float reduction_rate = 0.7f; // 70% of the difference per second
+// 		const gtime_t reduction_amount = (remaining - desired_time) * (reduction_rate * gi.frame_time_s);
+// 		g_horde_local.waveEndTime -= reduction_amount;
+// 	}
+// }
 
 // Helper to issue the 30, 10, 5 second warnings.
 static void IssueTimeWarnings()
@@ -4266,8 +4273,8 @@ static void HandleWaveCleanupMessage(const horde::MapSize &mapSize, const WaveEn
 	// Obtener el número de jugadores humanos
 	const int8_t numHumanPlayers = GetNumHumanPlayers();
 
-	// Si la ola terminó con todos los monstruos muertos, aplicar reglas normales
-	if (reason == WaveEndReason::AllMonstersDead)
+	// Si la ola terminó con todos los monstruos muertos o muy pocos restantes, aplicar reglas normales
+	if (reason == WaveEndReason::AllMonstersDead || reason == WaveEndReason::FewMonstersRemaining)
 	{
 		if (current_wave_level >= 15 && current_wave_level <= 26)
 		{
@@ -6477,6 +6484,10 @@ static void SendCleanupMessage(WaveEndReason reason)
 		gi.LocBroadcast_Print(PRINT_HIGH, "Wave {} Contained - Time Limit Reached!\n",
 			current_wave_level);
 		break;
+	case WaveEndReason::FewMonstersRemaining:
+		gi.LocBroadcast_Print(PRINT_HIGH, "Wave {} Advanced - Stragglers Remain!\n",
+			current_wave_level);
+		break;
 	}
 
 	// Calculate top damager once
@@ -6745,7 +6756,7 @@ void Horde_RunFrame()
 	case horde_state_t::cleanup:
 		if (g_horde_local.monster_spawn_time < currentTime) {
 			HandleWaveCleanupMessage(mapSize, currentWaveEndReason);
-			g_horde_local.warm_time = currentTime + random_time(1.4_sec, 1.9_sec);
+			g_horde_local.warm_time = currentTime + random_time(0.5_sec, 1.0_sec);  // REDUCED: 1.4-1.9s -> 0.5-1.0s for faster pacing
 			g_horde_local.state = horde_state_t::rest;
 			CheckAndResetDisabledSpawnPoints();
 		}
@@ -6753,7 +6764,7 @@ void Horde_RunFrame()
 
 	case horde_state_t::rest:
 		if (g_horde_local.warm_time < currentTime) {
-			AnnounceIncomingWave(3_sec);
+			AnnounceIncomingWave(3_sec);  // Message display duration (doesn't affect wave timing)
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(g_horde_local.level + 1);
 		}
@@ -6762,7 +6773,7 @@ void Horde_RunFrame()
 
 	if (waveEnded) {
 		SendCleanupMessage(currentWaveEndReason);
-		g_horde_local.monster_spawn_time = currentTime + 1.5_sec;
+		g_horde_local.monster_spawn_time = currentTime + 0.5_sec;  // REDUCED: 1.5s -> 0.5s for faster pacing
 		g_horde_local.state = horde_state_t::cleanup;
 		ResetWaveAdvanceState();
 	}
