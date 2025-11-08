@@ -3800,8 +3800,35 @@ static bool CheckRemainingMonstersCondition(const horde::MapSize &mapSize, WaveE
 
 	// --- 2. Immediate Win/Advance Condition ---
 	// Check if the wave is over because all monsters are gone or an admin forced it.
-	// MODIFIED: Now triggers when ≤3 monsters remain (early wave start for better pacing)
-	if (allowWaveAdvance || (ctx.liveMonsters <= 3 && g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters <= 0))
+	// MODIFIED: Percentage-based early wave start (adapts to map size)
+
+	// Calculate early wave threshold based on map size
+	float earlyWavePercentageThreshold = 0.05f; // Default 5%
+	int minMonstersForEarlyWave = 3;             // Minimum absolute count
+
+	if (ctx.mapSize.isBigMap)
+	{
+		earlyWavePercentageThreshold = 0.10f; // 10% for big maps (more hiding spots)
+		minMonstersForEarlyWave = 5;
+	}
+	else if (ctx.mapSize.isMediumMap)
+	{
+		earlyWavePercentageThreshold = 0.06f; // 6% for medium maps
+		minMonstersForEarlyWave = 4;
+	}
+	else // Small map
+	{
+		earlyWavePercentageThreshold = 0.04f; // 4% for small maps
+		minMonstersForEarlyWave = 3;
+	}
+
+	// Calculate actual threshold (percentage of total wave, but at least the minimum)
+	const int earlyWaveThreshold = std::max(
+		static_cast<int>(g_totalMonstersInWave * earlyWavePercentageThreshold),
+		minMonstersForEarlyWave
+	);
+
+	if (allowWaveAdvance || (ctx.liveMonsters <= earlyWaveThreshold && g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters <= 0))
 	{
 		if (GetStroggsNum() == 0)
 		{
@@ -3809,8 +3836,8 @@ static bool CheckRemainingMonstersCondition(const horde::MapSize &mapSize, WaveE
 			ResetWaveAdvanceState();
 			return true;
 		}
-		// If 1-3 monsters remain, start next wave (stragglers will remain)
-		else if (ctx.liveMonsters > 0 && ctx.liveMonsters <= 3 && g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters <= 0)
+		// If few monsters remain (percentage-based), start next wave (stragglers will remain)
+		else if (ctx.liveMonsters > 0 && ctx.liveMonsters <= earlyWaveThreshold && g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters <= 0)
 		{
 			reason = WaveEndReason::FewMonstersRemaining;
 			ResetWaveAdvanceState();
