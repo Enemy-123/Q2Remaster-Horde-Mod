@@ -2709,11 +2709,27 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 	// --- DYNAMIC ON-DEMAND PRECACHING ---
 	// When higher-level spawns are triggered, precache ONE new monster family
 	// to provide variety while being conservative with memory
+	if (developer->integer)
+	{
+		gi.Com_PrintFmt("BuildMonsterCache: Dynamic precache check - effectiveLevel={}, currentActualLevel={}, counter={}\n",
+			mutable_ctx.effectiveLevel, mutable_ctx.currentActualLevel, g_dynamic_precache_count_this_wave);
+	}
+
 	if (mutable_ctx.effectiveLevel > mutable_ctx.currentActualLevel)
 	{
+		if (developer->integer)
+		{
+			gi.Com_PrintFmt("BuildMonsterCache: effectiveLevel > currentActualLevel (ELITE ATTEMPT), checking counter...\n");
+		}
+
 		// Limit: only 1 new model family per wave (counter reset in Horde_InitLevel)
 		if (g_dynamic_precache_count_this_wave < 1)
 		{
+			if (developer->integer)
+			{
+				gi.Com_PrintFmt("BuildMonsterCache: Counter check PASSED ({}  < 1), entering dynamic precache section\n",
+					g_dynamic_precache_count_this_wave);
+			}
 			// Find an unprecached monster from a NEW family that fits the effective level
 			// IMPORTANT: Search through ALL monsters, not just eligible ones, since
 			// g_eligible_monsters_for_wave only contains monsters with minWave <= currentActualLevel
@@ -3124,6 +3140,22 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 					gi.Com_PrintFmt("Dynamic Precache: No suitable elite monster found (all filtered/precached), reverting to normal spawning\n");
 				}
 			}
+		}
+		else
+		{
+			if (developer->integer)
+			{
+				gi.Com_PrintFmt("BuildMonsterCache: Counter check FAILED ({} >= 1), skipping dynamic precache (already precached {} elite this wave)\n",
+					g_dynamic_precache_count_this_wave, g_dynamic_precache_count_this_wave);
+			}
+		}
+	}
+	else
+	{
+		if (developer->integer)
+		{
+			gi.Com_PrintFmt("BuildMonsterCache: Not an elite attempt (effectiveLevel={} <= currentActualLevel={})\n",
+				mutable_ctx.effectiveLevel, mutable_ctx.currentActualLevel);
 		}
 	}
 	// --- END DYNAMIC ON-DEMAND PRECACHING ---
