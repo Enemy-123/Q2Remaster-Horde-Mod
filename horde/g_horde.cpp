@@ -53,7 +53,7 @@ static boost::container::flat_map<int, gtime_t> last_boss_teleport_attempt_time;
 
 // Forward declaration for the new map-building function
 void BuildSpawnPointMap();
-
+static const char* GetMonsterModelPath(horde::MonsterTypeID typeId);
 // SpawnPlanEntry is now defined in horde_spawning.h
 
 std::array<bool, static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES)> g_precached_monster_types_flags = {}; // Initializes all to false
@@ -70,6 +70,11 @@ boost::container::flat_set<horde::MonsterTypeID> g_precached_monsters_this_map; 
 std::unordered_set<std::string> g_precached_models_this_map; // Keep as unordered_set (string keys benefit from hashing)
 static int g_map_rotation_seed = 0;
 static int g_last_precache_wave = 0;
+
+// Elite spawn dynamic precaching tracking (reset each wave in Horde_InitLevel)
+static int32_t g_last_dynamic_precache_wave = -1;
+static int g_dynamic_precache_count_this_wave = 0;
+
 constexpr int MONSTERS_TO_EXCLUDE_PER_MAP = 28; // Exclude about 28 monsters per map to reduce memory pressure
 constexpr int WAVES_BETWEEN_PRECACHE = 8; // Add new monsters every 8 waves (reduced frequency to save memory)
 constexpr int MIN_MONSTERS_AVAILABLE = 12; // Always have at least 12 monster types available
@@ -2480,15 +2485,26 @@ static bool ShouldAttemptHigherLevelSpawn(int32_t currentLevel, bool isRetaliati
 	// Don't spawn a special elite if we're already in a special mode or if one has already spawned
 	if (g_special_high_level_monster_spawned_this_wave || isRetaliationActive || isRecoveryModeActive)
 	{
+		if (developer->integer)
+		{
+			gi.Com_PrintFmt("ShouldAttemptHigherLevelSpawn: BLOCKED (flag={}, retaliation={}, recovery={})\n",
+				g_special_high_level_monster_spawned_this_wave, isRetaliationActive, isRecoveryModeActive);
+		}
 		return false;
 	}
 
 	// Define probabilities based on wave progression
 	if (currentLevel <= 10)
-		return frandom() < 0.32f; // 32% chance in early waves
+	{
+		if (developer->integer)
+		{
+			gi.Com_PrintFmt("ShouldAttemptHigherLevelSpawn: TRUE (wave {}, 100%% chance)\n", currentLevel);
+		}
+		return true; // 100% chance in early waves - FORCE elite spawn for variety
+	}
 	if (currentLevel <= 20)
-		return frandom() < 0.19f; // 19% chance in mid waves
-	return frandom() < 0.07f;	  // 7% chance in late waves
+		return frandom() < 0.25f; // 25% chance in mid waves
+	return frandom() < 0.10f;	  // 10% chance in late waves
 }
 
 static int32_t CalculateEffectiveMonsterLevel(int32_t currentActualLevel, bool attemptHigherLevel, MonsterWaveType waveTypeForFiltering)
@@ -2501,20 +2517,27 @@ static int32_t CalculateEffectiveMonsterLevel(int32_t currentActualLevel, bool a
 	int32_t levelBoost;
 	int32_t maxLevelCap;
 
+	// CRITICAL: Level boost must be at least +4 to reach elite monsters (current wave + next 3 waves buffer)
+	constexpr int32_t MIN_ELITE_BOOST = 4;
+
 	if (HasWaveType(waveTypeForFiltering, MonsterWaveType::Flying))
 	{
-		levelBoost = irandom(6, 17);
-		maxLevelCap = currentActualLevel + 11;
+		if (currentActualLevel < 10)
+			levelBoost = irandom(MIN_ELITE_BOOST, 8); // Ensure at least +4 for elite spawns
+		else
+			levelBoost = irandom(6, 17); // Original aggressive boost for later waves
+		maxLevelCap = currentActualLevel + 10;
 	}
 	else
 	{
+		// Ensure level boost is at least +4 for elite spawns to work
 		if (currentActualLevel < 7)
-			levelBoost = irandom(2, 4);
+			levelBoost = irandom(MIN_ELITE_BOOST, 8); // At least +4 to skip next 3 waves
 		else if (currentActualLevel <= 15)
-			levelBoost = irandom(4, 8);
+			levelBoost = irandom(MIN_ELITE_BOOST, 8);
 		else
-			levelBoost = irandom(3, 6);
-		maxLevelCap = currentActualLevel + 8;
+			levelBoost = irandom(MIN_ELITE_BOOST, 6);
+		maxLevelCap = currentActualLevel + 10;
 	}
 
 	maxLevelCap = std::min(maxLevelCap, 45); // Absolute cap.
@@ -2529,12 +2552,56 @@ static int32_t CalculateEffectiveMonsterLevel(int32_t currentActualLevel, bool a
 		});
 
 	bool any_new_monsters_unlocked = false;
-	// Iterate only over the small, relevant subset of monsters.
-	for (; it != monsterTypes + MONSTER_DATA_COUNT && it->minWave <= potentialEffectiveLevel; ++it)
+
+	if (developer->integer)
 	{
-		if (IsValidMonsterForWave(it->typeId, waveTypeForFiltering))
+		gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: Searching for monsters in boosted range (wave {}, effectiveLevel {}, waveType={})\n",
+			currentActualLevel, potentialEffectiveLevel, static_cast<int>(waveTypeForFiltering));
+	}
+
+	// Iterate only over the small, relevant subset of monsters.
+	// IMPORTANT: For elite spawns, we DON'T filter by wave type here!
+	// Elite spawns should bypass wave theme restrictions (Ground/Light/Gekk/etc)
+	// Use progressive fallback (+4, +3, +2, +1) to ensure we always find candidates for waves 1-10
+
+	// Try with +4 buffer first, then fallback to smaller buffers
+	constexpr int32_t PREFERRED_ELITE_BUFFER = 4;
+	int32_t active_buffer = PREFERRED_ELITE_BUFFER;
+
+	// For waves 1-10, try progressively smaller buffers to guarantee elite spawns
+	for (int32_t buffer = PREFERRED_ELITE_BUFFER; buffer >= 1 && !any_new_monsters_unlocked; --buffer)
+	{
+		if (developer->integer && buffer < PREFERRED_ELITE_BUFFER)
 		{
+			gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: No monsters with +{} buffer, trying +{}\n",
+				buffer + 1, buffer);
+		}
+
+		auto search_it = it;
+		for (; search_it != monsterTypes + MONSTER_DATA_COUNT && search_it->minWave <= potentialEffectiveLevel; ++search_it)
+		{
+			// Skip boss monsters (they should only come from boss waves)
+			if (search_it->minWave >= 999) {
+				continue;
+			}
+
+			// Check with current buffer
+			if (search_it->minWave < currentActualLevel + buffer) {
+				if (developer->integer && buffer == PREFERRED_ELITE_BUFFER)
+				{
+					gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: '{}' (minWave={}) TOO CLOSE for elite (need >= {})\n",
+						horde::MonsterTypeRegistry::GetClassname(search_it->typeId), search_it->minWave, currentActualLevel + buffer);
+				}
+				continue;
+			}
+
+			if (developer->integer)
+			{
+				gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: Found VALID elite candidate '{}' (minWave={}, buffer=+{}) - ELITE spawn enabled\n",
+					horde::MonsterTypeRegistry::GetClassname(search_it->typeId), search_it->minWave, buffer);
+			}
 			any_new_monsters_unlocked = true;
+			active_buffer = buffer;
 			break; // Found one, no need to check further.
 		}
 	}
@@ -2542,6 +2609,11 @@ static int32_t CalculateEffectiveMonsterLevel(int32_t currentActualLevel, bool a
 
 	if (!any_new_monsters_unlocked)
 	{
+		if (developer->integer)
+		{
+			gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: NO monsters found even with +1 buffer (waves {}-{}). Reverting to normal spawning.\n",
+				currentActualLevel + 1, potentialEffectiveLevel);
+		}
 		return currentActualLevel; // Revert if the boost is meaningless.
 	}
 
@@ -2626,9 +2698,439 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 {
 	cache_ref.clear();
 
+	// Track if we dynamically precached a monster for elite spawns
+	// If so, we'll ONLY add that family to the cache to ensure it spawns
+	const char* elite_spawn_model_path = nullptr;
+
+	// Create a mutable copy of context to potentially revert effectiveLevel
+	// if we can't find a suitable elite monster to precache
+	MonsterSelectionContext mutable_ctx = ctx;
+
+	// --- DYNAMIC ON-DEMAND PRECACHING ---
+	// When higher-level spawns are triggered, precache ONE new monster family
+	// to provide variety while being conservative with memory
+	if (mutable_ctx.effectiveLevel > mutable_ctx.currentActualLevel)
+	{
+		// Limit: only 1 new model family per wave (counter reset in Horde_InitLevel)
+		if (g_dynamic_precache_count_this_wave < 1)
+		{
+			// Find an unprecached monster from a NEW family that fits the effective level
+			// IMPORTANT: Search through ALL monsters, not just eligible ones, since
+			// g_eligible_monsters_for_wave only contains monsters with minWave <= currentActualLevel
+			horde::MonsterTypeID candidate_to_precache = horde::MonsterTypeID::UNKNOWN;
+			size_t candidate_array_index = 0; // Track the array index, NOT the enum value!
+
+			// Collect all valid candidates for random selection (improves variety)
+			struct EliteCandidate {
+				horde::MonsterTypeID typeId;
+				size_t array_index;
+				float priority;
+			};
+			std::vector<EliteCandidate> candidates;
+
+			if (developer->integer)
+			{
+				gi.Com_PrintFmt("Dynamic Precache: Searching {} monsters for elite (wave {}, effectiveLevel {}, waveType={})\n",
+					MONSTER_DATA_COUNT, mutable_ctx.currentActualLevel, mutable_ctx.effectiveLevel,
+					static_cast<int>(mutable_ctx.waveTypeForFiltering));
+			}
+
+			for (size_t i = 0; i < MONSTER_DATA_COUNT; ++i)
+			{
+				const auto& monster_info = monsterTypes[i];
+				const char* classname = horde::MonsterTypeRegistry::GetClassname(monster_info.typeId);
+
+				// Skip if already precached
+				if (g_precached_monster_types_flags[i]) {
+					if (developer->integer)
+					{
+						gi.Com_PrintFmt("Dynamic Precache: '{}' ALREADY PRECACHED\n", classname);
+					}
+					continue;
+				}
+
+				// SMART ELITE FILTERING: Exclude monsters that will spawn naturally in the next 3 waves
+				// This prevents elite spawns from overlapping with progressive precaching
+				// while keeping enough variety available
+				constexpr int32_t ELITE_WAVE_BUFFER = 4; // Skip monsters from current wave + next 3 waves
+
+				if (monster_info.minWave < mutable_ctx.currentActualLevel + ELITE_WAVE_BUFFER) {
+					if (developer->integer)
+					{
+						gi.Com_PrintFmt("Dynamic Precache: '{}' TOO CLOSE (minWave={}, need >= {})\n",
+							classname, monster_info.minWave, mutable_ctx.currentActualLevel + ELITE_WAVE_BUFFER);
+					}
+					continue;
+				}
+
+				// But not higher than the effective level boost allows
+				if (monster_info.minWave > mutable_ctx.effectiveLevel) {
+					if (developer->integer)
+					{
+						gi.Com_PrintFmt("Dynamic Precache: '{}' TOO HIGH (minWave={} > effectiveLevel={})\n",
+							classname, monster_info.minWave, mutable_ctx.effectiveLevel);
+					}
+					continue;
+				}
+
+				// Skip wave 999+ bosses (they should only come from boss waves)
+				if (monster_info.minWave >= 999) {
+					if (developer->integer)
+					{
+						gi.Com_PrintFmt("Dynamic Precache: '{}' BOSS (minWave={})\n", classname, monster_info.minWave);
+					}
+					continue;
+				}
+
+				// Exclude infantry monsters from elite spawns - user prefers more variety
+				if (monster_info.typeId == horde::MonsterTypeID::INFANTRY ||
+				    monster_info.typeId == horde::MonsterTypeID::INFANTRY_VANILLA) {
+					if (developer->integer)
+					{
+						gi.Com_PrintFmt("Dynamic Precache: '{}' INFANTRY (excluded)\n", classname);
+					}
+					continue;
+				}
+
+				// Check if this monster's model family is NOT already precached
+				const char* model_path = GetMonsterModelPath(monster_info.typeId);
+				if (!model_path) {
+					if (developer->integer)
+					{
+						gi.Com_PrintFmt("Dynamic Precache: '{}' NO MODEL PATH\n", classname);
+					}
+					continue;
+				}
+
+				// For waves 1-10: Allow elites from already-loaded families (ensures variety)
+				// For waves 11+: Require NEW families only (prevents memory bloat)
+				const bool family_already_loaded = g_precached_models_this_map.find(model_path) != g_precached_models_this_map.end();
+
+				if (mutable_ctx.currentActualLevel > 10 && family_already_loaded) {
+					if (developer->integer)
+					{
+						gi.Com_PrintFmt("Dynamic Precache: '{}' FAMILY ALREADY LOADED (wave 11+, model='{}')\n", classname, model_path);
+					}
+					continue;
+				}
+
+				if (developer->integer && mutable_ctx.currentActualLevel <= 10 && family_already_loaded)
+				{
+					gi.Com_PrintFmt("Dynamic Precache: '{}' FAMILY ALREADY LOADED but ALLOWED for waves 1-10\n", classname);
+				}
+
+				// Calculate priority: prefer monsters closer to effective level, with higher weights
+				float priority = g_monsterData.weights[i] / (1.0f + abs(monster_info.minWave - mutable_ctx.effectiveLevel));
+
+				// Add to candidates list for random selection
+				candidates.push_back({monster_info.typeId, i, priority});
+
+				if (developer->integer)
+				{
+					gi.Com_PrintFmt("Dynamic Precache: CANDIDATE '{}' (minWave={}, priority={:.2f})\n",
+						classname, monster_info.minWave, priority);
+				}
+			}
+
+			// Randomly select from candidates (weighted by priority for balance)
+			if (!candidates.empty())
+			{
+				// Calculate total priority for weighted random selection
+				float total_priority = 0.0f;
+				for (const auto& cand : candidates) {
+					total_priority += cand.priority;
+				}
+
+				// Weighted random selection
+				float random_value = frandom() * total_priority;
+				float cumulative = 0.0f;
+
+				for (const auto& cand : candidates)
+				{
+					cumulative += cand.priority;
+					if (random_value <= cumulative)
+					{
+						candidate_to_precache = cand.typeId;
+						candidate_array_index = cand.array_index;
+						break;
+					}
+				}
+
+				if (developer->integer)
+				{
+					gi.Com_PrintFmt("Dynamic Precache: SELECTED from {} candidates (weighted random)\n", candidates.size());
+				}
+			}
+
+			// FALLBACK: If no candidates found with +4 buffer, try progressively smaller buffers
+			// This ensures we ALWAYS get at least 1 elite per wave
+			if (candidate_to_precache == horde::MonsterTypeID::UNKNOWN)
+			{
+				if (developer->integer)
+				{
+					gi.Com_PrintFmt("Dynamic Precache: NO CANDIDATES with +4 buffer. Trying fallback with smaller buffers...\n");
+				}
+
+				// Try with progressively smaller wave buffers: +3, +2, +1
+				for (int32_t fallback_buffer = 3; fallback_buffer >= 1 && candidate_to_precache == horde::MonsterTypeID::UNKNOWN; --fallback_buffer)
+				{
+					if (developer->integer)
+					{
+						gi.Com_PrintFmt("Dynamic Precache: FALLBACK attempt with +{} buffer\n", fallback_buffer);
+					}
+
+					std::vector<EliteCandidate> fallback_candidates;
+
+					for (size_t i = 0; i < MONSTER_DATA_COUNT; ++i)
+					{
+						const auto& monster_info = monsterTypes[i];
+
+						if (g_precached_monster_types_flags[i]) continue;
+						if (monster_info.minWave < mutable_ctx.currentActualLevel + fallback_buffer) continue;
+						if (monster_info.minWave > mutable_ctx.effectiveLevel) continue;
+						if (monster_info.minWave >= 999) continue;
+						if (monster_info.typeId == horde::MonsterTypeID::INFANTRY || monster_info.typeId == horde::MonsterTypeID::INFANTRY_VANILLA) continue;
+
+						const char* model_path = GetMonsterModelPath(monster_info.typeId);
+						if (!model_path) continue;
+
+						// For waves 1-10: Allow elites from already-loaded families
+						// For waves 11+: Require NEW families only
+						const bool family_already_loaded = g_precached_models_this_map.find(model_path) != g_precached_models_this_map.end();
+						if (mutable_ctx.currentActualLevel > 10 && family_already_loaded) continue;
+
+						float priority = g_monsterData.weights[i] / (1.0f + abs(monster_info.minWave - mutable_ctx.effectiveLevel));
+
+						fallback_candidates.push_back({monster_info.typeId, i, priority});
+
+						if (developer->integer)
+						{
+							gi.Com_PrintFmt("Dynamic Precache: FALLBACK CANDIDATE '{}' (minWave={}, buffer=+{}, priority={:.2f})\n",
+								horde::MonsterTypeRegistry::GetClassname(monster_info.typeId),
+								monster_info.minWave,
+								fallback_buffer,
+								priority);
+						}
+					}
+
+					// Randomly select from fallback candidates
+					if (!fallback_candidates.empty())
+					{
+						float total_priority = 0.0f;
+						for (const auto& cand : fallback_candidates) {
+							total_priority += cand.priority;
+						}
+
+						float random_value = frandom() * total_priority;
+						float cumulative = 0.0f;
+
+						for (const auto& cand : fallback_candidates)
+						{
+							cumulative += cand.priority;
+							if (random_value <= cumulative)
+							{
+								candidate_to_precache = cand.typeId;
+								candidate_array_index = cand.array_index;
+								break;
+							}
+						}
+
+						if (developer->integer)
+						{
+							gi.Com_PrintFmt("Dynamic Precache: FALLBACK SELECTED from {} candidates (buffer=+{})\n",
+								fallback_candidates.size(), fallback_buffer);
+						}
+					}
+				}
+			}
+
+			if (developer->integer && candidate_to_precache != horde::MonsterTypeID::UNKNOWN)
+			{
+				gi.Com_PrintFmt("Dynamic Precache: FINAL SELECTION '{}'\n",
+					horde::MonsterTypeRegistry::GetClassname(candidate_to_precache));
+			}
+
+			// Precache the selected monster (or reuse if already precached for waves 1-10)
+			if (candidate_to_precache != horde::MonsterTypeID::UNKNOWN)
+			{
+				const char* classname = horde::MonsterTypeRegistry::GetClassname(candidate_to_precache);
+				const char* model_path = GetMonsterModelPath(candidate_to_precache);
+				const bool already_precached = g_precached_monster_types_flags[candidate_array_index];
+				const bool family_already_loaded = model_path && (g_precached_models_this_map.find(model_path) != g_precached_models_this_map.end());
+
+				if (classname && *classname)
+				{
+					if (developer->integer)
+					{
+						if (already_precached || family_already_loaded)
+						{
+							gi.Com_PrintFmt("Dynamic Precache: REUSING '{}' (already precached={}, family loaded={}) for wave {} elite\n",
+								classname, already_precached, family_already_loaded, mutable_ctx.currentActualLevel);
+						}
+						else
+						{
+							gi.Com_PrintFmt("Dynamic Precache: Loading '{}' for higher-level spawn (wave {} -> effective {})\n",
+								classname, mutable_ctx.currentActualLevel, mutable_ctx.effectiveLevel);
+						}
+					}
+
+					// Only actually spawn/precache if not already done
+					bool need_to_precache = !already_precached;
+
+					edict_t* temp_monster = nullptr;
+					if (need_to_precache)
+					{
+						temp_monster = G_Spawn();
+					}
+
+					if (temp_monster)
+					{
+						temp_monster->classname = classname;
+						temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+						ED_CallSpawnMonsterByID(temp_monster, candidate_to_precache);
+						if (temp_monster->inuse)
+						{
+							G_FreeEdict(temp_monster);
+						}
+
+						// Mark as precached
+						// CRITICAL: Use the array index, NOT the enum value!
+						g_precached_monster_types_flags[candidate_array_index] = true;
+						g_precached_monsters_this_map.insert(candidate_to_precache);
+						g_precached_models_this_map.insert(model_path);
+
+						// Unlock all variants of this monster family
+						UnlockModelFamilyMembers(candidate_to_precache, mutable_ctx.currentActualLevel);
+					}
+
+					// Set elite_spawn_model_path for both new and reused monsters
+					// This ensures the elite monster actually spawns
+					if (model_path)
+					{
+						elite_spawn_model_path = model_path; // Track for exclusive cache filtering
+
+						if (developer->integer)
+						{
+							gi.Com_PrintFmt("Dynamic Precache: Set elite_spawn_model_path to '{}' (pointer={})\n",
+								model_path, (void*)model_path);
+						}
+					}
+
+					// Add the elite monster's family variants to eligible monsters list
+					// IMPORTANT: Only add family members that are also "elite" (4+ waves higher)
+					// This prevents low-level variants like soldier_ss from diluting the elite spawn
+
+					if (developer->integer)
+					{
+						gi.Com_PrintFmt("Dynamic Precache: Scanning {} monsters to add elite family variants of '{}'\n",
+							MONSTER_DATA_COUNT, classname);
+					}
+
+					for (size_t j = 0; j < MONSTER_DATA_COUNT; ++j)
+					{
+						const auto& family_monster = monsterTypes[j];
+
+						// Only add if it's now precached and not already in the list
+						if (!g_precached_monster_types_flags[j]) {
+							continue;
+						}
+
+						// Check if it's in the same family (same model)
+						// Use POINTER comparison instead of strcmp - GetMonsterModelPath returns
+						// the same pointer for monsters in the same family
+						const char* family_model_path = GetMonsterModelPath(family_monster.typeId);
+
+						if (developer->integer && family_model_path)
+						{
+							const char* family_classname = horde::MonsterTypeRegistry::GetClassname(family_monster.typeId);
+							bool models_match = (model_path == family_model_path); // Pointer comparison!
+							gi.Com_PrintFmt("Dynamic Precache: Checking '{}' (precached={}, model='{}', ptr={}, match={}, minWave={})\n",
+								family_classname,
+								g_precached_monster_types_flags[j],
+								family_model_path,
+								(void*)family_model_path,
+								models_match,
+								family_monster.minWave);
+						}
+
+						// POINTER COMPARISON: Same pointer = same model family
+						if (family_model_path && model_path == family_model_path)
+						{
+							// CRITICAL: Only add family members that are also "elite" level
+							// Skip low-level variants that would already spawn normally
+							if (family_monster.minWave < mutable_ctx.currentActualLevel + 4) {
+								if (developer->integer)
+								{
+									gi.Com_PrintFmt("Dynamic Precache: Skipping '{}' (minWave {} < {}, not elite)\n",
+										horde::MonsterTypeRegistry::GetClassname(family_monster.typeId),
+										family_monster.minWave,
+										mutable_ctx.currentActualLevel + 4);
+								}
+								continue;
+							}
+
+							// Check if already in eligible list
+							bool already_eligible = false;
+							for (const MonsterTypeInfo* existing : g_eligible_monsters_for_wave)
+							{
+								if (existing->typeId == family_monster.typeId) {
+									already_eligible = true;
+									break;
+								}
+							}
+
+							// Add to eligible list if not already there
+							if (!already_eligible)
+							{
+								g_eligible_monsters_for_wave.push_back(&family_monster);
+
+								if (developer->integer)
+								{
+									gi.Com_PrintFmt("Dynamic Precache: Added '{}' to eligible monsters (minWave {} is elite)\n",
+										horde::MonsterTypeRegistry::GetClassname(family_monster.typeId),
+										family_monster.minWave);
+								}
+							}
+							else if (developer->integer)
+							{
+								gi.Com_PrintFmt("Dynamic Precache: '{}' already in eligible list, skipping\n",
+									horde::MonsterTypeRegistry::GetClassname(family_monster.typeId));
+							}
+						}
+					}
+
+					g_dynamic_precache_count_this_wave++;
+
+					if (developer->integer)
+					{
+						gi.Com_PrintFmt("Dynamic Precache: Elite setup complete for '{}'\n", classname);
+					}
+				}
+			}
+			else
+			{
+				// No suitable elite monster found - revert to normal spawning
+				// This prevents low-level monsters from being flagged as "elite"
+				mutable_ctx.effectiveLevel = mutable_ctx.currentActualLevel;
+
+				if (developer->integer)
+				{
+					gi.Com_PrintFmt("Dynamic Precache: No suitable elite monster found (all filtered/precached), reverting to normal spawning\n");
+				}
+			}
+		}
+	}
+	// --- END DYNAMIC ON-DEMAND PRECACHING ---
+
 	// Get PVM random monsters if active
 	const horde::MonsterTypeID* pvm_monsters = PVM_GetRandomMonsters();
 	const int pvm_monster_count = PVM_GetRandomMonsterCount();
+
+	if (developer->integer && elite_spawn_model_path != nullptr)
+	{
+		gi.Com_PrintFmt("BuildMonsterCache: ELITE SPAWN MODE ACTIVE - Only adding monsters from family: {}\n",
+			elite_spawn_model_path);
+	}
 
 	// FIXED: Single-pass iteration with consistent precache logic
 	for (const MonsterTypeInfo* monster_info : g_eligible_monsters_for_wave)
@@ -2638,6 +3140,31 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 		// Only use monsters that are actually precached
 		if (!g_precached_monster_types_flags[i]) {
 			continue;
+		}
+
+		// ELITE SPAWN EXCLUSIVITY: If we dynamically precached a monster for elite spawns,
+		// ONLY allow monsters from that family. This ensures the elite monster actually spawns
+		// instead of being diluted by other low-level precached monsters
+		if (elite_spawn_model_path != nullptr) {
+			const char* this_monster_model = GetMonsterModelPath(monster_info->typeId);
+			// Use POINTER comparison - same pointer = same model family
+			if (!this_monster_model || elite_spawn_model_path != this_monster_model) {
+				if (developer->integer)
+				{
+					gi.Com_PrintFmt("BuildMonsterCache: Skipping '{}' (ptr={}, not in elite family ptr={})\n",
+						horde::MonsterTypeRegistry::GetClassname(monster_info->typeId),
+						(void*)this_monster_model,
+						(void*)elite_spawn_model_path);
+				}
+				continue; // Skip monsters not in the elite spawn family
+			}
+			else if (developer->integer)
+			{
+				gi.Com_PrintFmt("BuildMonsterCache: Including '{}' (in elite family '{}', ptr={}, match=true)\n",
+					horde::MonsterTypeRegistry::GetClassname(monster_info->typeId),
+					elite_spawn_model_path,
+					(void*)this_monster_model);
+			}
 		}
 
 		// PvM Mode: Use random monster list instead of minWave filtering
@@ -2656,25 +3183,38 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 			// In PVM mode, ignore minWave requirements since we're using a pre-selected list
 		} else {
 			// Normal horde mode: check minWave
-			if (g_monsterData.minWaves[i] > ctx.effectiveLevel) {
+			// EXCEPTION: Skip minWave check in elite spawn mode - we explicitly want these high-level monsters
+			if (elite_spawn_model_path == nullptr && g_monsterData.minWaves[i] > mutable_ctx.effectiveLevel) {
 				continue;
 			}
 		}
 
 		const bool monster_is_flying = IsFlying(monster_info->typeId);
-		if (ctx.isSpawnPointFlying && !monster_is_flying) {
+		if (mutable_ctx.isSpawnPointFlying && !monster_is_flying) {
 			continue;
 		}
 
-		float weight = CalculateBaseWeight(i, ctx);
-		weight = ApplySpecialModifiers(weight, i, ctx);
+		float weight = CalculateBaseWeight(i, mutable_ctx);
+		weight = ApplySpecialModifiers(weight, i, mutable_ctx);
 		cache_ref.addMonster(monster_info->typeId, weight);
+
+		if (developer->integer && elite_spawn_model_path != nullptr)
+		{
+			gi.Com_PrintFmt("BuildMonsterCache: Added '{}' to cache (weight={:.1f})\n",
+				horde::MonsterTypeRegistry::GetClassname(monster_info->typeId), weight);
+		}
 	}
 
 	// FIXED: If we have too few monsters, add fallback monsters ensuring they're precached too
 	// This maintains consistency: we never spawn unprecached monsters
-	if (cache_ref.count < MIN_MONSTERS_AVAILABLE)
+	// IMPORTANT: Skip fallback logic if we're in elite spawn mode - we want ONLY the elite family
+	if (cache_ref.count < MIN_MONSTERS_AVAILABLE && elite_spawn_model_path == nullptr)
 	{
+		if (developer->integer)
+		{
+			gi.Com_PrintFmt("BuildMonsterCache: Adding fallback monsters (cache has {} monsters)\n", cache_ref.count);
+		}
+
 		for (const MonsterTypeInfo* monster_info : g_eligible_monsters_for_wave)
 		{
 			const size_t i = static_cast<size_t>(monster_info->typeId);
@@ -2701,23 +3241,35 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 			const bool monster_is_flying = IsFlying(monster_info->typeId);
 
 			// For flying spawn points: add any flying monsters from early waves
-			if (ctx.isSpawnPointFlying) {
-				if (monster_is_flying && (pvm_monsters || (monster_info->minWave <= 11 && g_monsterData.minWaves[i] <= ctx.currentActualLevel)))
+			if (mutable_ctx.isSpawnPointFlying) {
+				if (monster_is_flying && (pvm_monsters || (monster_info->minWave <= 11 && g_monsterData.minWaves[i] <= mutable_ctx.currentActualLevel)))
 				{
 					if (cache_ref.count >= MIN_MONSTERS_AVAILABLE)
 						break;
-					float weight = CalculateBaseWeight(i, ctx) * 0.5f;
+					float weight = CalculateBaseWeight(i, mutable_ctx) * 0.5f;
 					cache_ref.addMonster(monster_info->typeId, weight);
 				}
 			}
 			// For ground spawn points: add core ground monsters
-			else if (!monster_is_flying && (pvm_monsters || (monster_info->minWave <= 3 && g_monsterData.minWaves[i] <= ctx.currentActualLevel)))
+			else if (!monster_is_flying && (pvm_monsters || (monster_info->minWave <= 3 && g_monsterData.minWaves[i] <= mutable_ctx.currentActualLevel)))
 			{
 				if (cache_ref.count >= MIN_MONSTERS_AVAILABLE)
 					break;
-				float weight = CalculateBaseWeight(i, ctx) * 0.5f;
+				float weight = CalculateBaseWeight(i, mutable_ctx) * 0.5f;
 				cache_ref.addMonster(monster_info->typeId, weight);
 			}
+		}
+	}
+
+	// Debug: Show final cache contents
+	if (developer->integer)
+	{
+		gi.Com_PrintFmt("BuildMonsterCache: Final cache has {} monsters, total_weight={:.1f}\n",
+			cache_ref.count, cache_ref.total_weight);
+		if (elite_spawn_model_path != nullptr)
+		{
+			gi.Com_PrintFmt("BuildMonsterCache: Elite spawn mode - cache should only contain '{}' family\n",
+				elite_spawn_model_path);
 		}
 	}
 }
@@ -2854,19 +3406,25 @@ horde::MonsterTypeID G_HordePickMonsterType(
     // =======================================================================
     // --- FINAL CHECK AND FLAG SET ---
     // If we successfully picked a monster AND it was an elite spawn, set the flag.
+    // IMPORTANT: Use same wave buffer as elite candidate filtering (current wave + next 3 waves)
     // =======================================================================
     if (chosen_monster_id != horde::MonsterTypeID::UNKNOWN && ctx.effectiveLevel > ctx.currentActualLevel)
     {
         const size_t index = static_cast<size_t>(chosen_monster_id);
-        if (index < g_monsterData.MONSTER_ARRAY_SIZE && g_monsterData.minWaves[index] > ctx.currentActualLevel)
+
+        // Must be at least 4 waves higher (skip current + next 3 waves)
+        constexpr int32_t ELITE_WAVE_BUFFER = 4;
+
+        if (index < g_monsterData.MONSTER_ARRAY_SIZE && g_monsterData.minWaves[index] >= ctx.currentActualLevel + ELITE_WAVE_BUFFER)
         {
             g_special_high_level_monster_spawned_this_wave = true;
             if (developer->integer)
             {
-                gi.Com_PrintFmt("ELITE SPAWN: '{}' (minWave {}) spawned in wave {}. Flag set.\n",
+                gi.Com_PrintFmt("ELITE SPAWN: '{}' (minWave {}) spawned in wave {} (buffer={}). Flag set.\n",
                                 horde::MonsterTypeRegistry::GetClassname(chosen_monster_id),
                                 g_monsterData.minWaves[index],
-                                ctx.currentActualLevel);
+                                ctx.currentActualLevel,
+                                ELITE_WAVE_BUFFER);
             }
         }
     }
@@ -7289,6 +7847,17 @@ static void Horde_InitLevel(const int32_t lvl)
 	if (g_spawn_system.spawn_map_needs_build) {
 		BuildSpawnPointMap();
 		g_spawn_system.spawn_map_needs_build = false;
+	}
+
+	// Reset elite spawn dynamic precaching tracking for this wave
+	g_last_dynamic_precache_wave = lvl;
+	g_dynamic_precache_count_this_wave = 0;
+	g_special_high_level_monster_spawned_this_wave = false; // Allow elite spawns each wave
+
+	if (developer->integer)
+	{
+		gi.Com_PrintFmt("Horde_InitLevel: Wave {} started. Elite spawn flags RESET (count={}, flag={})\n",
+			lvl, g_dynamic_precache_count_this_wave, g_special_high_level_monster_spawned_this_wave);
 	}
 
 	g_spawn_system.spawn_plan.clear();
