@@ -2517,22 +2517,22 @@ static int32_t CalculateEffectiveMonsterLevel(int32_t currentActualLevel, bool a
 	int32_t levelBoost;
 	int32_t maxLevelCap;
 
-	// CRITICAL: Level boost must be at least +4 to reach elite monsters (current wave + next 3 waves buffer)
-	constexpr int32_t MIN_ELITE_BOOST = 4;
+	// CRITICAL: Level boost must be at least +3 to reach elite monsters (minimum 3-wave buffer)
+	constexpr int32_t MIN_ELITE_BOOST = 3;
 
 	if (HasWaveType(waveTypeForFiltering, MonsterWaveType::Flying))
 	{
 		if (currentActualLevel < 10)
-			levelBoost = irandom(MIN_ELITE_BOOST, 8); // Ensure at least +4 for elite spawns
+			levelBoost = irandom(MIN_ELITE_BOOST, 8); // Ensure at least +3 for elite spawns
 		else
 			levelBoost = irandom(6, 17); // Original aggressive boost for later waves
 		maxLevelCap = currentActualLevel + 10;
 	}
 	else
 	{
-		// Ensure level boost is at least +4 for elite spawns to work
+		// Ensure level boost is at least +3 for elite spawns to work
 		if (currentActualLevel < 7)
-			levelBoost = irandom(MIN_ELITE_BOOST, 8); // At least +4 to skip next 3 waves
+			levelBoost = irandom(MIN_ELITE_BOOST, 8); // At least +3 minimum buffer
 		else if (currentActualLevel <= 15)
 			levelBoost = irandom(MIN_ELITE_BOOST, 8);
 		else
@@ -2562,16 +2562,16 @@ static int32_t CalculateEffectiveMonsterLevel(int32_t currentActualLevel, bool a
 	// Iterate only over the small, relevant subset of monsters.
 	// IMPORTANT: For elite spawns, we DON'T filter by wave type here!
 	// Elite spawns should bypass wave theme restrictions (Ground/Light/Gekk/etc)
-	// Use progressive fallback (+4, +3, +2, +1) to ensure we always find candidates for waves 1-10
+	// Use progressive fallback (+3, +2, +1) to ensure we always find candidates for waves 1-10
 
-	// Try with +4 buffer first, then fallback to smaller buffers
-	constexpr int32_t PREFERRED_ELITE_BUFFER = 4;
-	int32_t active_buffer = PREFERRED_ELITE_BUFFER;
+	// Try with +3 minimum buffer first, then fallback to +2 and +1
+	constexpr int32_t MINIMUM_ELITE_BUFFER = 3;
+	int32_t active_buffer = MINIMUM_ELITE_BUFFER;
 
 	// For waves 1-10, try progressively smaller buffers to guarantee elite spawns
-	for (int32_t buffer = PREFERRED_ELITE_BUFFER; buffer >= 1 && !any_new_monsters_unlocked; --buffer)
+	for (int32_t buffer = MINIMUM_ELITE_BUFFER; buffer >= 1 && !any_new_monsters_unlocked; --buffer)
 	{
-		if (developer->integer && buffer < PREFERRED_ELITE_BUFFER)
+		if (developer->integer && buffer < MINIMUM_ELITE_BUFFER)
 		{
 			gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: No monsters with +{} buffer, trying +{}\n",
 				buffer + 1, buffer);
@@ -2587,7 +2587,7 @@ static int32_t CalculateEffectiveMonsterLevel(int32_t currentActualLevel, bool a
 
 			// Check with current buffer
 			if (search_it->minWave < currentActualLevel + buffer) {
-				if (developer->integer && buffer == PREFERRED_ELITE_BUFFER)
+				if (developer->integer && buffer == MINIMUM_ELITE_BUFFER)
 				{
 					gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: '{}' (minWave={}) TOO CLOSE for elite (need >= {})\n",
 						horde::MonsterTypeRegistry::GetClassname(search_it->typeId), search_it->minWave, currentActualLevel + buffer);
@@ -2740,7 +2740,11 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 				const auto& monster_info = monsterTypes[i];
 				const char* classname = horde::MonsterTypeRegistry::GetClassname(monster_info.typeId);
 
-				// Skip if already precached
+				// CHANGED: Allow BOTH precached and unprecached monsters as elite candidates
+				// If unprecached when selected → will be precached and added to tracking
+				// If already precached → will reuse (just set elite_spawn_model_path)
+				// This expands candidate pool for maximum variety
+				/*
 				if (g_precached_monster_types_flags[i]) {
 					if (developer->integer)
 					{
@@ -2748,17 +2752,18 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 					}
 					continue;
 				}
+				*/
 
-				// SMART ELITE FILTERING: Exclude monsters that will spawn naturally in the next 3 waves
-				// This prevents elite spawns from overlapping with progressive precaching
-				// while keeping enough variety available
-				constexpr int32_t ELITE_WAVE_BUFFER = 4; // Skip monsters from current wave + next 3 waves
+				// SMART ELITE FILTERING: Use minimum +3 wave buffer
+				// Ensures elite monsters are at least 3 waves ahead to avoid overlap with natural spawns
+				// Randomized selection from all valid candidates provides maximum variety
+				constexpr int32_t MINIMUM_ELITE_BUFFER = 3; // Minimum gap: current wave + 3
 
-				if (monster_info.minWave < mutable_ctx.currentActualLevel + ELITE_WAVE_BUFFER) {
+				if (monster_info.minWave < mutable_ctx.currentActualLevel + MINIMUM_ELITE_BUFFER) {
 					if (developer->integer)
 					{
 						gi.Com_PrintFmt("Dynamic Precache: '{}' TOO CLOSE (minWave={}, need >= {})\n",
-							classname, monster_info.minWave, mutable_ctx.currentActualLevel + ELITE_WAVE_BUFFER);
+							classname, monster_info.minWave, mutable_ctx.currentActualLevel + MINIMUM_ELITE_BUFFER);
 					}
 					continue;
 				}
@@ -2862,17 +2867,17 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 				}
 			}
 
-			// FALLBACK: If no candidates found with +4 buffer, try progressively smaller buffers
-			// This ensures we ALWAYS get at least 1 elite per wave
+			// FALLBACK: If no candidates found with +3 minimum buffer, try +2 and +1
+			// With expanded candidate pool (both precached/unprecached allowed), this should rarely trigger
 			if (candidate_to_precache == horde::MonsterTypeID::UNKNOWN)
 			{
 				if (developer->integer)
 				{
-					gi.Com_PrintFmt("Dynamic Precache: NO CANDIDATES with +4 buffer. Trying fallback with smaller buffers...\n");
+					gi.Com_PrintFmt("Dynamic Precache: NO CANDIDATES with +3 buffer. Trying fallback with +2 and +1 buffers...\n");
 				}
 
-				// Try with progressively smaller wave buffers: +3, +2, +1
-				for (int32_t fallback_buffer = 3; fallback_buffer >= 1 && candidate_to_precache == horde::MonsterTypeID::UNKNOWN; --fallback_buffer)
+				// Try with smaller wave buffers: +2, +1
+				for (int32_t fallback_buffer = 2; fallback_buffer >= 1 && candidate_to_precache == horde::MonsterTypeID::UNKNOWN; --fallback_buffer)
 				{
 					if (developer->integer)
 					{
@@ -2885,7 +2890,8 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 					{
 						const auto& monster_info = monsterTypes[i];
 
-						if (g_precached_monster_types_flags[i]) continue;
+						// CHANGED: Allow both precached and unprecached monsters
+						// if (g_precached_monster_types_flags[i]) continue;
 						if (monster_info.minWave < mutable_ctx.currentActualLevel + fallback_buffer) continue;
 						if (monster_info.minWave > mutable_ctx.effectiveLevel) continue;
 						if (monster_info.minWave >= 999) continue;
@@ -3017,7 +3023,7 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 					}
 
 					// Add the elite monster's family variants to eligible monsters list
-					// IMPORTANT: Only add family members that are also "elite" (4+ waves higher)
+					// IMPORTANT: Only add family members that are also "elite" (3+ waves higher minimum)
 					// This prevents low-level variants like soldier_ss from diluting the elite spawn
 
 					if (developer->integer)
@@ -3058,13 +3064,13 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 						{
 							// CRITICAL: Only add family members that are also "elite" level
 							// Skip low-level variants that would already spawn normally
-							if (family_monster.minWave < mutable_ctx.currentActualLevel + 4) {
+							if (family_monster.minWave < mutable_ctx.currentActualLevel + 3) {
 								if (developer->integer)
 								{
 									gi.Com_PrintFmt("Dynamic Precache: Skipping '{}' (minWave {} < {}, not elite)\n",
 										horde::MonsterTypeRegistry::GetClassname(family_monster.typeId),
 										family_monster.minWave,
-										mutable_ctx.currentActualLevel + 4);
+										mutable_ctx.currentActualLevel + 3);
 								}
 								continue;
 							}
