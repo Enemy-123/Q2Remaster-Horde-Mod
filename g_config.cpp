@@ -178,6 +178,12 @@ void Config_LoadMonsters(const char* basedir)
 			config.power_armor_power = GetJsonInt(monster_data, "power_armor_power", 0);
 			config.armor_power = GetJsonInt(monster_data, "armor_power", 0);
 
+			// Also check for "power_armor" as an alias for armor_power (normal armor)
+			if (monster_data.isMember("power_armor") && monster_data["power_armor"].isInt())
+			{
+				config.armor_power = GetJsonInt(monster_data, "power_armor", 0);
+			}
+
 			// Load armor types
 			if (monster_data.isMember("power_armor_type") && monster_data["power_armor_type"].isString())
 			{
