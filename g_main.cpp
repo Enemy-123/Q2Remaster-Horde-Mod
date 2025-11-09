@@ -1103,7 +1103,7 @@ void ExitLevel()
 		const char* map = level.changemap + start_offset + 6;
 
 		// Apply horde mode settings first
-		gi.AddCommandString("horde 1; coop 0; deathmatch 1; g_allow_techs 1; timelimit 0; g_dm_spawn_farthest 0; maxclients 32; kexmultiplayer maxplayers 32\n");
+		gi.AddCommandString("horde 1; coop 0; deathmatch 1; g_allow_techs 1; timelimit 0; g_dm_spawn_farthest 0\n"); //; maxclients 32; kexmultiplayer maxplayers 32
 
 		// Clear the election level after successful horde switch
 		extern ctfgame_t ctfgame;
