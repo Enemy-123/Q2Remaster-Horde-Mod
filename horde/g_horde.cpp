@@ -2852,12 +2852,12 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 					continue;
 				}
 
-				// Exclude infantry monsters from elite spawns - user prefers more variety
-				if (monster_info.typeId == horde::MonsterTypeID::INFANTRY ||
-				    monster_info.typeId == horde::MonsterTypeID::INFANTRY_VANILLA) {
+				// Exclude infantry_vanilla from elite spawns to maintain variety
+				// Normal infantry is allowed for elite spawns (stronger variant)
+				if (monster_info.typeId == horde::MonsterTypeID::INFANTRY_VANILLA) {
 					if (developer->integer)
 					{
-						gi.Com_PrintFmt("Dynamic Precache: '{}' INFANTRY (excluded)\n", classname);
+						gi.Com_PrintFmt("Dynamic Precache: '{}' INFANTRY_VANILLA (excluded)\n", classname);
 					}
 					continue;
 				}
@@ -2960,7 +2960,7 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 						if (monster_info.minWave < mutable_ctx.currentActualLevel + fallback_buffer) continue;
 						if (monster_info.minWave > mutable_ctx.effectiveLevel) continue;
 						if (monster_info.minWave >= 999) continue;
-						if (monster_info.typeId == horde::MonsterTypeID::INFANTRY || monster_info.typeId == horde::MonsterTypeID::INFANTRY_VANILLA) continue;
+						if (monster_info.typeId == horde::MonsterTypeID::INFANTRY_VANILLA) continue; // Exclude vanilla, allow normal infantry
 
 						const char* model_path = GetMonsterModelPath(monster_info.typeId);
 						if (!model_path) continue;
@@ -3307,6 +3307,29 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 				gi.Com_PrintFmt("BuildMonsterCache: '{}' soldier reduction (wave {}, weight={:.2f})\n",
 					horde::MonsterTypeRegistry::GetClassname(monster_info->typeId),
 					mutable_ctx.currentActualLevel, weight);
+			}
+		}
+
+		// Apply infantry_vanilla progressive weight reduction for waves 11+
+		// When normal infantry unlocks (wave 11), vanilla variant gradually loses weight
+		// but never reaches 0 to maintain variety
+		if (monster_info->typeId == horde::MonsterTypeID::INFANTRY_VANILLA && mutable_ctx.currentActualLevel >= 11)
+		{
+			// Progressive reduction: starts at wave 11, reduces by ~6% per wave, bottoms at 29% (0.25/0.85)
+			constexpr float MIN_WEIGHT_MULTIPLIER = 0.294f; // 0.25 / 0.85 = ~29% of original weight
+			constexpr float REDUCTION_PER_WAVE = 0.0588f;   // 0.05 / 0.85 = ~6% per wave
+
+			float waves_since_infantry_unlock = static_cast<float>(mutable_ctx.currentActualLevel - 11);
+			float weight_multiplier = 1.0f - (waves_since_infantry_unlock * REDUCTION_PER_WAVE);
+			weight_multiplier = std::max(MIN_WEIGHT_MULTIPLIER, weight_multiplier);
+
+			weight *= weight_multiplier;
+
+			if (developer->integer)
+			{
+				gi.Com_PrintFmt("BuildMonsterCache: '{}' infantry_vanilla reduction (wave {}, multiplier={:.2f}, weight={:.2f})\n",
+					horde::MonsterTypeRegistry::GetClassname(monster_info->typeId),
+					mutable_ctx.currentActualLevel, weight_multiplier, weight);
 			}
 		}
 
@@ -4516,6 +4539,11 @@ void ResetGame()
 	g_recent_spawns.cooldowns_until.fill(0_sec);
 	g_recent_spawn_index = 0;
 
+	// FIX: Clear spawn history to prevent previous map's spawn patterns from affecting new map
+	// Note: g_map_family_history is intentionally NOT reset to maintain variety across maps
+	g_spawn_history.fill(SpawnHistoryEntry{});
+	g_spawn_history_index = 0;
+
 	// FIX: Clear the boss teleport map on map change ---
 	last_boss_teleport_attempt_time.clear();
 
@@ -4710,7 +4738,7 @@ static bool CheckRemainingMonstersCondition(const horde::MapSize &mapSize, WaveE
 			ResetWaveAdvanceState();
 			return true;
 		}
-		// If few monsters remain (percentage-based), start next wave (stragglers will remain)
+		// If few monsters remain (percentage-based), start next wave (stroggs will remain)
 		else if (ctx.liveMonsters > 0 && ctx.liveMonsters <= earlyWaveThreshold && g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters <= 0)
 		{
 			reason = WaveEndReason::FewMonstersRemaining;
@@ -4912,7 +4940,7 @@ static void StartConditionalTimer(const WaveConditionContext &ctx)
 		gi.LocBroadcast_Print(PRINT_HIGH, "Few enemies remain - finish them quickly!\n");
 		break;
 	case TimerTriggerReason::LowPercentage:
-		gi.LocBroadcast_Print(PRINT_HIGH, "Nearly there - eliminate the stragglers!\n");
+		gi.LocBroadcast_Print(PRINT_HIGH, "Nearly there - eliminate the stroggs!\n");
 		break;
 	case TimerTriggerReason::PostDeployment:
 		// Message already sent when wave deploys, don't spam
@@ -7425,7 +7453,7 @@ static void SendCleanupMessage(WaveEndReason reason)
 			current_wave_level);
 		break;
 	case WaveEndReason::FewMonstersRemaining:
-		gi.LocBroadcast_Print(PRINT_HIGH, "Wave {} Advanced - Stragglers Remain!\n",
+		gi.LocBroadcast_Print(PRINT_HIGH, "Wave {} Advanced - Stroggs Remain!\n",
 			current_wave_level);
 		break;
 	}
