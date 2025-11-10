@@ -5197,62 +5197,30 @@ static void DisplayWaveMessage(gtime_t duration = 5_sec)
 	AppendHordeMessage(messages[choice], duration);
 }
 
-static void HandleWaveCleanupMessage(const horde::MapSize &mapSize, const WaveEndReason reason)
+static void HandleWaveCleanupMessage(const horde::MapSize &mapSize)
 {
 	// Obtener el número de jugadores humanos
 	const int8_t numHumanPlayers = GetNumHumanPlayers();
 
-	// Si la ola terminó con todos los monstruos muertos o muy pocos restantes, aplicar reglas normales
-	if (reason == WaveEndReason::AllMonstersDead || reason == WaveEndReason::FewMonstersRemaining)
+	// Progresión de dificultad basada en número de ola (endless horde design)
+	// Waves 1-14: Chaotic mode (fast-paced continuous spawning)
+	if (current_wave_level <= 14)
 	{
-		if (current_wave_level >= 15 && current_wave_level <= 26)
-		{
-			gi.cvar_set("g_insane", "1");
-			gi.cvar_set("g_chaotic", "0");
-		}
-		else if (current_wave_level >= 27)
-		{
-			gi.cvar_set("g_insane", "2");
-			gi.cvar_set("g_chaotic", "0");
-		}
-		else if (current_wave_level <= 14)
-		{
-			gi.cvar_set("g_insane", "0");
-			// Activar chaotic2 si es mapa pequeño Y hay 2+ jugadores, sino chaotic1
-			gi.cvar_set("g_chaotic", (mapSize.isSmallMap && numHumanPlayers >= 2) ? "2" : "1");
-		}
+		gi.cvar_set("g_insane", "0");
+		// Activar chaotic2 si es mapa pequeño Y hay 2+ jugadores, sino chaotic1
+		gi.cvar_set("g_chaotic", (mapSize.isSmallMap && numHumanPlayers >= 2) ? "2" : "1");
 	}
+	// Waves 15-26: Insane 1 (moderate spawn boost)
+	else if (current_wave_level <= 26)
+	{
+		gi.cvar_set("g_insane", "1");
+		gi.cvar_set("g_chaotic", "0");
+	}
+	// Waves 27+: Insane 2 (maximum spawn boost)
 	else
 	{
-		// Si la ola no terminó por victoria completa, pequeña probabilidad de mantener la dificultad
-		const float probability = mapSize.isBigMap ? 0.3f : mapSize.isSmallMap ? 0.2f
-																			   : 0.25f; // 20-30% según tamaño de mapa
-		if (frandom() < probability)
-		{
-			// Si gana la probabilidad, aplicar la dificultad según el nivel actual
-			if (current_wave_level >= 15 && current_wave_level <= 26)
-			{
-				gi.cvar_set("g_insane", "1");
-				gi.cvar_set("g_chaotic", "0");
-			}
-			else if (current_wave_level >= 27)
-			{
-				gi.cvar_set("g_insane", "2");
-				gi.cvar_set("g_chaotic", "0");
-			}
-			else if (current_wave_level <= 14)
-			{
-				gi.cvar_set("g_insane", "0");
-				// Activar chaotic2 si es mapa pequeño Y hay 3+ jugadores, sino chaotic1
-				gi.cvar_set("g_chaotic", (mapSize.isSmallMap && numHumanPlayers >= 3) ? "2" : "1");
-			}
-		}
-		else
-		{
-			// Si no gana la probabilidad, desactivar ambos modos
-			gi.cvar_set("g_insane", "0");
-			gi.cvar_set("g_chaotic", "0");
-		}
+		gi.cvar_set("g_insane", "2");
+		gi.cvar_set("g_chaotic", "0");
 	}
 	g_horde_local.state = horde_state_t::rest;
 }
@@ -7453,7 +7421,7 @@ static void SendCleanupMessage(WaveEndReason reason)
 			current_wave_level);
 		break;
 	case WaveEndReason::FewMonstersRemaining:
-		gi.LocBroadcast_Print(PRINT_HIGH, "Wave {} Advanced - Stroggs Remain!\n",
+		gi.LocBroadcast_Print(PRINT_HIGH, "Wave {} Advancing - Hostiles Still Active!\n",
 			current_wave_level);
 		break;
 	}
@@ -7723,7 +7691,7 @@ void Horde_RunFrame()
 
 	case horde_state_t::cleanup:
 		if (g_horde_local.monster_spawn_time < currentTime) {
-			HandleWaveCleanupMessage(mapSize, currentWaveEndReason);
+			HandleWaveCleanupMessage(mapSize);
 			g_horde_local.warm_time = currentTime + random_time(0.5_sec, 1.0_sec);  // REDUCED: 1.4-1.9s -> 0.5-1.0s for faster pacing
 			g_horde_local.state = horde_state_t::rest;
 			CheckAndResetDisabledSpawnPoints();
