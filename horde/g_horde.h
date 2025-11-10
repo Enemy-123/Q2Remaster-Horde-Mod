@@ -222,6 +222,22 @@ extern std::array<bool, 128> g_precached_monster_types_flags; // Precache flags 
 extern boost::container::flat_set<horde::MonsterTypeID> g_precached_monsters_this_map; // C++23 - Monster types precached this map
 extern std::unordered_set<std::string> g_precached_models_this_map; // Models loaded this map (string keys benefit from hashing)
 
+// --- Spawn History Tracking for Variety ---
+// Tracks recently spawned monster families to prevent repetition
+struct SpawnHistoryEntry {
+	AssetFamilyID family_id = AssetFamilyID::UNKNOWN_FAMILY;
+	int32_t wave_number = 0;
+	gtime_t spawn_time = 0_sec;
+};
+
+constexpr size_t SPAWN_HISTORY_SIZE = 5;  // Track last 5 spawn batches
+extern std::array<SpawnHistoryEntry, SPAWN_HISTORY_SIZE> g_spawn_history;
+extern size_t g_spawn_history_index;  // Ring buffer index
+
+// Helper function to check if a family was recently spawned
+int32_t GetFamilySpawnCountInHistory(AssetFamilyID family_id);
+void RecordSpawnInHistory(AssetFamilyID family_id, int32_t wave_number);
+
 // --- Operator Overloads for MonsterWaveType ---
 // These are fine to keep in the header as they are small, inline, and constexpr.
 template<typename E>

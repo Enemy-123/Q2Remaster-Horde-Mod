@@ -86,6 +86,20 @@ std::unordered_set<std::string> g_precached_sounds;
 int32_t g_total_precached_models = 0;
 int32_t g_total_precached_sounds = 0;
 
+// --- Spawn History Tracking ---
+std::array<SpawnHistoryEntry, SPAWN_HISTORY_SIZE> g_spawn_history;
+size_t g_spawn_history_index = 0;
+
+// --- Per-Map Variety Tracking ---
+// Tracks which families were heavily used in previous maps to avoid repetition across maps
+constexpr size_t MAP_HISTORY_SIZE = 2; // Track last 2 maps
+struct MapFamilyUsage {
+	std::array<int32_t, static_cast<size_t>(AssetFamilyID::MAX_FAMILIES)> family_usage_counts{};
+	int32_t map_seed = 0;
+};
+static std::array<MapFamilyUsage, MAP_HISTORY_SIZE> g_map_family_history;
+static size_t g_map_history_index = 0;
+
 
 int32_t monsters_spawned_in_current_phase = 0;
 int32_t initial_total_monsters_for_spawning_phase_timeout = 0;
@@ -2694,6 +2708,41 @@ static float ApplySpecialModifiers(float weight, size_t i, const MonsterSelectio
 // REMOVED: IsMonsterCompatible - Functionality now inlined in BuildMonsterCache
 // The checks are now performed directly during cache building for better performance
 
+// --- Spawn History Helper Functions ---
+// Counts how many times a family appears in recent spawn history
+int32_t GetFamilySpawnCountInHistory(AssetFamilyID family_id)
+{
+	if (family_id == AssetFamilyID::UNKNOWN_FAMILY)
+		return 0;
+
+	int32_t count = 0;
+	for (const auto& entry : g_spawn_history)
+	{
+		if (entry.family_id == family_id)
+			count++;
+	}
+	return count;
+}
+
+// Records a spawn in the history ring buffer
+void RecordSpawnInHistory(AssetFamilyID family_id, int32_t wave_number)
+{
+	if (family_id == AssetFamilyID::UNKNOWN_FAMILY)
+		return;
+
+	g_spawn_history[g_spawn_history_index] = {family_id, wave_number, level.time};
+	g_spawn_history_index = (g_spawn_history_index + 1) % SPAWN_HISTORY_SIZE;
+}
+
+// Helper to get the asset family for a monster type
+static AssetFamilyID GetMonsterAssetFamily(horde::MonsterTypeID typeId)
+{
+	const size_t idx = static_cast<size_t>(typeId);
+	if (idx < g_monster_to_family.size())
+		return g_monster_to_family[idx];
+	return AssetFamilyID::UNKNOWN_FAMILY;
+}
+
 static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionContext& ctx)
 {
 	cache_ref.clear();
@@ -3180,28 +3229,21 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 			continue;
 		}
 
-		// ELITE SPAWN EXCLUSIVITY: If we dynamically precached a monster for elite spawns,
-		// ONLY allow monsters from that family. This ensures the elite monster actually spawns
-		// instead of being diluted by other low-level precached monsters
+		// ELITE SPAWN BOOST (NOT exclusivity): If we dynamically precached a monster for elite spawns,
+		// give it a weight boost to increase chances of spawning, but DON'T restrict wave variety.
+		// Elite precaching is for making monsters available for future waves, not for dominating the current wave.
+		bool is_elite_family_member = false;
 		if (elite_spawn_model_path != nullptr) {
 			const char* this_monster_model = GetMonsterModelPath(monster_info->typeId);
 			// Use POINTER comparison - same pointer = same model family
-			if (!this_monster_model || elite_spawn_model_path != this_monster_model) {
+			if (this_monster_model && elite_spawn_model_path == this_monster_model) {
+				is_elite_family_member = true;
 				if (developer->integer)
 				{
-					gi.Com_PrintFmt("BuildMonsterCache: Skipping '{}' (ptr={}, not in elite family ptr={})\n",
+					gi.Com_PrintFmt("BuildMonsterCache: '{}' is elite family member (ptr={}, will get boost)\n",
 						horde::MonsterTypeRegistry::GetClassname(monster_info->typeId),
-						(void*)this_monster_model,
-						(void*)elite_spawn_model_path);
+						(void*)this_monster_model);
 				}
-				continue; // Skip monsters not in the elite spawn family
-			}
-			else if (developer->integer)
-			{
-				gi.Com_PrintFmt("BuildMonsterCache: Including '{}' (in elite family '{}', ptr={}, match=true)\n",
-					horde::MonsterTypeRegistry::GetClassname(monster_info->typeId),
-					elite_spawn_model_path,
-					(void*)this_monster_model);
 			}
 		}
 
@@ -3234,6 +3276,53 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 
 		float weight = CalculateBaseWeight(i, mutable_ctx);
 		weight = ApplySpecialModifiers(weight, i, mutable_ctx);
+
+		// Apply spawn history penalty to reduce repetition
+		AssetFamilyID monster_family = GetMonsterAssetFamily(monster_info->typeId);
+		if (monster_family != AssetFamilyID::UNKNOWN_FAMILY)
+		{
+			int32_t recent_spawn_count = GetFamilySpawnCountInHistory(monster_family);
+			if (recent_spawn_count >= 2)
+			{
+				// Apply 0.3x penalty if same family spawned 2+ times in last 5 waves
+				weight *= 0.3f;
+
+				if (developer->integer)
+				{
+					gi.Com_PrintFmt("BuildMonsterCache: '{}' spawn history penalty (count={}, weight={:.2f})\n",
+						horde::MonsterTypeRegistry::GetClassname(monster_info->typeId),
+						recent_spawn_count, weight);
+				}
+			}
+		}
+
+		// Apply soldier variant weight reduction for waves 5+
+		// Reduces soldier dominance in mid-late game while keeping them viable
+		if (mutable_ctx.currentActualLevel >= 5 && monster_family == AssetFamilyID::SOLDIER_FAMILY)
+		{
+			weight *= 0.6f; // Reduce soldier weight by 40% for waves 5+
+
+			if (developer->integer)
+			{
+				gi.Com_PrintFmt("BuildMonsterCache: '{}' soldier reduction (wave {}, weight={:.2f})\n",
+					horde::MonsterTypeRegistry::GetClassname(monster_info->typeId),
+					mutable_ctx.currentActualLevel, weight);
+			}
+		}
+
+		// Apply elite family boost if this is a dynamically precached elite monster
+		// This increases spawn chances without restricting variety
+		if (is_elite_family_member)
+		{
+			weight *= 2.0f; // 2x boost for elite family members
+
+			if (developer->integer)
+			{
+				gi.Com_PrintFmt("BuildMonsterCache: '{}' elite boost (weight={:.2f})\n",
+					horde::MonsterTypeRegistry::GetClassname(monster_info->typeId), weight);
+			}
+		}
+
 		cache_ref.addMonster(monster_info->typeId, weight);
 
 		if (developer->integer && elite_spawn_model_path != nullptr)
@@ -3243,58 +3332,113 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 		}
 	}
 
-	// FIXED: If we have too few monsters, add fallback monsters ensuring they're precached too
-	// This maintains consistency: we never spawn unprecached monsters
-	// IMPORTANT: Skip fallback logic if we're in elite spawn mode - we want ONLY the elite family
-	if (cache_ref.count < MIN_MONSTERS_AVAILABLE && elite_spawn_model_path == nullptr)
+	// IMPROVED FALLBACK: If we have too few monsters, progressively relax wave type requirements
+	// This ensures minimum variety while preserving core wave themes
+	// Now works with elite spawns - elites get boosted weights but don't block fallback variety
+	constexpr int MINIMUM_VARIETY_THRESHOLD = 5; // Trigger fallback if < 5 monsters
+	if (cache_ref.count < MINIMUM_VARIETY_THRESHOLD)
 	{
 		if (developer->integer)
 		{
-			gi.Com_PrintFmt("BuildMonsterCache: Adding fallback monsters (cache has {} monsters)\n", cache_ref.count);
+			gi.Com_PrintFmt("BuildMonsterCache: LOW VARIETY ({} monsters) - Applying relaxed filters\n", cache_ref.count);
 		}
 
-		for (const MonsterTypeInfo* monster_info : g_eligible_monsters_for_wave)
+		// PASS 1: Remove "Special" requirement if present (most restrictive)
+		MonsterWaveType relaxed_wave_type = mutable_ctx.waveTypeForFiltering;
+		if (HasWaveType(relaxed_wave_type, MonsterWaveType::Special))
 		{
-			const size_t i = static_cast<size_t>(monster_info->typeId);
+			relaxed_wave_type = relaxed_wave_type & ~MonsterWaveType::Special;
 
-			// FIXED: Consistently check precache status
-			if (!g_precached_monster_types_flags[i]) {
-				continue;
-			}
-
-			// PvM Mode: Use random monster list for fallback too
-			if (pvm_monsters) {
-				bool in_random_list = false;
-				for (int k = 0; k < pvm_monster_count; ++k) {
-					if (pvm_monsters[k] == monster_info->typeId) {
-						in_random_list = true;
-						break;
-					}
-				}
-				if (!in_random_list) {
-					continue;
-				}
-			}
-
-			const bool monster_is_flying = IsFlying(monster_info->typeId);
-
-			// For flying spawn points: add any flying monsters from early waves
-			if (mutable_ctx.isSpawnPointFlying) {
-				if (monster_is_flying && (pvm_monsters || (monster_info->minWave <= 11 && g_monsterData.minWaves[i] <= mutable_ctx.currentActualLevel)))
-				{
-					if (cache_ref.count >= MIN_MONSTERS_AVAILABLE)
-						break;
-					float weight = CalculateBaseWeight(i, mutable_ctx) * 0.5f;
-					cache_ref.addMonster(monster_info->typeId, weight);
-				}
-			}
-			// For ground spawn points: add core ground monsters
-			else if (!monster_is_flying && (pvm_monsters || (monster_info->minWave <= 3 && g_monsterData.minWaves[i] <= mutable_ctx.currentActualLevel)))
+			if (developer->integer)
 			{
-				if (cache_ref.count >= MIN_MONSTERS_AVAILABLE)
-					break;
-				float weight = CalculateBaseWeight(i, mutable_ctx) * 0.5f;
+				gi.Com_PrintFmt("BuildMonsterCache: PASS 1 - Removed 'Special' requirement (new filter={})\n",
+					static_cast<int>(relaxed_wave_type));
+			}
+
+			// Re-scan with relaxed filter
+			for (const MonsterTypeInfo* monster_info : g_eligible_monsters_for_wave)
+			{
+				const size_t i = static_cast<size_t>(monster_info->typeId);
+
+				if (!g_precached_monster_types_flags[i]) continue;
+				if (g_monsterData.minWaves[i] > mutable_ctx.effectiveLevel) continue;
+
+				const bool monster_is_flying = IsFlying(monster_info->typeId);
+				if (mutable_ctx.isSpawnPointFlying && !monster_is_flying) continue;
+
+				// Check if matches relaxed wave type
+				MonsterWaveType monster_types = g_monsterData.waveTypes[i];
+				if ((monster_types & relaxed_wave_type) == MonsterWaveType::None) continue;
+
+				// Add with reduced weight
+				float weight = CalculateBaseWeight(i, mutable_ctx) * 0.4f;
 				cache_ref.addMonster(monster_info->typeId, weight);
+
+				if (cache_ref.count >= MIN_MONSTERS_AVAILABLE) break;
+			}
+		}
+
+		// PASS 2: If still too few, relax Light/Medium/Heavy to allow adjacent categories
+		if (cache_ref.count < MINIMUM_VARIETY_THRESHOLD)
+		{
+			if (developer->integer)
+			{
+				gi.Com_PrintFmt("BuildMonsterCache: PASS 2 - Relaxing Light/Medium/Heavy categories\n");
+			}
+
+			// Expand category requirements
+			if (HasWaveType(relaxed_wave_type, MonsterWaveType::Light))
+				relaxed_wave_type |= MonsterWaveType::Medium;
+			if (HasWaveType(relaxed_wave_type, MonsterWaveType::Medium))
+				relaxed_wave_type |= MonsterWaveType::Light | MonsterWaveType::Heavy;
+			if (HasWaveType(relaxed_wave_type, MonsterWaveType::Heavy))
+				relaxed_wave_type |= MonsterWaveType::Medium;
+
+			// Re-scan with further relaxed filter
+			for (const MonsterTypeInfo* monster_info : g_eligible_monsters_for_wave)
+			{
+				const size_t i = static_cast<size_t>(monster_info->typeId);
+
+				if (!g_precached_monster_types_flags[i]) continue;
+				if (g_monsterData.minWaves[i] > mutable_ctx.effectiveLevel) continue;
+
+				const bool monster_is_flying = IsFlying(monster_info->typeId);
+				if (mutable_ctx.isSpawnPointFlying && !monster_is_flying) continue;
+
+				// Check if matches further relaxed wave type
+				MonsterWaveType monster_types = g_monsterData.waveTypes[i];
+				if ((monster_types & relaxed_wave_type) == MonsterWaveType::None) continue;
+
+				// Add with reduced weight
+				float weight = CalculateBaseWeight(i, mutable_ctx) * 0.3f;
+				cache_ref.addMonster(monster_info->typeId, weight);
+
+				if (cache_ref.count >= MIN_MONSTERS_AVAILABLE) break;
+			}
+		}
+
+		// PASS 3: Last resort - add any precached monster from early waves
+		if (cache_ref.count < MINIMUM_VARIETY_THRESHOLD)
+		{
+			if (developer->integer)
+			{
+				gi.Com_PrintFmt("BuildMonsterCache: PASS 3 - Adding any early-wave monsters\n");
+			}
+
+			for (const MonsterTypeInfo* monster_info : g_eligible_monsters_for_wave)
+			{
+				const size_t i = static_cast<size_t>(monster_info->typeId);
+
+				if (!g_precached_monster_types_flags[i]) continue;
+				if (monster_info->minWave > 5) continue; // Only very early monsters
+
+				const bool monster_is_flying = IsFlying(monster_info->typeId);
+				if (mutable_ctx.isSpawnPointFlying && !monster_is_flying) continue;
+
+				float weight = CalculateBaseWeight(i, mutable_ctx) * 0.2f;
+				cache_ref.addMonster(monster_info->typeId, weight);
+
+				if (cache_ref.count >= MIN_MONSTERS_AVAILABLE) break;
 			}
 		}
 	}
@@ -3306,7 +3450,7 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 			cache_ref.count, cache_ref.total_weight);
 		if (elite_spawn_model_path != nullptr)
 		{
-			gi.Com_PrintFmt("BuildMonsterCache: Elite spawn mode - cache should only contain '{}' family\n",
+			gi.Com_PrintFmt("BuildMonsterCache: Elite spawn boost active - '{}' family gets 2x weight\n",
 				elite_spawn_model_path);
 		}
 	}
@@ -3853,11 +3997,145 @@ static void PrecacheAllMonsters()
 }
 
 
+// Initialize the monster-to-family mapping for spawn variety tracking
+static void InitializeMonsterFamilyMapping()
+{
+	// Initialize all to UNKNOWN_FAMILY first
+	g_monster_to_family.fill(AssetFamilyID::UNKNOWN_FAMILY);
+
+	using namespace horde;
+
+	// Soldier family
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::SOLDIER_LIGHT)] = AssetFamilyID::SOLDIER_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::SOLDIER)] = AssetFamilyID::SOLDIER_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::SOLDIER_SS)] = AssetFamilyID::SOLDIER_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::SOLDIER_HYPERGUN)] = AssetFamilyID::SOLDIER_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::SOLDIER_RIPPER)] = AssetFamilyID::SOLDIER_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::SOLDIER_LASERGUN)] = AssetFamilyID::SOLDIER_FAMILY;
+
+	// Tank family
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::TANK)] = AssetFamilyID::TANK_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::TANK_COMMANDER)] = AssetFamilyID::TANK_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::TANK_64)] = AssetFamilyID::TANK_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::RUNNERTANK)] = AssetFamilyID::TANK_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::TANK_SPAWNER)] = AssetFamilyID::TANK_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::EASTERTANK)] = AssetFamilyID::TANK_FAMILY;
+
+	// Gladiator family
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::GLADIATOR)] = AssetFamilyID::GLADIATOR_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::GLADIATOR_B)] = AssetFamilyID::GLADIATOR_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::GLADIATOR_C)] = AssetFamilyID::GLADIATOR_FAMILY;
+
+	// Gunner family
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::GUNNER)] = AssetFamilyID::GUNNER_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::GUNNER_VANILLA)] = AssetFamilyID::GUNNER_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::GUNCMDR)] = AssetFamilyID::GUNNER_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::GUNCMDR_VANILLA)] = AssetFamilyID::GUNNER_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::GUNCMDR_KL)] = AssetFamilyID::GUNNER_FAMILY;
+
+	// Infantry family
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::INFANTRY)] = AssetFamilyID::INFANTRY_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::INFANTRY_VANILLA)] = AssetFamilyID::INFANTRY_FAMILY;
+
+	// Arachnid family
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::SPIDER)] = AssetFamilyID::ARACHNID_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::ARACHNID)] = AssetFamilyID::ARACHNID_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::ARACHNID2)] = AssetFamilyID::ARACHNID_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::GM_ARACHNID)] = AssetFamilyID::ARACHNID_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::PSX_ARACHNID)] = AssetFamilyID::ARACHNID_FAMILY;
+
+	// Guardian family
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::GUARDIAN)] = AssetFamilyID::GUARDIAN_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::PSX_GUARDIAN)] = AssetFamilyID::GUARDIAN_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::JANITOR2)] = AssetFamilyID::GUARDIAN_FAMILY;
+
+	// Supertank family
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::JANITOR)] = AssetFamilyID::SUPERTANK_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::SUPERTANK)] = AssetFamilyID::SUPERTANK_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::SUPERTANKKL)] = AssetFamilyID::SUPERTANK_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::BOSS5)] = AssetFamilyID::SUPERTANK_FAMILY;
+
+	// Fixbot family
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::FIXBOT)] = AssetFamilyID::FIXBOT_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::FIXBOT_KL)] = AssetFamilyID::FIXBOT_FAMILY;
+
+	// Turret family
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::TURRET)] = AssetFamilyID::TURRET_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::SENTRYGUN)] = AssetFamilyID::TURRET_FAMILY;
+
+	// Daedalus family
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::DAEDALUS)] = AssetFamilyID::DAEDALUS_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::DAEDALUS_BOMBER)] = AssetFamilyID::DAEDALUS_FAMILY;
+
+	// Parasite family
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::PARASITE)] = AssetFamilyID::PARASITE_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::PERRO_KL)] = AssetFamilyID::PARASITE_FAMILY;
+
+	// Boss2 family
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::BOSS2)] = AssetFamilyID::BOSS2_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::BOSS2_64)] = AssetFamilyID::BOSS2_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::BOSS2_MINI)] = AssetFamilyID::BOSS2_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::BOSS2_KL)] = AssetFamilyID::BOSS2_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::BOSS3_STAND)] = AssetFamilyID::BOSS2_FAMILY;
+
+	// Carrier family
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::CARRIER)] = AssetFamilyID::CARRIER_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::CARRIER_MINI)] = AssetFamilyID::CARRIER_FAMILY;
+
+	// Widow family
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::WIDOW)] = AssetFamilyID::WIDOW_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::WIDOW1)] = AssetFamilyID::WIDOW_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::WIDOW2)] = AssetFamilyID::WIDOW_FAMILY;
+
+	// Shambler family
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::SHAMBLER)] = AssetFamilyID::SHAMBLER_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::SHAMBLER_SMALL)] = AssetFamilyID::SHAMBLER_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::SHAMBLER_KL)] = AssetFamilyID::SHAMBLER_FAMILY;
+
+	// Makron family
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::MAKRON)] = AssetFamilyID::MAKRON_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::MAKRON_KL)] = AssetFamilyID::MAKRON_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::JORG)] = AssetFamilyID::MAKRON_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::JORG_SMALL)] = AssetFamilyID::MAKRON_FAMILY;
+
+	// Individual families
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::BERSERK)] = AssetFamilyID::BERSERK_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::BERSERKERKL)] = AssetFamilyID::BERSERK_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::BRAIN)] = AssetFamilyID::BRAIN_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::CHICK)] = AssetFamilyID::CHICK_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::CHICK_HEAT)] = AssetFamilyID::CHICK_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::CHICKKL)] = AssetFamilyID::CHICK_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::EASTERCHICK)] = AssetFamilyID::CHICK_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::EASTERCHICK2)] = AssetFamilyID::CHICK_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::FLYER)] = AssetFamilyID::FLYER_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::HOVER)] = AssetFamilyID::HOVER_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::HOVER_VANILLA)] = AssetFamilyID::HOVER_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::FLIPPER)] = AssetFamilyID::HOVER_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::MEDIC)] = AssetFamilyID::MEDIC_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::MEDIC_COMMANDER)] = AssetFamilyID::MEDIC_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::MUTANT)] = AssetFamilyID::MUTANT_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::REDMUTANT)] = AssetFamilyID::MUTANT_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::FLOATER)] = AssetFamilyID::FLOATER_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::FLOATER_TRACKER)] = AssetFamilyID::FLOATER_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::STALKER)] = AssetFamilyID::STALKER_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::GEKK)] = AssetFamilyID::GEKK_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::GEKKKL)] = AssetFamilyID::GEKK_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::MISC_INSANE)] = AssetFamilyID::INSANE_FAMILY;
+
+	// Misc/unknown
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::COMMANDER_BODY)] = AssetFamilyID::MISC_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::BIGVIPER)] = AssetFamilyID::MISC_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::KAMIKAZE)] = AssetFamilyID::MISC_FAMILY;
+}
+
 void Horde_Init()
 {
 	sounds_precached = false;
 	items_precached = false;
 	ResetBosses();
+
+	// Initialize monster family mapping for spawn variety tracking
+	InitializeMonsterFamilyMapping();
 
 	// Initialize character persistence system
 	Character_Init();
@@ -6899,6 +7177,45 @@ public:
                 }
 
                 ProcessResults();
+
+                // Record spawn in history for variety tracking
+                // Track the most common family in this batch
+                if (current_batch.count > 0 && total_spawned > 0) {
+                    std::array<int32_t, static_cast<size_t>(AssetFamilyID::MAX_FAMILIES)> family_counts{};
+
+                    // Count families in successful spawns
+                    for (size_t i = 0; i < current_batch.count; ++i) {
+                        if (!current_batch.is_valid[i]) continue;
+
+                        edict_t* monster = current_batch.spawned_monsters[i];
+                        if (monster && monster->inuse) {
+                            AssetFamilyID family = GetMonsterAssetFamily(current_batch.entries[i].typeId);
+                            if (family != AssetFamilyID::UNKNOWN_FAMILY) {
+                                family_counts[static_cast<size_t>(family)]++;
+                            }
+                        }
+                    }
+
+                    // Find most common family in this batch
+                    AssetFamilyID dominant_family = AssetFamilyID::UNKNOWN_FAMILY;
+                    int32_t max_count = 0;
+                    for (size_t i = 0; i < family_counts.size(); ++i) {
+                        if (family_counts[i] > max_count) {
+                            max_count = family_counts[i];
+                            dominant_family = static_cast<AssetFamilyID>(i);
+                        }
+                    }
+
+                    // Record the dominant family
+                    if (dominant_family != AssetFamilyID::UNKNOWN_FAMILY) {
+                        RecordSpawnInHistory(dominant_family, current_wave_level);
+
+                        if (developer->integer >= 2) {
+                            gi.Com_PrintFmt("Recorded spawn: family={}, count={}, wave={}\n",
+                                static_cast<int>(dominant_family), max_count, current_wave_level);
+                        }
+                    }
+                }
             }
         }
 
@@ -7809,8 +8126,49 @@ void UnlockModelFamilyMembers(horde::MonsterTypeID boss_typeId, int32_t current_
 }
 
 // Initialize monster rotation for a new map
+// Helper function: Get total usage count of a family in previous maps
+static int32_t GetFamilyUsageInPreviousMaps(AssetFamilyID family_id)
+{
+	if (family_id == AssetFamilyID::UNKNOWN_FAMILY)
+		return 0;
+
+	int32_t total_usage = 0;
+	for (const auto& map_usage : g_map_family_history)
+	{
+		if (map_usage.map_seed > 0) // Valid entry
+		{
+			total_usage += map_usage.family_usage_counts[static_cast<size_t>(family_id)];
+		}
+	}
+	return total_usage;
+}
+
 static void InitializeMonsterRotation()
 {
+	// Save current map's family usage to history before clearing
+	// This tracks which families were heavily used to avoid repetition in next map
+	MapFamilyUsage current_map_usage;
+	current_map_usage.map_seed = g_map_rotation_seed;
+
+	// Count how many times each family appeared in spawn history
+	for (const auto& entry : g_spawn_history)
+	{
+		if (entry.family_id != AssetFamilyID::UNKNOWN_FAMILY)
+		{
+			current_map_usage.family_usage_counts[static_cast<size_t>(entry.family_id)]++;
+		}
+	}
+
+	// Store in history ring buffer
+	g_map_family_history[g_map_history_index] = current_map_usage;
+	g_map_history_index = (g_map_history_index + 1) % MAP_HISTORY_SIZE;
+
+	if (developer->integer && g_map_rotation_seed > 0)
+	{
+		gi.Com_PrintFmt("Saving map {} family usage to history (index {})\n",
+			g_map_rotation_seed, g_map_history_index);
+	}
+
 	g_excluded_monsters_this_map.clear();
 	g_precached_monsters_this_map.clear();
 	g_precached_models_this_map.clear();
@@ -7818,7 +8176,13 @@ static void InitializeMonsterRotation()
 	g_last_precache_wave = 0;
 
 	// Create a deterministic but rotating exclusion list
-	std::vector<horde::MonsterTypeID> excludable_monsters;
+	// IMPROVED: Prefer excluding families that were heavily used in previous maps
+	struct ExcludableMonsterInfo {
+		horde::MonsterTypeID typeId;
+		AssetFamilyID family;
+		int32_t prev_map_usage; // How much this family was used in previous maps
+	};
+	std::vector<ExcludableMonsterInfo> excludable_monsters;
 
 	// Build list of monsters that can be excluded (not bosses or critical monsters)
 	for (size_t i = 0; i < MONSTER_DATA_COUNT; ++i) {
@@ -7831,28 +8195,67 @@ static void InitializeMonsterRotation()
 			monster.typeId != horde::MonsterTypeID::MEDIC && // Always keep medics
 			monster.typeId != horde::MonsterTypeID::GUNNER) { // Always keep gunners
 
-			excludable_monsters.push_back(monster.typeId);
+			AssetFamilyID family = GetMonsterAssetFamily(monster.typeId);
+			int32_t prev_usage = GetFamilyUsageInPreviousMaps(family);
+
+			excludable_monsters.push_back({monster.typeId, family, prev_usage});
 		}
 	}
 
-	// Rotate which monsters to exclude based on map seed
-	if (!excludable_monsters.empty()) {
-		// Simple rotation based on map seed - deterministic but varied
-		// Rotate the starting point based on map seed
-		size_t rotation_offset = (static_cast<size_t>(g_map_rotation_seed) * 7) % excludable_monsters.size();
+	// Sort by previous usage (descending) - prefer excluding heavily used families
+	std::sort(excludable_monsters.begin(), excludable_monsters.end(),
+		[](const ExcludableMonsterInfo& a, const ExcludableMonsterInfo& b) {
+			// Primary sort: Previous usage (higher = prefer to exclude)
+			if (a.prev_map_usage != b.prev_map_usage)
+				return a.prev_map_usage > b.prev_map_usage;
+			// Secondary sort: Family ID for deterministic ordering
+			return a.family < b.family;
+		});
 
-		// Exclude up to MONSTERS_TO_EXCLUDE_PER_MAP monsters
+	// Exclude up to MONSTERS_TO_EXCLUDE_PER_MAP monsters
+	// Biased toward families that were used in previous maps
+	if (!excludable_monsters.empty()) {
 		int to_exclude = std::min(MONSTERS_TO_EXCLUDE_PER_MAP, static_cast<int>(excludable_monsters.size()));
-		for (int i = 0; i < to_exclude; i++) {
-			// Select monsters in a rotating pattern
+
+		// Mix: 70% from heavily-used families, 30% random rotation for variety
+		int biased_count = static_cast<int>(to_exclude * 0.7f);
+		int random_count = to_exclude - biased_count;
+
+		// Add biased exclusions (from top of sorted list)
+		for (int i = 0; i < biased_count && i < static_cast<int>(excludable_monsters.size()); i++) {
+			g_excluded_monsters_this_map.insert(excludable_monsters[i].typeId);
+		}
+
+		// Add random rotation exclusions
+		size_t rotation_offset = (static_cast<size_t>(g_map_rotation_seed) * 7) % excludable_monsters.size();
+		for (int i = 0; i < random_count; i++) {
 			size_t index = (rotation_offset + static_cast<size_t>(i) * 3) % excludable_monsters.size();
-			g_excluded_monsters_this_map.insert(excludable_monsters[index]);
+			g_excluded_monsters_this_map.insert(excludable_monsters[index].typeId);
 		}
 	}
 
 	if (developer->integer) {
-		gi.Com_PrintFmt("Monster Rotation: Map seed {}, excluding {} monsters this map\n",
+		gi.Com_PrintFmt("Monster Rotation: Map seed {}, excluding {} monsters (biased against overused families)\n",
 			g_map_rotation_seed, g_excluded_monsters_this_map.size());
+
+		// Show top 5 most used families from previous maps
+		std::vector<std::pair<AssetFamilyID, int32_t>> family_usage;
+		for (size_t i = 0; i < static_cast<size_t>(AssetFamilyID::MAX_FAMILIES); i++)
+		{
+			AssetFamilyID family = static_cast<AssetFamilyID>(i);
+			int32_t usage = GetFamilyUsageInPreviousMaps(family);
+			if (usage > 0)
+				family_usage.push_back({family, usage});
+		}
+		std::sort(family_usage.begin(), family_usage.end(),
+			[](const auto& a, const auto& b) { return a.second > b.second; });
+
+		gi.Com_Print("  Top families from previous maps: ");
+		for (size_t i = 0; i < std::min(size_t(5), family_usage.size()); i++)
+		{
+			gi.Com_PrintFmt("{}({}) ", static_cast<int>(family_usage[i].first), family_usage[i].second);
+		}
+		gi.Com_Print("\n");
 	}
 }
 
