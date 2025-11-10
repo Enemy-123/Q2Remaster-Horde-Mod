@@ -180,6 +180,7 @@ extern bool Horde_TeleportMonster(edict_t* self, const vec3_t& destination_origi
 
 const char* GetPlayerName(const edict_t* player);
 extern const char* GetDisplayName(const edict_t* ent);
+extern const char* GetMonsterDisplayNameFromTypeID(horde::MonsterTypeID type_id);
 extern std::string_view GetTitleFromFlags(bonus_flags_t bonus_flags) noexcept;
 extern bool IsPlayerDefense(const edict_t* ent);
 extern void VerifyAndAdjustBots();

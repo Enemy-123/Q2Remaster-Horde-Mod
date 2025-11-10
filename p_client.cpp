@@ -361,15 +361,16 @@ namespace ObituaryMessages {
 		return name ? name : "monster";
 	}
 
-	// Get monster name from projectile type ID
-	inline const char* GetMonsterNameFromProjectile(edict_t* inflictor)
+	// Get monster display name from projectile type ID (uses proper display name system)
+	inline const char* GetMonsterDisplayNameFromProjectile(edict_t* inflictor)
 	{
-		const char* classname = horde::MonsterTypeRegistry::GetClassname(
+		const char* name = GetMonsterDisplayNameFromTypeID(
 			static_cast<horde::MonsterTypeID>(inflictor->projectile_attacker_type_id));
-		
-		if (classname && strncmp(classname, "monster_", 8) == 0)
-			return classname + 8;
-		return classname ? classname : "monster";
+
+		// Strip "monster_" prefix if present (shouldn't be, but just in case)
+		if (name && strncmp(name, "monster_", 8) == 0)
+			return name + 8;
+		return name;
 	}
 }
 
@@ -413,9 +414,9 @@ static void HandleMonsterKillObituary(edict_t* self, edict_t* attacker, const mo
 	const char* monster_name = ObituaryMessages::GetMonsterDisplayName(attacker);
 	const char* message = ObituaryMessages::GetMonsterKillMessage(mod.id);
 
-	// Include monster level in death message
+	// Include monster level in death message (only in RPG mode)
 	int monster_level = attacker->monsterinfo.pvm_level;
-	if (monster_level > 0) {
+	if (g_vortex->integer != 0 && monster_level > 0) {
 		gi.LocBroadcast_Print(PRINT_MEDIUM, "{} was killed by a level {} {}\n",
 			self->client->pers.netname, monster_level, monster_name);
 	} else {
@@ -428,12 +429,12 @@ static void HandleMonsterKillObituary(edict_t* self, edict_t* attacker, const mo
 // Handle projectile from dead monster
 static void HandleDeadMonsterProjectileObituary(edict_t* self, edict_t* inflictor, const mod_t& mod)
 {
-	const char* monster_name = ObituaryMessages::GetMonsterNameFromProjectile(inflictor);
+	const char* monster_name = ObituaryMessages::GetMonsterDisplayNameFromProjectile(inflictor);
 	const char* message = ObituaryMessages::GetMonsterKillMessage(mod.id);
 
-	// Include monster level in death message if available
+	// Include monster level in death message if available (only in RPG mode)
 	int monster_level = inflictor->projectile_attacker_level;
-	if (monster_level > 0) {
+	if (g_vortex->integer != 0 && monster_level > 0) {
 		gi.LocBroadcast_Print(PRINT_MEDIUM, "{} was killed by a level {} {}\n",
 			self->client->pers.netname, monster_level, monster_name);
 	} else {

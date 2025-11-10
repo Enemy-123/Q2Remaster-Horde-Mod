@@ -577,6 +577,20 @@ const char* GetDisplayName(const edict_t* ent) {
     return display_name_buffer;
 }
 
+// Get monster display name from MonsterTypeID (for projectiles)
+const char* GetMonsterDisplayNameFromTypeID(horde::MonsterTypeID type_id) {
+    if (!g_displayNamesInitialized) {
+        InitializeDisplayNames();
+    }
+
+    if (type_id != horde::MonsterTypeID::UNKNOWN &&
+        static_cast<size_t>(type_id) < g_monsterDisplayNames.size()) {
+        return g_monsterDisplayNames[static_cast<size_t>(type_id)].c_str();
+    }
+
+    return "Unknown Monster";
+}
+
 // // Calculate sentry gun health with adrenaline bonus
 [[nodiscard]] int CalculateSentryHealth(int base_health, gclient_t* owner_client)
 {

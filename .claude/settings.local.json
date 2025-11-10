@@ -16,7 +16,8 @@
       "Bash(dir:*)",
       "Bash(nul)",
       "mcp__serena__search_for_pattern",
-      "mcp__serena__find_referencing_symbols"
+      "mcp__serena__find_referencing_symbols",
+      "Bash(python build_mingw.py:*)"
     ],
     "deny": [],
     "ask": []
