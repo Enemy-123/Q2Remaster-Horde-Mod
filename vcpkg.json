@@ -1,19 +1,19 @@
 {
-  "name": "quake2-remaster-horde",
-  "version-string": "1.0.0",
-  "builtin-baseline": "a3f2ea0f3443180a6d93a1bcd679f90dfea0ae48",
-  "dependencies": [
-    {
-      "name": "fmt",
-      "version>=": "12.0.0"
-    },
-    {
-      "name": "jsoncpp",
-      "version>=": "1.9.6"
-    },
-    {
-      "name": "boost-container",
-      "version>=": "1.88.0"
-    }
-  ]
+    "name": "quake2-remaster-horde",
+    "version-string": "1.0.0",
+    "builtin-baseline": "9a5d7860d1e3c0e394495744cecbf0f5cf41306a",
+    "dependencies": [
+        {
+            "name": "fmt",
+            "version>=": "12.1.0"
+        },
+        {
+            "name": "jsoncpp",
+            "version>=": "1.9.6"
+        },
+        {
+            "name": "boost-container",
+            "version>=": "1.89.0"
+        }
+    ]
 }
