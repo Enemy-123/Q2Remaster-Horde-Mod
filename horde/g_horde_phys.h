@@ -5,6 +5,7 @@
 #include <array>       // For std::array
 #include <vector>      // For std::vector
 #include <unordered_map> // For std::unordered_map
+#include <boost/container/small_vector.hpp> // For small_vector optimization
 
 namespace HordePhys {
 
@@ -13,18 +14,17 @@ namespace HordePhys {
 
     // A simple grid cell that holds pointers to monsters.
     struct ProximityGridCell {
-        // Using vector with reserved capacity for typical case, grows dynamically for dense areas
-        // This eliminates "cell is full" warnings while maintaining performance
+        // Using small_vector for inline storage - avoids heap allocation for typical case
+        // Stores 32 pointers inline (256 bytes), only allocates heap if cell exceeds 32 entities
+        // This eliminates heap fragmentation and improves cache locality
         static constexpr size_t TYPICAL_ENTITIES_PER_CELL = 32;
-        std::vector<edict_t*> monsters;
+        boost::container::small_vector<edict_t*, TYPICAL_ENTITIES_PER_CELL> monsters;
 
-        ProximityGridCell() {
-            monsters.reserve(TYPICAL_ENTITIES_PER_CELL);
-        }
+        ProximityGridCell() = default;  // No need for reserve() - storage is inline
 
         void clear() {
             monsters.clear();
-            // Keep the reserved capacity to avoid reallocation next frame
+            // Inline storage is preserved, no deallocation
         }
 
         void add(edict_t* ent) {
