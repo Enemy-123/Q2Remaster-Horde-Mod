@@ -64,8 +64,9 @@ static bool g_full_precache_done = false;
 
 static bool monsters_precached = false;
 MonsterWaveType current_wave_type = MonsterWaveType::None;
-std::vector<const MonsterTypeInfo *> g_eligible_monsters_for_wave;
-std::vector<size_t> g_eligible_item_indices_for_wave;
+// Using small_vector - typically < 32 entries per wave, avoids heap allocation in common case
+boost::container::small_vector<const MonsterTypeInfo *, 32> g_eligible_monsters_for_wave;
+boost::container::small_vector<size_t, 32> g_eligible_item_indices_for_wave;
 
 // Progressive monster unlocking system for memory management
 static boost::container::flat_set<horde::MonsterTypeID> g_excluded_monsters_this_map;  // C++23 - excluded monsters cache
@@ -8382,11 +8383,7 @@ static void Horde_InitLevel(const int32_t lvl)
 	g_eligible_monsters_for_wave.clear();
 	g_eligible_item_indices_for_wave.clear();
 
-	// Use safe allocation to prevent bad_alloc
-	if (!safe_reserve(g_eligible_monsters_for_wave, std::min(size_t(MONSTER_DATA_COUNT), MAX_SAFE_RESERVE_SIZE))) {
-		gi.Com_Print("ERROR: Failed to reserve memory for eligible monsters\n");
-		return;
-	}
+	// Note: small_vector has inline capacity of 32, no reserve needed
 
 	// PVM Mode: Use pre-selected random monsters for the entire map
 	const horde::MonsterTypeID* pvm_monsters = PVM_GetRandomMonsters();
@@ -8402,10 +8399,8 @@ static void Horde_InitLevel(const int32_t lvl)
 			{
 				if (monsterTypes[j].typeId == monster_id)
 				{
-					if (!safe_push_back(g_eligible_monsters_for_wave, &monsterTypes[j], MAX_SAFE_CONTAINER_SIZE)) {
-						gi.Com_Print("WARNING: Eligible monsters list full\n");
-						break;
-					}
+					// small_vector handles capacity automatically (32 inline, heap beyond)
+					g_eligible_monsters_for_wave.push_back(&monsterTypes[j]);
 					break;
 				}
 			}
@@ -8442,11 +8437,8 @@ static void Horde_InitLevel(const int32_t lvl)
 				// Skip if this monster is excluded for this map
 				if (g_excluded_monsters_this_map.find(monster.typeId) == g_excluded_monsters_this_map.end())
 				{
-					// Use safe push_back to prevent overflow at 65535
-					if (!safe_push_back(g_eligible_monsters_for_wave, &monster, MAX_SAFE_CONTAINER_SIZE)) {
-						gi.Com_Print("WARNING: Eligible monsters list full\n");
-						break;
-					}
+					// small_vector handles capacity automatically
+					g_eligible_monsters_for_wave.push_back(&monster);
 				}
 			}
 		}
@@ -8483,8 +8475,7 @@ static void Horde_InitLevel(const int32_t lvl)
 				// Add regular monsters to pool (50 entries - dominates over hovers)
 				for (int j = 0; j < num_regular; ++j)
 				{
-					if (!safe_push_back(g_eligible_monsters_for_wave, &monsterTypes[i], MAX_SAFE_CONTAINER_SIZE))
-						break;
+					g_eligible_monsters_for_wave.push_back(&monsterTypes[i]);
 				}
 				break;
 			}
@@ -8498,11 +8489,7 @@ static void Horde_InitLevel(const int32_t lvl)
 				// Add boss monsters to pool (30-60 entries depending on wave)
 				for (int j = 0; j < num_bosses; ++j)
 				{
-					if (!safe_push_back(g_eligible_monsters_for_wave, &monsterTypes[i], MAX_SAFE_CONTAINER_SIZE))
-					{
-						gi.Com_Print("WARNING: Could not add boss variant to eligible monsters\n");
-						break;
-					}
+					g_eligible_monsters_for_wave.push_back(&monsterTypes[i]);
 				}
 
 				// ALWAYS print this info for special waves (not just developer mode)
@@ -8528,20 +8515,14 @@ static void Horde_InitLevel(const int32_t lvl)
 		}
 	}
 
-	// Safe reserve for item indices
-	if (!safe_reserve(g_eligible_item_indices_for_wave, std::min(g_hordeItemDataSoA.NUM_ITEMS, MAX_SAFE_RESERVE_SIZE))) {
-		gi.Com_Print("ERROR: Failed to reserve memory for eligible items\n");
-	}
+	// Note: small_vector has inline capacity of 32, no reserve needed
 
 	for (size_t i = 0; i < g_hordeItemDataSoA.NUM_ITEMS; ++i)
 	{
 		if (lvl >= g_hordeItemDataSoA.minWaves[i])
 		{
-			// Use safe push_back to prevent overflow
-			if (!safe_push_back(g_eligible_item_indices_for_wave, i, MAX_SAFE_CONTAINER_SIZE)) {
-				gi.Com_Print("WARNING: Eligible items list full\n");
-				break;
-			}
+			// small_vector handles capacity automatically
+			g_eligible_item_indices_for_wave.push_back(i);
 		}
 	}
 

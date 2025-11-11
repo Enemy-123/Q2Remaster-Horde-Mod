@@ -9,6 +9,7 @@
 #include <array>
 #include <unordered_set>
 #include <boost/container/flat_set.hpp>
+#include <boost/container/small_vector.hpp>  // For small_vector optimization
 
 constexpr const char* HORDE_MOD_VERSION_STRING = "*Horde BETA MOD v0.00997";
 
@@ -148,8 +149,9 @@ extern HordeState g_horde_local;
 // --- Global Variable DECLARATIONS ---
 // 'extern' tells other .cpp files that these variables exist and are defined elsewhere.
 extern MonsterWaveType current_wave_type;
-extern std::vector<const MonsterTypeInfo*> g_eligible_monsters_for_wave;
-extern std::vector<size_t> g_eligible_item_indices_for_wave;
+// Using small_vector for wave eligibility lists - typically < 32 entries, avoids heap allocation in common case
+extern boost::container::small_vector<const MonsterTypeInfo*, 32> g_eligible_monsters_for_wave;
+extern boost::container::small_vector<size_t, 32> g_eligible_item_indices_for_wave;
 
 
 // Boss types

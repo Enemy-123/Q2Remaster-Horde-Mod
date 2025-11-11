@@ -629,7 +629,7 @@ void ProximityGrid::Reset()
         }
 
         Clear();
-        m_grid_nodes.reserve(MAX_GRID_NODES);
+        // Note: static_vector has fixed capacity - no reserve() needed
 
         // Store world bounds
         m_world_mins = world_mins;

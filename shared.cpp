@@ -1323,10 +1323,10 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, fl
 		   !Q_strncasecmp(str1, str2.data(), str2.length());
 }
 
-// Monster name replacements with perfect hash
+// Monster name replacements using flat_map for better cache locality (sorted vector-based map)
 // SAFETY: Using string_view values is safe here because all values are string literals
 // with static storage duration that exist for the entire program lifetime
-const std::unordered_map<horde::MonsterTypeID, std::string_view> monster_name_replacements = {
+const boost::container::flat_map<horde::MonsterTypeID, std::string_view> monster_name_replacements = {
     {horde::MonsterTypeID::SOLDIER_LIGHT, "Blaster Guard"},
     {horde::MonsterTypeID::SOLDIER, "SG Guard"},
     {horde::MonsterTypeID::SOLDIER_SS, "SS Guard"},

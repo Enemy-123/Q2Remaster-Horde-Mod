@@ -81,14 +81,15 @@ extern void ExecuteSpawnPlan();
 // ============================================================================
 
 void SpawnPointsSoA::resize(size_t new_size) {
-    // Clamp size to prevent overflow
-    constexpr size_t MAX_SAFE_CONTAINER_SIZE = 100000;
-    if (new_size > MAX_SAFE_CONTAINER_SIZE) {
-        gi.Com_PrintFmt("WARNING: Spawn points data resize {} exceeds max {}, clamping\n",
-            new_size, MAX_SAFE_CONTAINER_SIZE);
-        new_size = MAX_SAFE_CONTAINER_SIZE;
+    // Clamp size to static_vector capacity (128)
+    constexpr size_t MAX_SPAWN_POINTS_CAPACITY = 128;
+    if (new_size > MAX_SPAWN_POINTS_CAPACITY) {
+        gi.Com_PrintFmt("WARNING: Spawn points data resize {} exceeds static_vector capacity {}, clamping\n",
+            new_size, MAX_SPAWN_POINTS_CAPACITY);
+        new_size = MAX_SPAWN_POINTS_CAPACITY;
     }
 
+    // static_vector doesn't throw std::bad_alloc (stack/static storage), but we keep try-catch for safety
     try {
         isTemporarilyDisabled.assign(new_size, false);
         cooldownEndsAt.assign(new_size, 0_sec);
@@ -99,8 +100,8 @@ void SpawnPointsSoA::resize(size_t new_size) {
         successfulSpawns.assign(new_size, 0);
         alternative_attempts.assign(new_size, 0);
         needs_long_alternative_cooldown.assign(new_size, false);
-    } catch (const std::bad_alloc&) {
-        gi.Com_Print("ERROR: Failed to allocate memory for spawn points data\n");
+    } catch (const std::exception& e) {
+        gi.Com_PrintFmt("ERROR: Failed to resize spawn points data: {}\n", e.what());
         clear(); // Clear all on failure
     }
 }

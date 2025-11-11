@@ -7,16 +7,17 @@
 #include "memory_safety.h"  // For memory safety wrappers
 
 // Include necessary standard library headers for implementation
-#include <map>       // For the definition of std::map
+#include <boost/container/flat_map.hpp>  // For boost::container::flat_map
+#include <boost/container/small_vector.hpp>  // For boost::container::small_vector
 #include <numeric>   // For std::accumulate
 #include <algorithm> // For std::sort, std::max_element
-#include <vector>    // For std::vector definition
+#include <vector>    // For std::vector definition (still used in PrintResults)
 #include <utility>   // For std::pair (used implicitly by map)
 
 // --- Global Profiler Variable Definitions ---
 // These lines actually create the variables in memory.
 
-std::map<std::string, ProfileData> g_profiler_data; // The actual map instance
+boost::container::flat_map<std::string, ProfileData> g_profiler_data; // The actual flat_map instance (cache-friendly sorted vector)
 bool g_profiler_enabled = false;                    // Initialize the flag to disabled
 
 // Note: The definition for 'cvar_t* g_horde_profiler;' should be in another file
@@ -43,23 +44,17 @@ void ProfileData::record_duration(std::chrono::nanoseconds duration) {
 
 // Moves the completed frame's total duration into the rolling history buffer
 void ProfileData::update_history() {
-	// Enforce hard limit on history size
+	// Enforce hard limit on history size (small_vector has inline capacity of 60)
 	constexpr size_t MAX_HISTORY = std::min(HISTORY_SIZE, MAX_PROFILER_HISTORY);
 
-	// If history buffer is at or beyond max size, remove oldest entries
-	while (history.size() >= MAX_HISTORY) {
-		history.erase(history.begin()); // Removes the element at the beginning
+	// If history buffer is at or beyond max size, remove oldest entry
+	if (history.size() >= MAX_HISTORY) {
+		history.erase(history.begin()); // Remove oldest element
 	}
 
 	// Add the total duration from the just-completed frame to the end
-	// Use safe push_back to prevent overflow
-	if (!safe_push_back(history, total_duration_this_frame, MAX_HISTORY)) {
-		// If we can't add, remove oldest and try again
-		if (!history.empty()) {
-			history.erase(history.begin());
-			safe_push_back(history, total_duration_this_frame, MAX_HISTORY);
-		}
-	}
+	// small_vector handles capacity automatically (inline storage for HISTORY_SIZE=60)
+	history.push_back(total_duration_this_frame);
 }
 
 // Calculates the average duration (in milliseconds) over the history period

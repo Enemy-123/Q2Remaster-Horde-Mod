@@ -2,6 +2,7 @@
 
 #include "horde_ids.h"
 #include "../shared.h"
+#include <boost/container/static_vector.hpp>  // For static_vector (fixed-capacity, no heap allocation)
 
 // Forward declarations (edict_t is already defined in shared.h)
 
@@ -40,19 +41,20 @@ struct SpawnPlanEntry {
 };
 
 // Spawn points data using SoA (Structure of Arrays) for cache efficiency
+// Using static_vector with capacity 128 (MAX_SPAWN_POINTS=64, doubled for safety) - NO heap allocations!
 struct SpawnPointsSoA {
     // --- HOT DATA ---
-    std::vector<bool> isTemporarilyDisabled;
-    std::vector<gtime_t> cooldownEndsAt;
-    std::vector<gtime_t> alternative_cooldown;
-    std::vector<gtime_t> teleport_cooldown;
+    boost::container::static_vector<bool, 128> isTemporarilyDisabled;
+    boost::container::static_vector<gtime_t, 128> cooldownEndsAt;
+    boost::container::static_vector<gtime_t, 128> alternative_cooldown;
+    boost::container::static_vector<gtime_t, 128> teleport_cooldown;
 
     // --- COLD DATA ---
-    std::vector<gtime_t> lastSpawnTime;
-    std::vector<uint16_t> attempts;
-    std::vector<int32_t> successfulSpawns;
-    std::vector<uint16_t> alternative_attempts;
-    std::vector<bool> needs_long_alternative_cooldown;
+    boost::container::static_vector<gtime_t, 128> lastSpawnTime;
+    boost::container::static_vector<uint16_t, 128> attempts;
+    boost::container::static_vector<int32_t, 128> successfulSpawns;
+    boost::container::static_vector<uint16_t, 128> alternative_attempts;
+    boost::container::static_vector<bool, 128> needs_long_alternative_cooldown;
 
     // Helper to resize all vectors at once
     void resize(size_t new_size);

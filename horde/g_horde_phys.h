@@ -5,7 +5,8 @@
 #include <array>       // For std::array
 #include <vector>      // For std::vector
 #include <unordered_map> // For std::unordered_map
-#include <boost/container/small_vector.hpp> // For small_vector optimization
+#include <boost/container/small_vector.hpp>  // For small_vector optimization
+#include <boost/container/static_vector.hpp> // For static_vector (fixed-capacity)
 
 namespace HordePhys {
 
@@ -145,7 +146,8 @@ namespace HordePhys {
         bool LoadFromDisk(const char* mapname);
 
     private:
-        std::vector<vec3_t> m_grid_nodes;
+        // Using static_vector for grid nodes - eliminates heap allocation (MAX_GRID_NODES = 10000)
+        boost::container::static_vector<vec3_t, MAX_GRID_NODES> m_grid_nodes;
         int m_node_count = 0;
         vec3_t m_world_mins{};
         vec3_t m_world_maxs{};

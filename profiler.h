@@ -6,8 +6,8 @@
 // Required Standard Library Headers
 #include <chrono>   // For high-resolution timing
 #include <string>   // For function names
-#include <vector>   // For storing timing history
-#include <map> // Add this include
+#include <boost/container/small_vector.hpp>   // For storing timing history with small buffer optimization
+#include <boost/container/flat_map.hpp> // For flat_map (cache-friendly sorted map)
 
 void Profiler_ResetFrame();       // Call this at the START of G_RunFrame
 void Profiler_UpdateHistory();    // Called internally by Profiler_RunFrame_End
@@ -28,8 +28,8 @@ struct ProfileData {
 	std::chrono::nanoseconds max_duration_this_frame{ 0 };   // Max single call duration this frame
 	uint32_t call_count_this_frame = 0;                    // How many times called this frame
 
-	// History for averaging/smoothing
-	std::vector<std::chrono::nanoseconds> history;           // Stores total_duration_this_frame for past frames
+	// History for averaging/smoothing (using small_vector with inline storage for HISTORY_SIZE)
+	boost::container::small_vector<std::chrono::nanoseconds, 60> history;  // Stores total_duration_this_frame for past frames (no heap allocation up to 60 frames)
 	static constexpr size_t HISTORY_SIZE = 60;             // Number of frames to keep history (e.g., ~1 sec at 60Hz)
 
 	// Member function declarations (defined in profiler.cpp)
@@ -43,8 +43,8 @@ struct ProfileData {
 // --- Global Profiler Variables (Declarations) ---
 // These tell the compiler these variables exist elsewhere (in profiler.cpp)
 
-// Use forward declaration for std::map if you don't want to include <map> here
-extern std::map<std::string, ProfileData> g_profiler_data; // The main storage for profile results
+// Using flat_map for better cache locality (sorted vector-based map)
+extern boost::container::flat_map<std::string, ProfileData> g_profiler_data; // The main storage for profile results
 
 extern bool g_profiler_enabled; // Global flag to turn profiling on/off
 

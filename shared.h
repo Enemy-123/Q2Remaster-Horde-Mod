@@ -111,8 +111,8 @@ void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size,
 void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs);
 extern void SetHealthBarName(const edict_t* boss);
 
-// Mantén el mapa de nombres como una variable externa
-extern const std::unordered_map<horde::MonsterTypeID, std::string_view> monster_name_replacements;
+// Monster name replacements using flat_map for better cache locality (read-only lookup table)
+extern const boost::container::flat_map<horde::MonsterTypeID, std::string_view> monster_name_replacements;
 //DMG & POWERUP
 void ApplyMonsterBonusFlags(edict_t* monster);
 void ApplyBossEffects(edict_t* boss);
