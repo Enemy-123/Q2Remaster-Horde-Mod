@@ -2,6 +2,7 @@
 #include "weapon_id.h"
 #include "g_horde.h"
 #include <algorithm>
+#include <boost/container/flat_map.hpp>
 
 namespace horde {
 
@@ -18,9 +19,9 @@ namespace horde {
     bool MapOriginRegistry::s_initialized = false;
 
     // Use string_view for zero-copy lookups with static string literals
-    static std::unordered_map<std::string_view, SpecialEntityTypeID> s_specialTypeMap;
-    static std::unordered_map<std::string_view, MonsterTypeID> s_monsterTypeMap;
-    static std::unordered_map<std::string_view, MapID> s_mapIDMap;
+    static boost::container::flat_map<std::string_view, SpecialEntityTypeID> s_specialTypeMap;
+    static boost::container::flat_map<std::string_view, MonsterTypeID> s_monsterTypeMap;
+    static boost::container::flat_map<std::string_view, MapID> s_mapIDMap;
     // Reverse map of type IDs to classnames - used for debugging
     static std::array<const char*, static_cast<size_t>(MonsterTypeID::MAX_TYPES)> s_typeToClassname;
 

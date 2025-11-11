@@ -9,6 +9,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <boost/container/flat_map.hpp>
 #include <cstring>
 
 // Global config instance
@@ -1025,7 +1026,7 @@ extern int16_t current_wave_level;
 int GetGlobalWeaponDamage(const char* weapon_name)
 {
 	using WeaponDamageGetter = int GlobalWeaponDamage::*;
-	static const std::unordered_map<std::string_view, WeaponDamageGetter> weapon_map = {
+	static const boost::container::flat_map<std::string_view, WeaponDamageGetter> weapon_map = {
 		{"melee", &GlobalWeaponDamage::melee},
 		{"blaster", &GlobalWeaponDamage::blaster},
 		{"blaster2", &GlobalWeaponDamage::blaster2},
@@ -1117,7 +1118,7 @@ int GetMonsterWeaponDamage(uint8_t monster_type_id, const char* weapon_name)
 int GetGlobalWeaponSpeed(const char* weapon_name)
 {
 	using WeaponSpeedGetter = int GlobalWeaponSpeed::*;
-	static const std::unordered_map<std::string_view, WeaponSpeedGetter> weapon_map = {
+	static const boost::container::flat_map<std::string_view, WeaponSpeedGetter> weapon_map = {
 		{"blaster", &GlobalWeaponSpeed::blaster},
 		{"blaster2", &GlobalWeaponSpeed::blaster2},
 		{"blaster_bolt", &GlobalWeaponSpeed::blaster_bolt},
@@ -1195,7 +1196,7 @@ int GetMonsterWeaponSpeed(uint8_t monster_type_id, const char* weapon_name)
 float GetGlobalWeaponRadius(const char* weapon_name)
 {
 	using WeaponRadiusGetter = float GlobalWeaponRadius::*;
-	static const std::unordered_map<std::string_view, WeaponRadiusGetter> weapon_map = {
+	static const boost::container::flat_map<std::string_view, WeaponRadiusGetter> weapon_map = {
 		{"grenade", &GlobalWeaponRadius::grenade},
 		{"rocket", &GlobalWeaponRadius::rocket},
 		{"bfg", &GlobalWeaponRadius::bfg},
