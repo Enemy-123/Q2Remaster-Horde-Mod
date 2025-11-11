@@ -1,4 +1,5 @@
 #include "../shared.h"
+#include "../network_monitor.h"
 #include <queue>
 #include <span>
 #include <array> // Included for std::array
@@ -349,6 +350,11 @@ void SetIDView(edict_t* ent) {
 	// Update the timestamp for the next throttled call.
 	ent->client->resp.lastidtime = level.time;
 
+	// Additional network throttling: Skip updates when network buffer is under pressure.
+	if (NetworkMonitor::ShouldThrottle()) {
+		return;
+	}
+
 	// Determine the unique configstring index for this client's HUD.
 	int const client_cs = CONFIG_ID_PLAYER_NAME + (ent - g_edicts - 1);
 
@@ -372,7 +378,7 @@ void SetIDView(edict_t* ent) {
 
 		// If there's no longer a target, clear the HUD display and we are done.
 		if (!current_target) {
-			gi.configstring(client_cs, "");
+			NetworkMonitor::QueueConfigString(client_cs, "");
 			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
 			return;
 		}
@@ -387,12 +393,12 @@ void SetIDView(edict_t* ent) {
 		if (info && info[0] != '\0') {
 			// The game engine is smart enough not to send a network update
 			// if the configstring content hasn't changed.
-			gi.configstring(client_cs, info);
+			NetworkMonitor::QueueConfigString(client_cs, info);
 			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = client_cs;
 		}
 		else {
 			ent->client->idtarget = nullptr;
-			gi.configstring(client_cs, "");
+			NetworkMonitor::QueueConfigString(client_cs, "");
 			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
 		}
 	}
