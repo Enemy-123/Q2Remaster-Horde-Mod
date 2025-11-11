@@ -96,4 +96,5 @@ void InitMorphData(edict_t* ent, morph_type_t type);
 void InitFlyerData(edict_t* ent); // Backward compatibility
 void ClearMorphData(edict_t* ent);
 void ClearFlyerData(edict_t* ent); // Backward compatibility
+void ResetAllMorphData();  // Clear all morph data on game reset
 void ApplyFlyerPhysics(edict_t* ent); // Called after pmove to apply flyer physics

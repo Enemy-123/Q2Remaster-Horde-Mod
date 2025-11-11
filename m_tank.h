@@ -303,3 +303,6 @@ enum
 };
 
 constexpr float MODEL_SCALE = 1.000000f;
+
+// Function to reset tank teleport cache on game reset
+void ResetTankTeleportCache();

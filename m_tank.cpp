@@ -138,6 +138,11 @@ static bool ValidateTeleportPosition(edict_t* self, const vec3_t& position, edic
 	return !(tr.contents & MASK_MONSTERSOLID);
 }
 
+// Reset teleport cache on game reset (called from ResetGame)
+void ResetTankTeleportCache() {
+	g_teleport_cache.clear();
+}
+
 // Tank spawner constants
 constexpr spawnflags_t SPAWNFLAG_tank_vanilla_COMMANDER_GUARDIAN = 8_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_tank_vanilla_COMMANDER_HEAT_SEEKING = 16_spawnflag;

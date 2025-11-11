@@ -47,6 +47,11 @@ void ClearFlyerData(edict_t* ent) {
     ClearMorphData(ent);
 }
 
+// Reset all morph data on game reset (called from ResetGame)
+void ResetAllMorphData() {
+    s_morph_data.clear();
+}
+
 bool IsMorphed(edict_t* ent) {
     auto* data = GetMorphData(ent);
     return data && data->morph_type != MORPH_NONE;

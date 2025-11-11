@@ -20,6 +20,8 @@
 #include "horde_monster_data.h"
 #include "g_horde_scaling.h"
 #include "g_pvm.h"  // For PvM mode checks
+#include "p_flyer_morph.h"  // For ResetAllMorphData()
+#include "../m_tank.h"  // For ResetTankTeleportCache()
 
 // External function declarations
 extern void ED_CallSpawnMonsterByID(edict_t* ent, horde::MonsterTypeID typeId);
@@ -4519,6 +4521,30 @@ void ResetGame()
 		gi.Com_PrintFmt("INFO: Performing full game state reset...\n");
 	}
 
+	// ========================================================================
+	// CONTAINER RESET STRATEGY DOCUMENTATION
+	// ========================================================================
+	// This function resets all game state containers to prevent bugs across
+	// map changes and server restarts. The strategy is:
+	//
+	// RESET (cleared in this function):
+	//   - All boost::flat_map/flat_set tracking entity state (traps, emitters, bosses, morphs, teleport cache)
+	//   - Progressive precaching state (excluded/precached monsters, models)
+	//   - Spawn system state (spawn_plan, special_spawn_state, spawn_point_map, spawn_history)
+	//   - Wave state arrays (previous_wave_types via ResetWaveMemory(), used_wave_sounds, used_start_sounds)
+	//   - Recent spawns, teleport tracking, benefits
+	//
+	// INTENTIONALLY PERSISTENT (NOT reset):
+	//   - g_map_rotation_seed: Maintains rotation consistency across waves
+	//   - g_map_family_history: Maintains variety across maps
+	//   - Lookup tables (weapon IDs, monster IDs, etc.): Const-like data
+	//   - g_precached_models/g_precached_sounds: Engine-cached assets persist
+	//
+	// PER-WAVE RESET (cleared each wave, not here):
+	//   - g_eligible_monsters_for_wave: Rebuilt each wave
+	//   - g_eligible_item_indices_for_wave: Rebuilt each wave
+	// ========================================================================
+
 	g_horde_retaliation_end_time = 0_sec;
 	g_horde_retaliation_last_trigger_time = 0_sec;
 
@@ -4562,6 +4588,9 @@ void ResetGame()
     // --- FIX: Clear all global entity state maps ---
 	g_emitter_states.clear();
 	g_trap_states.clear();
+	auto_spawned_bosses.clear();  // FIX: Clear boss spawn tracking
+	ResetAllMorphData();  // FIX: Clear player morph state
+	ResetTankTeleportCache();  // FIX: Clear tank teleport cache
 	
     // =======================================================================
 	// --- UNIFIED RESET (THIS IS THE FIX) ---
