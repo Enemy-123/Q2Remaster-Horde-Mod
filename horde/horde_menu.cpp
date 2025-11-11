@@ -2279,7 +2279,7 @@ void AdminMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		}
 		gi.LocClient_Print(ent, PRINT_HIGH, "Gave 10 bonus points of each type to all players.\n");
 	}
-	else if (strcmp(text, "Give All Weapons") == 0)
+	else if (strcmp(text, "Give All Weapons (All)") == 0)
 	{
 		const char *adminName = GetPlayerName(ent);
 		for (auto player : active_players())
@@ -2315,7 +2315,7 @@ void AdminMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		}
 		gi.LocClient_Print(ent, PRINT_HIGH, "Enabled god mode for all players.\n");
 	}*/
-	else if (strcmp(text, "Heal All Players") == 0)
+	else if (strcmp(text, "Heal All Players (All)") == 0)
 	{
 		const char *adminName = GetPlayerName(ent);
 		for (auto player : active_players())
