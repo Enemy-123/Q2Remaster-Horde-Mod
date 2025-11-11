@@ -14,6 +14,10 @@
         {
             "name": "boost-container",
             "version>=": "1.89.0"
+        },
+        {
+            "name": "boost-unordered",
+            "version>=": "1.89.0"
         }
     ]
 }

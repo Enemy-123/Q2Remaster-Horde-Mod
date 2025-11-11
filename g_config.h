@@ -1,8 +1,8 @@
 #pragma once
 
 #include <cstdint>
-#include <unordered_map>
 #include <boost/container/flat_map.hpp>
+#include <boost/unordered/unordered_flat_map.hpp>
 #include <string>
 #include <array>
 
@@ -482,8 +482,8 @@ struct MonsterLevelScaling
 // Monsters configuration - maps MonsterTypeID to stats
 struct MonstersConfig
 {
-	boost::container::flat_map<uint8_t, MonsterStatsConfig> monsters;  // C++23 - small integer keys (0-255) for frequent lookups
-	std::unordered_map<std::string, MonsterLevelScaling> level_scaling;  // String keys benefit from hashing
+	boost::container::flat_map<uint8_t, MonsterStatsConfig> monsters;  // Small integer keys (0-255) for frequent lookups
+	boost::unordered::unordered_flat_map<std::string, MonsterLevelScaling> level_scaling;  // Cache-friendly hash map
 };
 
 // Map-specific override configuration

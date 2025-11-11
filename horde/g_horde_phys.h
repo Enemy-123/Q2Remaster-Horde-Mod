@@ -4,7 +4,6 @@
 #include <span>        // For std::span
 #include <array>       // For std::array
 #include <vector>      // For std::vector
-#include <unordered_map> // For std::unordered_map
 #include <boost/container/small_vector.hpp>  // For small_vector optimization
 #include <boost/container/static_vector.hpp> // For static_vector (fixed-capacity)
 

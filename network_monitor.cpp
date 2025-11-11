@@ -3,8 +3,8 @@
 #include "network_monitor.h"
 #include "g_local.h"
 #include <vector>
-#include <unordered_map>
 #include <string>
+#include <boost/unordered/unordered_flat_map.hpp>
 
 namespace NetworkMonitor {
 
@@ -22,7 +22,7 @@ namespace NetworkMonitor {
     static std::vector<QueuedConfigString> g_config_string_queue;
 
     // HUD caches per client (indexed by client number)
-    static std::unordered_map<int, HUDCache> g_hud_caches;
+    static boost::unordered::unordered_flat_map<int, HUDCache> g_hud_caches;
 
     // ========================================================================
     // Implementation

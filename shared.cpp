@@ -14,8 +14,8 @@
 #include <string_view>
 #include <array>
 #include <bit>
-#include <unordered_set>
 #include <boost/container/small_vector.hpp>
+#include <boost/unordered/unordered_flat_set.hpp>
 
 // Constants for various game mechanics
 namespace {
@@ -345,7 +345,7 @@ void RemovePlayerOwnedEntities(edict_t* player) {
     auto id = static_cast<horde::SpecialEntityTypeID>(ent->special_type_id);
     if (id == horde::SpecialEntityTypeID::UNKNOWN) {
         if (developer->integer) {
-            thread_local std::unordered_set<std::string_view> reported_classnames;
+            thread_local boost::unordered::unordered_flat_set<std::string_view> reported_classnames;
             thread_local char last_map_for_reporting[MAX_QPATH] = "";
 
             if (Q_strcasecmp(last_map_for_reporting, level.mapname) != 0) {

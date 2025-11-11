@@ -2,7 +2,6 @@
 #include "../g_local.h"
 #include "../memory_safety.h" // For FileGuard
 #include <algorithm> // For std::min/max
-#include <unordered_map>
 #include <filesystem> // For path operations
 #ifdef _WIN32
     #ifndef WIN32_LEAN_AND_MEAN

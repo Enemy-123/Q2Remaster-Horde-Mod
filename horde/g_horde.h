@@ -7,9 +7,9 @@
 // This ensures that any file including g_horde.h gets what it needs.
 #include <vector>
 #include <array>
-#include <unordered_set>
 #include <boost/container/flat_set.hpp>
 #include <boost/container/small_vector.hpp>  // For small_vector optimization
+#include <boost/unordered/unordered_flat_set.hpp>  // Cache-friendly hash sets
 
 constexpr const char* HORDE_MOD_VERSION_STRING = "*Horde BETA MOD v0.00997";
 
@@ -216,13 +216,13 @@ struct MonsterAssetFamily {
 };
 
 // Global asset tracking (defined in g_horde.cpp)
-extern std::unordered_set<std::string> g_precached_models;
-extern std::unordered_set<std::string> g_precached_sounds;
+extern boost::unordered::unordered_flat_set<std::string> g_precached_models;
+extern boost::unordered::unordered_flat_set<std::string> g_precached_sounds;
 extern int32_t g_total_precached_models;
 extern int32_t g_total_precached_sounds;
 extern std::array<bool, 128> g_precached_monster_types_flags; // Precache flags for each monster type
-extern boost::container::flat_set<horde::MonsterTypeID> g_precached_monsters_this_map; // C++23 - Monster types precached this map
-extern std::unordered_set<std::string> g_precached_models_this_map; // Models loaded this map (string keys benefit from hashing)
+extern boost::container::flat_set<horde::MonsterTypeID> g_precached_monsters_this_map; // Monster types precached this map
+extern boost::unordered::unordered_flat_set<std::string> g_precached_models_this_map; // Cache-friendly hash set for model tracking
 
 // --- Spawn History Tracking for Variety ---
 // Tracks recently spawned monster families to prevent repetition

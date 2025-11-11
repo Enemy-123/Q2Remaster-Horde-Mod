@@ -70,9 +70,9 @@ boost::container::small_vector<const MonsterTypeInfo *, 32> g_eligible_monsters_
 boost::container::small_vector<size_t, 32> g_eligible_item_indices_for_wave;
 
 // Progressive monster unlocking system for memory management
-static boost::container::flat_set<horde::MonsterTypeID> g_excluded_monsters_this_map;  // C++23 - excluded monsters cache
-boost::container::flat_set<horde::MonsterTypeID> g_precached_monsters_this_map; // C++23 - Non-static for external access
-std::unordered_set<std::string> g_precached_models_this_map; // Keep as unordered_set (string keys benefit from hashing)
+static boost::container::flat_set<horde::MonsterTypeID> g_excluded_monsters_this_map;  // Excluded monsters cache
+boost::container::flat_set<horde::MonsterTypeID> g_precached_monsters_this_map; // Non-static for external access
+boost::unordered::unordered_flat_set<std::string> g_precached_models_this_map; // Cache-friendly hash set for model tracking
 static int g_map_rotation_seed = 0;
 static int g_last_precache_wave = 0;
 
@@ -86,8 +86,8 @@ constexpr int MIN_MONSTERS_AVAILABLE = 12; // Always have at least 12 monster ty
 
 // --- Asset Family System Implementation ---
 std::array<AssetFamilyID, 128> g_monster_to_family; // 128 = MAX_TYPES from horde_ids.h
-std::unordered_set<std::string> g_precached_models;
-std::unordered_set<std::string> g_precached_sounds;
+boost::unordered::unordered_flat_set<std::string> g_precached_models;
+boost::unordered::unordered_flat_set<std::string> g_precached_sounds;
 int32_t g_total_precached_models = 0;
 int32_t g_total_precached_sounds = 0;
 
