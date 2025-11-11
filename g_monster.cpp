@@ -54,7 +54,15 @@ void monster_muzzleflash(edict_t* self, const vec3_t& start, monster_muzzleflash
 
 void monster_fire_bullet(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int kick, int hspread,
 	int vspread, monster_muzzleflash_id_t flashtype)
-{	
+{
+	// Don't shoot backwards (redundant safety check)
+	// Bosses and blindfire are exempt from this check
+	if (self->enemy && !infront(self, self->enemy) &&
+	    !self->monsterinfo.IS_BOSS &&
+	    !(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
+	{
+		return;
+	}
 
 	fire_bullet(self, start, dir, damage, kick, hspread, vspread, MOD_CHAINGUN);
 	monster_muzzleflash(self, start, flashtype);
@@ -106,6 +114,14 @@ void monster_fire_flechette(edict_t* self, const vec3_t& start, const vec3_t& di
 void monster_fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed,
 	monster_muzzleflash_id_t flashtype, float right_adjust, float up_adjust)
 {
+	// Don't shoot backwards (redundant safety check)
+	// Bosses and blindfire are exempt from this check
+	if (self->enemy && !infront(self, self->enemy) &&
+	    !self->monsterinfo.IS_BOSS &&
+	    !(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
+	{
+		return;
+	}
 
 	fire_grenade(self, start, aimdir, damage, speed, 2.5_sec, damage + 40.f, right_adjust, up_adjust, true);
 	monster_muzzleflash(self, start, flashtype);
@@ -114,6 +130,14 @@ void monster_fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimd
 void monster_fire_rocket(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed,
 	monster_muzzleflash_id_t flashtype)
 {
+	// Don't shoot backwards (redundant safety check)
+	// Bosses and blindfire are exempt from this check
+	if (self->enemy && !infront(self, self->enemy) &&
+	    !self->monsterinfo.IS_BOSS &&
+	    !(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
+	{
+		return;
+	}
 
 	fire_rocket(self, start, dir, damage, speed, static_cast<float>(damage) + 20, damage);
 	monster_muzzleflash(self, start, flashtype);

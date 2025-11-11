@@ -1772,6 +1772,13 @@ bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_ch
 
 	float enemy_range = range_to(self, self->enemy);
 
+	// Don't allow attacks if enemy is behind us (prevents backwards shooting)
+	// Allow blindfire (AI_MANUAL_STEERING) and bosses to override this check
+	if (!enemy_infront && !self->monsterinfo.IS_BOSS && !(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
+	{
+		return false;
+	}
+
 	// melee attack
 	if (enemy_range <= RANGE_MELEE)
 	{

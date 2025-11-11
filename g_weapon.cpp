@@ -619,6 +619,16 @@ pistols, rifles, etc....
 */
 void fire_bullet(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick, int hspread, int vspread, mod_t mod)
 {
+	// Monsters shouldn't shoot backwards (safety net check)
+	// Bosses and blindfire are exempt from this check
+	if ((self->svflags & SVF_MONSTER) && self->enemy &&
+	    !infront(self, self->enemy) &&
+	    !self->monsterinfo.IS_BOSS &&
+	    !(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
+	{
+		return;
+	}
+
 	// Apply damage modifier if monster
 	if (self->svflags & SVF_MONSTER) {
 		damage = static_cast<int>(round(damage * M_DamageModifier(self)));
@@ -1241,6 +1251,16 @@ void fire_grenade2(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int
 		return;
 	}
 
+	// Monsters shouldn't shoot backwards (safety net check)
+	// Bosses and blindfire are exempt from this check
+	if ((self->svflags & SVF_MONSTER) && self->enemy &&
+	    !infront(self, self->enemy) &&
+	    !self->monsterinfo.IS_BOSS &&
+	    !(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
+	{
+		return;
+	}
+
 	edict_t* grenade;
 	vec3_t	 dir;
 	vec3_t	 forward, right, up;
@@ -1438,6 +1458,14 @@ TOUCH(rocket_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other
 
 edict_t* fire_rocket(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, float damage_radius, int radius_damage)
 {
+	// Monsters shouldn't shoot backwards (safety net check)
+	if ((self->svflags & SVF_MONSTER) && self->enemy &&
+	    !infront(self, self->enemy) &&
+	    !(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
+	{
+		return nullptr;
+	}
+
 	edict_t* rocket;
 
 	rocket = G_Spawn();
