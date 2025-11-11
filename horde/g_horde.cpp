@@ -4533,6 +4533,9 @@ void ResetGame()
 	//   - Spawn system state (spawn_plan, special_spawn_state, spawn_point_map, spawn_history)
 	//   - Wave state arrays (previous_wave_types via ResetWaveMemory(), used_wave_sounds, used_start_sounds)
 	//   - Recent spawns, teleport tracking, benefits
+	//   - LaserPool: BFG laser entity pool (prevents dangling pointers)
+	//   - Profiler data: Accumulated profiling statistics (prevents unbounded growth)
+	//   - HordePhys grids: Proximity and spawn grids (prevents stale entity references)
 	//
 	// INTENTIONALLY PERSISTENT (NOT reset):
 	//   - g_map_rotation_seed: Maintains rotation consistency across waves
@@ -4591,7 +4594,14 @@ void ResetGame()
 	auto_spawned_bosses.clear();  // FIX: Clear boss spawn tracking
 	ResetAllMorphData();  // FIX: Clear player morph state
 	ResetTankTeleportCache();  // FIX: Clear tank teleport cache
-	
+
+	// --- FIX: Clear memory leak sources ---
+	LaserPool_Clear();  // FIX: Clear BFG laser pool to prevent dangling entity pointers
+	Profiler_Reset();  // FIX: Clear profiling data to prevent unbounded memory growth
+	HordePhys::g_monster_grid.Reset();  // FIX: Clear monster proximity grid to prevent stale entity references
+	HordePhys::g_entity_grid.Reset();  // FIX: Clear general entity grid to prevent stale entity references
+	HordePhys::g_spawn_grid.Clear();  // FIX: Clear spawn position grid to free cached spawn nodes
+
     // =======================================================================
 	// --- UNIFIED RESET (THIS IS THE FIX) ---
     // =======================================================================

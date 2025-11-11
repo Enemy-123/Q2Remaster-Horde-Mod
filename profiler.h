@@ -13,6 +13,7 @@ void Profiler_ResetFrame();       // Call this at the START of G_RunFrame
 void Profiler_UpdateHistory();    // Called internally by Profiler_RunFrame_End
 void Profiler_PrintResults();     // Called internally by Profiler_RunFrame_End
 void Profiler_RunFrame_End();     // <--- ADD THIS DECLARATION
+void Profiler_Reset();            // Call this on resetgame to clear all profiling data
 
 // Forward Declarations (if needed, depending on your project structure)
 // If g_local.h or another common header already defines cvar_t, you might not need this.

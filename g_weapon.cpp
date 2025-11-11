@@ -1717,6 +1717,11 @@ void LaserPool_Init() {
 	LaserPool::init();
 }
 
+// External C-style function to clear LaserPool (for resetgame cleanup)
+void LaserPool_Clear() {
+	LaserPool::clear();
+}
+
 // Helper function to determine if an entity can be affected by BFG
 inline bool can_be_affected_by_bfg(const edict_t* ent) {
 	return (ent->svflags & SVF_MONSTER) ||

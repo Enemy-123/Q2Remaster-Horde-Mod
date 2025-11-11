@@ -123,6 +123,11 @@ void Profiler_UpdateHistory() {
 	}
 }
 
+// Called on resetgame to clear all accumulated profiling data
+void Profiler_Reset() {
+	g_profiler_data.clear();
+}
+
 // --- Profiler Printing Function Definition ---
 
 // Prints the collected profiling data to the console periodically

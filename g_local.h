@@ -2793,6 +2793,8 @@ void Throw_Generic(edict_t* ent, int FRAME_FIRE_LAST, int FRAME_IDLE_LAST, int F
 byte P_DamageModifier(edict_t* ent);
 bool G_CheckInfiniteAmmo(gitem_t* item);
 void Weapon_PowerupSound(edict_t* ent);
+void LaserPool_Init();
+void LaserPool_Clear();
 
 constexpr gtime_t GRENADE_TIMER = 3_sec;
 constexpr float GRENADE_MINSPEED = 600.f;
