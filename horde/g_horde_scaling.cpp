@@ -169,6 +169,23 @@ void LoadScalingConfig() {
                 g_scalingConfig.monster_health.max_value = health["max_value"].asFloat();
             }
         }
+
+        if (monster_scaling.isMember("damage") && monster_scaling["damage"].isObject()) {
+            const Json::Value& damage = monster_scaling["damage"];
+
+            if (damage.isMember("midpoint") && damage["midpoint"].isNumeric()) {
+                g_scalingConfig.monster_damage.midpoint = damage["midpoint"].asFloat();
+            }
+            if (damage.isMember("growth_rate") && damage["growth_rate"].isNumeric()) {
+                g_scalingConfig.monster_damage.growth_rate = damage["growth_rate"].asFloat();
+            }
+            if (damage.isMember("min_value") && damage["min_value"].isNumeric()) {
+                g_scalingConfig.monster_damage.min_value = damage["min_value"].asFloat();
+            }
+            if (damage.isMember("max_value") && damage["max_value"].isNumeric()) {
+                g_scalingConfig.monster_damage.max_value = damage["max_value"].asFloat();
+            }
+        }
     }
 
     // Read difficulty modifiers

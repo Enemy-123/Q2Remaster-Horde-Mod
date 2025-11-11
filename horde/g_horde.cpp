@@ -8692,6 +8692,7 @@ static void Horde_InitLevel(const int32_t lvl)
 			break;
 		}
 	}
+	// Note: When sigmoid scaling is enabled, damage scaling is applied directly in g_combat.cpp
 	// if (developer->integer)
 	// {
 	// 	gi.Com_PrintFmt("Horde_InitLevel: Wave {}. num_to_spawn: {}, queued: {}. Total for wave: {}\n",

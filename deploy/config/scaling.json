@@ -20,10 +20,10 @@
       "min_value": 1.0,
       "max_value": 2.5
     },
-    "_damage_NOT_IMPLEMENTED": {
-      "comment": "Monster weapon damage scaling - NOT YET IMPLEMENTED",
+    "damage": {
+      "comment": "Monster weapon damage scaling - Sigmoid curve with 2.0x cap",
       "midpoint": 18,
-      "growth_rate": 0.04,
+      "growth_rate": 0.10,
       "min_value": 1.0,
       "max_value": 2.0
     }
