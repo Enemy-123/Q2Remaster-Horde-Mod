@@ -3,6 +3,7 @@
 #include <array>
 #include <vector>
 #include <boost/container/flat_map.hpp>
+#include <boost/container/small_vector.hpp>
 #include <bitset>
 #include <cmath>
 #include <algorithm>
@@ -111,9 +112,9 @@ public:
         all_spawn_points.clear();
     }
 
-    std::vector<edict_t*> GetNearbySpawnPoints(const vec3_t& pos, float radius) {
-        std::vector<edict_t*> result;
-        result.reserve(32); // Reserve space for typical nearby spawn count
+    boost::container::small_vector<edict_t*, 32> GetNearbySpawnPoints(const vec3_t& pos, float radius) {
+        boost::container::small_vector<edict_t*, 32> result;
+        // small_vector has 32 inline elements, no reserve needed
 
         int cell_radius = static_cast<int>(radius / CELL_SIZE) + 1;
         int center_x = static_cast<int>(pos.x) >> CELL_SHIFT;

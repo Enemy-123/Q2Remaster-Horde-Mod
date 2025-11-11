@@ -355,3 +355,29 @@ inline bool safe_string_append(std::string& str, const std::string_view& to_appe
         return false;
     }
 }
+
+// RAII wrapper for FILE* to prevent file handle leaks
+// Automatically closes file on scope exit (including exceptions)
+struct FileGuard {
+    FILE* fp;
+
+    explicit FileGuard(FILE* f) : fp(f) {}
+
+    ~FileGuard() {
+        if (fp) {
+            fclose(fp);
+        }
+    }
+
+    // Non-copyable, non-movable
+    FileGuard(const FileGuard&) = delete;
+    FileGuard& operator=(const FileGuard&) = delete;
+    FileGuard(FileGuard&&) = delete;
+    FileGuard& operator=(FileGuard&&) = delete;
+
+    // Allow boolean check for validity
+    explicit operator bool() const { return fp != nullptr; }
+
+    // Allow usage as FILE* in function calls
+    operator FILE*() const { return fp; }
+};

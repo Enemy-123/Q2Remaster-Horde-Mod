@@ -14,6 +14,7 @@
 #include "g_upgrades.h"    // For new skill/upgrade system
 #include "g_character.h"   // For Character_Save
 #include "menu_helpers.h"  // For menu formatting helpers
+#include <boost/container/small_vector.hpp>
 
 // Declaration for P_GetLobbyUserNum (defined in p_client.cpp)
 extern unsigned int P_GetLobbyUserNum(const edict_t *player);
@@ -6446,8 +6447,8 @@ class ScoreboardLayout {
 private:
 	StringBuilder layout_builder;
 	const edict_t* ent;
-	std::vector<PlayerScore> team_players;
-	std::vector<PlayerScore> spectators;
+	boost::container::small_vector<PlayerScore, 8> team_players;
+	boost::container::small_vector<PlayerScore, 4> spectators;
 	int total_score;
 
 public:

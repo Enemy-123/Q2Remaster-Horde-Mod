@@ -1,5 +1,6 @@
 #include "g_horde_phys.h"
 #include "../g_local.h"
+#include "../memory_safety.h" // For FileGuard
 #include <algorithm> // For std::min/max
 #include <unordered_map>
 #include <filesystem> // For path operations
@@ -867,6 +868,7 @@ void ProximityGrid::Reset()
                 gi.Com_PrintFmt("Failed to save spawn grid to {}\n", grid_file.string());
                 return false;
             }
+            FileGuard guard(fp);  // RAII: auto-closes on scope exit or exception
 
             // Write header
             const int32_t version = 1;
@@ -876,7 +878,6 @@ void ProximityGrid::Reset()
             // Write node positions
             fwrite(m_grid_nodes.data(), sizeof(vec3_t), m_node_count, fp);
 
-            fclose(fp);
             gi.Com_PrintFmt("Spawn grid saved to {}\n", grid_file.string());
             return true;
 
@@ -909,6 +910,7 @@ void ProximityGrid::Reset()
             FILE* fp = fopen(grid_file.string().c_str(), "rb");
             if (!fp)
                 return false;
+            FileGuard guard(fp);  // RAII: auto-closes on scope exit or exception
 
             // Read header
             int32_t version = 0;
@@ -917,7 +919,6 @@ void ProximityGrid::Reset()
             fread(&node_count, sizeof(int32_t), 1, fp);
 
             if (version != 1 || node_count < 1 || node_count > MAX_GRID_NODES) {
-                fclose(fp);
                 gi.Com_PrintFmt("Invalid spawn grid file: {}\n", grid_file.string());
                 return false;
             }
@@ -928,7 +929,6 @@ void ProximityGrid::Reset()
             fread(m_grid_nodes.data(), sizeof(vec3_t), node_count, fp);
             m_node_count = node_count;
 
-            fclose(fp);
             return true;
 
         } catch (const std::exception&) {

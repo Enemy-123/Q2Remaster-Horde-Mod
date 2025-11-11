@@ -106,17 +106,29 @@ void Character_CreateDefault(edict_t* player)
     std::ofstream file(filepath, std::ios::out | std::ios::trunc);
     if (!file.is_open())
     {
-        // gi.Com_PrintFmt("Character: Failed to create character file for {}\n", GetPlayerName(player));
+        if (developer && developer->integer) {
+            gi.Com_PrintFmt("Character: Failed to create character file for {}\n", GetPlayerName(player));
+        }
         return;
     }
 
-    Json::StreamWriterBuilder builder;
-    builder["indentation"] = "    ";
-    std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
-    writer->write(root, &file);
-    file.close();
+    try {
+        Json::StreamWriterBuilder builder;
+        builder["indentation"] = "    ";
+        std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
+        writer->write(root, &file);
+        // File auto-closes via RAII - no explicit close needed
+        // This ensures proper flush and error handling
+    } catch (const std::exception& e) {
+        if (developer && developer->integer) {
+            gi.Com_PrintFmt("Character: Failed to write character file: {}\n", e.what());
+        }
+        return;
+    }
 
-    // gi.Com_PrintFmt("Character: Created new character file for {}\n", GetPlayerName(player));
+    if (developer && developer->integer >= 2) {
+        gi.Com_PrintFmt("Character: Created new character file for {}\n", GetPlayerName(player));
+    }
 }
 
 // Load character from file

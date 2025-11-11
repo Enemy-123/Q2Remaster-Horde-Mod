@@ -5,6 +5,7 @@
 #include "g_horde.h"
 #include <set>
 #include <boost/container/flat_set.hpp>
+#include <boost/container/small_vector.hpp>
 #include <algorithm>  // For std::count_if and std::shuffle
 #include "g_horde_benefits.h"
 #include "horde_ids.h"
@@ -2793,7 +2794,7 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 				size_t array_index;
 				float priority;
 			};
-			std::vector<EliteCandidate> candidates;
+			boost::container::small_vector<EliteCandidate, 16> candidates;
 
 			if (developer->integer)
 			{
@@ -2951,7 +2952,7 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 						gi.Com_PrintFmt("Dynamic Precache: FALLBACK attempt with +{} buffer\n", fallback_buffer);
 					}
 
-					std::vector<EliteCandidate> fallback_candidates;
+					boost::container::small_vector<EliteCandidate, 16> fallback_candidates;
 
 					for (size_t i = 0; i < MONSTER_DATA_COUNT; ++i)
 					{
@@ -8217,7 +8218,7 @@ static void InitializeMonsterRotation()
 		AssetFamilyID family;
 		int32_t prev_map_usage; // How much this family was used in previous maps
 	};
-	std::vector<ExcludableMonsterInfo> excludable_monsters;
+	boost::container::small_vector<ExcludableMonsterInfo, 32> excludable_monsters;
 
 	// Build list of monsters that can be excluded (not bosses or critical monsters)
 	for (size_t i = 0; i < MONSTER_DATA_COUNT; ++i) {
@@ -8274,7 +8275,7 @@ static void InitializeMonsterRotation()
 			g_map_rotation_seed, g_excluded_monsters_this_map.size());
 
 		// Show top 5 most used families from previous maps
-		std::vector<std::pair<AssetFamilyID, int32_t>> family_usage;
+		boost::container::small_vector<std::pair<AssetFamilyID, int32_t>, 24> family_usage;
 		for (size_t i = 0; i < static_cast<size_t>(AssetFamilyID::MAX_FAMILIES); i++)
 		{
 			AssetFamilyID family = static_cast<AssetFamilyID>(i);

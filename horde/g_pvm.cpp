@@ -3,6 +3,7 @@
 #include "../g_local.h"
 #include "horde_monster_data.h"
 #include <vector>
+#include <boost/container/small_vector.hpp>
 #include <algorithm>
 
 // PvM (Player vs Monster) mode implementation
@@ -311,7 +312,7 @@ void PVM_InitRandomMonsters()
         return;
 
     // Collect all valid monsters (wave 8+, not excluded)
-    std::vector<horde::MonsterTypeID> valid_monsters;
+    boost::container::small_vector<horde::MonsterTypeID, 16> valid_monsters;
     for (size_t i = 0; i < MONSTER_DATA_COUNT; i++)
     {
         const auto& monster = monsterTypes[i];
@@ -333,7 +334,7 @@ void PVM_InitRandomMonsters()
 
     // Randomly select PVM_RANDOM_MONSTER_COUNT monsters
     // Use Fisher-Yates shuffle for first N elements
-    std::vector<horde::MonsterTypeID> shuffled = valid_monsters;
+    boost::container::small_vector<horde::MonsterTypeID, 16> shuffled = valid_monsters;
     for (int i = 0; i < PVM_RANDOM_MONSTER_COUNT; i++)
     {
         int j = i + (rand() % (shuffled.size() - i));
