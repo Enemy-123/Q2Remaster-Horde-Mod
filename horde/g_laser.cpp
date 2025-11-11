@@ -13,6 +13,8 @@
 // 2. BEAM (classname: "laser")
 //    - The actual damage-dealing ray
 //    - Has real health that depletes when damaging enemies
+
+#include "../network_monitor.h"
 //    - Performs pierce tracing every frame
 //    - Owned by emitter (beam->owner = emitter)
 //
@@ -695,6 +697,7 @@ void create_laser(edict_t * ent)
     emitter->pain = laser_emitter_pain; // Damage is redirected to the beam.
     // --- END FIX ---
     emitter->s.modelindex = gi.modelindex("models/objects/grenade2/tris.md2");
+    NetworkMonitor::RecordModelPrecache();
     emitter->teammaster = ent;
     emitter->chain = beam;
     emitter->goalentity = flare; //test
@@ -725,6 +728,7 @@ void create_laser(edict_t * ent)
     beam->s.renderfx = RF_BEAM | RF_TRANSLUCENT;
     beam->s.modelindex = 1;
     beam->s.sound = gi.soundindex("world/laser.wav");
+    NetworkMonitor::RecordSoundPrecache();
     beam->teammaster = ent;
     beam->owner = emitter;
     beam->s.angles = emitter->s.angles;

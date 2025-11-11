@@ -158,6 +158,7 @@ echo Data files deployed (only new/modified files copied)</Command>
     <ClInclude Include="horde\p_flyer_morph.h" />
     <ClInclude Include="horde\weapon_id.h" />
     <ClInclude Include="memory_safety.h" />
+    <ClInclude Include="network_monitor.h" />
     <ClInclude Include="monster_constants.h" />
     <ClInclude Include="m_actor.h" />
     <ClInclude Include="m_arachnid.h" />
@@ -281,6 +282,7 @@ echo Data files deployed (only new/modified files copied)</Command>
     <ClCompile Include="m_parasite.cpp" />
     <ClCompile Include="m_redmutant.cpp" />
     <ClCompile Include="m_psxguardian.cpp" />
+    <ClCompile Include="network_monitor.cpp" />
     <ClCompile Include="profiler.cpp" />
     <ClCompile Include="rogue/m_rogue_turret.cpp" />
     <ClCompile Include="m_shambler.cpp" />

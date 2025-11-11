@@ -1,6 +1,7 @@
 #include "g_pvm.h"
 #include "g_character.h"
 #include "../g_local.h"
+#include "../network_monitor.h"
 #include "horde_monster_data.h"
 #include <vector>
 #include <boost/container/small_vector.hpp>
@@ -42,6 +43,7 @@ void PVM_DropBackpack(edict_t *player)
     // Set basic properties
     backpack->classname = "item_backpack";
     backpack->s.modelindex = gi.modelindex("models/items/pack/tris.md2");
+    NetworkMonitor::RecordModelPrecache();
     backpack->s.effects = EF_GIB; // Only gib effect, no rotate/bob
     backpack->solid = SOLID_TRIGGER;
     backpack->movetype = MOVETYPE_TOSS;

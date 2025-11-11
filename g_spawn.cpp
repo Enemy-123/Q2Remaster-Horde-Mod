@@ -3,6 +3,7 @@
 
 #include "g_local.h"
 #include "memory_safety.h"
+#include "network_monitor.h"
 #include "horde/horde_ids.h"
 
 // Define a type for our spawn function pointers for clarity
@@ -1671,6 +1672,9 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 	// Initialize LaserPool for new level
 	extern void LaserPool_Init();
 	LaserPool_Init();
+
+	// Initialize Network Monitor for buffer overflow prevention
+	NetworkMonitor::Init();
 
 	// all other flags are not important atm
 	globals.server_flags &= SERVER_FLAG_LOADING;

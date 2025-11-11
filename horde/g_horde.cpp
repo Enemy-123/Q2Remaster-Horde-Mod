@@ -16,6 +16,7 @@
 #include "horde_performance.h"
 #include "horde_boss.h"
 #include "../memory_safety.h"
+#include "../network_monitor.h"
 #include "horde_spawning.h"
 #include "horde_constants.h"
 #include "horde_monster_data.h"
@@ -3836,10 +3837,14 @@ static void PrecacheWaveSounds()
 
 	// Precache special wave sounds (Gekk and Berserk waves)
 	gi.soundindex("gek/gek_low.wav");
+	NetworkMonitor::RecordSoundPrecache();
 	gi.soundindex("gek/gek_amb.wav");
+	NetworkMonitor::RecordSoundPrecache();
 	gi.soundindex("world/radio3.wav");
+	NetworkMonitor::RecordSoundPrecache();
 
 	// Use std::span for safe iteration
+	// Note: assign() now automatically calls NetworkMonitor::RecordSoundPrecache()
 	std::span individual_view{individual_sounds};
 	for (const auto &[sound_index, path] : individual_view)
 	{
@@ -4303,7 +4308,7 @@ void AppendHordeMessage_impl(std::string_view message, gtime_t duration)
 			size_t copy_len = std::min(message.length(), MAX_STRING_CHARS - 1);
 			memcpy(truncated_msg, message.data(), copy_len);
 			truncated_msg[copy_len] = '\0';
-			gi.configstring(CONFIG_HORDEMSG, truncated_msg);
+			NetworkMonitor::QueueConfigString(CONFIG_HORDEMSG, truncated_msg);
 		} else {
 			// Need to combine messages - only allocate when necessary
 			std::string combined_msg;
@@ -4320,7 +4325,7 @@ void AppendHordeMessage_impl(std::string_view message, gtime_t duration)
 				combined_msg.resize(MAX_STRING_CHARS - 1);
 			}
 
-			gi.configstring(CONFIG_HORDEMSG, combined_msg.c_str());
+			NetworkMonitor::QueueConfigString(CONFIG_HORDEMSG, combined_msg.c_str());
 		}
 	} else {
 		// Optimized path: build message in static buffer to avoid allocation
@@ -4337,7 +4342,7 @@ void AppendHordeMessage_impl(std::string_view message, gtime_t duration)
 		write_ptr += message.length();
 		*write_ptr = '\0';
 
-		gi.configstring(CONFIG_HORDEMSG, msg_buffer);
+		NetworkMonitor::QueueConfigString(CONFIG_HORDEMSG, msg_buffer);
 	}
 
 	// Extend or set the duration for the new combined message
@@ -4349,7 +4354,7 @@ void ClearHordeMessage()
 	std::string_view const current_msg = gi.get_configstring(CONFIG_HORDEMSG);
 	if (!current_msg.empty())
 	{
-		gi.configstring(CONFIG_HORDEMSG, "");
+		NetworkMonitor::QueueConfigString(CONFIG_HORDEMSG, "");
 	}
 	horde_message_end_time = 0_sec;
 }

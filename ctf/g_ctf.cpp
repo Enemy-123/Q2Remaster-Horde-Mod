@@ -3,6 +3,7 @@
 // Copyright (c) ZeniMax Media Inc.
 // Licensed under the GNU General Public License 2.0.
 #include "../g_local.h"
+#include "../network_monitor.h"
 #include "../m_player.h"
 #include "../memory_safety.h"
 
@@ -308,7 +309,7 @@ void CTFAssignSkin(edict_t* ent, const char* s)
 	t = G_Fmt("{}\\{}\\default", ent->client->pers.netname, s);
 
 
-	gi.configstring(CS_PLAYERSKINS + playernum, t.data());
+	NetworkMonitor::QueueConfigString(CS_PLAYERSKINS + playernum, t.data());
 
 	//	gi.LocClient_Print(ent, PRINT_HIGH, "$g_assigned_team", ent->client->pers.netname);
 }
@@ -2525,7 +2526,7 @@ void UpdateVoteHUD() noexcept {
 				static_cast<int>((ctfgame.electtime - level.time).seconds()));
 		}
 
-		gi.configstring(CONFIG_VOTE_INFO, vote_info.c_str());
+		NetworkMonitor::QueueConfigString(CONFIG_VOTE_INFO, vote_info.c_str());
 		//ClearHordeMessage();
 
 		for (auto player : active_players()) {
@@ -2535,7 +2536,7 @@ void UpdateVoteHUD() noexcept {
 		}
 	}
 	else {
-		gi.configstring(CONFIG_VOTE_INFO, "");
+		NetworkMonitor::QueueConfigString(CONFIG_VOTE_INFO, "");
 		for (auto player : active_players()) {
 			if (player->client) {
 				player->client->ps.stats[STAT_VOTESTRING] = 0;

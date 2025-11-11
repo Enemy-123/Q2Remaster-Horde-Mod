@@ -1,5 +1,6 @@
 #include "../shared.h"
 #include "../g_local.h"
+#include "../network_monitor.h"
 #include "horde_performance.h"
 #include "g_horde_phys.h"
 #include "g_horde_benefits.h"
@@ -778,6 +779,7 @@ void fire_tesla(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int te
 	tesla->mins = {-4, -4, 0};
 	tesla->maxs = {4, 4, 8};
 	tesla->s.modelindex = gi.modelindex("models/weapons/g_tesla/tris.md2");
+	NetworkMonitor::RecordModelPrecache();
 
 	tesla->owner = self;
 	tesla->teammaster = self;
