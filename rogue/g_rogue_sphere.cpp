@@ -542,7 +542,9 @@ THINK(defender_think) (edict_t* self) -> void {
 	}
 
 	// if we are spectator, FreeEdict.
-	if (self->owner->movetype == MOVETYPE_NOCLIP) {
+	// Exception: Don't delete sphere if owner is a doppelganger (they can be hooked with MOVETYPE_NOCLIP)
+	if (self->owner->movetype == MOVETYPE_NOCLIP &&
+	    !horde::IsSpecialType(self->owner, horde::SpecialEntityTypeID::DOPPLEGANGER)) {
 		G_FreeEdict(self);
 		return;
 	}

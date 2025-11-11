@@ -8,6 +8,62 @@
 
 edict_t* Sphere_Spawn(edict_t* owner, spawnflags_t spawnflags);
 
+// Touch function for doppelgangers - allows anyone to push them (like bot-summoned entities)
+TOUCH(doppleganger_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
+{
+	// Bots pass through all doppelgangers (no collision)
+	if (other->svflags & SVF_BOT)
+		return;
+
+	// Validate that the toucher is a client and owner exists
+	if (!other->client || !self->teammaster || !self->teammaster->client)
+		return;
+
+	// Doppelgangers work like bot-summoned entities - anyone can push them
+	// This helps prevent players and bots from getting stuck
+
+	// Don't push if player is not on ground or not touching properly
+	if (!other->groundentity || !other_touching_self)
+		return;
+
+	// Calculate push direction and strength
+	vec3_t push_dir;
+	float push_speed = 400.0f; // Same speed as summoned stroggs
+
+	// Check if player is looking up (towards sky/roof)
+	if (other->client->v_angle[PITCH] < -45.0f) // Looking up more than 45 degrees
+	{
+		// Vertical push - launch the doppleganger upward
+		push_dir = { 0, 0, 1 }; // Straight up
+		self->velocity[2] = push_speed * 1.5f; // Strong vertical push
+
+		// Add some forward momentum based on view
+		vec3_t forward;
+		AngleVectors(other->client->v_angle, forward, nullptr, nullptr);
+		self->velocity[0] += forward[0] * push_speed * 0.3f;
+		self->velocity[1] += forward[1] * push_speed * 0.3f;
+
+		// Make sure doppleganger is off ground for the jump
+		self->groundentity = nullptr;
+	}
+	else
+	{
+		// Horizontal push based on player's view direction
+		vec3_t forward;
+		AngleVectors(other->client->v_angle, forward, nullptr, nullptr);
+
+		push_dir[0] = forward[0];
+		push_dir[1] = forward[1];
+		push_dir[2] = 0; // Horizontal only
+
+		push_dir.normalize();
+
+		// Apply horizontal push
+		self->velocity[0] = push_dir[0] * push_speed;
+		self->velocity[1] = push_dir[1] * push_speed;
+	}
+}
+
 DIE(doppleganger_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	edict_t* sphere;
@@ -61,6 +117,13 @@ THINK(body_think) (edict_t* self) -> void
 {
 	float r;
 
+	// Track the base's position (base is teammaster)
+	if (self->teammaster && self->teammaster->inuse)
+	{
+		self->s.origin = self->teammaster->s.origin;
+		self->s.origin[2] += 8; // Offset body slightly above base
+	}
+
 	if (fabsf(self->ideal_yaw - anglemod(self->s.angles[YAW])) < 2)
 	{
 		if (self->timestamp < level.time)
@@ -85,6 +148,7 @@ THINK(body_think) (edict_t* self) -> void
 		self->teleport_time = level.time + 10_hz;
 	}
 
+	gi.linkentity(self); // Relink after position update
 	self->nextthink = level.time + FRAME_TIME_MS;
 }
 
@@ -117,6 +181,7 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir)
 	base->health = g_config.doppleganger.health_base;
 	base->pain = doppleganger_pain;
 	base->die = doppleganger_die;
+	base->touch = doppleganger_touch; // Allow players to push doppelgangers
 
 	base->nextthink = level.time + gtime_t::from_sec(g_config.doppleganger.time_to_live_sec);
 	base->think = doppleganger_timeout;

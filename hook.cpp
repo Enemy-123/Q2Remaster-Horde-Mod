@@ -87,6 +87,14 @@ bool Hook_CanChainEntity(edict_t* entity, edict_t* player)
 			return true;
 	}
 
+	// Check if it's a doppleganger
+	// Doppelgangers work like bot-summoned entities - anyone can chain them (prevents obstruction)
+	if (horde::IsSpecialType(entity, horde::SpecialEntityTypeID::DOPPLEGANGER))
+	{
+		// Allow anyone to chain doppelgangers (they use teammaster to track creator)
+		return true;
+	}
+
 	return false;
 }
 
@@ -276,6 +284,20 @@ void Hook_Reset(edict_t* rhook)
 		gi.linkentity(sentry);
 	}
 
+	// If we were holding a doppleganger, restore it to normal state
+	if (rhook->enemy && rhook->enemy->inuse &&
+	    horde::IsSpecialType(rhook->enemy, horde::SpecialEntityTypeID::DOPPLEGANGER))
+	{
+		edict_t* doppleganger = rhook->enemy;
+
+		// Restore normal doppleganger physics
+		doppleganger->movetype = MOVETYPE_TOSS;
+		doppleganger->solid = SOLID_BBOX;
+		doppleganger->velocity = vec3_origin;
+
+		gi.linkentity(doppleganger);
+	}
+
 	// start with nullptr pointer checks
 	if (rhook->owner && rhook->owner->client)
 	{
@@ -378,9 +400,10 @@ THINK(Hook_Track) (edict_t* self) -> void
 
 	// bring the pAiN!
 	if (self->enemy->client || self->enemy->monsterinfo.issummoned ||
-	    horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::SENTRY_GUN))
+	    horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::SENTRY_GUN) ||
+	    horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::DOPPLEGANGER))
 	{
-		// Special handling for chained bots/summons/sentries - gravity gun style
+		// Special handling for chained bots/summons/sentries/doppelgangers - gravity gun style
 		if (Hook_CanChainEntity(self->enemy, self->owner))
 		{
 			// Check if entity is behind a wall or too far from player
@@ -413,6 +436,33 @@ THINK(Hook_Track) (edict_t* self) -> void
 			{
 				// Use sentry-specific visualization (velocity-based like bots)
 				sentry_hookplacement(self->enemy, self->owner, self->wait);
+			}
+			// Check if this is a doppleganger
+			else if (horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::DOPPLEGANGER))
+			{
+				// Doppleganger handling - use MOVETYPE_NOCLIP for free movement (like barrels)
+				// Change movetype to NOCLIP if not already set
+				if (self->enemy->movetype != MOVETYPE_NOCLIP)
+				{
+					self->enemy->movetype = MOVETYPE_NOCLIP;
+					self->enemy->groundentity = nullptr;
+				}
+
+				// Calculate where the doppleganger SHOULD be (at stored distance in view direction)
+				vec3_t forward;
+				AngleVectors(self->owner->client->v_angle, forward, nullptr, nullptr);
+				vec3_t target_position = self->owner->s.origin + (forward * self->wait);
+
+				// Calculate direction from doppleganger's current position to target position
+				vec3_t pull_dir = target_position - self->enemy->s.origin;
+				float distance_to_target = pull_dir.length();
+
+				// Apply velocity proportional to distance (stronger pull when further from target)
+				if (distance_to_target > 1.0f)
+				{
+					pull_dir = safe_normalized(pull_dir);
+					self->enemy->velocity = pull_dir * (distance_to_target * hook_bot_chain_speed->value / 100.0f);
+				}
 			}
 			else
 			{
