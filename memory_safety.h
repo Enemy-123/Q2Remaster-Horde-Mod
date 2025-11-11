@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <limits>
 #include <new>
+#include <boost/container/small_vector.hpp>
 
 // Critical limits to prevent overflow crashes
 // 65535 is the uint16_t max - a common overflow point
@@ -244,6 +245,115 @@ inline void periodic_cleanup(Container& container, size_t max_size, size_t clean
                                 container.size());
             }
         }
+    }
+}
+
+// Overloads for boost::container::small_vector
+// Note: small_vector has 4 template parameters: T, N, Options, Allocator
+
+template<typename T, std::size_t N, typename Options, typename Allocator>
+inline bool safe_reserve(boost::container::small_vector<T, N, Options, Allocator>& vec, size_t new_capacity) {
+    try {
+        if (new_capacity > MAX_SAFE_CONTAINER_SIZE) {
+            if (developer && developer->integer) {
+                gi.Com_PrintFmt("WARNING: Attempted to reserve {} elements, clamping to {}\n",
+                    new_capacity, MAX_SAFE_CONTAINER_SIZE);
+            }
+            new_capacity = MAX_SAFE_CONTAINER_SIZE;
+        }
+
+        size_t bytes_needed = new_capacity * sizeof(T);
+        if (bytes_needed / sizeof(T) != new_capacity) {
+            return false;
+        }
+
+        vec.reserve(new_capacity);
+        return true;
+    } catch (const std::bad_alloc&) {
+        if (developer && developer->integer) {
+            gi.Com_Print("ERROR: Failed to allocate memory for vector reserve\n");
+        }
+        return false;
+    } catch (...) {
+        return false;
+    }
+}
+
+template<typename T, std::size_t N, typename Options, typename Allocator>
+inline bool safe_resize(boost::container::small_vector<T, N, Options, Allocator>& vec, size_t new_size, size_t max_size = MAX_SAFE_CONTAINER_SIZE) {
+    try {
+        if (new_size > max_size) {
+            if (developer && developer->integer) {
+                gi.Com_PrintFmt("WARNING: Attempted to resize to {} elements, clamping to {}\n",
+                    new_size, max_size);
+            }
+            new_size = max_size;
+        }
+
+        size_t bytes_needed = new_size * sizeof(T);
+        if (bytes_needed / sizeof(T) != new_size) {
+            return false;
+        }
+
+        vec.resize(new_size);
+        return true;
+    } catch (const std::bad_alloc&) {
+        if (developer && developer->integer) {
+            gi.Com_Print("ERROR: Failed to allocate memory for vector resize\n");
+        }
+        return false;
+    } catch (...) {
+        return false;
+    }
+}
+
+template<typename T, std::size_t N, typename Options, typename Allocator>
+inline bool safe_push_back(boost::container::small_vector<T, N, Options, Allocator>& vec, const T& value, size_t max_size = MAX_SAFE_CONTAINER_SIZE) {
+    try {
+        if (vec.size() >= max_size) {
+            if (developer && developer->integer) {
+                static int overflow_count = 0;
+                if (overflow_count++ < 10) {
+                    gi.Com_PrintFmt("WARNING: Container size limit {} reached, not adding element\n", max_size);
+                }
+            }
+            return false;
+        }
+
+        vec.push_back(value);
+        return true;
+    } catch (const std::bad_alloc&) {
+        if (developer && developer->integer) {
+            gi.Com_Print("ERROR: Failed to allocate memory for push_back\n");
+        }
+        return false;
+    } catch (...) {
+        return false;
+    }
+}
+
+template<typename T, std::size_t N, typename Options, typename Allocator>
+inline bool safe_push_back(boost::container::small_vector<T, N, Options, Allocator>& vec, T&& value, size_t max_size = MAX_SAFE_CONTAINER_SIZE) {
+    try {
+        if (vec.size() >= max_size) {
+            if (developer && developer->integer) {
+                static int overflow_count = 0;
+                if (overflow_count++ < 10) {
+                    gi.Com_PrintFmt("WARNING: Container size limit {} reached, not adding element\n", max_size);
+                }
+            }
+            return false;
+        }
+
+        vec.push_back(std::move(value));
+        return true;
+    } catch (const std::bad_alloc&) {
+        if (developer && developer->integer) {
+            gi.Com_Print("ERROR: Failed to allocate memory for push_back\n");
+        }
+        return false;
+    } catch (...) {
+        return false;
     }
 }
 

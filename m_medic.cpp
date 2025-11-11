@@ -14,6 +14,7 @@ MEDIC
 #include "shared.h"
 #include "horde/g_horde_scaling.h"
 #include "monster_constants.h"
+#include <boost/container/small_vector.hpp>
 
 // Add these prototypes near the top
 // bool tesla_check_conversion(edict_t* tesla, edict_t* converter);
@@ -77,7 +78,8 @@ constexpr std::array<vec3_t, MAX_REINFORCEMENTS> reinforcement_position = {
 	vec3_t{0, -80, 0}};
 
 // filter out the reinforcement indices we can pick given the space we have left
-static void M_PickValidReinforcements(edict_t *self, int32_t space, std::vector<uint8_t> &output)
+template<typename Container>
+static void M_PickValidReinforcements(edict_t *self, int32_t space, Container &output)
 {
 	output.clear();
 
@@ -90,7 +92,7 @@ static void M_PickValidReinforcements(edict_t *self, int32_t space, std::vector<
 // pick an array of reinforcements to use; note that this does not modify `self`
 std::array<uint8_t, MAX_REINFORCEMENTS> M_PickReinforcements(edict_t *self, int32_t &num_chosen, int32_t max_slots)
 {
-	static std::vector<uint8_t> available;
+	static boost::container::small_vector<uint8_t, 64> available;
 	std::array<uint8_t, MAX_REINFORCEMENTS> chosen;
 	chosen.fill(255);
 

@@ -3,6 +3,7 @@
 #include "g_local.h"
 #include "shared.h"
 #include "memory_safety.h"
+#include <boost/container/small_vector.hpp>
 
 // PGM - some of these are mine, some id's. I added the define's.
 constexpr spawnflags_t SPAWNFLAG_TRIGGER_MONSTER = 0x01_spawnflag;
@@ -728,7 +729,7 @@ USE(hurt_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 struct hurt_filter_data_t
 {
 	edict_t* self;
-	std::vector<edict_t*> hurt;
+	boost::container::small_vector<edict_t*, 16> hurt;
 };
 
 static BoxEdictsResult_t hurt_filter(edict_t* other, void* self_ptr)

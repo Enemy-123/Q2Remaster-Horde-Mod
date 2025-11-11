@@ -15,6 +15,7 @@
 #include <array>
 #include <bit>
 #include <unordered_set>
+#include <boost/container/small_vector.hpp>
 
 // Constants for various game mechanics
 namespace {
@@ -234,7 +235,7 @@ void RemovePlayerOwnedEntities(edict_t* player) {
     }
 
     edict_t* stack_entities[STACK_ENTITY_CAPACITY];
-    std::vector<edict_t*> heap_entities;
+    boost::container::small_vector<edict_t*, 64> heap_entities;
 
     edict_t** entities_array = stack_entities;
     size_t entity_count = 0;
@@ -1137,7 +1138,7 @@ void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs
 	const float safe_radius = radius_to_contain_box + MAX_ENTITY_REACH;
 
 	edict_t* stack_entities[STACK_ENTITY_CAPACITY];
-	std::vector<edict_t*> heap_entities;
+	boost::container::small_vector<edict_t*, 64> heap_entities;
 
 	edict_t** entities_array = stack_entities;
 	size_t entity_count = 0;

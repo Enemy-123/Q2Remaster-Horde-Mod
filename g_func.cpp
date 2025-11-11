@@ -2,6 +2,7 @@
 // Licensed under the GNU General Public License 2.0.
 #include "g_local.h"
 #include "memory_safety.h"
+#include <boost/container/small_vector.hpp>
 
 /*
 =========================================================
@@ -168,7 +169,7 @@ void Move_Calc(edict_t* ent, const vec3_t& dest, void(*endfunc)(edict_t* self))
 
 			float total_dist = ent->moveinfo.remaining_distance;
 
-			std::vector<float> distances;
+			boost::container::small_vector<float, 32> distances;
 
 			if (ent->moveinfo.num_subframes)
 			{

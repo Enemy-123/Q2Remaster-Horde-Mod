@@ -4,6 +4,7 @@
 
 #include "g_local.h"
 #include "memory_safety.h"
+#include <boost/container/small_vector.hpp>
 
 // Entity spawning and reuse constants
 constexpr gtime_t ENTITY_REUSE_INITIAL_PERIOD = 2_sec;  // Relax replacement policy during initial server startup
@@ -689,7 +690,7 @@ void G_TouchProjectiles(edict_t* ent, vec3_t previous_origin)
 	};
 
 	// Static vector to store projectiles we are temporarily ignoring
-	static std::vector<skipped_projectile> skipped;
+	static boost::container::small_vector<skipped_projectile, 32> skipped;
 
 	// Clear old entries to prevent accumulation over time
 	periodic_cleanup(skipped, MAX_SKIPPED_PROJECTILES, MAX_SKIPPED_PROJECTILES / 2);

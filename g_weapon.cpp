@@ -3,6 +3,7 @@
 #include "g_local.h"
 #include "memory_safety.h"
 #include "horde/g_horde_benefits.h"
+#include <boost/container/small_vector.hpp>
 
 // Forward declaration for burn function from g_fire.cpp
 void apply_burning(edict_t* target, edict_t* attacker, int damage, gtime_t duration);
@@ -1656,7 +1657,7 @@ constexpr int MAX_FORCE = 100;                  // Maximum pull force
 // Laser object pool for efficient memory management
 class LaserPool {
 private:
-	static std::vector<edict_t*> pool;
+	static boost::container::small_vector<edict_t*, 64> pool;
 	static constexpr size_t MAX_POOL_SIZE = MAX_POOLED_LASERS;
 
 public:
@@ -1710,7 +1711,7 @@ public:
 };
 
 // Static member initialization
-std::vector<edict_t*> LaserPool::pool;
+boost::container::small_vector<edict_t*, 64> LaserPool::pool;
 
 // External C-style function to initialize LaserPool
 void LaserPool_Init() {

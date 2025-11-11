@@ -5,6 +5,7 @@
 #include "shared.h"
 #include "horde/p_flyer_morph.h"
 #include "network_monitor.h"
+#include <boost/container/small_vector.hpp>
 
 /*
 ======================================================================
@@ -1037,10 +1038,8 @@ void G_SetStats(edict_t* ent)
 	};
 
 	// Use static thread_local to avoid per-frame heap allocations
-	static thread_local std::vector<active_powerup_t> active_powerups;
+	static thread_local boost::container::small_vector<active_powerup_t, 8> active_powerups;
 	active_powerups.clear();
-	if (active_powerups.capacity() < 8)
-		active_powerups.reserve(8);
 
 	for (auto& powerup_entry : powerup_table) // Iterate through the global powerup_table
 	{
@@ -1180,10 +1179,8 @@ void G_SetStats(edict_t* ent)
 			ent->client->ps.stats[STAT_KEY_C] = 0;
 
 		// Use static thread_local to avoid per-frame heap allocations
-		static thread_local std::vector<item_id_t> keys_held;
+		static thread_local boost::container::small_vector<item_id_t, 4> keys_held;
 		keys_held.clear();
-		if (keys_held.capacity() < 10)
-			keys_held.reserve(10);
 
 		for (size_t i = 0; i < IT_TOTAL; ++i) // Iterate using index for global C array
 		{

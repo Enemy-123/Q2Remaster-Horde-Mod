@@ -5102,10 +5102,15 @@ struct PlayerStatus {
 	vec3_t spot;
 };
 
+struct RespawnTarget {
+	edict_t* target;
+	vec3_t position;
+};
+
 // This is the recommended final version.
 // It is simple, reliable, and highly performant due to caching the main bottleneck.
 
-inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
+inline RespawnTarget G_FindSquadRespawnTarget() {
 	// --- Constants ---
 	static constexpr auto BAD_AREA_TIMEOUT = 3_sec;
 	static constexpr auto ZERO_TIME = 0_ms;
@@ -5251,32 +5256,32 @@ if (update_bad_area_msg) {
 	// --- Select Respawn Target ---
 	if (num_candidates > 0) {
 		size_t index = static_cast<size_t>(irandom(static_cast<int32_t>(num_candidates)));
-		return { candidates_arr[index].first, candidates_arr[index].second };
+		return { .target = candidates_arr[index].first, .position = candidates_arr[index].second };
 	}
 
 	// --- Handle Forced Respawn ---
 	if (force_respawn_possible) {
-		auto check_forced_respawn = [&](edict_t* player) -> std::tuple<edict_t*, vec3_t> {
+		auto check_forced_respawn = [&](edict_t* player) -> RespawnTarget {
 			if (player && player->client &&
 			   (player->client->coop_respawn_state == COOP_RESPAWN_BAD_AREA || player->client->coop_respawn_state == COOP_RESPAWN_BLOCKED) &&
 			   (BAD_AREA_TIMEOUT - player->client->time_in_bad_area <= ZERO_TIME)) {
 				if (edict_t* spawn_point = SelectSingleSpawnPoint(player)) {
 					player->client->coop_respawn_state = COOP_RESPAWN_NONE;
-					return { player, spawn_point->s.origin };
+					return { .target = player, .position = spawn_point->s.origin };
 				}
 			}
-			return { nullptr, vec3_t{} };
+			return { .target = nullptr, .position = vec3_t{} };
 		};
 
 		if (is_horde_mode) {
 			for (auto p_ent : active_players_no_spect()) {
 				auto res = check_forced_respawn(p_ent);
-				if (std::get<0>(res) != nullptr) return res;
+				if (res.target != nullptr) return res;
 			}
 		} else {
 			for (auto p_ent : active_players()) {
 				auto res = check_forced_respawn(p_ent);
-				if (std::get<0>(res) != nullptr) return res;
+				if (res.target != nullptr) return res;
 			}
 		}
 	}
@@ -5293,7 +5298,7 @@ if (update_bad_area_msg) {
 		for (auto p_ent : active_players()) { update_to_waiting(p_ent); }
 	}
 
-	return { nullptr, vec3_t{} };
+	return { .target = nullptr, .position = vec3_t{} };
 }
 
 enum respawn_state_t

@@ -18,6 +18,7 @@ All tank variants unified in a single file
 #include <algorithm>
 #include <numeric>
 #include <boost/container/flat_map.hpp>
+#include <boost/container/small_vector.hpp>
 
 // Forward declarations for all variants
 // Standard tank functions
@@ -2494,8 +2495,7 @@ void Monster_MoveSpawn(edict_t* self) {
 
 			// --- MODIFIED ID-BASED LOGIC ---
 			// 1. Find all possible reinforcements that fit in the available slots.
-			std::vector<uint8_t> available_indices;
-			available_indices.reserve(self->monsterinfo.reinforcements.defs.size());
+			boost::container::small_vector<uint8_t, 32> available_indices;
 			for (uint8_t i = 0; i < self->monsterinfo.reinforcements.defs.size(); ++i) {
 				if (self->monsterinfo.reinforcements.defs[i].strength <= available_slots) {
 					// Check if precached in horde mode - filter before adding to available list
