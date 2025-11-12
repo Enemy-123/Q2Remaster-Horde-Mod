@@ -634,27 +634,6 @@ void PlanMonsterSpawnBatch(
 
         if (monster_type_id != horde::MonsterTypeID::UNKNOWN)
         {
-            // Check monster variety limit: Max 3 of same type per wave
-            const size_t type_index = static_cast<size_t>(monster_type_id);
-            if (type_index < g_spawn_system.monster_type_count_this_wave.size())
-            {
-                if (g_spawn_system.monster_type_count_this_wave[type_index] >= 3)
-                {
-                    // Already spawned 3 of this type, skip and try another spawn point
-                    if (developer->integer)
-                    {
-                        gi.Com_PrintFmt("SPAWN VARIETY: Skipping '{}' (already spawned {} times this wave)\n",
-                                        horde::MonsterTypeRegistry::GetClassname(monster_type_id),
-                                        g_spawn_system.monster_type_count_this_wave[type_index]);
-                    }
-                    failed_monster_pick++;
-                    continue;
-                }
-
-                // Increment counter for this monster type
-                g_spawn_system.monster_type_count_this_wave[type_index]++;
-            }
-
             // Use safe emplace_back with overflow protection
             if (!safe_emplace_back_limit(g_spawn_system.spawn_plan, MAX_ENTITIES_PER_FRAME, monster_type_id, spawn_point)) {
                 gi.Com_Print("WARNING: Spawn plan full, stopping planning\n");

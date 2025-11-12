@@ -115,9 +115,6 @@ struct SpawnSystemState {
     std::vector<SpawnPlanEntry> spawn_plan;
     float champion_chance_for_current_batch = 0.2f;
 
-    // --- Monster Variety Tracking (Per-Wave) ---
-    std::array<uint8_t, 256> monster_type_count_this_wave{};  // Tracks count of each monster type in current wave
-
     // Reset all state (useful for testing and level transitions)
     void Reset() {
         potential_spawn_points.clear();
@@ -141,8 +138,6 @@ struct SpawnSystemState {
         spawn_plan.clear();
         spawn_plan.reserve(MAX_ENTITIES_PER_FRAME);  // Pre-allocate capacity to avoid reallocation in hot path
         champion_chance_for_current_batch = 0.2f;
-
-        monster_type_count_this_wave.fill(0);  // Reset per-wave monster counts
     }
 };
 

@@ -8379,7 +8379,6 @@ static void Horde_InitLevel(const int32_t lvl)
 
 	g_spawn_system.spawn_plan.clear();
 	g_spawn_system.special_spawn_state.clear(); // This replaces the old ambush/retaliation resets
-	g_spawn_system.monster_type_count_this_wave.fill(0); // Reset monster variety counter for new wave
 	// REMOVED: g_horde_retaliation_active - using g_spawn_system.special_spawn_state.type instead
 	g_horde_retaliation_end_time = 0_sec;
 	g_horde_retaliation_last_trigger_time = 0_sec;
