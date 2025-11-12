@@ -4,7 +4,6 @@
 #include "g_local.h"
 #include "bots/bot_includes.h"
 #include "memory_safety.h"
-#include "network_monitor.h"
 
 CHECK_GCLIENT_INTEGRITY;
 CHECK_EDICT_INTEGRITY;
@@ -1130,7 +1129,7 @@ static void G_CheckCvars()
 	{
 		// [Paril-KEX] air accel handled by game DLL now, and allow
 		// it to be changed in sp/coop
-		NetworkMonitor::QueueConfigString(CS_AIRACCEL, G_Fmt("{}", sv_airaccelerate->integer).data());
+		gi.configstring(CS_AIRACCEL, G_Fmt("{}", sv_airaccelerate->integer).data());
 		pm_config.airaccel = sv_airaccelerate->integer;
 	}
 
@@ -1450,9 +1449,6 @@ inline void G_RunFrame_(bool main_loop)
     }
     Profiler_ResetFrame();
 
-    // Network monitor - track buffer usage to prevent overflow
-    NetworkMonitor::ResetFrame();
-
     // Update proximity grid system (works in all game modes)
     UpdateProximityGrids();
 
@@ -1502,7 +1498,7 @@ inline void G_RunFrame_(bool main_loop)
             if (i > 0 && i <= game.maxclients) {
                 if (ent->timestamp && level.time < ent->timestamp) {
                     const int32_t playernum = ent - g_edicts - 1;
-                    NetworkMonitor::QueueConfigString(CS_PLAYERSKINS + playernum, "");
+                    gi.configstring(CS_PLAYERSKINS + playernum, "");
                     ent->timestamp = 0_sec;
                 }
             }
@@ -1578,9 +1574,6 @@ inline void G_RunFrame_(bool main_loop)
 
     level.in_frame = false;
     Profiler_RunFrame_End();
-
-    // Network monitor - check thresholds and process queued messages
-    NetworkMonitor::EndFrame();
 }
 
 inline bool G_AnyPlayerSpawned()

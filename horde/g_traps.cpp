@@ -1,6 +1,5 @@
 
 #include "../shared.h"
-#include "../network_monitor.h"
 
 // Forward declaration
 void T_RadiusDamage_TeamSafe(edict_t* inflictor, edict_t* attacker, float damage,
@@ -598,7 +597,6 @@ bool ProcessTrapTargets(edict_t* ent, trap_state_t* trap_state) {
         // Only the first target gets sound and sparks
         if (i == 0) {
             ent->s.sound = gi.soundindex("weapons/trapsuck.wav");
-            NetworkMonitor::RecordSoundPrecache();
             ent->enemy = target;
             trap_throwsparks(ent, target);
         }
@@ -715,7 +713,6 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
     trap->die = trap_die;
     trap->health = g_config.trap.health;
     trap->s.modelindex = gi.modelindex("models/weapons/z_trap/tris.md2");
-    NetworkMonitor::RecordModelPrecache();
     trap->owner = trap->teammaster = self;
 
     // Store attacker info in case owner dies before projectile hits
@@ -741,7 +738,6 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
     trap->classname = "food_cube_trap";
     trap->special_type_id = static_cast<uint8_t>(horde::SpecialTypeRegistry::GetTypeID(trap->classname));
     trap->s.sound = gi.soundindex("weapons/traploop.wav");
-    NetworkMonitor::RecordSoundPrecache();
 
     trap->flags |= (FL_DAMAGEABLE | FL_MECHANICAL | FL_TRAP);
     trap->clipmask = MASK_PROJECTILE & ~CONTENTS_DEADMONSTER;

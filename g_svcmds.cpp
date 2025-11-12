@@ -4,7 +4,6 @@
 #include "g_local.h"
 #include "horde/g_character.h"
 #include "shared.h"
-#include "network_monitor.h"
 
 void Svcmd_Test_f()
 {
@@ -467,18 +466,6 @@ void SVCmd_ResetPlayer_f()
 	}
 }
 
-/*
-=================
-SVCmd_NetworkStats_f
-
-Display network traffic statistics and buffer usage
-=================
-*/
-void SVCmd_NetworkStats_f()
-{
-	NetworkMonitor::PrintStats();
-}
-
 void ServerCommand()
 {
 	const char *cmd;
@@ -504,8 +491,6 @@ void ServerCommand()
 		SVCmd_AddWeaponPoints_f();
 	else if (Q_strcasecmp(cmd, "reset") == 0)
 		SVCmd_ResetPlayer_f();
-	else if (Q_strcasecmp(cmd, "netstats") == 0)
-		SVCmd_NetworkStats_f();
 	// REMOVED: Asset manager commands (assetstats, assetlist, assetcleanup)
 	else
 		gi.LocClient_Print(nullptr, PRINT_HIGH, "Unknown server command \"{}\"\n", cmd);

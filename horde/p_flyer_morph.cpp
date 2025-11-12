@@ -1,7 +1,6 @@
 // Player to Flyer Morph System for Q2Remaster Horde Mod
 #include "p_flyer_morph.h"
 #include "../m_flash.h"
-#include "../network_monitor.h"
 #include "../bots/bot_includes.h"
 #include "g_horde_benefits.h"
 #include "horde_ids.h"
@@ -83,7 +82,6 @@ static void FireSmartRocket(edict_t* ent, const vec3_t& start, const vec3_t& dir
     rocket->solid = SOLID_BBOX;
     rocket->s.effects |= EF_ROCKET;
     rocket->s.modelindex = gi.modelindex("models/objects/rocket/tris.md2");
-    NetworkMonitor::RecordModelPrecache();
     rocket->owner = ent;
     rocket->touch = rocket_touch;
     rocket->nextthink = level.time + 8_sec;
@@ -459,7 +457,6 @@ void Cmd_PlayerToFlyer_f(edict_t* ent) {
 
     // Set model and bounds
     ent->s.modelindex = gi.modelindex("models/monsters/flyer/tris.md2");
-    NetworkMonitor::RecordModelPrecache();
     ent->s.modelindex2 = 0;
     ent->s.skinnum = 0;
     ent->s.frame = FLYER_FRAMES_STAND_START; // Start with standing animation

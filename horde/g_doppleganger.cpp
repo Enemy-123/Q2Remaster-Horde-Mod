@@ -1,6 +1,5 @@
 #include "../shared.h"
 #include "../g_local.h"
-#include "../network_monitor.h"
 #include "../m_player.h"
 
 // ***************************
@@ -175,7 +174,6 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir)
 	base->mins = { -16, -16, -24 };
 	base->maxs = { 16, 16, 32 };
 	base->s.modelindex = gi.modelindex("models/objects/dopplebase/tris.md2");
-	NetworkMonitor::RecordModelPrecache();
 	base->s.alpha = 0.1f;
 	base->teammaster = ent;
 	base->flags |= (FL_DAMAGEABLE | FL_TRAP);

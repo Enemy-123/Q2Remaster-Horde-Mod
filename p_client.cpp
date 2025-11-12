@@ -4,7 +4,6 @@
 #include "m_player.h"
 #include "bots/bot_includes.h"
 #include "shared.h"
-#include "network_monitor.h"
 #include "horde/g_laser.h"
 #include "horde/g_horde_benefits.h"
 #include "horde/g_horde.h"
@@ -3418,12 +3417,12 @@ void ClientUserinfoChanged(edict_t* ent, const char* userinfo)
 		gi.Info_ValueForKey(userinfo, "dogtag", dogtag, sizeof(dogtag));
 
 		// ZOID
-		NetworkMonitor::QueueConfigString(CS_PLAYERSKINS + playernum, G_Fmt("{}\\{}\\{}", ent->client->pers.netname, val, dogtag).data());
+		gi.configstring(CS_PLAYERSKINS + playernum, G_Fmt("{}\\{}\\{}", ent->client->pers.netname, val, dogtag).data());
 	}
 
 	// ZOID
 	//  set player name field (used in id_state view)
-	NetworkMonitor::QueueConfigString(CONFIG_ID_PLAYER_NAME + playernum, ent->client->pers.netname);
+	gi.configstring(CONFIG_ID_PLAYER_NAME + playernum, ent->client->pers.netname);
 	// ZOID
 
 	// [Kex] netname is used for a couple of other things, so we update this after those.

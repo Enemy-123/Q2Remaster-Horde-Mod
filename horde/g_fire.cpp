@@ -3,7 +3,6 @@
 // Fire and Fireball implementation - modernized from Vortex
 
 #include "../g_local.h"
-#include "../network_monitor.h"
 #include "horde_performance.h"
 #include "g_horde_phys.h"
 
@@ -309,7 +308,6 @@ void ThrowFlame(edict_t* ent, const vec3_t& start, const vec3_t& forward,
     fire->dmg = damage;
     fire->classname = "fire";
     fire->s.sound = gi.soundindex("weapons/bfg__l1a.wav");
-    NetworkMonitor::RecordSoundPrecache();
     fire->timestamp = level.time + ttl;
     fire->think = bfire_think;
     fire->touch = bfire_touch;
@@ -317,7 +315,6 @@ void ThrowFlame(edict_t* ent, const vec3_t& start, const vec3_t& forward,
     fire->solid = SOLID_TRIGGER;
     fire->clipmask = MASK_SHOT;
     fire->s.modelindex = gi.modelindex(FIRE_MODEL);
-    NetworkMonitor::RecordModelPrecache();
     fire->s.scale = 0.4f;
     
     gi.linkentity(fire);
@@ -472,7 +469,6 @@ void fire_fireball(edict_t* self, const vec3_t& start, const vec3_t& aimdir,
     fireball->clipmask = MASK_SHOT;
     fireball->solid = SOLID_BBOX;
     fireball->s.modelindex = gi.modelindex(FIREBALL_MODEL);
-    NetworkMonitor::RecordModelPrecache();
     fireball->owner = self;
     fireball->touch = fire_fireball_touch;
     fireball->think = fire_fireball_think;
@@ -501,9 +497,7 @@ void fire_fireball(edict_t* self, const vec3_t& start, const vec3_t& aimdir,
     fireball->avelocity = { 0, 0, 600 };
 
     // Play a sound
-    int sound_idx = gi.soundindex("chick/chkatck2.wav");
-    NetworkMonitor::RecordSoundPrecache();
-    gi.sound(fireball, CHAN_WEAPON, sound_idx, 1, ATTN_NORM, 0);
+    gi.sound(fireball, CHAN_WEAPON, gi.soundindex("chick/chkatck2.wav"), 1, ATTN_NORM, 0);
 }
 
 // ============================================================================

@@ -1,7 +1,6 @@
 // Copyright (c) ZeniMax Media Inc.
 // Licensed under the GNU General Public License 2.0.
 #include "g_local.h"
-#include "network_monitor.h"
 #include "bots/bot_includes.h"
 #include "shared.h"
 #include "horde/g_horde_benefits.h"
@@ -4429,7 +4428,7 @@ void SetItemNames()
 	for (item_id_t i = IT_NULL; i < IT_TOTAL; i = static_cast<item_id_t>(i + 1))
 	{
 		const char* name = itemlist[i].pickup_name ? itemlist[i].pickup_name : "";
-		NetworkMonitor::QueueConfigString(CS_ITEMS + i, name);
+		gi.configstring(CS_ITEMS + i, name);
 	}
 
 	// [Paril-KEX] set ammo wheel indices first
@@ -4447,7 +4446,7 @@ void SetItemNames()
 
 		int image_idx = itemlist[i].icon ? gi.imageindex(itemlist[i].icon) : -1;
 
-		NetworkMonitor::QueueConfigString(CS_WHEEL_AMMO + cs_index, G_Fmt("{}|{}", (int32_t)i, image_idx).data());
+		gi.configstring(CS_WHEEL_AMMO + cs_index, G_Fmt("{}|{}", (int32_t)i, image_idx).data());
 		itemlist[i].ammo_wheel_index = cs_index;
 		cs_index++;
 	}
@@ -4479,7 +4478,7 @@ void SetItemNames()
 
 		int image_idx = itemlist[i].icon ? gi.imageindex(itemlist[i].icon) : -1;
 
-		NetworkMonitor::QueueConfigString(CS_WHEEL_WEAPONS + cs_index, G_Fmt("{}|{}|{}|{}|{}|{}|{}|{}",
+		gi.configstring(CS_WHEEL_WEAPONS + cs_index, G_Fmt("{}|{}|{}|{}|{}|{}|{}|{}",
 			(int32_t)i,
 			image_idx,
 			ammo_wheel_idx,
@@ -4518,7 +4517,7 @@ void SetItemNames()
 
 		int image_idx = itemlist[i].icon ? gi.imageindex(itemlist[i].icon) : -1;
 
-		NetworkMonitor::QueueConfigString(CS_WHEEL_POWERUPS + cs_index, G_Fmt("{}|{}|{}|{}|{}|{}",
+		gi.configstring(CS_WHEEL_POWERUPS + cs_index, G_Fmt("{}|{}|{}|{}|{}|{}",
 			(int32_t)i,
 			image_idx,
 			(itemlist[i].flags & IF_POWERUP_ONOFF) ? 1 : 0,

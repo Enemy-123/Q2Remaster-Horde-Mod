@@ -4,7 +4,6 @@
 #include "g_statusbar.h"
 #include "shared.h"
 #include "horde/p_flyer_morph.h"
-#include "network_monitor.h"
 #include <boost/container/small_vector.hpp>
 
 /*
@@ -796,8 +795,8 @@ void G_SetCoopStats(edict_t* ent) {
 			char wave_string[16];
 			snprintf(wave_string, sizeof(wave_string), "%d", current_wave_level);
 
-			// Update the configstring with network monitoring
-			NetworkMonitor::QueueConfigString(WAVE_NUMBER_STRING, wave_string);
+			// Update the configstring with our new formatted string.
+			gi.configstring(WAVE_NUMBER_STRING, wave_string);
 		}
 		// Always tell the client to use our dedicated configstring for this stat.
 		ent->client->ps.stats[STAT_WAVE_NUMBER] = WAVE_NUMBER_STRING;
@@ -843,7 +842,7 @@ void G_SetCoopStats(edict_t* ent) {
 			t = std::max(0, t);
 			G_FmtTo(game_timer, "{:02}:{:02}", t / 60, t % 60);
 			ent->client->ps.stats[STAT_GAME_TIMER] = HORDE_WAVE_TIMER;
-			NetworkMonitor::QueueConfigString(HORDE_WAVE_TIMER, game_timer);
+			gi.configstring(HORDE_WAVE_TIMER, game_timer);
 		}
 	}
 }

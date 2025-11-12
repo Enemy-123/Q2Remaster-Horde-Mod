@@ -543,9 +543,6 @@ inline gtime_t FALL_TIME()
 	return 300_ms + DAMAGE_TIME_SLACK();
 }
 
-// Include network monitor after gtime_t is fully defined
-#include "network_monitor.h"
-
 // every save_data_list_t has a tag
 // which is used for integrity checks.
 enum save_data_tag_t
@@ -4603,12 +4600,6 @@ struct cached_assetindex
 	inline void assign(const char* name) {
 		this->name = name;
 		index = (gi.*T)(name);
-		// Record asset precaching for network monitoring
-		if constexpr (T == &local_game_import_t::soundindex) {
-			NetworkMonitor::RecordSoundPrecache();
-		} else if constexpr (T == &local_game_import_t::modelindex) {
-			NetworkMonitor::RecordModelPrecache();
-		}
 	}
 	// cleared before SpawnEntities
 	constexpr void clear() { index = 0; }

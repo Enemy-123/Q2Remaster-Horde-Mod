@@ -1,7 +1,6 @@
 // Player to Brain Morph System for Q2Remaster Horde Mod
 #include "p_brain_morph.h"
 #include "../m_flash.h"
-#include "../network_monitor.h"
 #include "../bots/bot_includes.h"
 #include "g_horde_benefits.h"
 #include "g_horde_phys.h"
@@ -551,7 +550,6 @@ void Cmd_PlayerToBrain_f(edict_t* ent) {
 
     // Set model and bounds
     ent->s.modelindex = gi.modelindex("models/monsters/brain/tris.md2");
-    NetworkMonitor::RecordModelPrecache();
     ent->s.modelindex2 = 0;
     ent->s.skinnum = 0;
     ent->s.frame = BRAIN_FRAMES_STAND_START; // Start with standing animation

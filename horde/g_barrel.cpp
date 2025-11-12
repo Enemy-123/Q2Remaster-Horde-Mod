@@ -1,6 +1,5 @@
 #include "../shared.h"
 #include "../g_local.h"
-#include "../network_monitor.h"
 #include "horde_performance.h"
 #include "g_horde_phys.h"
 #include "g_horde_benefits.h"
@@ -191,7 +190,6 @@ THINK(barrel_burn)(edict_t* self) -> void
     // Visual/audio burning effect
     self->s.effects |= EF_BARREL_EXPLODING;
     self->s.sound = gi.soundindex("weapons/bfg__l1a.wav");
-    NetworkMonitor::RecordSoundPrecache();
 
     // Deal AOE damage to attract monsters
     barrel_burn_damage(self);
@@ -222,9 +220,7 @@ TOUCH(shrapnel_touch)(edict_t* self, edict_t* other, const trace_t& tr, bool oth
                  tr.plane.normal, self->dmg, 0, DAMAGE_NONE, MOD_SHRAPNEL);
 
         // Play hit sound
-        int sound_idx = gi.soundindex("misc/fhit3.wav");
-        NetworkMonitor::RecordSoundPrecache();
-        gi.sound(other, CHAN_WEAPON, sound_idx, 1, ATTN_NORM, 0);
+        gi.sound(other, CHAN_WEAPON, gi.soundindex("misc/fhit3.wav"), 1, ATTN_NORM, 0);
 
         // Remove shrapnel after hitting a target
         G_FreeEdict(self);
@@ -887,7 +883,6 @@ edict_t* fire_barrel(edict_t* self, const vec3_t& start, const vec3_t& aimdir)
     barrel->mins = { -16, -16, 0 };
     barrel->maxs = { 16, 16, 40 };
     barrel->s.modelindex = gi.modelindex("models/objects/barrels/tris.md2");
-    NetworkMonitor::RecordModelPrecache();
 
     barrel->teammaster = self;
     barrel->chain = self;  // Set chain for summoned-style chain->teammastership
@@ -1252,7 +1247,6 @@ void Cmd_Barrel_f(edict_t* ent)
         barrel->solid = SOLID_BBOX;
         barrel->movetype = MOVETYPE_STEP;
         barrel->s.modelindex = gi.modelindex("models/objects/barrels/tris.md2");
-        NetworkMonitor::RecordModelPrecache();
         barrel->mins = { -16, -16, 0 };
         barrel->maxs = { 16, 16, 40 };
         barrel->mass = 100;
