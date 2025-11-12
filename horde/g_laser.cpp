@@ -286,6 +286,10 @@ namespace LaserHelpers
         if ((ent->svflags & SVF_MONSTER) && ent->monsterinfo.isfriendlyspawn)
             return true;
 
+        // Pierce through dopplegangers (spheres with SPHERE_DOPPLEGANGER flag)
+        if (ent->spawnflags.has(SPHERE_DOPPLEGANGER))
+            return true;
+
         return false;
     }
 
@@ -317,6 +321,11 @@ struct player_laser_pierce_t : pierce_args_t
         {
             if (tr.ent->svflags & SVF_MONSTER && tr.ent->monsterinfo.invincible_time > level.time) {
                 return mark(tr.ent); // Pierce through invincible targets.
+            }
+
+            // Check if target is on same team - if so, pierce through without damaging or consuming health
+            if (OnSameTeam(self->teammaster, tr.ent)) {
+                return mark(tr.ent); // Pierce through same-team entities (including dopplegangers)
             }
 
             // Let g_no_self_damage system handle self-damage prevention
