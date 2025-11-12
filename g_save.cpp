@@ -24,6 +24,7 @@
 //   does have some C-isms in here.
 
 #include <unordered_map>
+#include <boost/unordered/unordered_flat_map.hpp>
 
 // Professor Daniel J. Bernstein; https://www.partow.net/programming/hashfunctions/#APHashFunction MIT
 struct cstring_hash
@@ -59,9 +60,9 @@ struct ptr_tag_hash
 
 static bool save_data_initialized = false;
 static const save_data_list_t* list_head = nullptr;
-static std::unordered_map<const void*, const save_data_list_t*> list_hash;
-static std::unordered_map<const char*, const save_data_list_t*, cstring_hash, cstring_equal> list_str_hash;
-static std::unordered_map<std::tuple<const void*, save_data_tag_t>, const save_data_list_t*, ptr_tag_hash> list_from_ptr_hash;
+static boost::unordered::unordered_flat_map<const void*, const save_data_list_t*> list_hash;
+static boost::unordered::unordered_flat_map<const char*, const save_data_list_t*, cstring_hash, cstring_equal> list_str_hash;
+static boost::unordered::unordered_flat_map<std::tuple<const void*, save_data_tag_t>, const save_data_list_t*, ptr_tag_hash> list_from_ptr_hash;
 
 #include <cassert>
 

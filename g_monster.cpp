@@ -194,32 +194,38 @@ bool M_CheckClearShot(edict_t* self, const vec3_t& offset, vec3_t& start)
 	bool is_blind = self->monsterinfo.attack_state == AS_BLIND || (self->monsterinfo.aiflags & (AI_MANUAL_STEERING | AI_LOST_SIGHT));
 
 	if (is_blind)
+	{
 		target = self->monsterinfo.blind_fire_target;
+	}
 	else
 	{
-		// Additional safety check before accessing enemy
-		if (!self->enemy || !self->enemy->inuse)
+		// Cache enemy pointer to reduce indirection overhead (hot path optimization)
+		edict_t* enemy = self->enemy;
+		if (!enemy || !enemy->inuse)
 			return false;
-		target = self->enemy->s.origin + vec3_t{ 0, 0, (float)self->enemy->viewheight };
+
+		target = enemy->s.origin + vec3_t{ 0, 0, (float)enemy->viewheight };
+
+		trace_t tr = gi.traceline(start, target, self, MASK_PROJECTILE & ~CONTENTS_DEADMONSTER);
+
+		if ((tr.ent && tr.ent == enemy) || (tr.ent && tr.ent->client) || (tr.fraction > 0.8f && !tr.startsolid))
+			return true;
+
+		// Try ground-level target
+		target = enemy->s.origin;
+
+		tr = gi.traceline(start, target, self, MASK_PROJECTILE & ~CONTENTS_DEADMONSTER);
+
+		if ((tr.ent && tr.ent == enemy) || (tr.ent && tr.ent->client) || (tr.fraction > 0.8f && !tr.startsolid))
+			return true;
+
+		return false;
 	}
 
 	trace_t tr = gi.traceline(start, target, self, MASK_PROJECTILE & ~CONTENTS_DEADMONSTER);
 
-	if ((tr.ent && tr.ent == self->enemy) || (tr.ent && tr.ent->client) || (tr.fraction > 0.8f && !tr.startsolid))
+	if ((tr.ent && tr.ent->client) || (tr.fraction > 0.8f && !tr.startsolid))
 		return true;
-
-	if (!is_blind)
-	{
-		// Additional safety check before accessing enemy again
-		if (!self->enemy || !self->enemy->inuse)
-			return false;
-		target = self->enemy->s.origin;
-
-		trace_t tr = gi.traceline(start, target, self, MASK_PROJECTILE & ~CONTENTS_DEADMONSTER);
-
-		if ((tr.ent && tr.ent == self->enemy) || (tr.ent && tr.ent->client) || (tr.fraction > 0.8f && !tr.startsolid))
-			return true;
-	}
 
 	return false;
 }

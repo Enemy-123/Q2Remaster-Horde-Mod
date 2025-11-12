@@ -2,6 +2,7 @@
 
 #include "horde_ids.h"
 #include "../shared.h"
+#include "../memory_safety.h"  // For MAX_ENTITIES_PER_FRAME
 #include <boost/container/static_vector.hpp>  // For static_vector (fixed-capacity, no heap allocation)
 
 // Forward declarations (edict_t is already defined in shared.h)
@@ -135,6 +136,7 @@ struct SpawnSystemState {
         special_spawn_state.clear();
 
         spawn_plan.clear();
+        spawn_plan.reserve(MAX_ENTITIES_PER_FRAME);  // Pre-allocate capacity to avoid reallocation in hot path
         champion_chance_for_current_batch = 0.2f;
     }
 };

@@ -1376,6 +1376,7 @@ struct shadow_light_temp_t
 void G_LoadShadowLights();
 
 #include <unordered_set>
+#include <boost/unordered/unordered_flat_set.hpp>
 
 // spawn_temp_t is only used to hold entity field values that
 // can be set from the editor, but aren't actualy present
@@ -1427,7 +1428,7 @@ struct spawn_temp_t
 	const char* noise_start, * noise_middle, * noise_end; // [Paril-KEX]
 	int32_t loop_count; // [Paril-KEX]
 
-	std::unordered_set<const char*> keys_specified;
+	boost::unordered::unordered_flat_set<const char*> keys_specified;
 
 	const char* primary_objective_string;
 	const char* secondary_objective_string;

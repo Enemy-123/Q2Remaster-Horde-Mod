@@ -810,21 +810,20 @@ void ApplyGradualArmor(edict_t* ent) {
 	}
 }
 
-struct WeaponMultiplier {
-	item_id_t weapon_id;
-	float multiplier;
-};
-
-static constexpr std::array<WeaponMultiplier, 8> WEAPON_MULTIPLIERS = { {
-	{IT_WEAPON_SHOTGUN, 1.0f / DEFAULT_SHOTGUN_COUNT},
-	{IT_WEAPON_SSHOTGUN, 0.5f},
-	{IT_WEAPON_RLAUNCHER, 0.5f},
-	{IT_WEAPON_HYPERBLASTER, 0.5f},
-	{IT_WEAPON_PHALANX, 0.5f},
-	{IT_WEAPON_RAILGUN, 0.5f},
-	{IT_WEAPON_IONRIPPER, 1.0f / 3.0f},
-	{IT_WEAPON_GLAUNCHER, 0.5f}
-} };
+// Fast O(1) weapon multiplier lookup using switch (replaces O(n) linear search)
+static constexpr float GetWeaponVampireMultiplier(item_id_t weapon_id) {
+	switch (weapon_id) {
+		case IT_WEAPON_SHOTGUN:      return 1.0f / DEFAULT_SHOTGUN_COUNT;
+		case IT_WEAPON_SSHOTGUN:     return 0.5f;
+		case IT_WEAPON_RLAUNCHER:    return 0.5f;
+		case IT_WEAPON_HYPERBLASTER: return 0.5f;
+		case IT_WEAPON_PHALANX:      return 0.5f;
+		case IT_WEAPON_RAILGUN:      return 0.5f;
+		case IT_WEAPON_IONRIPPER:    return 1.0f / 3.0f;
+		case IT_WEAPON_GLAUNCHER:    return 0.5f;
+		default:                     return VampireConfig::BASE_MULTIPLIER;
+	}
+}
 
 // REMOVED: CalculateRealDamage - Function was never used in codebase
 // If needed in the future, reimplementation should consider:
@@ -886,22 +885,15 @@ int calculate_health_stolen(edict_t* attacker, int base_health_stolen) {
 		return base_health_stolen;
 	}
 
-	float multiplier = VampireConfig::BASE_MULTIPLIER;
 	const item_id_t weapon_id = attacker->client->pers.weapon->id;
+	float multiplier = GetWeaponVampireMultiplier(weapon_id);
 
-	// Iterate directly over the std::array (replaces std::span)
-	auto it = std::find_if(WEAPON_MULTIPLIERS.begin(), WEAPON_MULTIPLIERS.end(),
-		[weapon_id](const WeaponMultiplier& wm) { return wm.weapon_id == weapon_id; });
-
-	if (it != WEAPON_MULTIPLIERS.end()) {
-		multiplier = it->multiplier;
-
-		if (weapon_id == IT_WEAPON_MACHINEGUN && ClassicPlayerHasBenefitTracedBullets(attacker)) {
-			multiplier = 0.5f;
-		}
-		else if (weapon_id == IT_WEAPON_GLAUNCHER && ClassicPlayerHasBenefitNapalmGL(attacker)) {
-			multiplier *= 0.5f;
-		}
+	// Apply weapon-specific benefit modifiers
+	if (weapon_id == IT_WEAPON_MACHINEGUN && ClassicPlayerHasBenefitTracedBullets(attacker)) {
+		multiplier = 0.5f;
+	}
+	else if (weapon_id == IT_WEAPON_GLAUNCHER && ClassicPlayerHasBenefitNapalmGL(attacker)) {
+		multiplier *= 0.5f;
 	}
 
 	// Aplicar modificadores de poder

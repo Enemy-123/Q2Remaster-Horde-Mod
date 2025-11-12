@@ -588,11 +588,13 @@ void PlanMonsterSpawnBatch(
     if (num_to_plan <= 0)
         return;
 
-    // Safe reserve with overflow check
+    // Optimized reserve: only allocate if capacity insufficient (avoids reallocation)
     size_t reserve_size = std::min(static_cast<size_t>(num_to_plan), MAX_ENTITIES_PER_FRAME);
-    if (!safe_reserve(g_spawn_system.spawn_plan, reserve_size)) {
-        gi.Com_Print("ERROR: Failed to reserve memory for spawn plan\n");
-        return;
+    if (g_spawn_system.spawn_plan.capacity() < reserve_size) {
+        if (!safe_reserve(g_spawn_system.spawn_plan, reserve_size)) {
+            gi.Com_Print("ERROR: Failed to reserve memory for spawn plan\n");
+            return;
+        }
     }
 
     g_spawn_system.champion_chance_for_current_batch = champion_chance_param;

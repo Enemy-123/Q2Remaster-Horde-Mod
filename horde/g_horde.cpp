@@ -2536,8 +2536,10 @@ static int32_t CalculateEffectiveMonsterLevel(int32_t currentActualLevel, bool a
 	int32_t levelBoost;
 	int32_t maxLevelCap;
 
-	// CRITICAL: Level boost must be at least +3 to reach elite monsters (minimum 3-wave buffer)
-	constexpr int32_t MIN_ELITE_BOOST = 3;
+	// CRITICAL: Level boost must match dynamic elite buffer
+	// Early waves (1-6): +2 minimum to match +2 buffer
+	// Later waves (7+): +3 minimum to match +3/+4 buffer
+	const int32_t MIN_ELITE_BOOST = (currentActualLevel < 7) ? 2 : 3;
 
 	if (HasWaveType(waveTypeForFiltering, MonsterWaveType::Flying))
 	{
@@ -2581,10 +2583,10 @@ static int32_t CalculateEffectiveMonsterLevel(int32_t currentActualLevel, bool a
 	// Iterate only over the small, relevant subset of monsters.
 	// IMPORTANT: For elite spawns, we DON'T filter by wave type here!
 	// Elite spawns should bypass wave theme restrictions (Ground/Light/Gekk/etc)
-	// Use progressive fallback (+3, +2, +1) to ensure we always find candidates for waves 1-10
+	// Use progressive fallback to ensure we always find candidates
 
-	// Try with +3 minimum buffer first, then fallback to +2 and +1
-	constexpr int32_t MINIMUM_ELITE_BUFFER = 3;
+	// Dynamic buffer: +2 for waves 1-6, +3 for waves 7+
+	const int32_t MINIMUM_ELITE_BUFFER = (currentActualLevel < 7) ? 2 : 3;
 	int32_t active_buffer = MINIMUM_ELITE_BUFFER;
 
 	// For waves 1-10, try progressively smaller buffers to guarantee elite spawns
@@ -2810,6 +2812,11 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 				const auto& monster_info = monsterTypes[i];
 				const char* classname = horde::MonsterTypeRegistry::GetClassname(monster_info.typeId);
 
+				// Safety: Skip if classname is null
+				if (!classname || !*classname) {
+					continue;
+				}
+
 				// CHANGED: Allow BOTH precached and unprecached monsters as elite candidates
 				// If unprecached when selected → will be precached and added to tracking
 				// If already precached → will reuse (just set elite_spawn_model_path)
@@ -2824,10 +2831,10 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 				}
 				*/
 
-				// SMART ELITE FILTERING: Use minimum +3 wave buffer
-				// Ensures elite monsters are at least 3 waves ahead to avoid overlap with natural spawns
-				// Randomized selection from all valid candidates provides maximum variety
-				constexpr int32_t MINIMUM_ELITE_BUFFER = 3; // Minimum gap: current wave + 3
+				// SMART ELITE FILTERING: Dynamic buffer based on wave
+				// Early waves (1-6): +2 buffer to ensure variety and guarantee elites
+				// Later waves (7+): +3 buffer for stricter elite distinction
+				const int32_t MINIMUM_ELITE_BUFFER = (mutable_ctx.currentActualLevel < 7) ? 2 : 3;
 
 				if (monster_info.minWave < mutable_ctx.currentActualLevel + MINIMUM_ELITE_BUFFER) {
 					if (developer->integer)
@@ -2959,6 +2966,10 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 					for (size_t i = 0; i < MONSTER_DATA_COUNT; ++i)
 					{
 						const auto& monster_info = monsterTypes[i];
+						const char* fallback_classname = horde::MonsterTypeRegistry::GetClassname(monster_info.typeId);
+
+						// Safety: Skip if classname is null
+						if (!fallback_classname || !*fallback_classname) continue;
 
 						// CHANGED: Allow both precached and unprecached monsters
 						// if (g_precached_monster_types_flags[i]) continue;
@@ -2982,7 +2993,7 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 						if (developer->integer)
 						{
 							gi.Com_PrintFmt("Dynamic Precache: FALLBACK CANDIDATE '{}' (minWave={}, buffer=+{}, priority={:.2f})\n",
-								horde::MonsterTypeRegistry::GetClassname(monster_info.typeId),
+								fallback_classname,
 								monster_info.minWave,
 								fallback_buffer,
 								priority);
@@ -3622,20 +3633,34 @@ horde::MonsterTypeID G_HordePickMonsterType(
     {
         const size_t index = static_cast<size_t>(chosen_monster_id);
 
-        // Must be at least 4 waves higher (skip current + next 3 waves)
-        constexpr int32_t ELITE_WAVE_BUFFER = 4;
+        // Dynamic elite buffer: Lower for early waves to ensure elites spawn
+        // Waves 1-6: +2 buffer (more lenient, guarantees elites available)
+        // Waves 7+: +3 buffer (stricter, ensures clear elite distinction)
+        const int32_t ELITE_WAVE_BUFFER = (ctx.currentActualLevel < 7) ? 2 : 3;
 
         if (index < g_monsterData.MONSTER_ARRAY_SIZE && g_monsterData.minWaves[index] >= ctx.currentActualLevel + ELITE_WAVE_BUFFER)
         {
+            // CRITICAL: Only set flag when we successfully select a valid elite
+            // This prevents multiple elites in the same batch while allowing retries if elite selection fails
             g_special_high_level_monster_spawned_this_wave = true;
+
             if (developer->integer)
             {
-                gi.Com_PrintFmt("ELITE SPAWN: '{}' (minWave {}) spawned in wave {} (buffer={}). Flag set.\n",
+                gi.Com_PrintFmt("ELITE SPAWN SUCCESS: '{}' (minWave {}) spawned in wave {} (buffer={}). Flag set.\n",
                                 horde::MonsterTypeRegistry::GetClassname(chosen_monster_id),
                                 g_monsterData.minWaves[index],
                                 ctx.currentActualLevel,
                                 ELITE_WAVE_BUFFER);
             }
+        }
+        else if (attemptHigherLevel && developer->integer)
+        {
+            // Elite attempt but didn't meet buffer requirement - allow retry
+            gi.Com_PrintFmt("ELITE ATTEMPT FAILED: '{}' (minWave {}) doesn't meet +{} buffer (need >= {}). Flag NOT set, allowing retry.\n",
+                            horde::MonsterTypeRegistry::GetClassname(chosen_monster_id),
+                            g_monsterData.minWaves[index],
+                            ELITE_WAVE_BUFFER,
+                            ctx.currentActualLevel + ELITE_WAVE_BUFFER);
         }
     }
 

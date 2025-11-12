@@ -1153,9 +1153,9 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 
 			if (client->pers.skill_points > 0 || client->pers.weapon_points > 0)
 			{
-				gi.LocClient_Print(ent, PRINT_HIGH,
-					"Bot late join bonus (PvM): {} skill points, {} weapon points\n",
-					client->pers.skill_points, client->pers.weapon_points);
+				//gi.LocClient_Print(ent, PRINT_HIGH,
+				//	"Bot late join bonus (PvM): {} skill points, {} weapon points\n",
+				//	client->pers.skill_points, client->pers.weapon_points);
 			}
 		}
 
@@ -1264,9 +1264,9 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 		// Notify if points awarded
 		if (client->pers.ability_points > 0 || client->pers.weapon_points > 0)
 		{
-			gi.LocClient_Print(ent, PRINT_HIGH,
-				"Late join bonus: {} ability points, {} weapon points awarded based on current wave!\n",
-				client->pers.ability_points, client->pers.weapon_points);
+			//gi.LocClient_Print(ent, PRINT_HIGH,
+			//	"Late join bonus: {} ability points, {} weapon points awarded based on current wave!\n",
+			//	client->pers.ability_points, client->pers.weapon_points);
 
 			// Only auto-buy if NO admin bonus points exist
 			// (Admin bonus auto-buy will handle it later to ensure all points are spent together)
