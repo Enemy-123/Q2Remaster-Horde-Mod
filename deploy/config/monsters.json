@@ -477,9 +477,9 @@
             "damage_scale": 1.2,
             "health_scale": 1,
             "weapon_damage": {
-                "ionripper": 20,
-                "plasma": 35,
-                "blaster_bolt": 15
+                "ionripper": 15,
+                "plasma": 19,
+                "blaster_bolt": 10
             }
         },
         "gekk": {

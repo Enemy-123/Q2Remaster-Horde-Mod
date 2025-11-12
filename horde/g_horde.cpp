@@ -3630,6 +3630,17 @@ horde::MonsterTypeID G_HordePickMonsterType(
     // =======================================================================
     if (chosen_monster_id != horde::MonsterTypeID::UNKNOWN && ctx.effectiveLevel > ctx.currentActualLevel)
     {
+        // PREVENT MULTIPLE ELITES PER WAVE: Check if elite already spawned in this wave
+        if (g_special_high_level_monster_spawned_this_wave)
+        {
+            if (developer->integer)
+            {
+                gi.Com_PrintFmt("ELITE SPAWN BLOCKED: Elite already spawned this wave, returning '{}' as normal spawn.\n",
+                                horde::MonsterTypeRegistry::GetClassname(chosen_monster_id));
+            }
+            return chosen_monster_id; // Elite already spawned, return this as normal spawn
+        }
+
         const size_t index = static_cast<size_t>(chosen_monster_id);
 
         // Dynamic elite buffer: Lower for early waves to ensure elites spawn
