@@ -3610,8 +3610,22 @@ horde::MonsterTypeID G_HordePickMonsterType(
 	ctx.flyingAdjustmentFactor = adjustFlyingSpawnProbability(g_spawn_system.cached_flying_spawn_count);
 	ctx.waveTypeForFiltering = isRecoveryModeActive_param ? (HasWaveType(originalWaveTypeBeforeRecovery_param, MonsterWaveType::Flying) ? MonsterWaveType::Flying : MonsterWaveType::Ground) : currentActualWaveType_param;
 
-	// --- 2. Calculate Effective Level (no changes) ---
-	bool attemptHigherLevel = ShouldAttemptHigherLevelSpawn(ctx.currentActualLevel, ctx.isRetaliationActive, ctx.isRecoveryModeActive);
+	// --- 2. Calculate Effective Level ---
+	// PREVENT MULTIPLE ELITES: Check flag BEFORE attempting elite spawn
+	bool attemptHigherLevel;
+	if (g_special_high_level_monster_spawned_this_wave)
+	{
+		// Elite already spawned this wave, force normal spawning
+		attemptHigherLevel = false;
+		if (developer->integer)
+		{
+			gi.Com_PrintFmt("ELITE ALREADY SPAWNED: Forcing normal spawn for remaining monsters.\n");
+		}
+	}
+	else
+	{
+		attemptHigherLevel = ShouldAttemptHigherLevelSpawn(ctx.currentActualLevel, ctx.isRetaliationActive, ctx.isRecoveryModeActive);
+	}
 	ctx.effectiveLevel = CalculateEffectiveMonsterLevel(ctx.currentActualLevel, attemptHigherLevel, ctx.waveTypeForFiltering);
 
 	// --- 3. Build Cache and Select Monster (no changes) ---
@@ -3630,17 +3644,6 @@ horde::MonsterTypeID G_HordePickMonsterType(
     // =======================================================================
     if (chosen_monster_id != horde::MonsterTypeID::UNKNOWN && ctx.effectiveLevel > ctx.currentActualLevel)
     {
-        // PREVENT MULTIPLE ELITES PER WAVE: Check if elite already spawned in this wave
-        if (g_special_high_level_monster_spawned_this_wave)
-        {
-            if (developer->integer)
-            {
-                gi.Com_PrintFmt("ELITE SPAWN BLOCKED: Elite already spawned this wave, returning '{}' as normal spawn.\n",
-                                horde::MonsterTypeRegistry::GetClassname(chosen_monster_id));
-            }
-            return chosen_monster_id; // Elite already spawned, return this as normal spawn
-        }
-
         const size_t index = static_cast<size_t>(chosen_monster_id);
 
         // Dynamic elite buffer: Lower for early waves to ensure elites spawn
@@ -8376,6 +8379,7 @@ static void Horde_InitLevel(const int32_t lvl)
 
 	g_spawn_system.spawn_plan.clear();
 	g_spawn_system.special_spawn_state.clear(); // This replaces the old ambush/retaliation resets
+	g_spawn_system.monster_type_count_this_wave.fill(0); // Reset monster variety counter for new wave
 	// REMOVED: g_horde_retaliation_active - using g_spawn_system.special_spawn_state.type instead
 	g_horde_retaliation_end_time = 0_sec;
 	g_horde_retaliation_last_trigger_time = 0_sec;

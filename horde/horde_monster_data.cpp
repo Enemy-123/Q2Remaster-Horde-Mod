@@ -29,7 +29,7 @@ const MonsterTypeInfo monsterTypes[] = {
 	{horde::MonsterTypeID::FIXBOT, MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 6, 0.45f, {-16, -16, -12}, {16, 16, 12}, 1.4f},
 	{horde::MonsterTypeID::BRAIN, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Special | MonsterWaveType::Melee | MonsterWaveType::Mutant, 6, 0.7f, {-16, -16, -24}, {16, 16, -8}, 1.0f},
 	{horde::MonsterTypeID::BERSERK, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Melee | MonsterWaveType::Berserk, 6, 0.8f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
-	{horde::MonsterTypeID::CHICK, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 5, 0.6f, {-32, -32, -24}, {32, 32, 64}, 1.0f},
+	{horde::MonsterTypeID::CHICK, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 7, 0.6f, {-32, -32, -24}, {32, 32, 64}, 1.0f},
 
 	// Special fog wave bosses
 	{horde::MonsterTypeID::BERSERKERKL, MonsterWaveType::SemiBoss | MonsterWaveType::Melee | MonsterWaveType::Berserk, 16, 0.65f, {-22, -22, -36}, {22, 22, 44}, 1.4f},
