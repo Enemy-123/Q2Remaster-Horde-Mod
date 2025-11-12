@@ -19,7 +19,10 @@
       "mcp__serena__find_referencing_symbols",
       "Bash(python build_mingw.py:*)",
       "mcp__serena__read_memory",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(git revert:*)",
+      "Bash(git rm:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []
