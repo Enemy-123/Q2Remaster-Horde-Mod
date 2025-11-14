@@ -5,7 +5,7 @@
   "// All monsters start with these base values, then apply their damage_scale": "",
   "// 1": "",
   "// Final Damage Formula:": "",
-  "//   damage = global_base × damage_scale × wave_scaling × (1.5 if boss)": "",
+  "//   damage = global_base \u00c3\u2014 damage_scale \u00c3\u2014 wave_scaling \u00c3\u2014 (1.5 if boss)": "",
   "// 2": "",
   "// TUNING GUIDE:": "",
   "//   - To make ALL monsters stronger: increase global_weapon_damage values": "",
@@ -14,45 +14,45 @@
   "// 3": "",
   "// EXAMPLE:": "",
   "//   Tank at wave 1 with damage_scale 1.2:": "",
-  "//     rocket damage = 50 (global) × 1.2 (scale) = 60": "",
+  "//     rocket damage = 50 (global) \u00c3\u2014 1.2 (scale) = 60": "",
   "//   Tank boss at wave 20:": "",
-  "//     rocket damage = 50 × 1.2 × 1.8 (wave) × 1.5 (boss) = 162": "",
+  "//     rocket damage = 50 \u00c3\u2014 1.2 \u00c3\u2014 1.8 (wave) \u00c3\u2014 1.5 (boss) = 162": "",
   "// ============================================================================ 2": "",
   "global_weapon_damage": {
     "// MELEE WEAPONS": "",
-    "melee": 15,
-    "slam": 60,
-    "proboscis": 15,
+    "melee": 7,
+    "slam": 30,
+    "proboscis": 7,
     "// BLASTER VARIANTS": "",
-    "blaster": 10,
-    "blaster2": 15,
-    "blaster_bolt": 15,
-    "blueblaster": 10,
-    "hyperblaster": 15,
+    "blaster": 5,
+    "blaster2": 7,
+    "blaster_bolt": 7,
+    "blueblaster": 5,
+    "hyperblaster": 7,
     "// BULLET WEAPONS": "",
-    "shotgun": 3,
-    "machinegun": 6,
+    "shotgun": 1,
+    "machinegun": 3,
     "// EXPLOSIVE WEAPONS": "",
-    "grenade": 50,
-    "rocket": 50,
+    "grenade": 25,
+    "rocket": 25,
     "// HEAT SEEKING": "",
-    "heat": 50,
+    "heat": 25,
     "// RAILGUN": "",
-    "railgun": 50,
+    "railgun": 25,
     "// BFG": "",
-    "bfg": 50,
+    "bfg": 25,
     "// XATRIX WEAPONS": "",
-    "ionripper": 15,
-    "flechette": 8,
+    "ionripper": 7,
+    "flechette": 4,
     "// ROGUE WEAPONS": "",
-    "plasma": 35,
-    "tracker": 15,
-    "heatbeam": 10,
-    "dabeam": 10,
+    "plasma": 17,
+    "tracker": 7,
+    "heatbeam": 5,
+    "dabeam": 5,
     "// SPECIAL": "",
-    "lightning": 10,
-    "fireball": 35,
-    "bolt": 35
+    "lightning": 5,
+    "fireball": 17,
+    "bolt": 17
   },
   "global_weapon_speed": {
     "blaster": 1000,
@@ -93,1144 +93,1157 @@
   "//   weapon_damage - Override specific weapons only when needed": "",
   "//                   Example: {\"blaster\": 25} makes blaster 25 instead of global 10": "",
   "// ============================================================================ 4": "",
-    "monsters": {
-        "turret": {
-            "health": 100,
-            "armor_power": 40,
-            "armor_type": "combat",
-            "damage_scale": 0.6
-        },
-        "soldier_light": {
-            "health": 40,
-            "power_armor_power": 20,
-            "power_armor_type": "screen",
-            "damage_scale": 0.6
-        },
-        "soldier": {
-            "health": 50,
-            "power_armor_power": 30,
-            "power_armor_type": "screen",
-            "damage_scale": 1
-        },
-        "soldier_ss": {
-            "health": 60,
-            "power_armor_power": 40,
-            "power_armor_type": "combat",
-            "damage_scale": 1
-        },
-        "soldier_hypergun": {
-            "health": 65,
-            "power_armor_power": 40,
-            "power_armor_type": "screen",
-            "damage_scale": 0.8
-        },
-        "soldier_ripper": {
-            "health": 70,
-            "power_armor_power": 40,
-            "power_armor_type": "screen",
-            "damage_scale": 0.3
-        },
-        "soldier_lasergun": {
-            "health": 40,
-            "power_armor_power": 40,
-            "power_armor_type": "screen",
-            "damage_scale": 0.25
-        },
-        "infantry": {
-            "health": 120,
-            "power_armor_power": 80,
-            "power_armor_type": "shield",
-            "damage_scale": 0.7,
-            "weapon_damage": {
-                "blaster2": 6,
-                "grenade": 50
-            }
-        },
-        "infantry_vanilla": {
-            "health": 65,
-            "armor_power": 50,
-            "armor_type": "combat",
-            "damage_scale": 1,
-            "weapon_damage": {
-                "machinegun": 8,
-                "grenade": 40
-            }
-        },
-        "gunner": {
-            "health": 95,
-            "power_armor_power": 85,
-            "power_armor_type": "shield",
-            "damage_scale": 1,
-            "weapon_damage": {
-                "ionripper": 25,
-                "grenade": 40
-            }
-        },
-        "gunner_vanilla": {
-            "health": 75,
-            "power_armor": 85,
-            "power_armor_type": "combat",
-            "damage_scale": 0.5,
-            "weapon_damage": {
-                "grenade": 40
-            }
-        },
-        "medic": {
-            "health": 110,
-            "armor_power": 120,
-            "armor_type": "combat",
-            "damage_scale": 1.2,
-            "weapon_damage": {
-                "blaster2": 18,
-                "bolt": 30
-            }
-        },
-        "medic_commander": {
-            "health": 300,
-            "power_armor_power": 0,
-            "damage_scale": 1.5,
-            "weapon_damage": {
-                "blaster": 18,
-                "blaster2": 22,
-                "bolt": 35
-            }
-        },
-        "guncmdr": {
-            "health": 250,
-            "power_armor_power": 120,
-            "power_armor_type": "shield",
-            "damage_scale": 1,
-            "weapon_damage": {
-                "melee": 30,
-                "grenade": 25
-            }
-        },
-        "guncmdr_vanilla": {
-            "health": 200,
-            "power_armor_power": 80,
-            "power_armor_type": "shield",
-            "damage_scale": 1,
-            "weapon_damage": {
-                "flechette": 12,
-                "melee": 30,
-                "grenade": 20
-            }
-        },
-        "guncmdrkl": {
-            "health": 500,
-            "power_armor_power": 180,
-            "power_armor_type": "shield",
-            "damage_scale": 1.5,
-            "health_scale": 1,
-            "weapon_damage": {
-                "machinegun": 9,
-                "grenade": 40,
-                "melee": 22
-            }
-        },
-        "gladiator": {
-            "health": 110,
-            "armor_power": 120,
-            "armor_type": "combat",
-            "damage_scale": 2.5,
-            "weapon_damage": {
-                "railgun": 60,
-                "melee": 40
-            }
-        },
-        "gladb": {
-            "health": 160,
-            "power_armor_power": 55,
-            "power_armor_type": "shield",
-            "damage_scale": 1.2,
-            "weapon_damage": {
-                "tracker": 16,
-                "melee": 40
-            }
-        },
-        "gladc": {
-            "health": 190,
-            "power_armor_power": 95,
-            "power_armor_type": "shield",
-            "damage_scale": 1,
-            "weapon_damage": {
-                "melee": 40,
-                "plasma": 28
-            }
-        },
-        "tank": {
-            "health": 385,
-            "armor_power": 300,
-            "armor_type": "combat",
-            "damage_scale": 1,
-            "health_scale": 1,
-            "weapon_damage": {
-                "blaster2": 30,
-                "heat": 55,
-                "slam": 75
-            }
-        },
-        "tank_commander": {
-            "health": 440,
-            "armor_power": 450,
-            "armor_type": "combat",
-            "damage_scale": 1.2,
-            "health_scale": 1,
-            "weapon_damage": {
-                "blaster": 18,
-                "blaster2": 30,
-                "flechette": 10,
-                "rocket": 30,
-                "heat": 40,
-                "slam": 75,
-                "grenade": 50
-            },
-            "weapon_speed": {
-                "grenade": 1500
-            }
-        },
-        "tank_64": {
-            "health": 650,
-            "armor_power": 410,
-            "armor_type": "combat",
-            "damage_scale": 1,
-            "health_scale": 1.2,
-            "weapon_damage": {
-                "blaster2": 26,
-                "heat": 45,
-                "grenade": 50
-            },
-            "weapon_speed": {
-                "grenade": 1500
-            }
-        },
-        "runnertank": {
-            "health": 650,
-            "power_armor_power": 0,
-            "damage_scale": 1,
-            "weapon_damage": {
-                "railgun": 45,
-                "rocket": 35,
-                "plasma": 27,
-                "slam": 75
-            }
-        },
-        "chick": {
-            "health": 65,
-            "power_armor_power": 45,
-            "power_armor_type": "combat",
-            "damage_scale": 1,
-            "weapon_damage": {
-                "melee": 25,
-                "rocket": 25
-            }
-        },
-        "chick_heat": {
-            "health": 145,
-            "power_armor_power": 80,
-            "power_armor_type": "shield",
-            "damage_scale": 1.2,
-            "health_scale": 1.5,
-            "weapon_damage": {
-                "heat": 60,
-                "melee": 35
-            }
-        },
-        "chickkl": {
-            "health": 300,
-            "power_armor_power": 150,
-            "power_armor_type": "shield",
-            "damage_scale": 1.16,
-            "health_scale": 1.8,
-            "weapon_damage": {
-                "plasma": 65,
-                "melee": 30
-            }
-        },
-        "parasite": {
-            "health": 105,
-            "power_armor_power": 0,
-            "damage_scale": 1
-        },
-        "brain": {
-            "health": 120, // Pongamos el mismo valor que initial_health para consistencia
-            "power_armor_power": 250,
-            "power_armor_type": "screen",
-            "damage_scale": 1.1,
-            "weapon_damage": {
-                "melee": 17
-            }
-        },
-        "mutant": {
-            "health": 180,
-            "power_armor_power": 0,
-            "damage_scale": 0.7
-        },
-        "redmutant": {
-            "health": 220,
-            "power_armor_power": 0,
-            "damage_scale": 1,
-            "health_scale": 1
-        },
-        "berserk": {
-            "health": 195,
-            "armor_power": 110,
-            "armor_type": "combat",
-            "damage_scale": 1.47,
-            "weapon_damage": {
-                "melee": 22,
-                "slam": 15
-            }
-        },
-        "berserkerkl": {
-            "health": 350,
-            "power_armor_power": 100,
-            "power_armor_type": "shield",
-            "damage_scale": 1.5,
-            "health_scale": 1,
-            "weapon_damage": {
-                "melee": 22,
-                "slam": 15,
-                "fireball": 45
-            }
-        },
-        "flyer": {
-            "health": 50,
-            "power_armor_power": 0,
-            "damage_scale": 0.3,
-            "weapon_damage": {
-                "blaster_bolt": 4,
-                "rocket": 35,
-                "dabeam": 3
-            }
-        },
-        "hover": {
-            "health": 130,
-            "armor_power": 175,
-            "armor_type": "combat",
-            "damage_scale": 1,
-            "weapon_damage": {
-                "rocket": 15
-            }
-        },
-        "hover_vanilla": {
-            "health": 70,
-            "armor_power": 210,
-            "armor_type": "combat",
-            "damage_scale": 1.2,
-            "weapon_damage": {
-                "blaster": 11
-            }
-        },
-        "daedalus": {
-            "health": 120,
-            "power_armor_power": 80,
-            "power_armor_type": "screen",
-            "damage_scale": 0.8,
-            "weapon_damage": {
-                "blaster2": 13
-            }
-        },
-        "daedalus_bomber": {
-            "health": 150,
-            "power_armor_power": 100,
-            "power_armor_type": "screen",
-            "damage_scale": 1.2,
-            "weapon_damage": {
-                "grenade": 23
-            }
-        },
-        "floater": {
-            "health": 60,
-            "armor_power": 180,
-            "armor_type": "combat",
-            "damage_scale": 0.4,
-            "weapon_damage": {
-                "blaster": 4,
-                "melee": 8
-            }
-        },
-        "floater_tracker": {
-            "health": 200,
-            "power_armor_power": 70,
-            "power_armor_type": "screen",
-            "damage_scale": 0.5,
-            "weapon_damage": {
-                "tracker": 8
-            }
-        },
-        "fixbot": {
-            "health": 110,
-            "power_armor_power": 25,
-            "power_armor_type": "shield",
-            "damage_scale": 1,
-            "weapon_damage": {
-                "ionripper": 25,
-                "plasma": 28,
-                "blaster_bolt": 8
-            }
-        },
-        "fixbotkl": {
-            "health": 1000,
-            "power_armor_power": 800,
-            "power_armor_type": "shield",
-            "damage_scale": 1.2,
-            "health_scale": 1,
-            "weapon_damage": {
-                "ionripper": 15,
-                "plasma": 19,
-                "blaster_bolt": 10
-            }
-        },
-        "gekk": {
-            "health": 110,
-            "power_armor_power": 0,
-            "damage_scale": 1.1,
-            "weapon_damage": {
-                "melee": 17,
-                "plasma": 7
-            }
-        },
-        "gekkkl": {
-            "health": 400,
-            "power_armor_power": 150,
-            "power_armor_type": "screen",
-            "damage_scale": 1.2,
-            "health_scale": 1,
-            "weapon_damage": {
-                "melee": 22,
-                "plasma": 10,
-                "slam": 75
-            }
-        },
-        "stalker": {
-            "health": 150,
-            "power_armor_power": 0,
-            "damage_scale": 1
-        },
-        "flipper": {
-            "health": 60,
-            "power_armor_power": 0,
-            "damage_scale": 1
-        },
-        "carrier": {
-            "health": 1500,
-            "power_armor_power": 150,
-            "power_armor_type": "shield",
-            "damage_scale": 1,
-            "health_scale": 1,
-            "weapon_damage": {
-                "machinegun": 5,
-                "grenade": 45
-            }
-        },
-        "carrier_mini": {
-            "health": 500,
-            "power_armor_power": 150,
-            "power_armor_type": "shield",
-            "damage_scale": 0.9,
-            "health_scale": 0.3,
-            "weapon_damage": {
-                "heat": 25,
-                "rocket": 25,
-                "grenade": 30,
-                "machinegun": 5,
-                "railgun": 45
-            }
-        },
-        "widow": {
-            "health": 1200,
-            "power_armor_power": 400,
-            "power_armor_type": "shield",
-            "damage_scale": 1,
-            "health_scale": 1
-        },
-        "widow1": {
-            "health": 500,
-            "power_armor_power": 180,
-            "power_armor_type": "shield",
-            "damage_scale": 1,
-            "health_scale": 0.8
-        },
-        "widow2": {
-            "health": 1500,
-            "power_armor_power": 600,
-            "power_armor_type": "shield",
-            "damage_scale": 1.3,
-            "health_scale": 1,
-            "weapon_damage": {
-                "tracker": 20
-            }
-        },
-        "spider": {
-            "health": 180,
-            "power_armor_power": 0,
-            "damage_scale": 1,
-            "health_scale": 1
-        },
-        "arachnid": {
-            "health": 220,
-            "power_armor_power": 100,
-            "power_armor_type": "shield",
-            "damage_scale": 1,
-            "health_scale": 1
-        },
-        "arachnid2": {
-            "health": 350,
-            "power_armor_power": 120,
-            "power_armor_type": "shield",
-            "damage_scale": 1.2,
-            "health_scale": 1,
-            "weapon_damage": {
-                "heat": 50
-            }
-        },
-        "gm_arachnid": {
-            "health": 280,
-            "power_armor_power": 180,
-            "power_armor_type": "shield",
-            "damage_scale": 1.2,
-            "health_scale": 1.1,
-            "weapon_damage": {
-                "heat": 25,
-                "rocket": 30
-            }
-        },
-        "psxarachnid": {
-            "health": 400,
-            "power_armor_power": 400,
-            "power_armor_type": "combat",
-            "damage_scale": 1.2,
-            "health_scale": 1.5,
-            "weapon_damage": {
-                "railgun": 50
-            }
-        },
-        "shambler": {
-            "health": 375,
-            "power_armor_power": 0,
-            "damage_scale": 1,
-            "health_scale": 1,
-            "weapon_damage": {
-                "fireball": 30,
-                "melee": 115
-            }
-        },
-        "shambler_small": {
-            "health": 250,
-            "power_armor_power": 0,
-            "damage_scale": 1,
-            "health_scale": 0.5,
-            "weapon_damage": {
-                "melee": 45
-            }
-        },
-        "shamblerkl": {
-            "health": 800,
-            "power_armor_power": 0,
-            "damage_scale": 1.2,
-            "health_scale": 1.4,
-            "weapon_damage": {
-                "fireball": 32,
-                "melee": 115
-            }
-        },
-        "boss2": {
-            "health": 1800,
-            "power_armor_power": 400,
-            "power_armor_type": "shield",
-            "damage_scale": 0.5,
-            "health_scale": 1,
-            "weapon_damage": {
-                "blaster": 5,
-                "blaster_bolt": 8
-            }
-        },
-        "boss2_64": {
-            "health": 800,
-            "power_armor_power": 100,
-            "power_armor_type": "screen",
-            "damage_scale": 0.5,
-            "health_scale": 1,
-            "weapon_damage": {
-                "blaster": 5,
-                "blaster_bolt": 8
-            }
-        },
-        "boss2_mini": {
-            "health": 700,
-            "power_armor_power": 100,
-            "power_armor_type": "shield",
-            "damage_scale": 0.5,
-            "health_scale": 0.7,
-            "weapon_damage": {
-                "blaster": 5,
-                "blaster_bolt": 8,
-                "rocket": 45
-            }
-        },
-        "boss2kl": {
-            "health": 2000,
-            "power_armor_power": 500,
-            "power_armor_type": "shield",
-            "damage_scale": 0.6,
-            "health_scale": 1
-        },
-        "supertank": {
-            "health": 2500,
-            "power_armor_power": 1000,
-            "power_armor_type": "screen",
-            "damage_scale": 1,
-            "health_scale": 1,
-            "weapon_damage": {
-                "heat": 40
-            }
-        },
-        "supertankkl": {
-            "health": 3000,
-            "power_armor_power": 1500,
-            "power_armor_type": "screen",
-            "damage_scale": 1.2,
-            "health_scale": 1.5
-        },
-        "makron": {
-            "health": 800,
-            "power_armor_power": 250,
-            "power_armor_type": "combat",
-            "damage_scale": 1.1,
-            "health_scale": 1
-        },
-        "makronkl": {
-            "health": 3000,
-            "power_armor_power": 600,
-            "power_armor_type": "shield",
-            "damage_scale": 1.2,
-            "health_scale": 1.5,
-            "weapon_damage": {
-                "blaster": 18,
-                "railgun": 55,
-                "bfg": 55
-            }
-        },
-        "jorg": {
-            "health": 2500,
-            "power_armor_power": 0,
-            "damage_scale": 1
-        },
-        "jorg_small": {
-            "health": 350,
-            "armor_power": 50,
-            "armor_type": "combat",
-            "damage_scale": 1,
-            "health_scale": 0.3,
-            "weapon_damage": {
-                "tracker": 13
-            }
-        },
-        "boss5": {
-            "health": 1200,
-            "power_armor_power": 400,
-            "power_armor_type": "shield",
-            "damage_scale": 0.8,
-            "health_scale": 1,
-            "weapon_damage": {
-                "heat": 40
-            }
-        },
-        "guardian": {
-            "health": 4000,
-            "power_armor_power": 500,
-            "power_armor_type": "shield",
-            "damage_scale": 1.8,
-            "health_scale": 1,
-            "weapon_damage": {
-                "blaster": 18,
-                "dabeam": 25
-            }
-        },
-        "psxguardian": {
-            "health": 3500,
-            "power_armor_power": 4000,
-            "power_armor_type": "shield",
-            "damage_scale": 0.9,
-            "health_scale": 0.8,
-            "weapon_damage": {
-                "blaster": 5,
-                "dabeam": 15,
-                "melee": 85,
-                "heat": 20
-            }
-        },
-        "janitor": {
-            "health": 300,
-            "power_armor_power": 400,
-            "power_armor_type": "screen",
-            "damage_scale": 1.2,
-            "health_scale": 1,
-            "weapon_damage": {
-                "rocket": 40
-            }
-        },
-        "janitor2": {
-            "health": 280,
-            "power_armor_power": 150,
-            "power_armor_type": "shield",
-            "damage_scale": 1.1,
-            "health_scale": 1,
-            "weapon_damage": {
-                "rocket": 30,
-                "ionripper": 25,
-                "grenade": 40
-            },
-            "weapon_speed": {
-                "grenade": 1300
-            }
-        },
-        "tank_spawner": {
-            "health": 275,
-            "armor_power": 305,
-            "armor_type": "combat",
-            "damage_scale": 1.1,
-            "weapon_damage": {
-                "blaster": 20,
-                "blaster2": 35,
-                "machinegun": 8,
-                "rocket": 55,
-                "bolt": 40,
-                "slam": 80
-            }
-        },
-        "perrokl": {
-            "health": 800,
-            "power_armor_power": 0,
-            "damage_scale": 1.2,
-            "health_scale": 1,
-            "weapon_damage": {
-                "proboscis": 18
-            }
-        },
-        "kamikaze": {
-            "health": 50,
-            "damage_scale": 1
-        }
+  "monsters": {
+    "turret": {
+      "health": 100,
+      "armor_power": 40,
+      "armor_type": "combat",
+      "damage_scale": 0.6
     },
+    "soldier_light": {
+      "health": 40,
+      "power_armor_power": 20,
+      "power_armor_type": "screen",
+      "damage_scale": 0.6
+    },
+    "soldier": {
+      "health": 50,
+      "power_armor_power": 30,
+      "power_armor_type": "screen",
+      "damage_scale": 1,
+      "weapon_damage": {
+        "ionripper": 5,
+        "blueblaster": 1,
+        "blaster": 8,
+        "shotgun": 2,
+        "machinegun": 2
+      }
+    },
+    "soldier_ss": {
+      "health": 60,
+      "power_armor_power": 40,
+      "power_armor_type": "combat",
+      "damage_scale": 1
+    },
+    "soldier_hypergun": {
+      "health": 65,
+      "power_armor_power": 40,
+      "power_armor_type": "screen",
+      "damage_scale": 0.8
+    },
+    "soldier_ripper": {
+      "health": 70,
+      "power_armor_power": 40,
+      "power_armor_type": "screen",
+      "damage_scale": 0.3
+    },
+    "soldier_lasergun": {
+      "health": 40,
+      "power_armor_power": 40,
+      "power_armor_type": "screen",
+      "damage_scale": 0.25
+    },
+    "infantry": {
+      "health": 120,
+      "power_armor_power": 80,
+      "power_armor_type": "shield",
+      "damage_scale": 0.7,
+      "weapon_damage": {
+        "blaster2": 6,
+        "grenade": 50,
+        "machinegun": 3
+      }
+    },
+    "infantry_vanilla": {
+      "health": 65,
+      "armor_power": 50,
+      "armor_type": "combat",
+      "damage_scale": 1,
+      "weapon_damage": {
+        "machinegun": 8,
+        "grenade": 40
+      }
+    },
+    "gunner": {
+      "health": 95,
+      "power_armor_power": 85,
+      "power_armor_type": "shield",
+      "damage_scale": 1,
+      "weapon_damage": {
+        "ionripper": 4,
+        "grenade": 40
+      }
+    },
+    "gunner_vanilla": {
+      "health": 75,
+      "power_armor": 85,
+      "power_armor_type": "combat",
+      "damage_scale": 0.5,
+      "weapon_damage": {
+        "grenade": 40
+      }
+    },
+    "medic": {
+      "health": 110,
+      "armor_power": 120,
+      "armor_type": "combat",
+      "damage_scale": 1.2,
+      "weapon_damage": {
+        "blaster2": 18,
+        "bolt": 30
+      }
+    },
+    "medic_commander": {
+      "health": 300,
+      "power_armor_power": 0,
+      "damage_scale": 1.5,
+      "weapon_damage": {
+        "blaster": 18,
+        "blaster2": 22,
+        "bolt": 35
+      }
+    },
+    "guncmdr": {
+      "health": 250,
+      "power_armor_power": 120,
+      "power_armor_type": "shield",
+      "damage_scale": 1,
+      "weapon_damage": {
+        "melee": 30,
+        "grenade": 25
+      }
+    },
+    "guncmdr_vanilla": {
+      "health": 200,
+      "power_armor_power": 80,
+      "power_armor_type": "shield",
+      "damage_scale": 1,
+      "weapon_damage": {
+        "flechette": 12,
+        "melee": 30,
+        "grenade": 20
+      }
+    },
+    "guncmdrkl": {
+      "health": 500,
+      "power_armor_power": 180,
+      "power_armor_type": "shield",
+      "damage_scale": 1.5,
+      "health_scale": 1,
+      "weapon_damage": {
+        "machinegun": 9,
+        "grenade": 40,
+        "melee": 22
+      }
+    },
+    "gladiator": {
+      "health": 110,
+      "armor_power": 120,
+      "armor_type": "combat",
+      "damage_scale": 2.5,
+      "weapon_damage": {
+        "railgun": 60,
+        "melee": 40,
+        "tracker": 16
+      }
+    },
+    "gladb": {
+      "health": 160,
+      "power_armor_power": 55,
+      "power_armor_type": "shield",
+      "damage_scale": 1.2,
+      "weapon_damage": {
+        "tracker": 16,
+        "melee": 40
+      }
+    },
+    "gladc": {
+      "health": 190,
+      "power_armor_power": 95,
+      "power_armor_type": "shield",
+      "damage_scale": 1,
+      "weapon_damage": {
+        "melee": 40,
+        "plasma": 28
+      }
+    },
+    "tank": {
+      "health": 385,
+      "armor_power": 300,
+      "armor_type": "combat",
+      "damage_scale": 1,
+      "health_scale": 1,
+      "weapon_damage": {
+        "blaster2": 30,
+        "heat": 50,
+        "slam": 75
+      }
+    },
+    "tank_commander": {
+      "health": 440,
+      "armor_power": 450,
+      "armor_type": "combat",
+      "damage_scale": 1.2,
+      "health_scale": 1,
+      "weapon_damage": {
+        "blaster": 18,
+        "blaster2": 30,
+        "flechette": 10,
+        "rocket": 30,
+        "heat": 40,
+        "slam": 75,
+        "grenade": 50
+      },
+      "weapon_speed": {
+        "grenade": 1500
+      }
+    },
+    "tank_64": {
+      "health": 650,
+      "armor_power": 410,
+      "armor_type": "combat",
+      "damage_scale": 1,
+      "health_scale": 1.2,
+      "weapon_damage": {
+        "blaster2": 26,
+        "heat": 45,
+        "grenade": 50
+      },
+      "weapon_speed": {
+        "grenade": 1500
+      }
+    },
+    "runnertank": {
+      "health": 650,
+      "power_armor_power": 0,
+      "damage_scale": 1,
+      "weapon_damage": {
+        "railgun": 45,
+        "rocket": 35,
+        "plasma": 27,
+        "slam": 75
+      }
+    },
+    "chick": {
+      "health": 65,
+      "power_armor_power": 45,
+      "power_armor_type": "combat",
+      "damage_scale": 1,
+      "weapon_damage": {
+        "melee": 25,
+        "rocket": 25
+      }
+    },
+    "chick_heat": {
+      "health": 145,
+      "power_armor_power": 80,
+      "power_armor_type": "shield",
+      "damage_scale": 1.2,
+      "health_scale": 1.5,
+      "weapon_damage": {
+        "heat": 60,
+        "melee": 35
+      }
+    },
+    "chickkl": {
+      "health": 300,
+      "power_armor_power": 150,
+      "power_armor_type": "shield",
+      "damage_scale": 1.16,
+      "health_scale": 1.8,
+      "weapon_damage": {
+        "plasma": 65,
+        "melee": 30
+      }
+    },
+    "parasite": {
+      "health": 105,
+      "power_armor_power": 0,
+      "damage_scale": 1
+    },
+    "brain": {
+      "health": 120,
+      "power_armor_power": 250,
+      "power_armor_type": "screen",
+      "damage_scale": 1.1,
+      "weapon_damage": {
+        "melee": 17
+      }
+    },
+    "mutant": {
+      "health": 180,
+      "power_armor_power": 0,
+      "damage_scale": 0.7
+    },
+    "redmutant": {
+      "health": 220,
+      "power_armor_power": 0,
+      "damage_scale": 1,
+      "health_scale": 1
+    },
+    "berserk": {
+      "health": 195,
+      "armor_power": 110,
+      "armor_type": "combat",
+      "damage_scale": 1.47,
+      "weapon_damage": {
+        "melee": 22,
+        "slam": 15
+      }
+    },
+    "berserkerkl": {
+      "health": 350,
+      "power_armor_power": 100,
+      "power_armor_type": "shield",
+      "damage_scale": 1.5,
+      "health_scale": 1,
+      "weapon_damage": {
+        "melee": 22,
+        "slam": 15,
+        "fireball": 45
+      }
+    },
+    "flyer": {
+      "health": 50,
+      "power_armor_power": 0,
+      "damage_scale": 0.3,
+      "weapon_damage": {
+        "blaster_bolt": 4,
+        "rocket": 35,
+        "dabeam": 3
+      }
+    },
+    "hover": {
+      "health": 130,
+      "armor_power": 175,
+      "armor_type": "combat",
+      "damage_scale": 1,
+      "weapon_damage": {
+        "rocket": 15,
+        "grenade": 24
+      }
+    },
+    "hover_vanilla": {
+      "health": 70,
+      "armor_power": 210,
+      "armor_type": "combat",
+      "damage_scale": 1.2,
+      "weapon_damage": {
+        "blaster": 11
+      }
+    },
+    "daedalus": {
+      "health": 120,
+      "power_armor_power": 80,
+      "power_armor_type": "screen",
+      "damage_scale": 0.8,
+      "weapon_damage": {
+        "blaster2": 13
+      }
+    },
+    "daedalus_bomber": {
+      "health": 150,
+      "power_armor_power": 100,
+      "power_armor_type": "screen",
+      "damage_scale": 1.2,
+      "weapon_damage": {
+        "grenade": 23
+      }
+    },
+    "floater": {
+      "health": 60,
+      "armor_power": 180,
+      "armor_type": "combat",
+      "damage_scale": 0.4,
+      "weapon_damage": {
+        "blaster": 4,
+        "melee": 8
+      }
+    },
+    "floater_tracker": {
+      "health": 200,
+      "power_armor_power": 70,
+      "power_armor_type": "screen",
+      "damage_scale": 0.5,
+      "weapon_damage": {
+        "tracker": 8
+      }
+    },
+    "fixbot": {
+      "health": 110,
+      "power_armor_power": 25,
+      "power_armor_type": "shield",
+      "damage_scale": 1,
+      "weapon_damage": {
+        "ionripper": 25,
+        "plasma": 28,
+        "blaster_bolt": 8
+      }
+    },
+    "fixbotkl": {
+      "health": 1000,
+      "power_armor_power": 800,
+      "power_armor_type": "shield",
+      "damage_scale": 1.2,
+      "health_scale": 1,
+      "weapon_damage": {
+        "ionripper": 15,
+        "plasma": 19,
+        "blaster_bolt": 10
+      }
+    },
+    "gekk": {
+      "health": 110,
+      "power_armor_power": 0,
+      "damage_scale": 1.1,
+      "weapon_damage": {
+        "melee": 17,
+        "plasma": 7
+      }
+    },
+    "gekkkl": {
+      "health": 400,
+      "power_armor_power": 150,
+      "power_armor_type": "screen",
+      "damage_scale": 1.2,
+      "health_scale": 1,
+      "weapon_damage": {
+        "melee": 22,
+        "plasma": 10,
+        "slam": 75
+      }
+    },
+    "stalker": {
+      "health": 150,
+      "power_armor_power": 0,
+      "damage_scale": 1
+    },
+    "flipper": {
+      "health": 60,
+      "power_armor_power": 0,
+      "damage_scale": 1
+    },
+    "carrier": {
+      "health": 1500,
+      "power_armor_power": 150,
+      "power_armor_type": "shield",
+      "damage_scale": 1,
+      "health_scale": 1,
+      "weapon_damage": {
+        "machinegun": 5,
+        "grenade": 45
+      }
+    },
+    "carrier_mini": {
+      "health": 500,
+      "power_armor_power": 150,
+      "power_armor_type": "shield",
+      "damage_scale": 0.9,
+      "health_scale": 0.3,
+      "weapon_damage": {
+        "heat": 25,
+        "rocket": 25,
+        "grenade": 30,
+        "machinegun": 5,
+        "railgun": 45
+      }
+    },
+    "widow": {
+      "health": 1200,
+      "power_armor_power": 400,
+      "power_armor_type": "shield",
+      "damage_scale": 1,
+      "health_scale": 1
+    },
+    "widow1": {
+      "health": 500,
+      "power_armor_power": 180,
+      "power_armor_type": "shield",
+      "damage_scale": 1,
+      "health_scale": 0.8
+    },
+    "widow2": {
+      "health": 1500,
+      "power_armor_power": 600,
+      "power_armor_type": "shield",
+      "damage_scale": 1.3,
+      "health_scale": 1,
+      "weapon_damage": {
+        "tracker": 20
+      }
+    },
+    "spider": {
+      "health": 180,
+      "power_armor_power": 0,
+      "damage_scale": 1,
+      "health_scale": 1
+    },
+    "arachnid": {
+      "health": 220,
+      "power_armor_power": 100,
+      "power_armor_type": "shield",
+      "damage_scale": 1,
+      "health_scale": 1,
+      "weapon_damage": {
+        "railgun": 42
+      }
+    },
+    "arachnid2": {
+      "health": 350,
+      "power_armor_power": 120,
+      "power_armor_type": "shield",
+      "damage_scale": 1.2,
+      "health_scale": 1,
+      "weapon_damage": {
+        "heat": 50
+      }
+    },
+    "gm_arachnid": {
+      "health": 280,
+      "power_armor_power": 180,
+      "power_armor_type": "shield",
+      "damage_scale": 1.2,
+      "health_scale": 1.1,
+      "weapon_damage": {
+        "heat": 25,
+        "rocket": 30
+      }
+    },
+    "psxarachnid": {
+      "health": 400,
+      "power_armor_power": 400,
+      "power_armor_type": "combat",
+      "damage_scale": 1.2,
+      "health_scale": 1.5,
+      "weapon_damage": {
+        "railgun": 50
+      }
+    },
+    "shambler": {
+      "health": 375,
+      "power_armor_power": 0,
+      "damage_scale": 1,
+      "health_scale": 1,
+      "weapon_damage": {
+        "fireball": 30,
+        "melee": 115
+      }
+    },
+    "shambler_small": {
+      "health": 250,
+      "power_armor_power": 0,
+      "damage_scale": 1,
+      "health_scale": 0.5,
+      "weapon_damage": {
+        "melee": 45
+      }
+    },
+    "shamblerkl": {
+      "health": 800,
+      "power_armor_power": 0,
+      "damage_scale": 1.2,
+      "health_scale": 1.4,
+      "weapon_damage": {
+        "fireball": 32,
+        "melee": 115
+      }
+    },
+    "boss2": {
+      "health": 1800,
+      "power_armor_power": 400,
+      "power_armor_type": "shield",
+      "damage_scale": 0.5,
+      "health_scale": 1,
+      "weapon_damage": {
+        "blaster": 5,
+        "blaster_bolt": 8
+      }
+    },
+    "boss2_64": {
+      "health": 800,
+      "power_armor_power": 100,
+      "power_armor_type": "screen",
+      "damage_scale": 0.5,
+      "health_scale": 1,
+      "weapon_damage": {
+        "blaster": 5,
+        "blaster_bolt": 8
+      }
+    },
+    "boss2_mini": {
+      "health": 700,
+      "power_armor_power": 100,
+      "power_armor_type": "shield",
+      "damage_scale": 0.5,
+      "health_scale": 0.7,
+      "weapon_damage": {
+        "blaster": 5,
+        "blaster_bolt": 8,
+        "rocket": 45
+      }
+    },
+    "boss2kl": {
+      "health": 2000,
+      "power_armor_power": 500,
+      "power_armor_type": "shield",
+      "damage_scale": 0.6,
+      "health_scale": 1
+    },
+    "supertank": {
+      "health": 2500,
+      "power_armor_power": 1000,
+      "power_armor_type": "screen",
+      "damage_scale": 1,
+      "health_scale": 1,
+      "weapon_damage": {
+        "heat": 40
+      }
+    },
+    "supertankkl": {
+      "health": 3000,
+      "power_armor_power": 1500,
+      "power_armor_type": "screen",
+      "damage_scale": 1.2,
+      "health_scale": 1.5
+    },
+    "makron": {
+      "health": 800,
+      "power_armor_power": 250,
+      "power_armor_type": "combat",
+      "damage_scale": 1.1,
+      "health_scale": 1
+    },
+    "makronkl": {
+      "health": 3000,
+      "power_armor_power": 600,
+      "power_armor_type": "shield",
+      "damage_scale": 1.2,
+      "health_scale": 1.5,
+      "weapon_damage": {
+        "blaster": 18,
+        "railgun": 55,
+        "bfg": 55
+      }
+    },
+    "jorg": {
+      "health": 2500,
+      "power_armor_power": 0,
+      "damage_scale": 1
+    },
+    "jorg_small": {
+      "health": 350,
+      "armor_power": 50,
+      "armor_type": "combat",
+      "damage_scale": 1,
+      "health_scale": 0.3,
+      "weapon_damage": {
+        "tracker": 13
+      }
+    },
+    "boss5": {
+      "health": 1200,
+      "power_armor_power": 400,
+      "power_armor_type": "shield",
+      "damage_scale": 0.8,
+      "health_scale": 1,
+      "weapon_damage": {
+        "heat": 40
+      }
+    },
+    "guardian": {
+      "health": 4000,
+      "power_armor_power": 500,
+      "power_armor_type": "shield",
+      "damage_scale": 1.8,
+      "health_scale": 1,
+      "weapon_damage": {
+        "blaster": 18,
+        "dabeam": 25,
+        "ionripper": 25
+      }
+    },
+    "psxguardian": {
+      "health": 3500,
+      "power_armor_power": 4000,
+      "power_armor_type": "shield",
+      "damage_scale": 0.9,
+      "health_scale": 0.8,
+      "weapon_damage": {
+        "blaster": 5,
+        "dabeam": 15,
+        "melee": 85,
+        "heat": 20
+      }
+    },
+    "janitor": {
+      "health": 300,
+      "power_armor_power": 400,
+      "power_armor_type": "screen",
+      "damage_scale": 1.2,
+      "health_scale": 1,
+      "weapon_damage": {
+        "rocket": 40
+      }
+    },
+    "janitor2": {
+      "health": 280,
+      "power_armor_power": 150,
+      "power_armor_type": "shield",
+      "damage_scale": 1.1,
+      "health_scale": 1,
+      "weapon_damage": {
+        "rocket": 30,
+        "ionripper": 25,
+        "grenade": 40
+      },
+      "weapon_speed": {
+        "grenade": 1300
+      }
+    },
+    "tank_spawner": {
+      "health": 275,
+      "armor_power": 305,
+      "armor_type": "combat",
+      "damage_scale": 1.1,
+      "weapon_damage": {
+        "blaster": 20,
+        "blaster2": 35,
+        "machinegun": 8,
+        "rocket": 55,
+        "bolt": 40,
+        "slam": 80
+      }
+    },
+    "perrokl": {
+      "health": 800,
+      "power_armor_power": 0,
+      "damage_scale": 1.2,
+      "health_scale": 1,
+      "weapon_damage": {
+        "proboscis": 18
+      }
+    },
+    "kamikaze": {
+      "health": 50,
+      "damage_scale": 1
+    }
+  },
   "// ============================================================================ 5": "",
   "//  MONSTER LEVEL SCALING SYSTEM": "",
   "// ============================================================================ MONSTER LEVEL SCALING": "",
   "// Level-based progression for monsters based on lowest player level": "",
   "// Formula: stat = initial + (player_level * addon)": "",
   "// Default level is 0, so initial values are the baseline": "",
-    "monster_level_scaling": {
-        "arachnid": {
-            "initial_health": 220,
-            "addon_health": 45,
-            "initial_power_armor": 100,
-            "addon_power_armor": 25
-        },
-        "arachnid2": {
-            "initial_health": 350,
-            "addon_health": 55,
-            "initial_power_armor": 120,
-            "addon_power_armor": 30
-        },
-        "berserk": {
-            "initial_health": 195,
-            "addon_health": 70,
-            "initial_armor": 110,
-            "addon_armor": 30
-        },
-        "berserker": {
-            "initial_health": 100,
-            "addon_health": 65,
-            "initial_armor": 0,
-            "addon_armor": 25
-        },
-        "berserkerkl": {
-            "initial_health": 350,
-            "addon_health": 75,
-            "initial_power_armor": 100,
-            "addon_power_armor": 35
-        },
-        "boss2_64": {
-            "initial_health": 800,
-            "addon_health": 100,
-            "initial_power_armor": 100,
-            "addon_power_armor": 30
-        },
-        "boss2_mini": {
-            "initial_health": 700,
-            "addon_health": 90,
-            "initial_power_armor": 100,
-            "addon_power_armor": 30
-        },
-        "boss5": {
-            "initial_health": 1200,
-            "addon_health": 200,
-            "initial_power_armor": 400,
-            "addon_power_armor": 100
-        },
-        "brain": {
-            "initial_health": 100,
-            "addon_health": 40,
-            "initial_armor": 0,
-            "addon_armor": 150,
-            "initial_power_armor": 250, // <-- ADD THIS
-            "addon_power_armor": 50 // <-- AND THIS (adjust value as needed)
-        },
-
-        "carrier_mini": {
-            "initial_health": 500,
-            "addon_health": 70,
-            "initial_power_armor": 150,
-            "addon_power_armor": 40
-        },
-        "chick": {
-            "initial_health": 50,
-            "addon_health": 15,
-            "initial_power_armor": 25,
-            "addon_power_armor": 15
-        },
-        "chick_heat": {
-            "initial_health": 60,
-            "addon_health": 15,
-            "initial_power_armor": 35,
-            "addon_power_armor": 20
-        },
-        "chickkl": {
-            "initial_health": 300,
-            "addon_health": 50,
-            "initial_power_armor": 150,
-            "addon_power_armor": 40
-        },
-        "daedalus": {
-            "initial_health": 120,
-            "addon_health": 25,
-            "initial_power_armor": 80,
-            "addon_power_armor": 20
-        },
-        "daedalus_bomber": {
-            "initial_health": 150,
-            "addon_health": 30,
-            "initial_power_armor": 100,
-            "addon_power_armor": 25
-        },
-        "enforcer": {
-            "initial_health": 50,
-            "addon_health": 45,
-            "initial_armor": 0,
-            "addon_armor": 0
-        },
-        "fixbot": {
-            "initial_health": 110,
-            "addon_health": 25,
-            "initial_power_armor": 25,
-            "addon_power_armor": 10
-        },
-        "fixbotkl": {
-            "initial_health": 1000,
-            "addon_health": 150,
-            "initial_power_armor": 800,
-            "addon_power_armor": 150
-        },
-        "flipper": {
-            "initial_health": 60,
-            "addon_health": 15,
-            "initial_armor": 0,
-            "addon_armor": 0
-        },
-        "floater": {
-            "initial_health": 55,
-            "addon_health": 20,
-            "initial_armor": 150,
-            "addon_armor": 60
-        },
-        "floater_tracker": {
-            "initial_health": 200,
-            "addon_health": 40,
-            "initial_power_armor": 70,
-            "addon_power_armor": 20
-        },
-        "flyer": {
-            "initial_health": 50,
-            "addon_health": 20,
-            "initial_armor": 50,
-            "addon_armor": 20
-        },
-        "gekk": {
-            "initial_health": 110,
-            "addon_health": 25,
-            "initial_armor": 0,
-            "addon_armor": 0
-        },
-        "gekkkl": {
-            "initial_health": 400,
-            "addon_health": 60,
-            "initial_power_armor": 150,
-            "addon_power_armor": 40
-        },
-        "gladb": {
-            "initial_health": 160,
-            "addon_health": 30,
-            "initial_armor": 55,
-            "addon_armor": 20
-        },
-        "gladc": {
-            "initial_health": 190,
-            "addon_health": 35,
-            "initial_armor": 95,
-            "addon_armor": 25
-        },
-        "gladiator": {
-            "initial_health": 110,
-            "addon_health": 25,
-            "initial_armor": 120,
-            "addon_armor": 20
-        },
-        "gm_arachnid": {
-            "initial_health": 280,
-            "addon_health": 50,
-            "initial_power_armor": 180,
-            "addon_power_armor": 40
-        },
-        "guncmdr": {
-            "initial_health": 250,
-            "addon_health": 40,
-            "initial_armor": 120,
-            "addon_armor": 30
-        },
-        "guncmdr_vanilla": {
-            "initial_health": 200,
-            "addon_health": 35,
-            "initial_armor": 80,
-            "addon_armor": 25
-        },
-        "guncmdrkl": {
-            "initial_health": 500,
-            "addon_health": 70,
-            "initial_armor": 180,
-            "addon_armor": 40
-        },
-        "gunner": {
-            "initial_health": 90,
-            "addon_health": 25,
-            "initial_power_armor": 65,
-            "addon_power_armor": 35
-        },
-        "gunner_vanilla": {
-            "initial_health": 75,
-            "addon_health": 20,
-            "initial_armor": 85,
-            "addon_armor": 20
-        },
-        "hover": {
-            "initial_health": 50,
-            "addon_health": 15,
-            "initial_armor": 50,
-            "addon_armor": 20
-        },
-        "hover_vanilla": {
-            "initial_health": 70,
-            "addon_health": 15,
-            "initial_armor": 210,
-            "addon_armor": 50
-        },
-        "infantry": {
-            "initial_health": 70,
-            "addon_health": 45,
-            "initial_power_armor": 25,
-            "addon_power_armor": 13
-        },
-        "infantry_vanilla": {
-            "initial_health": 65,
-            "addon_health": 20,
-            "initial_armor": 50,
-            "addon_armor": 15
-        },
-        "janitor": {
-            "initial_health": 300,
-            "addon_health": 50,
-            "initial_armor": 400,
-            "addon_armor": 100
-        },
-        "janitor2": {
-            "initial_health": 280,
-            "addon_health": 50,
-            "initial_armor": 150,
-            "addon_armor": 40
-        },
-        "jorg_small": {
-            "initial_health": 350,
-            "addon_health": 55,
-            "initial_armor": 50,
-            "addon_armor": 20
-        },
-        "kamikaze": {
-            "initial_health": 50,
-            "addon_health": 10,
-            "initial_armor": 0,
-            "addon_armor": 0
-        },
-        "makron": {
-            "initial_health": 800,
-            "addon_health": 100,
-            "initial_power_armor": 250,
-            "addon_power_armor": 50
-        },
-        "medic": {
-            "initial_health": 100,
-            "addon_health": 10,
-            "initial_armor": 100,
-            "addon_armor": 20
-        },
-        "medic_commander": {
-            "initial_health": 300,
-            "addon_health": 50,
-            "initial_armor": 0,
-            "addon_armor": 0
-        },
-        "mutant": {
-            "initial_health": 150,
-            "addon_health": 85,
-            "initial_armor": 0,
-            "addon_armor": 0
-        },
-        "parasite": {
-            "initial_health": 150,
-            "addon_health": 85,
-            "initial_armor": 0,
-            "addon_armor": 0
-        },
-        "perrokl": {
-            "initial_health": 800,
-            "addon_health": 100,
-            "initial_armor": 0,
-            "addon_armor": 0
-        },
-        "psxarachnid": {
-            "initial_health": 400,
-            "addon_health": 60,
-            "initial_power_armor": 400,
-            "addon_power_armor": 100
-        },
-        "redmutant": {
-            "initial_health": 220,
-            "addon_health": 90,
-            "initial_armor": 0,
-            "addon_armor": 0
-        },
-        "runnertank": {
-            "initial_health": 650,
-            "addon_health": 80,
-            "initial_armor": 0,
-            "addon_armor": 0
-        },
-        "shambler": {
-            "initial_health": 375,
-            "addon_health": 60,
-            "initial_armor": 0,
-            "addon_armor": 0
-        },
-        "shambler_small": {
-            "initial_health": 250,
-            "addon_health": 50,
-            "initial_armor": 0,
-            "addon_armor": 0
-        },
-        "shamblerkl": {
-            "initial_health": 800,
-            "addon_health": 100,
-            "initial_armor": 0,
-            "addon_armor": 0
-        },
-        "soldier": {
-            "initial_health": 50,
-            "addon_health": 15,
-            "initial_power_armor": 25,
-            "addon_power_armor": 15
-        },
-        "soldier_hypergun": {
-            "initial_health": 65,
-            "addon_health": 15,
-            "initial_power_armor": 40,
-            "addon_power_armor": 15
-        },
-        "soldier_lasergun": {
-            "initial_health": 40,
-            "addon_health": 10,
-            "initial_power_armor": 40,
-            "addon_power_armor": 15
-        },
-        "soldier_light": {
-            "initial_health": 40,
-            "addon_health": 10,
-            "initial_power_armor": 20,
-            "addon_power_armor": 10
-        },
-        "soldier_ripper": {
-            "initial_health": 70,
-            "addon_health": 15,
-            "initial_power_armor": 40,
-            "addon_power_armor": 15
-        },
-        "soldier_ss": {
-            "initial_health": 60,
-            "addon_health": 15,
-            "initial_power_armor": 40,
-            "addon_power_armor": 15
-        },
-        "spider": {
-            "initial_health": 180,
-            "addon_health": 40,
-            "initial_armor": 0,
-            "addon_armor": 0
-        },
-        "stalker": {
-            "initial_health": 150,
-            "addon_health": 85,
-            "initial_armor": 0,
-            "addon_armor": 0
-        },
-        "tank": {
-            "initial_health": 385,
-            "addon_health": 40,
-            "initial_armor": 300,
-            "addon_armor": 105
-        },
-        "tank_64": {
-            "initial_health": 650,
-            "addon_health": 80,
-            "initial_armor": 410,
-            "addon_armor": 120
-        },
-        "tank_commander": {
-            "initial_health": 440,
-            "addon_health": 60,
-            "initial_armor": 450,
-            "addon_armor": 110
-        },
-        "tank_spawner": {
-            "initial_health": 275,
-            "addon_health": 50,
-            "initial_armor": 305,
-            "addon_armor": 90
-        },
-        "turret": {
-            "initial_health": 100,
-            "addon_health": 20,
-            "initial_armor": 40,
-            "addon_armor": 15
-        },
-        "widow": {
-            "initial_health": 1200,
-            "addon_health": 200,
-            "initial_power_armor": 400,
-            "addon_power_armor": 100
-        },
-        "widow1": {
-            "initial_health": 500,
-            "addon_health": 70,
-            "initial_power_armor": 180,
-            "addon_power_armor": 40
-        }
+  "monster_level_scaling": {
+    "arachnid": {
+      "initial_health": 220,
+      "addon_health": 45,
+      "initial_power_armor": 100,
+      "addon_power_armor": 25
+    },
+    "arachnid2": {
+      "initial_health": 350,
+      "addon_health": 55,
+      "initial_power_armor": 120,
+      "addon_power_armor": 30
+    },
+    "berserk": {
+      "initial_health": 195,
+      "addon_health": 70,
+      "initial_armor": 110,
+      "addon_armor": 30
+    },
+    "berserker": {
+      "initial_health": 100,
+      "addon_health": 65,
+      "initial_armor": 0,
+      "addon_armor": 25
+    },
+    "berserkerkl": {
+      "initial_health": 350,
+      "addon_health": 75,
+      "initial_power_armor": 100,
+      "addon_power_armor": 35
+    },
+    "boss2_64": {
+      "initial_health": 800,
+      "addon_health": 100,
+      "initial_power_armor": 100,
+      "addon_power_armor": 30
+    },
+    "boss2_mini": {
+      "initial_health": 700,
+      "addon_health": 90,
+      "initial_power_armor": 100,
+      "addon_power_armor": 30
+    },
+    "boss5": {
+      "initial_health": 1200,
+      "addon_health": 200,
+      "initial_power_armor": 400,
+      "addon_power_armor": 100
+    },
+    "brain": {
+      "initial_health": 100,
+      "addon_health": 40,
+      "initial_armor": 0,
+      "addon_armor": 150,
+      "initial_power_armor": 250,
+      "addon_power_armor": 50
+    },
+    "carrier_mini": {
+      "initial_health": 500,
+      "addon_health": 70,
+      "initial_power_armor": 150,
+      "addon_power_armor": 40
+    },
+    "chick": {
+      "initial_health": 50,
+      "addon_health": 15,
+      "initial_power_armor": 25,
+      "addon_power_armor": 15
+    },
+    "chick_heat": {
+      "initial_health": 60,
+      "addon_health": 15,
+      "initial_power_armor": 35,
+      "addon_power_armor": 20
+    },
+    "chickkl": {
+      "initial_health": 300,
+      "addon_health": 50,
+      "initial_power_armor": 150,
+      "addon_power_armor": 40
+    },
+    "daedalus": {
+      "initial_health": 120,
+      "addon_health": 25,
+      "initial_power_armor": 80,
+      "addon_power_armor": 20
+    },
+    "daedalus_bomber": {
+      "initial_health": 150,
+      "addon_health": 30,
+      "initial_power_armor": 100,
+      "addon_power_armor": 25
+    },
+    "enforcer": {
+      "initial_health": 50,
+      "addon_health": 45,
+      "initial_armor": 0,
+      "addon_armor": 0
+    },
+    "fixbot": {
+      "initial_health": 110,
+      "addon_health": 25,
+      "initial_power_armor": 25,
+      "addon_power_armor": 10
+    },
+    "fixbotkl": {
+      "initial_health": 1000,
+      "addon_health": 150,
+      "initial_power_armor": 800,
+      "addon_power_armor": 150
+    },
+    "flipper": {
+      "initial_health": 60,
+      "addon_health": 15,
+      "initial_armor": 0,
+      "addon_armor": 0
+    },
+    "floater": {
+      "initial_health": 55,
+      "addon_health": 20,
+      "initial_armor": 150,
+      "addon_armor": 60
+    },
+    "floater_tracker": {
+      "initial_health": 200,
+      "addon_health": 40,
+      "initial_power_armor": 70,
+      "addon_power_armor": 20
+    },
+    "flyer": {
+      "initial_health": 50,
+      "addon_health": 20,
+      "initial_armor": 50,
+      "addon_armor": 20
+    },
+    "gekk": {
+      "initial_health": 110,
+      "addon_health": 25,
+      "initial_armor": 0,
+      "addon_armor": 0
+    },
+    "gekkkl": {
+      "initial_health": 400,
+      "addon_health": 60,
+      "initial_power_armor": 150,
+      "addon_power_armor": 40
+    },
+    "gladb": {
+      "initial_health": 160,
+      "addon_health": 30,
+      "initial_armor": 55,
+      "addon_armor": 20
+    },
+    "gladc": {
+      "initial_health": 190,
+      "addon_health": 35,
+      "initial_armor": 95,
+      "addon_armor": 25
+    },
+    "gladiator": {
+      "initial_health": 110,
+      "addon_health": 25,
+      "initial_armor": 120,
+      "addon_armor": 20
+    },
+    "gm_arachnid": {
+      "initial_health": 280,
+      "addon_health": 50,
+      "initial_power_armor": 180,
+      "addon_power_armor": 40
+    },
+    "guncmdr": {
+      "initial_health": 250,
+      "addon_health": 40,
+      "initial_armor": 120,
+      "addon_armor": 30
+    },
+    "guncmdr_vanilla": {
+      "initial_health": 200,
+      "addon_health": 35,
+      "initial_armor": 80,
+      "addon_armor": 25
+    },
+    "guncmdrkl": {
+      "initial_health": 500,
+      "addon_health": 70,
+      "initial_armor": 180,
+      "addon_armor": 40
+    },
+    "gunner": {
+      "initial_health": 90,
+      "addon_health": 25,
+      "initial_power_armor": 65,
+      "addon_power_armor": 35
+    },
+    "gunner_vanilla": {
+      "initial_health": 75,
+      "addon_health": 20,
+      "initial_armor": 85,
+      "addon_armor": 20
+    },
+    "hover": {
+      "initial_health": 50,
+      "addon_health": 15,
+      "initial_armor": 50,
+      "addon_armor": 20
+    },
+    "hover_vanilla": {
+      "initial_health": 70,
+      "addon_health": 15,
+      "initial_armor": 210,
+      "addon_armor": 50
+    },
+    "infantry": {
+      "initial_health": 70,
+      "addon_health": 45,
+      "initial_power_armor": 25,
+      "addon_power_armor": 13
+    },
+    "infantry_vanilla": {
+      "initial_health": 65,
+      "addon_health": 20,
+      "initial_armor": 50,
+      "addon_armor": 15
+    },
+    "janitor": {
+      "initial_health": 300,
+      "addon_health": 50,
+      "initial_armor": 400,
+      "addon_armor": 100
+    },
+    "janitor2": {
+      "initial_health": 280,
+      "addon_health": 50,
+      "initial_armor": 150,
+      "addon_armor": 40
+    },
+    "jorg_small": {
+      "initial_health": 350,
+      "addon_health": 55,
+      "initial_armor": 50,
+      "addon_armor": 20
+    },
+    "kamikaze": {
+      "initial_health": 50,
+      "addon_health": 10,
+      "initial_armor": 0,
+      "addon_armor": 0
+    },
+    "makron": {
+      "initial_health": 800,
+      "addon_health": 100,
+      "initial_power_armor": 250,
+      "addon_power_armor": 50
+    },
+    "medic": {
+      "initial_health": 100,
+      "addon_health": 10,
+      "initial_armor": 100,
+      "addon_armor": 20
+    },
+    "medic_commander": {
+      "initial_health": 300,
+      "addon_health": 50,
+      "initial_armor": 0,
+      "addon_armor": 0
+    },
+    "mutant": {
+      "initial_health": 150,
+      "addon_health": 85,
+      "initial_armor": 0,
+      "addon_armor": 0
+    },
+    "parasite": {
+      "initial_health": 150,
+      "addon_health": 85,
+      "initial_armor": 0,
+      "addon_armor": 0
+    },
+    "perrokl": {
+      "initial_health": 800,
+      "addon_health": 100,
+      "initial_armor": 0,
+      "addon_armor": 0
+    },
+    "psxarachnid": {
+      "initial_health": 400,
+      "addon_health": 60,
+      "initial_power_armor": 400,
+      "addon_power_armor": 100
+    },
+    "redmutant": {
+      "initial_health": 220,
+      "addon_health": 90,
+      "initial_armor": 0,
+      "addon_armor": 0
+    },
+    "runnertank": {
+      "initial_health": 650,
+      "addon_health": 80,
+      "initial_armor": 0,
+      "addon_armor": 0
+    },
+    "shambler": {
+      "initial_health": 375,
+      "addon_health": 60,
+      "initial_armor": 0,
+      "addon_armor": 0
+    },
+    "shambler_small": {
+      "initial_health": 250,
+      "addon_health": 50,
+      "initial_armor": 0,
+      "addon_armor": 0
+    },
+    "shamblerkl": {
+      "initial_health": 800,
+      "addon_health": 100,
+      "initial_armor": 0,
+      "addon_armor": 0
+    },
+    "soldier": {
+      "initial_health": 50,
+      "addon_health": 15,
+      "initial_power_armor": 25,
+      "addon_power_armor": 15
+    },
+    "soldier_hypergun": {
+      "initial_health": 65,
+      "addon_health": 15,
+      "initial_power_armor": 40,
+      "addon_power_armor": 15
+    },
+    "soldier_lasergun": {
+      "initial_health": 40,
+      "addon_health": 10,
+      "initial_power_armor": 40,
+      "addon_power_armor": 15
+    },
+    "soldier_light": {
+      "initial_health": 40,
+      "addon_health": 10,
+      "initial_power_armor": 20,
+      "addon_power_armor": 10
+    },
+    "soldier_ripper": {
+      "initial_health": 70,
+      "addon_health": 15,
+      "initial_power_armor": 40,
+      "addon_power_armor": 15
+    },
+    "soldier_ss": {
+      "initial_health": 60,
+      "addon_health": 15,
+      "initial_power_armor": 40,
+      "addon_power_armor": 15
+    },
+    "spider": {
+      "initial_health": 180,
+      "addon_health": 40,
+      "initial_armor": 0,
+      "addon_armor": 0
+    },
+    "stalker": {
+      "initial_health": 150,
+      "addon_health": 85,
+      "initial_armor": 0,
+      "addon_armor": 0
+    },
+    "tank": {
+      "initial_health": 385,
+      "addon_health": 40,
+      "initial_armor": 300,
+      "addon_armor": 105
+    },
+    "tank_64": {
+      "initial_health": 650,
+      "addon_health": 80,
+      "initial_armor": 410,
+      "addon_armor": 120
+    },
+    "tank_commander": {
+      "initial_health": 440,
+      "addon_health": 60,
+      "initial_armor": 450,
+      "addon_armor": 110
+    },
+    "tank_spawner": {
+      "initial_health": 275,
+      "addon_health": 50,
+      "initial_armor": 305,
+      "addon_armor": 90
+    },
+    "turret": {
+      "initial_health": 100,
+      "addon_health": 20,
+      "initial_armor": 40,
+      "addon_armor": 15
+    },
+    "widow": {
+      "initial_health": 1200,
+      "addon_health": 200,
+      "initial_power_armor": 400,
+      "addon_power_armor": 100
+    },
+    "widow1": {
+      "initial_health": 500,
+      "addon_health": 70,
+      "initial_power_armor": 180,
+      "addon_power_armor": 40
     }
+  }
 }

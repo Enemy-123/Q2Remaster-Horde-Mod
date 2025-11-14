@@ -2101,7 +2101,7 @@ int CTFApplyResistance(edict_t* ent, int dmg)
 	{
 		// make noise
 		gi.sound(ent, CHAN_AUX, gi.soundindex("ctf/tech1.wav"), volume, ATTN_NORM, 0);
-		return dmg / 2;
+		return std::max(1, dmg / 2); // Ensure minimum 1 damage to prevent immunity
 	}
 	return dmg;
 }

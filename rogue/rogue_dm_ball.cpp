@@ -217,7 +217,7 @@ int DBall_ChangeDamage(edict_t *targ, edict_t *attacker, int damage, mod_t mod)
 
 	// damage player -> player is halved
 	if (attacker != dball_ball_entity)
-		return damage / 2;
+		return std::max(1, damage / 2); // Ensure minimum 1 damage
 
 	return damage;
 }

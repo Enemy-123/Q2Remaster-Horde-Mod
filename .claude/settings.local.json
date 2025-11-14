@@ -22,7 +22,10 @@
       "Bash(cat:*)",
       "Bash(git revert:*)",
       "Bash(git rm:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(python extract_historical_damage.py:*)",
+      "Bash(python:*)"
     ],
     "deny": [],
     "ask": []
