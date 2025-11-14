@@ -1077,13 +1077,15 @@ int GetMonsterWeaponDamage(uint8_t monster_type_id, const char* weapon_name)
 	}
 
 	// Step 2: Try to find a monster-specific override using O(1) array lookup
+	bool has_override = false;
 	if (config) [[likely]]
 	{
 		size_t weapon_index = static_cast<size_t>(weapon_id);
 		int override_damage = config->weapon_damage_overrides[weapon_index];
 		if (override_damage != 0)
 		{
-			base_damage = override_damage; // Found an override! Use it.
+			base_damage = override_damage; // Found an override! Use it directly.
+			has_override = true;
 		}
 	}
 
@@ -1099,11 +1101,14 @@ int GetMonsterWeaponDamage(uint8_t monster_type_id, const char* weapon_name)
 		return 0;
 	}
 
-	// Get monster config for damage scale
-	float damage_scale = config ? config->damage_scale : 1.0f;
-
-	// Apply monster damage scale
-	int damage = static_cast<int>(base_damage * damage_scale);
+	// Step 4: Apply damage_scale ONLY if no override was found
+	// Overrides are meant to be final values and shouldn't be scaled by damage_scale
+	int damage = base_damage;
+	if (!has_override)
+	{
+		float damage_scale = config ? config->damage_scale : 1.0f;
+		damage = static_cast<int>(base_damage * damage_scale);
+	}
 
 	// Apply wave scaling if horde mode is active
 	if (g_horde && g_horde->integer && current_wave_level > 0)
