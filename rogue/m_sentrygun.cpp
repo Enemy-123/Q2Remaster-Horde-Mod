@@ -1439,9 +1439,9 @@ void turret2Fire(edict_t* self) {
 		TurretFireMachinegun(self, start, dir);
 
 		// Only try rockets outside of minimum range
-		if (dist > 200.0f) {
+		//if (dist > 200.0f) { // Commented out: Allow rockets at any range
 			TurretFireRocket(self, start, dir, dist);
-		}
+		//}
 	}
 	else if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER)) {
 		// HEATBEAM - Use AI_HOLD_FRAME like machinegun for continuous beam
@@ -1482,7 +1482,8 @@ void turret2Fire(edict_t* self) {
 				TurretFireHeatbeam(self, hbstart, predictedDir, hbtr);
 
 				// Only try plasma at medium to long range
-				if (dist > 300.0f && frandom() < 0.1f) { // Lower chance for plasma
+				//if (dist > 300.0f && frandom() < 0.1f) { // Commented out: Allow plasma at any range
+				if (frandom() < 0.1f) { // Lower chance for plasma
 					TurretFirePlasma(self, hbstart, predictedDir);
 				}
 			}
@@ -2302,7 +2303,7 @@ void SP_monster_sentrygun(edict_t* self)
     state->was_attacking = false;
     state->transition_state = 0;
     state->next_target_search_time = 0_sec;
-    state->last_animation_change_time = 0_sec;
+    state->last_animation_change_time = -1_sec; // Allow immediate firing on spawn
     state->grenade_burst_count = 0;
     state->last_grenade_burst_time = 0_sec;
     state->last_regeneration_time = 0_sec;
