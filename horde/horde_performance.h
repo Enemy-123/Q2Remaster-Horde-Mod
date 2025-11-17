@@ -90,7 +90,8 @@ class SpawnPointSpatialIndex {
     };
 
     boost::container::flat_map<uint32_t, Cell> grid_cells;  // Sorted map for spatial query performance
-    std::vector<edict_t*> all_spawn_points;
+    // Using small_vector to avoid heap allocation (max 64 spawn points per map)
+    boost::container::small_vector<edict_t*, 64> all_spawn_points;
 
     static uint32_t GetCellKey(const vec3_t& pos) {
         int x = static_cast<int>(pos.x) >> CELL_SHIFT;
@@ -145,7 +146,7 @@ public:
         return result;
     }
 
-    const std::vector<edict_t*>& GetAllSpawnPoints() const {
+    const boost::container::small_vector<edict_t*, 64>& GetAllSpawnPoints() const {
         return all_spawn_points;
     }
 };

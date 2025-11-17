@@ -630,9 +630,10 @@ inline std::string_view trim_whitespace(std::string_view str)
     return str.substr(start, end - start + 1);
 }
 
-inline std::vector<std::string_view> split_string_view(std::string_view str, char delimiter = ' ')
+inline boost::container::small_vector<std::string_view, 32> split_string_view(std::string_view str, char delimiter = ' ')
 {
-    std::vector<std::string_view> result;
+    // Using small_vector to avoid heap allocation for typical map lists (< 32 entries)
+    boost::container::small_vector<std::string_view, 32> result;
     if (!safe_reserve(result, 32)) {  // Pre-allocate reasonable size for map lists
         return result;
     }
@@ -657,7 +658,8 @@ inline std::vector<std::string_view> split_string_view(std::string_view str, cha
     return result;
 }
 
-inline std::string join_string_views(const std::vector<std::string_view>& views, const char* separator = " ")
+template<typename Container>
+inline std::string join_string_views(const Container& views, const char* separator = " ")
 {
     if (views.empty()) return "";
     size_t total_size = (views.size() - 1) * strlen(separator);
@@ -772,7 +774,7 @@ void EndDMLevel()
         if (g_map_list_shuffle->integer)
         {
             // Use the allocation-free split to get views of the map names.
-            std::vector<std::string_view> values = split_string_view(g_map_list->string);
+            auto values = split_string_view(g_map_list->string);
 
             // If there's only one map, just restart it.
             if (values.size() <= 1) {

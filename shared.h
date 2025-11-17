@@ -26,7 +26,8 @@ struct trap_state_t {
     int                 num_targets;
     bool                in_cooldown;
     gtime_t             cooldown_end;
-    std::vector<edict_t*> owned_gibs;  // Track gibs owned by this trap for fast cleanup
+    // Using small_vector to avoid heap allocation (typical trap explosion spawns < 16 gibs)
+    boost::container::small_vector<edict_t*, 16> owned_gibs;  // Track gibs owned by this trap for fast cleanup
 
     // Cache for effect state to avoid unnecessary network updates
     int cached_frame = -1;

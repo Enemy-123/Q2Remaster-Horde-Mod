@@ -563,7 +563,8 @@ struct SpawnPointCache
 
 struct SpawnPointCacheArray
 {
-	std::vector<SpawnPointCache> data;
+	// Using small_vector to avoid heap allocation (max 64 spawn points per map)
+	boost::container::small_vector<SpawnPointCache, 64> data;
 
 	// FIX: Access operator should NOT have side effects - removed BuildSpawnPointMap() call
 	// The map must be built explicitly before accessing the cache to avoid race conditions
