@@ -421,9 +421,10 @@ static pmenu_t vote_menu[VOTE_MENU_SIZE] = {
 
 struct map_lists_t
 {
-	std::vector<std::string> big_maps;
-	std::vector<std::string> medium_maps;
-	std::vector<std::string> small_maps;
+	// Using small_vector to avoid heap allocation for typical installations (most have < 16 maps per category)
+	boost::container::small_vector<std::string, 16> big_maps;
+	boost::container::small_vector<std::string, 16> medium_maps;
+	boost::container::small_vector<std::string, 16> small_maps;
 	size_t current_page = 0;
 	horde::MapSize current_category = {false, true, false}; // Default to medium
 };
@@ -966,7 +967,7 @@ void VoteMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	}
 
 	const size_t option = p->cur;
-	std::vector<std::string> *current_map_list = nullptr;
+	boost::container::small_vector<std::string, 16> *current_map_list = nullptr;
 
 	// Get current map list based on category
 	if (categorized_maps.current_category.isBigMap)
@@ -1105,7 +1106,7 @@ void VoteMenuHandler(edict_t *ent, pmenuhnd_t *p)
 // Updates the contents of the static vote_menu array based on the current category and page
 void UpdateVoteMenu()
 {
-	std::vector<std::string> *current_map_list = nullptr;
+	boost::container::small_vector<std::string, 16> *current_map_list = nullptr;
 
 	// Determine current map list and category name
 	const char *category_name;

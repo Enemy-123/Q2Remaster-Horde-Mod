@@ -4,9 +4,10 @@
 #include "g_local.h"
 #include <string>
 #include <boost/container/flat_map.hpp>
+#include <boost/container/small_vector.hpp>
 #include "horde/horde_ids.h"
 
-extern std::vector<edict_t*> g_targetable_special_entities;
+extern boost::container::small_vector<edict_t*, 32> g_targetable_special_entities;
 
 
 //TRAP

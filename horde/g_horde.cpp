@@ -40,7 +40,8 @@ boost::container::flat_map<int, trap_state_t> g_trap_states;
 boost::container::flat_map<int, EmitterState> g_emitter_states;
 
 //aiming for special entities for idview.cpp
-std::vector<edict_t*> g_targetable_special_entities;
+// Using small_vector to avoid heap allocation for typical maps (most have < 32 special entities)
+boost::container::small_vector<edict_t*, 32> g_targetable_special_entities;
 
 // Track monster to family mapping for reference counting
 boost::container::flat_map<int, AssetFamilyID> g_monster_family_map;
