@@ -26,7 +26,9 @@
       "Bash(git ls-tree:*)",
       "Bash(python extract_historical_damage.py:*)",
       "Bash(python:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "mcp__serena__think_about_task_adherence",
+      "mcp__serena__insert_before_symbol"
     ],
     "deny": [],
     "ask": []
