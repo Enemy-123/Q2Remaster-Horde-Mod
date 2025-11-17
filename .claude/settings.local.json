@@ -25,7 +25,8 @@
       "Bash(git add:*)",
       "Bash(git ls-tree:*)",
       "Bash(python extract_historical_damage.py:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []
