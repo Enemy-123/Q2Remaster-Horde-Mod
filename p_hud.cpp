@@ -481,10 +481,11 @@ void DeathmatchScoreboardMessage(edict_t* ent, edict_t* killer)
 		int score;
 		int ping;
 		gtime_t entertime;
-		edict_t* entity; 
+		edict_t* entity;
 	};
 
-	std::vector<PlayerScoreInfo> sorted_players_info;
+	// Using small_vector to avoid heap allocation for typical servers (most have <= 16 players)
+	boost::container::small_vector<PlayerScoreInfo, 16> sorted_players_info;
 	sorted_players_info.reserve(game.maxclients);
 
 	for (uint32_t i = 0; i < game.maxclients; i++)

@@ -45,7 +45,8 @@ std::vector<edict_t*> g_targetable_special_entities;
 // Track monster to family mapping for reference counting
 boost::container::flat_map<int, AssetFamilyID> g_monster_family_map;
 // Provides a direct list of spawn point edicts for easy iteration
-std::vector<edict_t*> g_spawn_point_list;
+// Using small_vector to avoid heap allocation for typical maps (most have < 64 spawn points)
+boost::container::small_vector<edict_t*, 64> g_spawn_point_list;
 // The actual number of spawn points found on the map
 size_t g_num_spawn_points = 0;
 
@@ -674,7 +675,7 @@ void BuildSpawnPointMap()
 			// Check for overflow before adding
 			if (g_spawn_point_list.size() >= MAX_SPAWN_POINTS) {
 				gi.Com_PrintFmt("WARNING: Too many spawn points ({}), capping at {}\n",
-					g_spawn_point_list.size() + 1, MAX_SPAWN_POINTS);
+					static_cast<size_t>(g_spawn_point_list.size() + 1), static_cast<size_t>(MAX_SPAWN_POINTS));
 				break;
 			}
 
@@ -4642,6 +4643,12 @@ void ResetGame()
 	HordePhys::g_monster_grid.Reset();  // FIX: Clear monster proximity grid to prevent stale entity references
 	HordePhys::g_entity_grid.Reset();  // FIX: Clear general entity grid to prevent stale entity references
 	HordePhys::g_spawn_grid.Clear();  // FIX: Clear spawn position grid to free cached spawn nodes
+
+	// --- FIX: Clear performance cache systems to prevent stale data ---
+	HordePerf::g_spawn_spatial_index.Clear();  // FIX: Clear spawn spatial index (also cleared in BuildSpawnPointMap, but explicit here)
+	HordePerf::g_monster_type_cache.Clear();   // FIX: Clear monster type property cache to prevent stale monster data
+	HordePerf::g_distance_cache.Clear();       // FIX: Clear distance calculation cache to prevent stale position data
+	HordePerf::g_visibility_cache.Clear();     // FIX: Clear visibility check cache to prevent stale entity reference checks
 
     // =======================================================================
 	// --- UNIFIED RESET (THIS IS THE FIX) ---

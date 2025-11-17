@@ -150,7 +150,8 @@ void Profiler_PrintResults() {
 		}
 	};
 
-	std::vector<SortableProfileData> sorted_data;
+	// Using small_vector to avoid heap allocation for typical profiling (most have < 32 profiled functions)
+	boost::container::small_vector<SortableProfileData, 32> sorted_data;
 	// Safe reserve with bounds check
 	if (!safe_reserve(sorted_data, std::min(g_profiler_data.size(), MAX_SAFE_RESERVE_SIZE))) {
 		gi.Com_Print("WARNING: Failed to reserve memory for profiler data\n");

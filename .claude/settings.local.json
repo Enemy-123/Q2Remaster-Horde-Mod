@@ -28,7 +28,9 @@
       "Bash(python:*)",
       "Bash(find:*)",
       "mcp__serena__think_about_task_adherence",
-      "mcp__serena__insert_before_symbol"
+      "mcp__serena__insert_before_symbol",
+      "Bash(\"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\MSBuild.exe\" game.vcxproj /p:Configuration=Release /p:Platform=x64 /v:minimal)",
+      "Bash(\"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\MSBuild.exe\" game.vcxproj -p:Configuration=Release -p:Platform=x64 -v:minimal)"
     ],
     "deny": [],
     "ask": []

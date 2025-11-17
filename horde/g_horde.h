@@ -13,7 +13,7 @@
 
 constexpr const char* HORDE_MOD_VERSION_STRING = "*Horde BETA MOD v0.00997";
 
-extern std::vector<edict_t*> g_spawn_point_list;
+extern boost::container::small_vector<edict_t*, 64> g_spawn_point_list;
 extern size_t g_num_spawn_points;
 
 // --- Forward Declarations ---

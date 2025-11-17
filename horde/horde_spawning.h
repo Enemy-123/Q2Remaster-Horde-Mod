@@ -89,7 +89,8 @@ struct CachedSpawnPointData {
 /// Groups all spawn-related state variables for better encapsulation and testability
 struct SpawnSystemState {
     // --- Cache State ---
-    std::vector<edict_t*> potential_spawn_points;
+    // Using small_vector to avoid heap allocation for typical maps (most have < 64 spawn points)
+    boost::container::small_vector<edict_t*, 64> potential_spawn_points;
     bool spawn_points_cached = false;
     size_t spawn_point_shuffle_index = 0;
     int32_t cached_flying_spawn_count = 0;
@@ -97,7 +98,8 @@ struct SpawnSystemState {
     // --- Spawn Point Data ---
     boost::container::flat_map<int, uint16_t> spawn_point_map;  // C++23 flat_map for better cache locality
     SpawnPointsSoA spawn_points_data;
-    std::vector<CachedSpawnPointData> spawn_validation_cache;
+    // Using small_vector to avoid heap allocation for typical maps (most have < 64 spawn points)
+    boost::container::small_vector<CachedSpawnPointData, 64> spawn_validation_cache;
 
     // --- Failure Tracking & Recovery ---
     int32_t consecutive_spawn_failures = 0;

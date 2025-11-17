@@ -43,7 +43,7 @@ extern cvar_t* developer;
 extern cvar_t* g_horde;
 extern MonsterWaveType current_wave_type;
 extern bool g_recovery_mode_active;
-extern std::vector<edict_t*> g_spawn_point_list;
+extern boost::container::small_vector<edict_t*, 64> g_spawn_point_list;
 extern uint16_t g_totalMonstersInWave;
 extern bool next_wave_message_sent;
 extern int32_t g_adjusted_monster_cap;
@@ -748,7 +748,7 @@ void RebuildSpawnPointCacheIfNeeded()
         // Reserve capacity before copying to avoid reallocation
         g_spawn_system.potential_spawn_points.clear();
         g_spawn_system.potential_spawn_points.reserve(g_spawn_point_list.size());
-        g_spawn_system.potential_spawn_points = g_spawn_point_list;
+        g_spawn_system.potential_spawn_points.assign(g_spawn_point_list.begin(), g_spawn_point_list.end());
 
         g_spawn_system.cached_flying_spawn_count = 0;
         for (const auto* point : g_spawn_system.potential_spawn_points) {
