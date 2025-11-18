@@ -12,6 +12,7 @@
 #include "horde/p_brain_morph.h"
 #include "horde/g_pvm_menu.h"
 #include "horde/g_upgrades.h"
+#include <boost/container/small_vector.hpp>
 
 void SP_misc_teleporter_dest(edict_t* ent);
 
@@ -1732,7 +1733,8 @@ select_spawn_result_t SelectDeathmatchSpawnPoint(bool farthest, bool force_spawn
 		float dist;
 	};
 
-	static std::vector<spawn_point_t> spawn_points;
+	// Using small_vector to avoid heap allocation (max 64 spawn points per map)
+	static boost::container::small_vector<spawn_point_t, 64> spawn_points;
 	spawn_points.clear();
 
 	// Cache classname strings for faster comparison

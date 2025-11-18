@@ -7,6 +7,7 @@
 #include "../memory_safety.h"
 
 #include <assert.h>
+#include <boost/container/small_vector.hpp>
 
 #include "../horde/p_flyer_morph.h"
 ctfgame_t ctfgame;
@@ -415,7 +416,8 @@ edict_t* SelectCTFSpawnPoint(edict_t* ent, bool force_spawn)
 	}
 	}
 
-	static std::vector<edict_t*> spawn_points;
+	// Using small_vector to avoid heap allocation (max 64 spawn points per map)
+	static boost::container::small_vector<edict_t*, 64> spawn_points;
 	edict_t* spot = nullptr;
 	spawn_points.clear();
 

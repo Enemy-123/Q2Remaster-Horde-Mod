@@ -44,6 +44,7 @@ static struct
 } hud_temp = {};
 
 #include <vector>
+#include <boost/container/small_vector.hpp>
 
 // max number of centerprints in the rotating buffer
 constexpr size_t MAX_CENTER_PRINTS = 4;
@@ -54,9 +55,10 @@ struct cl_bind_t {
 };
 
 struct cl_centerprint_t {
-    std::vector<cl_bind_t> binds; // binds
+    // Using small_vector to avoid heap allocation for typical center prints
+    boost::container::small_vector<cl_bind_t, 8> binds; // binds (typical < 8 key bindings)
 
-    std::vector<std::string> lines;
+    boost::container::small_vector<std::string, 16> lines; // lines (typical < 16 lines of text)
     bool        instant = false; // don't type out
 
     size_t      current_line = 0; // current line we're typing out
