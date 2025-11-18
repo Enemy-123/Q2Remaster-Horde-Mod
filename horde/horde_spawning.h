@@ -114,7 +114,8 @@ struct SpawnSystemState {
     SpecialSpawnState special_spawn_state;
 
     // --- Current Spawn Plan ---
-    std::vector<SpawnPlanEntry> spawn_plan;
+    // Using small_vector to avoid heap allocation for typical waves (most have <64 spawn entries)
+    boost::container::small_vector<SpawnPlanEntry, 64> spawn_plan;
     float champion_chance_for_current_batch = 0.2f;
 
     // Reset all state (useful for testing and level transitions)

@@ -145,11 +145,11 @@ inline bool unsafe_push_back(std::vector<T>& vec, T&& value) {
     }
 }
 
-// Safe emplace_back with explicit size limit
-template<typename T, typename... Args>
-inline bool safe_emplace_back_limit(std::vector<T>& vec, size_t max_size, Args&&... args) {
+// Safe emplace_back with explicit size limit (generic for any container)
+template<typename Container, typename... Args>
+inline bool safe_emplace_back_limit(Container& container, size_t max_size, Args&&... args) {
     try {
-        if (vec.size() >= max_size) {
+        if (container.size() >= max_size) {
             if (developer && developer->integer) {
                 static int overflow_count = 0;
                 if (overflow_count++ < 10) {
@@ -159,7 +159,7 @@ inline bool safe_emplace_back_limit(std::vector<T>& vec, size_t max_size, Args&&
             return false;
         }
 
-        vec.emplace_back(std::forward<Args>(args)...);
+        container.emplace_back(std::forward<Args>(args)...);
         return true;
     } catch (const std::bad_alloc&) {
         if (developer && developer->integer) {

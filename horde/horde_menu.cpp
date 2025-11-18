@@ -6448,8 +6448,9 @@ class ScoreboardLayout {
 private:
 	StringBuilder layout_builder;
 	const edict_t* ent;
-	boost::container::small_vector<PlayerScore, 8> team_players;
-	boost::container::small_vector<PlayerScore, 4> spectators;
+	// Increased capacity to handle typical server sizes (avoid heap allocation)
+	boost::container::small_vector<PlayerScore, 32> team_players;  // Typical servers: 16-32 players
+	boost::container::small_vector<PlayerScore, 16> spectators;    // Typical spectators: <16
 	int total_score;
 
 public:

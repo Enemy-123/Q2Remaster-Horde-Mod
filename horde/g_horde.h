@@ -204,9 +204,10 @@ struct MonsterAssetFamily {
 	AssetFamilyID family_id;
 	bool is_precached;
 	const char* family_name;
-	std::vector<const char*> models;
-	std::vector<const char*> sounds;
-	std::vector<horde::MonsterTypeID> members; // All monsters in this family
+	// Using small_vector to avoid heap allocation for typical families (most have <8 models/sounds)
+	boost::container::small_vector<const char*, 8> models;
+	boost::container::small_vector<const char*, 8> sounds;
+	boost::container::small_vector<horde::MonsterTypeID, 12> members; // All monsters in this family (typical <12)
 
 	// Dynamic unloading support
 	int32_t reference_count;        // How many active monsters use this family
