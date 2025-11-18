@@ -8623,10 +8623,10 @@ static void Horde_InitLevel(const int32_t lvl)
 							temp_monster->classname = classname;
 							temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 							ED_CallSpawnMonsterByID(temp_monster, monster_info->typeId);
-							if (temp_monster->inuse)
-							{
-								G_FreeEdict(temp_monster);
-							}
+							// FIX: Always free temp_monster - G_FreeEdict handles validity check internally
+							// Previous code: if (temp_monster->inuse) G_FreeEdict(temp_monster);
+							// This leaked entities when spawn failed and inuse was false
+							G_FreeEdict(temp_monster);
 							g_precached_monster_types_flags[static_cast<size_t>(monster_info->typeId)] = true;
 							g_precached_monsters_this_map.insert(monster_info->typeId);
 
@@ -8679,10 +8679,10 @@ static void Horde_InitLevel(const int32_t lvl)
 								temp_monster->classname = classname;
 								temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 								ED_CallSpawnMonsterByID(temp_monster, monster_info->typeId);
-								if (temp_monster->inuse)
-								{
-									G_FreeEdict(temp_monster);
-								}
+								// FIX: Always free temp_monster - G_FreeEdict handles validity check internally
+								// Previous code: if (temp_monster->inuse) G_FreeEdict(temp_monster);
+								// This leaked entities when spawn failed and inuse was false
+								G_FreeEdict(temp_monster);
 								g_precached_monster_types_flags[static_cast<size_t>(monster_info->typeId)] = true;
 								g_precached_monsters_this_map.insert(monster_info->typeId);
 
