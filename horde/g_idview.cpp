@@ -1,4 +1,5 @@
 #include "../shared.h"
+#include "g_horde_phys.h"
 #include <queue>
 #include <span>
 #include <array> // Included for std::array
@@ -6,26 +7,31 @@
 // Assuming gtime_t and other game-specific types are defined in "shared.h"
 // Also assuming fmt library is available and configured.
 
-std::string FormatClassname(const std::string& classname) {
-	std::string result;
-	result.reserve(classname.length());
-
+// Stack-based buffer version - writes directly to output buffer
+// Returns pointer to end of written data for chaining
+char* FormatClassname(const char* classname, char* out, const char* end) {
 	bool first_word = true;
-	size_t start = 0;
+	bool capitalize_next = true;
 
-	for (size_t i = 0; i <= classname.length(); ++i) {
-		if (i == classname.length() || classname[i] == '_') {
-			if (i > start) {
-				if (!first_word) result += ' ';
-				result += static_cast<char>(toupper(classname[start]));
-				result.append(classname, start + 1, i - start - 1);
-				first_word = false;
+	for (const char* p = classname; *p && out < end; ++p) {
+		if (*p == '_') {
+			if (!first_word && out < end) {
+				*out++ = ' ';
 			}
-			start = i + 1;
+			capitalize_next = true;
+			first_word = false;
+		} else {
+			if (out < end) {
+				if (capitalize_next) {
+					*out++ = toupper(*p);
+					capitalize_next = false;
+				} else {
+					*out++ = *p;
+				}
+			}
 		}
 	}
-
-	return result;
+	return out;
 }
 
 
@@ -315,12 +321,14 @@ static inline void CheckEntityForTargeting(edict_t* viewer, const vec3_t& viewer
         CheckEntityForTargeting(ent, viewer_pos, forward, who, best);
     }
 
-    // 2. Iterate through active monsters (fast).
-    for (edict_t* who : active_monsters()) {
+    // 2. Monsters: Use spatial grid for O(1) radius query instead of O(N) linear scan
+    //    Only checks monsters within MAX_DISTANCE, reducing wasted checks
+    const auto nearby_monsters = HordePhys::g_monster_grid.QueryRadius(viewer_pos, IDViewConfig::MAX_DISTANCE);
+    for (edict_t* who : nearby_monsters) {
         CheckEntityForTargeting(ent, viewer_pos, forward, who, best);
     }
 
-    //    Iterate through our new, small list of special entities instead of all edicts.
+    // 3. Iterate through our new, small list of special entities instead of all edicts.
     for (edict_t* who : g_targetable_special_entities) {
         CheckEntityForTargeting(ent, viewer_pos, forward, who, best);
     }

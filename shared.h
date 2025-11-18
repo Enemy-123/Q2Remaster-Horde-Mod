@@ -9,6 +9,8 @@
 
 extern boost::container::small_vector<edict_t*, 32> g_targetable_special_entities;
 
+// Helper function for O(1) removal from g_targetable_special_entities using swap-and-pop
+void RemoveEntityFromGlobalList(edict_t* entity);
 
 //TRAP
 

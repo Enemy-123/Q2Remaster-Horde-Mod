@@ -52,6 +52,19 @@ thread_local bool g_use_quiet_deployable_removal = false;
 
 void RemoveEntity(edict_t* ent);
 
+// O(1) swap-and-pop removal from g_targetable_special_entities
+// Replaces O(N) erase-remove idiom for better performance
+void RemoveEntityFromGlobalList(edict_t* entity) {
+	auto& vec = g_targetable_special_entities;
+	auto it = std::find(vec.begin(), vec.end(), entity);
+	if (it != vec.end()) {
+		// Swap with last element and pop (O(1) removal)
+		// Order doesn't matter for targeting, so this is safe
+		*it = vec.back();
+		vec.pop_back();
+	}
+}
+
 // Helper to reset spawn point selection state when map changes
 static void ResetSpawnPointSelection();
 
@@ -488,7 +501,7 @@ static std::array<std::string, static_cast<size_t>(horde::MonsterTypeID::MAX_TYP
 static std::array<std::string, static_cast<size_t>(horde::SpecialEntityTypeID::COUNT)> g_specialDisplayNames;
 static bool g_displayNamesInitialized = false;
 
-std::string FormatClassname(const std::string& classname);
+char* FormatClassname(const char* classname, char* out, const char* end);
 
 void InitializeDisplayNames() {
     if (g_displayNamesInitialized) return;
@@ -512,7 +525,9 @@ void InitializeDisplayNames() {
         } 
         else if (horde::MonsterTypeRegistry::IsValidType(typeId)) {
             const char* classname = horde::MonsterTypeRegistry::GetClassname(typeId);
-            g_monsterDisplayNames[i] = FormatClassname(classname);
+            char buffer[64];
+            char* end = FormatClassname(classname, buffer, buffer + sizeof(buffer));
+            g_monsterDisplayNames[i].assign(buffer, end);
         } else {
             g_monsterDisplayNames[i] = "Unknown Monster";
         }

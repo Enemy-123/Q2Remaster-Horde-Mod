@@ -623,6 +623,13 @@ THINK(G_FreeEdict) (edict_t* ed) -> void {
     // Preserve and increment spawn count
     int32_t id = ed->spawn_count + 1;
 
+    // CRITICAL: Manually release C++ objects before memset
+    // The memset bypasses destructors, causing memory leaks for heap-allocated members
+    // See TODO comment at g_local.h:1472-1474
+    if (ed->moveinfo.curve_positions.ptr) {
+        ed->moveinfo.curve_positions.release();
+    }
+
     // Clear entity data
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wclass-memaccess"

@@ -376,8 +376,7 @@ DIE(laser_die)(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
         emitter = self->owner;
     }
 
-    auto& vec = g_targetable_special_entities;
-    vec.erase(std::remove(vec.begin(), vec.end(), emitter), vec.end());
+    RemoveEntityFromGlobalList(emitter);
 
     if (!emitter || !emitter->inuse)
     {

@@ -145,8 +145,7 @@ THINK(Trap_Gib_Think) (edict_t* ent) -> void
 
 DIE(trap_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-    auto& vec = g_targetable_special_entities;
-    vec.erase(std::remove(vec.begin(), vec.end(), self), vec.end());
+    RemoveEntityFromGlobalList(self);
 
     // --- CLEAN UP ANY ROTATING GIBS ---
     // PERFORMANCE IMPROVEMENT: Use vector tracking instead of O(n) search
