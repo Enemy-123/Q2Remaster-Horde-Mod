@@ -84,72 +84,51 @@ void Config_LoadMonsters(const char* basedir)
 
 	config_file.close();
 
-	// Load global weapon damage
+	// Load global weapon damage - OPTIMIZED: uses array-based storage with enum indexing
 	if (root.isMember("global_weapon_damage") && root["global_weapon_damage"].isObject())
 	{
 		const Json::Value& gwd = root["global_weapon_damage"];
-		g_config.global_weapon_damage.melee = GetJsonInt(gwd, "melee", 10);
-		g_config.global_weapon_damage.blaster = GetJsonInt(gwd, "blaster", 15);
-		g_config.global_weapon_damage.blaster2 = GetJsonInt(gwd, "blaster2", 20);
-		g_config.global_weapon_damage.blaster_bolt = GetJsonInt(gwd, "blaster_bolt", 18);
-		g_config.global_weapon_damage.blueblaster = GetJsonInt(gwd, "blueblaster", 20);
-		g_config.global_weapon_damage.shotgun = GetJsonInt(gwd, "shotgun", 4);
-		g_config.global_weapon_damage.machinegun = GetJsonInt(gwd, "machinegun", 8);
-		g_config.global_weapon_damage.grenade = GetJsonInt(gwd, "grenade", 50);
-		g_config.global_weapon_damage.rocket = GetJsonInt(gwd, "rocket", 100);
-		g_config.global_weapon_damage.heat = GetJsonInt(gwd, "heat", 15);
-		g_config.global_weapon_damage.railgun = GetJsonInt(gwd, "railgun", 150);
-		g_config.global_weapon_damage.bfg = GetJsonInt(gwd, "bfg", 500);
-		g_config.global_weapon_damage.ionripper = GetJsonInt(gwd, "ionripper", 50);
-		g_config.global_weapon_damage.hyperblaster = GetJsonInt(gwd, "hyperblaster", 15);
-		g_config.global_weapon_damage.bolt = GetJsonInt(gwd, "bolt", 20);
-		g_config.global_weapon_damage.tracker = GetJsonInt(gwd, "tracker", 30);
-		g_config.global_weapon_damage.plasma = GetJsonInt(gwd, "plasma", 40);
-		g_config.global_weapon_damage.dabeam = GetJsonInt(gwd, "dabeam", 30);
-		g_config.global_weapon_damage.heatbeam = GetJsonInt(gwd, "heatbeam", 30);
-		g_config.global_weapon_damage.slam = GetJsonInt(gwd, "slam", 25);
-		g_config.global_weapon_damage.lightning = GetJsonInt(gwd, "lightning", 12);
-		g_config.global_weapon_damage.flechette = GetJsonInt(gwd, "flechette", 12);
-		g_config.global_weapon_damage.fireball = GetJsonInt(gwd, "fireball", 40);
-		g_config.global_weapon_damage.proboscis = GetJsonInt(gwd, "proboscis", 20);
-
+		// Use helper .set() method which converts weapon name to enum and stores in array
+		for (const auto& weapon_name : gwd.getMemberNames())
+		{
+			if (gwd[weapon_name].isInt())
+			{
+				horde::WeaponID weapon_id = horde::WeaponRegistry::GetWeaponID(weapon_name.c_str());
+				g_config.global_weapon_damage.set(weapon_id, gwd[weapon_name].asInt());
+			}
+		}
 		gi.Com_PrintFmt("Config: Loaded global weapon damage values\n");
 	}
 
-	// Load global weapon speed
+	// Load global weapon speed - OPTIMIZED: uses array-based storage with enum indexing
 	if (root.isMember("global_weapon_speed") && root["global_weapon_speed"].isObject())
 	{
 		const Json::Value& gws = root["global_weapon_speed"];
-		g_config.global_weapon_speed.blaster = GetJsonInt(gws, "blaster", 1000);
-		g_config.global_weapon_speed.blaster2 = GetJsonInt(gws, "blaster2", 1100);
-		g_config.global_weapon_speed.blaster_bolt = GetJsonInt(gws, "blaster_bolt", 1000);
-		g_config.global_weapon_speed.blueblaster = GetJsonInt(gws, "blueblaster", 1100);
-		g_config.global_weapon_speed.grenade = GetJsonInt(gws, "grenade", 600);
-		g_config.global_weapon_speed.rocket = GetJsonInt(gws, "rocket", 650);
-		g_config.global_weapon_speed.heat = GetJsonInt(gws, "heat", 1000);
-		g_config.global_weapon_speed.bfg = GetJsonInt(gws, "bfg", 400);
-		g_config.global_weapon_speed.ionripper = GetJsonInt(gws, "ionripper", 500);
-		g_config.global_weapon_speed.hyperblaster = GetJsonInt(gws, "hyperblaster", 1000);
-		g_config.global_weapon_speed.bolt = GetJsonInt(gws, "bolt", 800);
-		g_config.global_weapon_speed.tracker = GetJsonInt(gws, "tracker", 500);
-		g_config.global_weapon_speed.plasma = GetJsonInt(gws, "plasma", 1200);
-		g_config.global_weapon_speed.flechette = GetJsonInt(gws, "flechette", 1150);
-		g_config.global_weapon_speed.fireball = GetJsonInt(gws, "fireball", 400);
-
+		// Use helper .set() method which converts weapon name to enum and stores in array
+		for (const auto& weapon_name : gws.getMemberNames())
+		{
+			if (gws[weapon_name].isInt())
+			{
+				horde::WeaponID weapon_id = horde::WeaponRegistry::GetWeaponID(weapon_name.c_str());
+				g_config.global_weapon_speed.set(weapon_id, gws[weapon_name].asInt());
+			}
+		}
 		gi.Com_PrintFmt("Config: Loaded global weapon speed values\n");
 	}
 
-	// Load global weapon radius
+	// Load global weapon radius - OPTIMIZED: uses array-based storage with enum indexing
 	if (root.isMember("global_weapon_radius") && root["global_weapon_radius"].isObject())
 	{
 		const Json::Value& gwr = root["global_weapon_radius"];
-		g_config.global_weapon_radius.grenade = GetJsonFloat(gwr, "grenade", 150.0f);
-		g_config.global_weapon_radius.rocket = GetJsonFloat(gwr, "rocket", 140.0f);
-		g_config.global_weapon_radius.bfg = GetJsonFloat(gwr, "bfg", 1000.0f);
-		g_config.global_weapon_radius.tracker = GetJsonFloat(gwr, "tracker", 120.0f);
-		g_config.global_weapon_radius.plasma = GetJsonFloat(gwr, "plasma", 100.0f);
-		g_config.global_weapon_radius.fireball = GetJsonFloat(gwr, "fireball", 125.0f);
-
+		// Use helper .set() method which converts weapon name to enum and stores in array
+		for (const auto& weapon_name : gwr.getMemberNames())
+		{
+			if (gwr[weapon_name].isDouble() || gwr[weapon_name].isInt())
+			{
+				horde::WeaponID weapon_id = horde::WeaponRegistry::GetWeaponID(weapon_name.c_str());
+				g_config.global_weapon_radius.set(weapon_id, static_cast<float>(gwr[weapon_name].asDouble()));
+			}
+		}
 		gi.Com_PrintFmt("Config: Loaded global weapon radius values\n");
 	}
 
@@ -1022,95 +1001,39 @@ const MonsterStatsConfig* GetMonsterConfig(uint8_t monster_type_id)
 // External reference
 extern int16_t current_wave_level;
 
-// Get global weapon damage by name
-int GetGlobalWeaponDamage(const char* weapon_name)
+// Get specific weapon damage for a monster - FULLY OPTIMIZED with enum-based O(1) lookups
+// CRITICAL HOT PATH: Called on every monster weapon attack (10-60 times per second)
+int GetMonsterWeaponDamage(uint8_t monster_type_id, horde::WeaponID weapon_id)
 {
-	using WeaponDamageGetter = int GlobalWeaponDamage::*;
-	static const boost::container::flat_map<std::string_view, WeaponDamageGetter> weapon_map = {
-		{"melee", &GlobalWeaponDamage::melee},
-		{"blaster", &GlobalWeaponDamage::blaster},
-		{"blaster2", &GlobalWeaponDamage::blaster2},
-		{"blaster_bolt", &GlobalWeaponDamage::blaster_bolt},
-		{"blueblaster", &GlobalWeaponDamage::blueblaster},
-		{"shotgun", &GlobalWeaponDamage::shotgun},
-		{"machinegun", &GlobalWeaponDamage::machinegun},
-		{"grenade", &GlobalWeaponDamage::grenade},
-		{"rocket", &GlobalWeaponDamage::rocket},
-		{"heat", &GlobalWeaponDamage::heat},
-		{"railgun", &GlobalWeaponDamage::railgun},
-		{"bfg", &GlobalWeaponDamage::bfg},
-		{"ionripper", &GlobalWeaponDamage::ionripper},
-		{"hyperblaster", &GlobalWeaponDamage::hyperblaster},
-		{"bolt", &GlobalWeaponDamage::bolt},
-		{"tracker", &GlobalWeaponDamage::tracker},
-		{"plasma", &GlobalWeaponDamage::plasma},
-		{"dabeam", &GlobalWeaponDamage::dabeam},
-		{"heatbeam", &GlobalWeaponDamage::heatbeam},
-		{"slam", &GlobalWeaponDamage::slam},
-		{"lightning", &GlobalWeaponDamage::lightning},
-		{"flechette", &GlobalWeaponDamage::flechette},
-		{"fireball", &GlobalWeaponDamage::fireball},
-		{"proboscis", &GlobalWeaponDamage::proboscis}
-	};
-
-	auto it = weapon_map.find(weapon_name);
-	if (it == weapon_map.end())
-	{
-		return 0; // Unknown weapon
-	}
-
-	return g_config.global_weapon_damage.*(it->second);
-}
-
-// Get specific weapon damage for a monster - OPTIMIZED with O(1) array lookup
-int GetMonsterWeaponDamage(uint8_t monster_type_id, const char* weapon_name)
-{
-	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
-	int base_damage = 0;
-
-	// Step 1: Convert weapon name to WeaponID ONCE (instead of repeated string lookups)
-	horde::WeaponID weapon_id = horde::WeaponRegistry::GetWeaponID(weapon_name);
 	if (weapon_id == horde::WeaponID::UNKNOWN) [[unlikely]]
-	{
-		gi.Com_PrintFmt("WARNING: GetMonsterWeaponDamage - Unknown weapon '{}', returning 0\n", weapon_name);
 		return 0;
-	}
 
-	// Step 2: Try to find a monster-specific override using O(1) array lookup
+	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
+	size_t idx = static_cast<size_t>(weapon_id);
+
+	// Step 1: Check for monster-specific override (O(1) array access)
 	bool has_override = false;
-	if (config) [[likely]]
+	int damage = 0;
+
+	if (config && config->weapon_damage_overrides[idx] > 0) [[likely]]
 	{
-		size_t weapon_index = static_cast<size_t>(weapon_id);
-		int override_damage = config->weapon_damage_overrides[weapon_index];
-		if (override_damage != 0)
-		{
-			base_damage = override_damage; // Found an override! Use it directly.
-			has_override = true;
-		}
+		damage = config->weapon_damage_overrides[idx];
+		has_override = true;
+	}
+	else
+	{
+		// Step 2: Use global damage (O(1) array access, no string lookup!)
+		damage = g_config.global_weapon_damage.values[idx];
 	}
 
-	// Step 3: If no override was found, fall back to the global weapon damage
-	if (base_damage == 0)
+	// Step 3: Apply damage_scale ONLY if no override exists
+	// Overrides are final values and shouldn't be scaled
+	if (!has_override && config)
 	{
-		base_damage = GetGlobalWeaponDamage(weapon_name);
+		damage = static_cast<int>(damage * config->damage_scale);
 	}
 
-	if (base_damage == 0)
-	{
-		gi.Com_PrintFmt("WARNING: GetMonsterWeaponDamage - No damage value for weapon '{}', returning 0\n", weapon_name);
-		return 0;
-	}
-
-	// Step 4: Apply damage_scale ONLY if no override was found
-	// Overrides are meant to be final values and shouldn't be scaled by damage_scale
-	int damage = base_damage;
-	if (!has_override)
-	{
-		float damage_scale = config ? config->damage_scale : 1.0f;
-		damage = static_cast<int>(base_damage * damage_scale);
-	}
-
-	// Apply wave scaling if horde mode is active
+	// Step 4: Apply wave scaling if horde mode is active
 	if (g_horde && g_horde->integer && current_wave_level > 0)
 	{
 		damage = ScaleWeaponDamage(damage, current_wave_level, false);
@@ -1119,117 +1042,47 @@ int GetMonsterWeaponDamage(uint8_t monster_type_id, const char* weapon_name)
 	return damage;
 }
 
-// Get global weapon speed by name
-int GetGlobalWeaponSpeed(const char* weapon_name)
+// Get specific weapon speed for a monster - FULLY OPTIMIZED with enum-based O(1) lookups
+int GetMonsterWeaponSpeed(uint8_t monster_type_id, horde::WeaponID weapon_id)
 {
-	using WeaponSpeedGetter = int GlobalWeaponSpeed::*;
-	static const boost::container::flat_map<std::string_view, WeaponSpeedGetter> weapon_map = {
-		{"blaster", &GlobalWeaponSpeed::blaster},
-		{"blaster2", &GlobalWeaponSpeed::blaster2},
-		{"blaster_bolt", &GlobalWeaponSpeed::blaster_bolt},
-		{"blueblaster", &GlobalWeaponSpeed::blueblaster},
-		{"shotgun", &GlobalWeaponSpeed::shotgun},
-		{"machinegun", &GlobalWeaponSpeed::machinegun},
-		{"grenade", &GlobalWeaponSpeed::grenade},
-		{"rocket", &GlobalWeaponSpeed::rocket},
-		{"heat", &GlobalWeaponSpeed::heat},
-		{"railgun", &GlobalWeaponSpeed::railgun},
-		{"bfg", &GlobalWeaponSpeed::bfg},
-		{"ionripper", &GlobalWeaponSpeed::ionripper},
-		{"hyperblaster", &GlobalWeaponSpeed::hyperblaster},
-		{"bolt", &GlobalWeaponSpeed::bolt},
-		{"tracker", &GlobalWeaponSpeed::tracker},
-		{"plasma", &GlobalWeaponSpeed::plasma},
-		{"dabeam", &GlobalWeaponSpeed::dabeam},
-		{"heatbeam", &GlobalWeaponSpeed::heatbeam},
-		{"melee", &GlobalWeaponSpeed::melee},
-		{"slam", &GlobalWeaponSpeed::slam},
-		{"lightning", &GlobalWeaponSpeed::lightning},
-		{"flechette", &GlobalWeaponSpeed::flechette},
-		{"fireball", &GlobalWeaponSpeed::fireball},
-		{"proboscis", &GlobalWeaponSpeed::proboscis}
-	};
+	if (weapon_id == horde::WeaponID::UNKNOWN) [[unlikely]]
+		return 0;
 
-	auto it = weapon_map.find(weapon_name);
-	if (it == weapon_map.end())
-	{
-		return 0; // Unknown weapon
-	}
-
-	return g_config.global_weapon_speed.*(it->second);
-}
-
-// Get specific weapon speed for a monster
-int GetMonsterWeaponSpeed(uint8_t monster_type_id, const char* weapon_name)
-{
-	// Get monster config
 	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
+	size_t idx = static_cast<size_t>(weapon_id);
 
-	// Step 1: Convert weapon name to WeaponID
-	horde::WeaponID weapon_id = horde::WeaponRegistry::GetWeaponID(weapon_name);
-	if (weapon_id != horde::WeaponID::UNKNOWN) [[likely]]
+	// Step 1: Check for monster-specific speed override (O(1) array access)
+	if (config && config->weapon_speed_overrides[idx] != 0) [[likely]]
 	{
-		// Step 2: Try to find a monster-specific speed override using O(1) array lookup
-		if (config) [[likely]]
-		{
-			size_t weapon_index = static_cast<size_t>(weapon_id);
-			int override_speed = config->weapon_speed_overrides[weapon_index];
-			if (override_speed != 0)
-			{
-				// Found an override! Use it directly (no speed_scale applied)
-				return override_speed;
-			}
-		}
+		// Override found - use it directly (no speed_scale applied)
+		return config->weapon_speed_overrides[idx];
 	}
 
-	// Step 3: No override found - use global base speed with speed_scale
-	int base_speed = GetGlobalWeaponSpeed(weapon_name);
+	// Step 2: Use global speed (O(1) array access, no string lookup!)
+	int base_speed = g_config.global_weapon_speed.values[idx];
 	if (base_speed == 0)
 	{
 		// 0 means instant hit or melee (not an error)
 		return 0;
 	}
 
-	// Apply monster speed scale
+	// Step 3: Apply monster speed scale
 	float speed_scale = config ? config->speed_scale : 1.0f;
-	int speed = static_cast<int>(base_speed * speed_scale);
-
-	return speed;
+	return static_cast<int>(base_speed * speed_scale);
 }
 
-// Get global weapon radius by name
-float GetGlobalWeaponRadius(const char* weapon_name)
+// Get specific weapon radius for a monster - FULLY OPTIMIZED with enum-based O(1) lookups
+int GetMonsterWeaponRadius(uint8_t monster_type_id, horde::WeaponID weapon_id)
 {
-	using WeaponRadiusGetter = float GlobalWeaponRadius::*;
-	static const boost::container::flat_map<std::string_view, WeaponRadiusGetter> weapon_map = {
-		{"grenade", &GlobalWeaponRadius::grenade},
-		{"rocket", &GlobalWeaponRadius::rocket},
-		{"bfg", &GlobalWeaponRadius::bfg},
-		{"tracker", &GlobalWeaponRadius::tracker},
-		{"plasma", &GlobalWeaponRadius::plasma},
-		{"fireball", &GlobalWeaponRadius::fireball}
-	};
+	if (weapon_id == horde::WeaponID::UNKNOWN) [[unlikely]]
+		return 0;
 
-	auto it = weapon_map.find(weapon_name);
-	if (it == weapon_map.end())
-	{
-		return 0.0f; // No radius
-	}
-
-	return g_config.global_weapon_radius.*(it->second);
-}
-
-// Get specific weapon radius for a monster
-int GetMonsterWeaponRadius(uint8_t monster_type_id, const char* weapon_name)
-{
-	// Get global base radius
-	float base_radius = GetGlobalWeaponRadius(weapon_name);
+	// Direct O(1) array access - no string lookup!
+	float base_radius = g_config.global_weapon_radius.values[static_cast<size_t>(weapon_id)];
 
 	// Most weapons don't have radius, return 0
 	if (base_radius == 0.0f)
-	{
 		return 0;
-	}
 
 	// No per-monster scaling for radius currently, just return global value
 	return static_cast<int>(base_radius);

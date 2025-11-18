@@ -640,6 +640,12 @@ MMOVE_T(fixbot_move_run) = { FRAME_freeze_01, FRAME_freeze_01, fixbot_frames_run
 
 void fixbot_prep_spawn(edict_t* self)
 {
+	// Throttle expensive spawn position searches to prevent CPU spikes
+	if (self->monsterinfo.search_time > level.time) {
+		M_SetAnimation(self, &fixbot_move_run);
+		return;
+	}
+
 	// Reset any previous spawn data
 	self->monsterinfo.blind_fire_target = vec3_origin;
 	self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING; // Ensure flag is off initially
@@ -685,6 +691,8 @@ void fixbot_prep_spawn(edict_t* self)
 	//	if (developer->integer > 0) {
 			//gi.com_printFmt("fixbot_prep_spawn: Failed to find valid turret spawn position. Aborting spawn.\n");
 	//	}
+		// Throttle retries to prevent expensive BoxEdicts calls every frame
+		self->monsterinfo.search_time = level.time + 0.5_sec;
 		M_SetAnimation(self, &fixbot_move_run);
 	}
 }

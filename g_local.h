@@ -1953,6 +1953,10 @@ struct monsterinfo_t
 	// Performance optimization: cached target search
 	edict_t* cached_nearest_player = nullptr;  // Cached result of FindNearestValidPlayer
 	gtime_t  next_target_search_time = 0_ms;   // When to perform next expensive target search
+
+	// Performance optimization: cached config lookups (eliminates hash map lookups in hot path)
+	const struct MonsterStatsConfig* cached_monster_config = nullptr; // Cached result of GetMonsterConfig
+	const struct MonsterLevelScaling* cached_level_scaling = nullptr; // Cached result of GetMonsterLevelScaling
 };;;;
 
 // non-monsterinfo save stuff

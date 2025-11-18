@@ -5,12 +5,12 @@
 #include <boost/unordered/unordered_flat_map.hpp>
 #include <string>
 #include <array>
+#include "horde/weapon_id.h"  // Need full definition for WeaponID::UNKNOWN in set() methods
 
 // Forward declarations
 namespace horde {
 	struct MapSize;
 	enum class MapID : uint16_t;
-	enum class WeaponID : uint8_t;
 }
 
 // Configuration for entity limits
@@ -373,73 +373,112 @@ struct AmmoRegenConfig
 };
 
 // Global weapon damage configuration (base values for all monsters)
+// OPTIMIZED: Array-based O(1) lookups instead of O(log n) string lookups
 struct GlobalWeaponDamage
 {
-	int melee = 10;
-	int blaster = 15;
-	int blaster2 = 20;
-	int blaster_bolt = 18;
-	int blueblaster = 20;
-	int shotgun = 4;
-	int machinegun = 8;
-	int grenade = 50;
-	int rocket = 100;
-	int heat = 15;
-	int railgun = 150;
-	int bfg = 500;
-	int ionripper = 50;
-	int hyperblaster = 15;
-	int bolt = 20;
-	int tracker = 30;
-	int plasma = 40;
-	int dabeam = 30;
-	int heatbeam = 30;
-	int slam = 25;
-	int lightning = 12;
-	int flechette = 12;
-	int fireball = 40;
-	int proboscis = 20;
+	std::array<int, 24> values{}; // Indexed by horde::WeaponID enum
+
+	// Constructor with default values matching original named fields
+	GlobalWeaponDamage() {
+		values[0]  = 10;  // MELEE
+		values[1]  = 15;  // BLASTER
+		values[2]  = 20;  // BLASTER2
+		values[3]  = 18;  // BLASTER_BOLT
+		values[4]  = 20;  // BLUEBLASTER
+		values[5]  = 4;   // SHOTGUN
+		values[6]  = 8;   // MACHINEGUN
+		values[7]  = 50;  // GRENADE
+		values[8]  = 100; // ROCKET
+		values[9]  = 15;  // HEAT
+		values[10] = 150; // RAILGUN
+		values[11] = 500; // BFG
+		values[12] = 50;  // IONRIPPER
+		values[13] = 15;  // HYPERBLASTER
+		values[14] = 20;  // BOLT
+		values[15] = 30;  // TRACKER
+		values[16] = 40;  // PLASMA
+		values[17] = 30;  // DABEAM
+		values[18] = 30;  // HEATBEAM
+		values[19] = 25;  // SLAM
+		values[20] = 12;  // LIGHTNING
+		values[21] = 12;  // FLECHETTE
+		values[22] = 40;  // FIREBALL
+		values[23] = 20;  // PROBOSCIS
+	}
+
+	// Helper for JSON loading
+	void set(horde::WeaponID id, int val) {
+		if (id != horde::WeaponID::UNKNOWN) {
+			values[static_cast<size_t>(id)] = val;
+		}
+	}
 };
 
 // Global weapon speed configuration (projectile velocity)
+// OPTIMIZED: Array-based O(1) lookups instead of O(log n) string lookups
 struct GlobalWeaponSpeed
 {
-	int blaster = 1000;
-	int blaster2 = 1100;
-	int blaster_bolt = 1000;
-	int blueblaster = 1100;
-	int shotgun = 0; // instant hit
-	int machinegun = 0; // instant hit
-	int grenade = 600;
-	int rocket = 650;
-	int heat = 1000;
-	int railgun = 0; // instant hit
-	int bfg = 400;
-	int ionripper = 500;
-	int hyperblaster = 1000;
-	int bolt = 800;
-	int tracker = 500;
-	int plasma = 1200;
-	int dabeam = 0; // beam weapon
-	int heatbeam = 0; // beam weapon
-	int melee = 0; // melee
-	int slam = 0; // melee
-	int lightning = 0; // instant hit
-	int flechette = 1150;
-	int fireball = 400;
-	int proboscis = 0; // melee
+	std::array<int, 24> values{}; // Indexed by horde::WeaponID enum
+
+	// Constructor with default values matching original named fields
+	GlobalWeaponSpeed() {
+		values[0]  = 0;    // MELEE - melee
+		values[1]  = 1000; // BLASTER
+		values[2]  = 1100; // BLASTER2
+		values[3]  = 1000; // BLASTER_BOLT
+		values[4]  = 1100; // BLUEBLASTER
+		values[5]  = 0;    // SHOTGUN - instant hit
+		values[6]  = 0;    // MACHINEGUN - instant hit
+		values[7]  = 600;  // GRENADE
+		values[8]  = 650;  // ROCKET
+		values[9]  = 1000; // HEAT
+		values[10] = 0;    // RAILGUN - instant hit
+		values[11] = 400;  // BFG
+		values[12] = 500;  // IONRIPPER
+		values[13] = 1000; // HYPERBLASTER
+		values[14] = 800;  // BOLT
+		values[15] = 500;  // TRACKER
+		values[16] = 1200; // PLASMA
+		values[17] = 0;    // DABEAM - beam weapon
+		values[18] = 0;    // HEATBEAM - beam weapon
+		values[19] = 0;    // SLAM - melee
+		values[20] = 0;    // LIGHTNING - instant hit
+		values[21] = 1150; // FLECHETTE
+		values[22] = 400;  // FIREBALL
+		values[23] = 0;    // PROBOSCIS - melee
+	}
+
+	// Helper for JSON loading
+	void set(horde::WeaponID id, int val) {
+		if (id != horde::WeaponID::UNKNOWN) {
+			values[static_cast<size_t>(id)] = val;
+		}
+	}
 };
 
 // Global weapon damage radius configuration (explosion/splash radius)
+// OPTIMIZED: Array-based O(1) lookups instead of O(log n) string lookups
 struct GlobalWeaponRadius
 {
-	float grenade = 150.0f;
-	float rocket = 140.0f;
-	float bfg = 1000.0f;
-	float tracker = 120.0f;
-	float plasma = 100.0f;
-	float fireball = 125.0f;
-	// Most weapons don't have radius (0 by default)
+	std::array<float, 24> values{}; // Indexed by horde::WeaponID enum
+
+	// Constructor with default values (most weapons have 0 radius)
+	GlobalWeaponRadius() {
+		// All values default to 0.0f, only set non-zero ones
+		values[7]  = 150.0f;  // GRENADE
+		values[8]  = 140.0f;  // ROCKET
+		values[11] = 1000.0f; // BFG
+		values[15] = 120.0f;  // TRACKER
+		values[16] = 100.0f;  // PLASMA
+		values[22] = 125.0f;  // FIREBALL
+	}
+
+	// Helper for JSON loading
+	void set(horde::WeaponID id, float val) {
+		if (id != horde::WeaponID::UNKNOWN) {
+			values[static_cast<size_t>(id)] = val;
+		}
+	}
 };
 
 // Monster stats configuration (per-monster multipliers and base stats)

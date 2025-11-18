@@ -92,7 +92,7 @@ static void M_PickValidReinforcements(edict_t *self, int32_t space, Container &o
 // pick an array of reinforcements to use; note that this does not modify `self`
 std::array<uint8_t, MAX_REINFORCEMENTS> M_PickReinforcements(edict_t *self, int32_t &num_chosen, int32_t max_slots)
 {
-	static boost::container::small_vector<uint8_t, 64> available;
+	boost::container::small_vector<uint8_t, 64> available;
 	std::array<uint8_t, MAX_REINFORCEMENTS> chosen;
 	chosen.fill(255);
 

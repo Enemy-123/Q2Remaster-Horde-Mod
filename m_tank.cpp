@@ -126,6 +126,11 @@ static boost::container::flat_map<int, TeleportTargetCache> g_teleport_cache;  /
 
 // Cache management functions
 static TeleportTargetCache& GetOrCreateTargetCache(edict_t* target) {
+	// Prevent unbounded growth in long Horde matches
+	if (g_teleport_cache.size() > 256) {
+		g_teleport_cache.clear();
+	}
+
 	auto& cache = g_teleport_cache[target->s.number];
 	if (cache.IsStale(target)) {
 		cache.Update(target);
@@ -633,7 +638,7 @@ void TankGrenades(edict_t* self)
 		return; // Stop immediately if the target is invalid.
 	}
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "grenade");
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, horde::WeaponID::GRENADE);
 	if (damage <= 0) damage = 50;
 
 	vec3_t forward, right;
@@ -652,7 +657,7 @@ void TankGrenades(edict_t* self)
 	const bool is_mortar = (self->s.frame == FRAME_attak110);
 
 	// Get configured grenade speed or use defaults
-	int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "grenade");
+	int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, horde::WeaponID::GRENADE);
 	const float speed = config_speed > 0 ? static_cast<float>(config_speed) : (is_mortar ? MORTAR_SPEED : GRENADE_SPEED);
 	vec3_t aim, aimpoint;
 
@@ -694,7 +699,7 @@ void TankBlaster(edict_t* self)
 	if (!M_HasEnemy(self))
 		return;
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster");
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, horde::WeaponID::BLASTER);
 	if (damage <= 0) damage = 30;
 
 	vec3_t forward, right;
@@ -785,7 +790,7 @@ void TankStrike(edict_t* self)
 	gi.WritePosition(tr.endpos);
 	gi.WriteDir({ 0.f, 0.f, 1.f });
 	gi.multicast(tr.endpos, MULTICAST_PHS, false);
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "slam");
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, horde::WeaponID::SLAM);
 	if (damage <= 0) damage = self->monsterinfo.IS_BOSS ? 175 : 75;
 	void T_SlamRadiusDamage(vec3_t point, edict_t * inflictor, edict_t * attacker, float damage, float kick, edict_t * ignore, float radius, mod_t mod);
 	// Daño radial
@@ -1468,9 +1473,6 @@ DIE(tank_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
 	self->deadflag = true;
 	self->takedamage = true;
 
-	// Clean up teleportation cache for this entity
-	g_teleport_cache.erase(self->s.number);
-
 	M_SetAnimation(self, &tank_move_death);
 
 	if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
@@ -1945,7 +1947,7 @@ MONSTERINFO_SETSKIN(tank_vanilla_setskin) (edict_t* self) -> void
 
 void tank_vanillaBlaster(edict_t* self)
 {
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster");
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, horde::WeaponID::BLASTER);
 	if (damage <= 0) damage = 30;
 
 	vec3_t					 forward, right;
@@ -2135,7 +2137,7 @@ void tank_vanillaMachineGun(edict_t* self)
 		return; // Stop immediately if the target is invalid.
 	}
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "machinegun");
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, horde::WeaponID::MACHINEGUN);
 	if (damage <= 0) damage = 6;
 
 	vec3_t					 dir;
@@ -2838,22 +2840,12 @@ DIE(tank_vanilla_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int
 	// Find and kill spawned monsters more efficiently
 	uint32_t monster_start_index = game.maxclients + static_cast<uint32_t>(BODY_QUEUE_SIZE) + 1;
 
-	// First attempt with our filter
+	// Kill spawned monsters using AI_SPAWNED_COMMANDER flag filter
 	int killed_count = 0;
 	for (auto ent : find_commander_spawns(self, monster_start_index)) {
 		ent->health = -999;
 		ent->die(ent, self, self, 999, vec3_origin, mod);
 		killed_count++;
-	}
-
-	// Second pass - failsafe for any monsters that might not have the flags set correctly
-	// Use a more general filter just to be safe
-	for (auto ent : active_monsters()) {
-		if (ent->inuse && ent->owner == self) {
-			ent->health = -999;
-			ent->die(ent, self, self, 999, vec3_origin, mod);
-			killed_count++;
-		}
 	}
 
 	// Reset used slots
@@ -2912,9 +2904,6 @@ DIE(tank_vanilla_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int
 	gi.sound(self, CHAN_VOICE, sound_die, 1, ATTN_NORM, 0);
 	self->deadflag = true;
 	self->takedamage = true;
-
-	// Clean up teleportation cache for this entity
-	g_teleport_cache.erase(self->s.number);
 
 	M_SetAnimation(self, &tank_vanilla_move_death);
 }

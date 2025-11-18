@@ -519,16 +519,18 @@ void MonsterCastFireball(edict_t* self, const vec3_t& start, const vec3_t& targe
     // Calculate direction to target
     vec3_t dir = DirectionTo(start, target_pos);
 
-    // Get damage from monster weapon config
-    // Use global config values if available, otherwise use defaults
-    int damage = g_config.global_weapon_damage.fireball > 0 ?
-                 g_config.global_weapon_damage.fireball : FIREBALL_DEFAULT_DAMAGE;
-    float radius = g_config.global_weapon_radius.fireball > 0 ?
-                   g_config.global_weapon_radius.fireball : FIREBALL_DEFAULT_RADIUS;
-    int speed = g_config.global_weapon_speed.fireball > 0 ?
-                g_config.global_weapon_speed.fireball : FIREBALL_DEFAULT_SPEED;
+    // Get damage from monster weapon config using enum-based array access
+    // Defaults are already set in GlobalWeapon* constructors
+    int damage = g_config.global_weapon_damage.values[static_cast<size_t>(horde::WeaponID::FIREBALL)];
+    float radius = g_config.global_weapon_radius.values[static_cast<size_t>(horde::WeaponID::FIREBALL)];
+    int speed = g_config.global_weapon_speed.values[static_cast<size_t>(horde::WeaponID::FIREBALL)];
     int flames = FIREBALL_DEFAULT_FLAMES;
     int flame_dmg = FIREBALL_DEFAULT_FLAME_DAMAGE;
+
+    // Fallback to hardcoded defaults if config value is 0
+    if (damage == 0) damage = FIREBALL_DEFAULT_DAMAGE;
+    if (radius == 0.0f) radius = FIREBALL_DEFAULT_RADIUS;
+    if (speed == 0) speed = FIREBALL_DEFAULT_SPEED;
 
     // Fire the fireball
     fire_fireball(self, start, dir, damage, radius, speed, flames, flame_dmg);

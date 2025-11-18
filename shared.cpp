@@ -651,6 +651,18 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 		}
 	}
 
+	// PERFORMANCE OPTIMIZATION: Cache config lookups to avoid hash map lookups in hot path
+	// Cache MonsterStatsConfig pointer (eliminates GetMonsterConfig() calls)
+	monster->monsterinfo.cached_monster_config = GetMonsterConfig(monster->monsterinfo.monster_type_id);
+
+	// Cache MonsterLevelScaling pointer (eliminates GetMonsterLevelScaling() + string parsing)
+	const char* classname = horde::MonsterTypeRegistry::GetClassname(static_cast<horde::MonsterTypeID>(monster->monsterinfo.monster_type_id));
+	if (classname && strncmp(classname, "monster_", 8) == 0)
+	{
+		const char* monster_name = classname + 8; // Skip "monster_" prefix
+		monster->monsterinfo.cached_level_scaling = GetMonsterLevelScaling(monster_name);
+	}
+
 	// Apply centralized PvM level scaling for ALL monsters
 	// This ensures monsters get level-scaled health/armor even if their spawn functions haven't been updated
 	ApplyPvMLevelScaling(monster);
