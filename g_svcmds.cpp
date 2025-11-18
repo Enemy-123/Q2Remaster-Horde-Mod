@@ -285,6 +285,93 @@ void SVCmd_ReloadConfig_f()
 
 /*
 =================
+SVCmd_TacticalSpawns_f
+Admin command: sv tacticspawns <0|1|2>
+Controls tactical spawn behavior for monsters
+0 = Off (standard random spawning)
+1 = Basic (distance checks only)
+2 = Full tactical (distance + visibility checks to prevent pop-in)
+=================
+*/
+void SVCmd_TacticalSpawns_f()
+{
+	if (gi.argc() < 3)
+	{
+		const char* mode_str = "Off";
+		if (g_horde_tactical_spawn->integer == 1)
+			mode_str = "Basic (distance only)";
+		else if (g_horde_tactical_spawn->integer == 2)
+			mode_str = "Full (distance + visibility)";
+
+		gi.LocClient_Print(nullptr, PRINT_HIGH,
+			"Usage: sv tacticspawns <0|1|2>\n"
+			"Current mode: {} ({})\n"
+			"  0 = Off (standard random spawning)\n"
+			"  1 = Basic (distance checks only)\n"
+			"  2 = Full tactical (distance + visibility checks)\n",
+			g_horde_tactical_spawn->integer, mode_str);
+		return;
+	}
+
+	int mode = atoi(gi.argv(2));
+
+	if (mode < 0 || mode > 2)
+	{
+		gi.LocClient_Print(nullptr, PRINT_HIGH, "Invalid mode {}. Must be 0, 1, or 2\n", mode);
+		return;
+	}
+
+	gi.cvar_set("g_horde_tactical_spawn", G_Fmt("{}", mode).data());
+
+	const char* mode_str = "Off";
+	if (mode == 1)
+		mode_str = "Basic (distance only)";
+	else if (mode == 2)
+		mode_str = "Full (distance + visibility)";
+
+	gi.LocBroadcast_Print(PRINT_HIGH, "Tactical spawning set to: {} ({})\n", mode, mode_str);
+}
+
+/*
+=================
+SVCmd_QueryIDs_f
+Admin command: sv queryids <0|1>
+Controls proximity grid query method (performance testing)
+0 = Bool array (default, proven reliable)
+1 = Query ID system (test for performance comparison)
+=================
+*/
+void SVCmd_QueryIDs_f()
+{
+	if (gi.argc() < 3)
+	{
+		const char* method_str = (g_horde_use_query_ids->integer == 0) ? "Bool array (default)" : "Query ID system";
+
+		gi.LocClient_Print(nullptr, PRINT_HIGH,
+			"Usage: sv queryids <0|1>\n"
+			"Current method: {} ({})\n"
+			"  0 = Bool array (default, proven reliable)\n"
+			"  1 = Query ID system (experimental performance test)\n",
+			g_horde_use_query_ids->integer, method_str);
+		return;
+	}
+
+	int mode = atoi(gi.argv(2));
+
+	if (mode < 0 || mode > 1)
+	{
+		gi.LocClient_Print(nullptr, PRINT_HIGH, "Invalid mode {}. Must be 0 or 1\n", mode);
+		return;
+	}
+
+	gi.cvar_set("g_horde_use_query_ids", G_Fmt("{}", mode).data());
+
+	const char* method_str = (mode == 0) ? "Bool array (default)" : "Query ID system";
+	gi.LocBroadcast_Print(PRINT_HIGH, "Proximity grid query method set to: {} ({})\n", mode, method_str);
+}
+
+/*
+=================
 ServerCommand
 
 ServerCommand will be called when an "sv" command is issued.
@@ -491,6 +578,10 @@ void ServerCommand()
 		SVCmd_AddWeaponPoints_f();
 	else if (Q_strcasecmp(cmd, "reset") == 0)
 		SVCmd_ResetPlayer_f();
+	else if (Q_strcasecmp(cmd, "tacticspawns") == 0)
+		SVCmd_TacticalSpawns_f();
+	else if (Q_strcasecmp(cmd, "queryids") == 0)
+		SVCmd_QueryIDs_f();
 	// REMOVED: Asset manager commands (assetstats, assetlist, assetcleanup)
 	else
 		gi.LocClient_Print(nullptr, PRINT_HIGH, "Unknown server command \"{}\"\n", cmd);

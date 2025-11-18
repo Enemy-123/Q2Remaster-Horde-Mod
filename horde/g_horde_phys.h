@@ -61,6 +61,11 @@ namespace HordePhys {
 
         // --- MODIFICATION: Reusable buffer to avoid heap allocations in queries ---
         std::array<bool, MAX_EDICTS> m_visited_entities;
+
+        // --- PERFORMANCE TEST: Query ID system (alternative to bool array) ---
+        // Controlled by g_horde_use_query_ids cvar: 0=bool array (default), 1=query ID system
+        std::array<uint32_t, MAX_EDICTS> m_last_query_ids;
+        uint32_t m_current_query_id = 0;
         // --- END MODIFICATION ---
 
         vec3_t m_world_mins;
@@ -128,6 +133,11 @@ namespace HordePhys {
         // Get a random position within distance range from a point
         bool GetRandomPositionNear(const vec3_t& center, float min_dist, float max_dist, vec3_t& out_pos) const;
 
+        // Get a tactical spawn position (not visible to players, with distance checks)
+        // min_dist_from_players: Minimum distance from any player
+        // Returns false if no suitable position found after max_attempts
+        bool GetTacticalSpawnPosition(vec3_t& out_pos, float min_dist_from_players = 512.0f, int max_attempts = 20) const;
+
         // Get number of grid nodes generated
         [[nodiscard]] int GetNodeCount() const noexcept { return m_node_count; }
 
@@ -156,6 +166,9 @@ namespace HordePhys {
         bool ValidateSpawnPosition(const vec3_t& pos, const vec3_t& mins, const vec3_t& maxs) const;
         bool CheckBottom(const vec3_t& pos, const vec3_t& boxmin, const vec3_t& boxmax) const;
         bool IsNearbyGridNode(const vec3_t& pos, int current_count, float min_distance = 129.0f) const;
+
+        // Tactical spawning helper - checks if position is visible to any active player
+        bool IsVisibleToPlayers(const vec3_t& pos) const;
 
         // Grid coordinate conversion (maps world coords to grid indices using actual map bounds)
         vec3_t GridToWorld(int x, int y, int z) const;

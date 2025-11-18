@@ -6921,7 +6921,21 @@ private:
 
             for (int attempt = 0; attempt < MAX_GRID_ATTEMPTS && candidates.valid_count < NUM_CANDIDATES; ++attempt) {
                 vec3_t grid_pos;
-                if (!HordePhys::g_spawn_grid.GetRandomPosition(grid_pos))
+
+                // Use tactical spawning if enabled
+                bool got_position = false;
+                if (g_horde_tactical_spawn->integer > 0)
+                {
+                    // Tactical spawn with distance checks (and visibility checks in mode 2)
+                    got_position = HordePhys::g_spawn_grid.GetTacticalSpawnPosition(grid_pos, distances.min_radius, 10);
+                }
+                else
+                {
+                    // Standard random position
+                    got_position = HordePhys::g_spawn_grid.GetRandomPosition(grid_pos);
+                }
+
+                if (!got_position)
                     break;
 
                 // Check if position is within desired distance range from player
@@ -7006,7 +7020,19 @@ public:
         // Final fallback: Try spawn grid if available
         if (HordePhys::g_spawn_grid.IsGenerated()) {
             vec3_t grid_pos;
-            if (HordePhys::g_spawn_grid.GetRandomPosition(grid_pos)) {
+
+            // Use tactical spawning if enabled (final fallback)
+            bool got_position = false;
+            if (g_horde_tactical_spawn->integer > 0)
+            {
+                got_position = HordePhys::g_spawn_grid.GetTacticalSpawnPosition(grid_pos, 256.0f, 20);
+            }
+            else
+            {
+                got_position = HordePhys::g_spawn_grid.GetRandomPosition(grid_pos);
+            }
+
+            if (got_position) {
                 // Validate grid position
                 const auto validation = IsPositionPhysicallyValid(grid_pos, predicted_mins, predicted_maxs, is_flying);
                 if (validation.is_valid) {

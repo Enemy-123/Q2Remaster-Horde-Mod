@@ -545,7 +545,23 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID type
         for (int attempt = 0; attempt < GRID_ATTEMPTS; ++attempt)
         {
             vec3_t grid_pos;
-            if (!HordePhys::g_spawn_grid.GetRandomPositionNear(base_origin, GRID_MIN_DIST, GRID_MAX_DIST, grid_pos))
+
+            // Use tactical spawning if enabled (modes 1 or 2)
+            // Mode 1: Distance checks only
+            // Mode 2: Distance + visibility checks
+            bool got_position = false;
+            if (g_horde_tactical_spawn->integer > 0)
+            {
+                // Tactical spawn: check distance from players and optionally visibility
+                got_position = HordePhys::g_spawn_grid.GetTacticalSpawnPosition(grid_pos, 256.0f, 10);
+            }
+            else
+            {
+                // Standard spawn: just use random position near spawn point
+                got_position = HordePhys::g_spawn_grid.GetRandomPositionNear(base_origin, GRID_MIN_DIST, GRID_MAX_DIST, grid_pos);
+            }
+
+            if (!got_position)
                 continue;
 
             // Validate grid position

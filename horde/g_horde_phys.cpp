@@ -140,8 +140,14 @@ namespace HordePhys
         m_inv_cell_size = 1.0f / m_cell_size;
         m_is_built = true;
 
+        // Initialize Query ID system
+        m_current_query_id = 0;
+        std::fill(m_last_query_ids.begin(), m_last_query_ids.end(), 0);
+
         if (developer->integer >= 2) {
-            gi.Com_PrintFmt("ProximityGrid built successfully. Cell size: %.2f\n", m_cell_size);
+            const char* query_method = (g_horde_use_query_ids->integer > 0) ? "Query ID system" : "Bool array";
+            gi.Com_PrintFmt("ProximityGrid built successfully. Cell size: %.2f, Query method: {}\n",
+                m_cell_size, query_method);
         }
     }
     // ... (rest of g_horde_phys.cpp remains the same) ...
@@ -222,10 +228,29 @@ namespace HordePhys
     template<typename FilterFunc>
     std::span<edict_t* const> ProximityGrid::QueryCellRange(const int min_x, const int max_x, const int min_y, const int max_y, FilterFunc&& filter)
     {
-        std::fill(m_visited_entities.begin(), m_visited_entities.end(), false);
-        size_t buffer_count = 0;
+        // Choose visited tracking method based on cvar
+        const bool use_query_ids = (g_horde_use_query_ids->integer > 0);
 
+        if (use_query_ids)
+        {
+            // PERFORMANCE TEST: Query ID System
+            // Increment query ID. If it wraps (very rare), reset the array.
+            m_current_query_id++;
+            if (m_current_query_id == 0)
+            {
+                std::fill(m_last_query_ids.begin(), m_last_query_ids.end(), 0);
+                m_current_query_id = 1;
+            }
+        }
+        else
+        {
+            // DEFAULT: Bool array approach (proven reliable)
+            std::fill(m_visited_entities.begin(), m_visited_entities.end(), false);
+        }
+
+        size_t buffer_count = 0;
         bool buffer_full = false;
+
         for (int y = min_y; y <= max_y && !buffer_full; ++y)
         {
             for (int x = min_x; x <= max_x && !buffer_full; ++x)
@@ -244,9 +269,30 @@ namespace HordePhys
                     }
 
                     const int entity_num = other->s.number;
-                    if (!m_visited_entities[entity_num])
+
+                    // Check if entity has been visited this query
+                    bool already_visited = false;
+                    if (use_query_ids)
                     {
-                        m_visited_entities[entity_num] = true;
+                        // Query ID approach: Check if last query ID matches current
+                        already_visited = (m_last_query_ids[entity_num] == m_current_query_id);
+                        if (!already_visited)
+                        {
+                            m_last_query_ids[entity_num] = m_current_query_id;
+                        }
+                    }
+                    else
+                    {
+                        // Bool array approach: Check and set visited flag
+                        already_visited = m_visited_entities[entity_num];
+                        if (!already_visited)
+                        {
+                            m_visited_entities[entity_num] = true;
+                        }
+                    }
+
+                    if (!already_visited)
+                    {
                         if (buffer_count < m_query_buffer.size())
                         {
                             m_query_buffer[buffer_count++] = other;
@@ -820,6 +866,107 @@ void ProximityGrid::Reset()
         }
 
         // Fallback: return any random position
+        return GetRandomPosition(out_pos);
+    }
+
+    // Check if a spawn position is visible to any active player
+    bool SpawnGrid::IsVisibleToPlayers(const vec3_t& pos) const {
+        // Iterate through all clients
+        for (int i = 1; i <= maxclients->integer; i++) {
+            edict_t* player = &g_edicts[i];
+
+            // Skip invalid/dead players
+            if (!player->inuse || player->health <= 0)
+                continue;
+
+            // Quick PVS check first (cheaper than trace)
+            if (!gi.inPVS(pos, player->s.origin, false))
+                continue;
+
+            // Line of sight trace to confirm visibility
+            // Trace from player's eye position to spawn candidate
+            vec3_t player_eye = player->s.origin;
+            player_eye.z += player->viewheight;
+
+            trace_t tr = gi.trace(player_eye, vec3_origin, vec3_origin, pos, player, MASK_OPAQUE);
+
+            // If trace reached spawn position, player can see it
+            if (tr.fraction >= 0.99f) {
+                return true;  // Visible to this player
+            }
+        }
+
+        return false;  // Not visible to any player
+    }
+
+    // Get a tactical spawn position (distance + visibility checks)
+    bool SpawnGrid::GetTacticalSpawnPosition(vec3_t& out_pos, float min_dist_from_players, int max_attempts) const {
+        if (m_node_count < 1)
+            return false;
+
+        // Get tactical spawn mode from cvar
+        const int tactical_mode = g_horde_tactical_spawn->integer;
+
+        // Mode 0: Disabled, use standard random spawning
+        if (tactical_mode == 0) {
+            return GetRandomPosition(out_pos);
+        }
+
+        const float min_dist_sq = min_dist_from_players * min_dist_from_players;
+        int attempts = 0;
+
+        while (attempts < max_attempts) {
+            attempts++;
+
+            // Get random candidate position
+            const int idx = irandom(m_node_count);
+            const vec3_t& candidate = m_grid_nodes[idx];
+
+            // Check distance to all active players
+            bool too_close = false;
+
+            for (int i = 1; i <= maxclients->integer; i++) {
+                edict_t* player = &g_edicts[i];
+
+                if (!player->inuse || player->health <= 0)
+                    continue;
+
+                const float dist_sq = (player->s.origin - candidate).lengthSquared();
+
+                if (dist_sq < min_dist_sq) {
+                    too_close = true;
+                    break;
+                }
+            }
+
+            if (too_close)
+                continue;
+
+            // Mode 1: Distance checks only
+            if (tactical_mode == 1) {
+                out_pos = candidate;
+                return true;
+            }
+
+            // Mode 2: Distance + visibility checks
+            if (tactical_mode == 2) {
+                // Check if position is visible to any player
+                if (IsVisibleToPlayers(candidate)) {
+                    // Position is visible, try another
+                    continue;
+                }
+
+                // Found good tactical position
+                out_pos = candidate;
+                return true;
+            }
+        }
+
+        // Fallback: couldn't find tactical position, use random
+        if (developer->integer >= 1) {
+            gi.Com_PrintFmt("GetTacticalSpawnPosition: No tactical position found after {} attempts, using fallback\n", max_attempts);
+        }
+
         return GetRandomPosition(out_pos);
     }
 
