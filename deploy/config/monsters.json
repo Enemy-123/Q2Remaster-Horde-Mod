@@ -155,33 +155,34 @@
       }
     },
     "infantry_vanilla": {
-      "health": 65,
+      "health": 75,
       "armor_power": 50,
       "armor_type": "combat",
       "damage_scale": 1,
       "weapon_damage": {
-        "machinegun": 8,
+        "machinegun": 4,
         "grenade": 40
       }
     },
     "gunner": {
-      "health": 95,
+      "health": 135,
       "power_armor_power": 85,
       "power_armor_type": "shield",
       "damage_scale": 1,
       "weapon_damage": {
-        "ionripper": 4,
+        "ionripper": 5,
         "grenade": 40
       }
     },
     "gunner_vanilla": {
-      "health": 75,
+      "health": 95,
       "power_armor": 85,
       "power_armor_type": "combat",
       "damage_scale": 0.5,
-      "weapon_damage": {
-        "grenade": 40
-      }
+        "weapon_damage": {
+            "machinegun": 6,
+            "grenade": 40
+        }
     },
     "medic": {
       "health": 110,
@@ -237,7 +238,7 @@
       }
     },
     "gladiator": {
-      "health": 110,
+      "health": 140,
       "armor_power": 120,
       "armor_type": "combat",
       "damage_scale": 2.5,
