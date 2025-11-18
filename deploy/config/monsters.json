@@ -180,7 +180,7 @@
       "power_armor_type": "combat",
       "damage_scale": 0.5,
         "weapon_damage": {
-            "machinegun": 6,
+            "machinegun": 4,
             "grenade": 40
         }
     },
