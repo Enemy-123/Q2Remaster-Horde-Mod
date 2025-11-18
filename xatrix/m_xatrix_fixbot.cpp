@@ -640,11 +640,10 @@ MMOVE_T(fixbot_move_run) = { FRAME_freeze_01, FRAME_freeze_01, fixbot_frames_run
 
 void fixbot_prep_spawn(edict_t* self)
 {
-	// Throttle expensive spawn position searches to prevent CPU spikes
-	if (self->monsterinfo.search_time > level.time) {
-		M_SetAnimation(self, &fixbot_move_run);
-		return;
-	}
+	// --- FIX: REMOVED THROTTLE CHECK ---
+	// The check "if (self->monsterinfo.search_time > level.time)" was blocking
+	// the spawn because the AI uses search_time for target acquisition
+	// (see plasma_fixbot_think).
 
 	// Reset any previous spawn data
 	self->monsterinfo.blind_fire_target = vec3_origin;
@@ -688,11 +687,11 @@ void fixbot_prep_spawn(edict_t* self)
 	}
 	else {
 		// --- No valid position found ---
-	//	if (developer->integer > 0) {
-			//gi.com_printFmt("fixbot_prep_spawn: Failed to find valid turret spawn position. Aborting spawn.\n");
-	//	}
-		// Throttle retries to prevent expensive BoxEdicts calls every frame
-		self->monsterinfo.search_time = level.time + 0.5_sec;
+
+		// --- FIX: REMOVED THROTTLE ASSIGNMENT ---
+		// Do not set self->monsterinfo.search_time here, or you will make the
+		// bot "blind" to new enemies for 0.5 seconds on a failed spawn attempt.
+
 		M_SetAnimation(self, &fixbot_move_run);
 	}
 }

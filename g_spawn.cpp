@@ -4,13 +4,21 @@
 #include "g_local.h"
 #include "memory_safety.h"
 #include "horde/horde_ids.h"
+#include <boost/container/flat_map.hpp>
+#include <string_view>
 
 // Define a type for our spawn function pointers for clarity
 using MonsterSpawnFunc = void(*)(edict_t*);
+using SpawnFunc = void(*)(edict_t*);
 
 // The dispatch table, indexed by MonsterTypeID
 static std::array<MonsterSpawnFunc, static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES)> g_monster_spawn_table;
 static bool g_monster_spawn_table_initialized = false;
+
+// OPTIMIZATION: Hash map for non-monster entity spawn lookups
+// Replaces O(n) linear search with O(log n) lookup (flat_map is sorted vector)
+static boost::container::flat_map<std::string_view, SpawnFunc> g_spawn_map;
+static bool g_spawn_map_initialized = false;
 
 struct spawn_t
 {
@@ -821,17 +829,32 @@ void ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp = spawn_temp_t::em
 		}
 	}
 
-	// Check normal spawn functions
-	for (auto& s : spawns) {
-		if (!strcmp(s.name, ent->classname)) {
-			s.spawn(ent);
-
-			if (strcmp(ent->classname, s.name) == 0)
-				ent->classname = s.name;
-
-			current_st = nullptr;
-			return;
+	// OPTIMIZATION: Initialize spawn map on first use (lazy initialization)
+	// Converts linear O(n) strcmp scan to O(log n) sorted map lookup
+	if (!g_spawn_map_initialized) {
+		g_spawn_map.reserve(spawns.size());
+		for (const auto& s : spawns) {
+			g_spawn_map.emplace(s.name, s.spawn);
 		}
+		g_spawn_map_initialized = true;
+
+		if (developer && developer->integer) {
+			gi.Com_PrintFmt("ED_CallSpawn: Initialized spawn map with {} entries\n", g_spawn_map.size());
+		}
+	}
+
+	// Check normal spawn functions using optimized map lookup
+	auto it = g_spawn_map.find(ent->classname);
+	if (it != g_spawn_map.end()) {
+		it->second(ent);
+
+		// Normalize classname pointer to the canonical one from the spawn table
+		// This ensures strcmp(ent->classname, spawn_name) == 0 works as expected
+		if (strcmp(ent->classname, it->first.data()) == 0)
+			ent->classname = it->first.data();
+
+		current_st = nullptr;
+		return;
 	}
 
 	gi.Com_PrintFmt("{} doesn't have a spawn function\n", *ent);
@@ -1611,11 +1634,13 @@ bool LoadEntityFile(std::string_view mapname, std::vector<char>& buffer, std::st
 		size_t buffer_size = static_cast<size_t>(length) + 1;
 		if (buffer_size > MAX_ENTITY_FILE_SIZE || !safe_resize(buffer, buffer_size, MAX_ENTITY_FILE_SIZE)) {
 			gi.Com_PrintFmt("ERROR: Failed to allocate buffer for entity file (size: {})\n", buffer_size);
+			buffer.clear(); // Ensure buffer is empty on allocation failure
 			return false;
 		}
 
 		if (fread(buffer.data(), 1, length, fp) != length) {
 			gi.Com_PrintFmt("Error reading entity file: \"{}\"\n", outFilename);
+			buffer.clear(); // Clear partial read to prevent use of incomplete data
 			return false;
 		}
 

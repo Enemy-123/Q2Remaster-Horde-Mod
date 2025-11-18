@@ -1198,25 +1198,34 @@ static void M_CheckDodge(edict_t* self)
         return;
     }
 
-    for (auto* ent : active_projectiles())
+    // OPTIMIZATION: Use spatial grid to query only nearby projectiles
+    // Instead of O(n) iteration through all projectiles, this queries only the grid cells
+    // within radius, dramatically reducing checks when many projectiles exist
+    static constexpr float MAX_DODGE_DIST = 512.0f;
+    auto projectiles = HordePhys::g_entity_grid.QueryRadiusFiltered(
+        self->s.origin,
+        MAX_DODGE_DIST,
+        HordePhys::EntityGrid::TYPE_PROJECTILES
+    );
+
+    for (auto* ent : projectiles)
     {
-        // 1. Check distance first (fast elimination)
-        static constexpr float MAX_DODGE_DIST_SQ = 512.0f * 512.0f;
-        if (DistanceSquared(self->s.origin, ent->s.origin) > MAX_DODGE_DIST_SQ) {
+        // Grid already filtered by distance, but verify entity is valid and has dodge flag
+        if (!ent || !ent->inuse || !(ent->flags & FL_DODGE)) {
             continue;
         }
 
-        // 2. Is it moving?
+        // 1. Is it moving?
         if (ent->velocity.lengthSquared() < VECTOR_LENGTH_SQ_EPSILON) {
             continue;
         }
 
-        // 3. Is it in front of us?
+        // 2. Is it in front of us?
         if (!projectile_infront(self, ent)) {
             continue;
         }
 
-        // 4. Trace its path to see if it will hit us
+        // 3. Trace its path to see if it will hit us
         vec3_t trace_start = ent->s.origin;
         vec3_t trace_end = ent->s.origin + ent->velocity;
         trace_t tr = gi.trace(trace_start, ent->mins, ent->maxs, trace_end, ent, ent->clipmask);
@@ -1233,7 +1242,7 @@ static void M_CheckDodge(edict_t* self)
             }
 
             self->monsterinfo.dodge(self, ent->owner, eta, &tr, (ent->movetype == MOVETYPE_BOUNCE || ent->movetype == MOVETYPE_TOSS));
-            
+
             // We've initiated a dodge, no need to check other projectiles this frame.
             return;
         }

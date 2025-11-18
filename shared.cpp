@@ -256,11 +256,26 @@ void RemovePlayerOwnedEntities(edict_t* player) {
 
     auto add_entity = [&](edict_t* ent) {
         if (ent && ent->inuse) {
+            // Safety check: prevent overflow-induced bad_alloc
+            if (entity_count >= MAX_SAFE_CONTAINER_SIZE) {
+                if (developer && developer->integer) {
+                    gi.Com_PrintFmt("ERROR: Entity collection overflow ({}), cannot add more\n", entity_count);
+                }
+                return;
+            }
+
             if (entity_count >= capacity) {
                 if (entities_array == stack_entities) {
                     // Copy stack data to heap first, then resize
-                    heap_entities.assign(stack_entities, stack_entities + entity_count);
                     size_t new_capacity = safe_grow_capacity(capacity, entity_count + 1);
+                    try {
+                        // Protected assign - this is where bad_alloc 65530 can occur
+                        heap_entities.assign(stack_entities, stack_entities + entity_count);
+                    } catch (const std::bad_alloc&) {
+                        gi.Com_PrintFmt("ERROR: Failed to allocate {} bytes for entity collection\n",
+                                       entity_count * sizeof(edict_t*));
+                        return;
+                    }
                     if (!safe_resize(heap_entities, new_capacity)) {
                         gi.Com_Print("ERROR: Failed to allocate memory for entity collection\n");
                         return;
@@ -1160,9 +1175,11 @@ void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs
 	const vec3_t area_mins = origin + mins - safe_offset;
 	const vec3_t area_maxs = origin + maxs + safe_offset;
 
-	const vec3_t half_size = (area_maxs - area_mins) * 0.5f;
-	const float radius_to_contain_box = half_size.length();
-	const float safe_radius = radius_to_contain_box + MAX_ENTITY_REACH;
+	// OPTIMIZATION: Use engine's BoxEdicts spatial query instead of findradius
+	// BoxEdicts uses BSP tree/spatial partitioning for O(log n) lookup vs O(n) iteration
+	// More accurate since we're checking box overlap anyway
+	edict_t* touch[MAX_EDICTS];
+	int num_touched = gi.BoxEdicts(area_mins, area_maxs, touch, MAX_EDICTS, AREA_SOLID, nullptr, nullptr);
 
 	edict_t* stack_entities[STACK_ENTITY_CAPACITY];
 	boost::container::small_vector<edict_t*, 64> heap_entities;
@@ -1171,17 +1188,25 @@ void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs
 	size_t entity_count = 0;
 	size_t capacity = STACK_ENTITY_CAPACITY;
 
-	edict_t* ent = nullptr;
-	while ((ent = findradius(ent, origin, safe_radius)) != nullptr) {
-		if (!ent || !ent->inuse || 
+	for (int i = 0; i < num_touched; i++) {
+		edict_t* ent = touch[i];
+		if (!ent || !ent->inuse ||
 			(ent->svflags & SVF_MONSTER) ||
-			ent->solid == SOLID_NOT || 
+			ent->solid == SOLID_NOT ||
 			ent->solid == SOLID_TRIGGER ||
-			!is_valid_vector(ent->s.origin) || 
-			!is_valid_vector(ent->mins) || 
+			!is_valid_vector(ent->s.origin) ||
+			!is_valid_vector(ent->mins) ||
 			!is_valid_vector(ent->maxs) ||
 			!EntitiesOverlap(ent, area_mins, area_maxs)) {
 			continue;
+		}
+
+		// Safety check: prevent overflow-induced bad_alloc
+		if (entity_count >= MAX_SAFE_CONTAINER_SIZE) {
+			if (developer && developer->integer) {
+				gi.Com_PrintFmt("ERROR: ClearSpawnArea entity overflow ({}), stopping collection\n", entity_count);
+			}
+			break;
 		}
 
 		if (entity_count >= capacity) {
@@ -1192,7 +1217,14 @@ void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs
 					gi.Com_Print("ERROR: Failed to reserve memory for entities\n");
 					continue;
 				}
-				heap_entities.assign(stack_entities, stack_entities + entity_count);
+				try {
+					// Protected assign - prevents bad_alloc 65530
+					heap_entities.assign(stack_entities, stack_entities + entity_count);
+				} catch (const std::bad_alloc&) {
+					gi.Com_PrintFmt("ERROR: Failed to allocate {} bytes for spawn area entities\n",
+					               entity_count * sizeof(edict_t*));
+					break;
+				}
 				entities_array = heap_entities.data();
 				if (!safe_resize(heap_entities, new_capacity)) {
 					gi.Com_Print("ERROR: Failed to resize heap entities\n");
