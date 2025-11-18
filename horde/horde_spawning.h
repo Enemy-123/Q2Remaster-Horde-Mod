@@ -96,7 +96,8 @@ struct SpawnSystemState {
     int32_t cached_flying_spawn_count = 0;
 
     // --- Spawn Point Data ---
-    boost::container::flat_map<int, uint16_t> spawn_point_map;  // C++23 flat_map for better cache locality
+    boost::container::flat_map<int, uint16_t> spawn_point_map;  // C++23 flat_map for better cache locality [DEPRECATED: Use spawn_point_index_lookup]
+    std::vector<uint16_t> spawn_point_index_lookup;  // O(1) lookup: index by ent->s.number, value = compact index (0xFFFF = invalid)
     SpawnPointsSoA spawn_points_data;
     // Using small_vector to avoid heap allocation for typical maps (most have < 64 spawn points)
     boost::container::small_vector<CachedSpawnPointData, 64> spawn_validation_cache;
@@ -126,6 +127,7 @@ struct SpawnSystemState {
         cached_flying_spawn_count = 0;
 
         spawn_point_map.clear();
+        spawn_point_index_lookup.clear();
         spawn_points_data.clear();
         spawn_validation_cache.clear();
 

@@ -142,7 +142,12 @@ static bool TryAlternativeSpawnPoints(const vec3_t &primary_spawn, const vec3_t 
 	{
 		vec3_t test_pos = primary_spawn + offset;
 
-		// Clear the alternative spawn area
+		// OPTIMIZATION: Check geometry first (cheap) before ClearSpawnArea (expensive)
+		// Only proceed to ClearSpawnArea if the point isn't inside a wall
+		if (gi.pointcontents(test_pos) & MASK_SOLID)
+			continue;
+
+		// Clear the alternative spawn area (expensive - calls findradius)
 		ClearSpawnArea(test_pos, predicted_mins, predicted_maxs);
 
 		// Validate using relaxed boss checks

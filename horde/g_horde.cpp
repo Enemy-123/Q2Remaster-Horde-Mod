@@ -456,7 +456,7 @@ static void ApplyAlternativePositionCooldown(edict_t *spawn_point)
 	if (!spawn_point || !spawn_point->inuse)
 		return;
 
-	const uint16_t index = g_spawn_system.spawn_point_map.at(spawn_point->s.number);
+	const uint16_t index = g_spawn_system.spawn_point_index_lookup[spawn_point->s.number];
 
 	g_spawn_system.spawn_points_data.alternative_attempts[index]++;
 	gtime_t cooldown_duration;
@@ -493,7 +493,7 @@ void IncreaseSpawnAttempts(edict_t *spawn_point)
 	if (!spawn_point || !spawn_point->inuse)
 		return;
 
-	const uint16_t index = g_spawn_system.spawn_point_map.at(spawn_point->s.number);
+	const uint16_t index = g_spawn_system.spawn_point_index_lookup[spawn_point->s.number];
 
 	if (level.time - g_spawn_system.spawn_points_data.lastSpawnTime[index] > HordeConstants::SPAWN_POINT_INACTIVITY_RESET_THRESHOLD)
 	{
@@ -541,7 +541,7 @@ void OnSuccessfulSpawn(edict_t *spawn_point)
 	if (!spawn_point || !spawn_point->inuse)
 		return;
 
-	const uint16_t index = g_spawn_system.spawn_point_map.at(spawn_point->s.number);
+	const uint16_t index = g_spawn_system.spawn_point_index_lookup[spawn_point->s.number];
 
 	g_spawn_system.spawn_points_data.successfulSpawns[index]++;
 	g_spawn_system.spawn_points_data.attempts[index] = 0;
@@ -576,8 +576,9 @@ struct SpawnPointCacheArray
 			assert(false && "spawn_map_needs_build flag set - BuildSpawnPointMap() was not called!");
 		}
 
-		auto it = g_spawn_system.spawn_point_map.find(ent->s.number);
-		if (it == g_spawn_system.spawn_point_map.end()) {
+		// OPTIMIZATION: O(1) vector lookup instead of O(log N) map lookup
+		const uint16_t index = g_spawn_system.spawn_point_index_lookup[ent->s.number];
+		if (index == 0xFFFF) {
 			gi.Com_PrintFmt("ERROR: Spawn point {} not found in map!\n", ent->s.number);
 
 			// Debug assertion to catch this during development
@@ -589,15 +590,15 @@ struct SpawnPointCacheArray
 		}
 
 		// Additional safety check
-		if (it->second >= data.size()) {
-			gi.Com_PrintFmt("ERROR: Invalid spawn point index {} (size: {})\n", it->second, data.size());
+		if (index >= data.size()) {
+			gi.Com_PrintFmt("ERROR: Invalid spawn point index {} (size: {})\n", index, data.size());
 			gi.Com_PrintFmt("DEBUG: Map built? {} Spawn points: {}\n", !g_spawn_system.spawn_map_needs_build, g_num_spawn_points);
 			assert(false && "invalid spawn point index!");
 			static SpawnPointCache default_cache{};
 			return default_cache;
 		}
 
-		return data[it->second];
+		return data[index];
 	}
 	
 	const SpawnPointCache& operator[](const edict_t* ent) const {
@@ -606,8 +607,9 @@ struct SpawnPointCacheArray
 			gi.Com_PrintFmt("ERROR: Const access to spawn point cache before BuildSpawnPointMap()\n");
 		}
 
-		auto it = g_spawn_system.spawn_point_map.find(ent->s.number);
-		if (it == g_spawn_system.spawn_point_map.end()) {
+		// OPTIMIZATION: O(1) vector lookup instead of O(log N) map lookup
+		const uint16_t index = g_spawn_system.spawn_point_index_lookup[ent->s.number];
+		if (index == 0xFFFF) {
 			gi.Com_PrintFmt("ERROR: Spawn point {} not found in map!\n", ent->s.number);
 
 			// Debug assertion to catch this during development
@@ -619,15 +621,15 @@ struct SpawnPointCacheArray
 		}
 
 		// Additional safety check
-		if (it->second >= data.size()) {
-			gi.Com_PrintFmt("ERROR: Invalid spawn point index {} (size: {})\n", it->second, data.size());
+		if (index >= data.size()) {
+			gi.Com_PrintFmt("ERROR: Invalid spawn point index {} (size: {})\n", index, data.size());
 			gi.Com_PrintFmt("DEBUG: Map built? {} Spawn points: {}\n", !g_spawn_system.spawn_map_needs_build, g_num_spawn_points);
 			assert(false && "invalid spawn point index!");
 			static const SpawnPointCache default_cache{};
 			return default_cache;
 		}
 
-		return data[it->second];
+		return data[index];
 	}
 
 	void resize(size_t new_size) {
@@ -660,6 +662,10 @@ void BuildSpawnPointMap()
 	g_spawn_system.spawn_point_map.clear();
 	g_spawn_point_list.clear();
 
+	// Initialize O(1) lookup vector (indexed by entity number)
+	// Size = globals.max_edicts, initialize with 0xFFFF (invalid marker)
+	g_spawn_system.spawn_point_index_lookup.assign(globals.max_edicts, 0xFFFF);
+
 	// Clear and rebuild spatial index
 	HordePerf::g_spawn_spatial_index.Clear();
 
@@ -682,7 +688,10 @@ void BuildSpawnPointMap()
 			}
 
 			// Add to map first, using the current size of the list as the compact index
-			g_spawn_system.spawn_point_map[sp->s.number] = static_cast<uint16_t>(g_spawn_point_list.size());
+			uint16_t compact_index = static_cast<uint16_t>(g_spawn_point_list.size());
+			g_spawn_system.spawn_point_map[sp->s.number] = compact_index;
+			// OPTIMIZATION: O(1) vector lookup instead of O(log N) map lookup
+			g_spawn_system.spawn_point_index_lookup[sp->s.number] = compact_index;
 			// Then add the pointer to the list
 			if (!safe_push_back(g_spawn_point_list, sp, MAX_SPAWN_POINTS)) {
 				gi.Com_Print("WARNING: Failed to add spawn point\n");
@@ -5630,7 +5639,7 @@ static edict_t* FindSafeTeleportDestination(edict_t* self)
 		// --- END PERFORMANCE FIX ---
 
 		// --- A. Filter for Valid Spawn Points ---
-		const uint16_t index = g_spawn_system.spawn_point_map.at(spawn_point->s.number);
+		const uint16_t index = g_spawn_system.spawn_point_index_lookup[spawn_point->s.number];
 		if (level.time < g_spawn_system.spawn_points_data.teleport_cooldown[index] || IsSpawnPointOccupied(spawn_point))
 		{
 			continue;
@@ -6433,6 +6442,17 @@ static constexpr ChampionBonusEntry CHAMPION_BONUS_TABLE[] = {
 };
 
 static int SelectChampionBonusType() {
+	// Compile-time validation: weights should sum to ~1.0
+	// Note: Due to floating-point precision, we allow a small epsilon
+	constexpr float total_weight =
+		(ChampionBonusThresholds::GHOSTLY) +
+		(ChampionBonusThresholds::STYGIAN - ChampionBonusThresholds::GHOSTLY) +
+		(ChampionBonusThresholds::CORRUPTED - ChampionBonusThresholds::STYGIAN) +
+		(ChampionBonusThresholds::CHAMPION - ChampionBonusThresholds::CORRUPTED) +
+		(1.0f - ChampionBonusThresholds::CHAMPION);
+	static_assert(total_weight > 0.99f && total_weight < 1.01f,
+		"CHAMPION_BONUS_TABLE weights must sum to approximately 1.0");
+
 	const float roll = frandom();
 	float cumulative = 0.0f;
 
@@ -6443,6 +6463,8 @@ static int SelectChampionBonusType() {
 		}
 	}
 
+	// Fallback for floating-point precision edge cases (should rarely happen)
+	// This handles the case where roll == 1.0 exactly or cumulative < roll due to FP rounding
 	return BF_POSSESSED;
 }
 
@@ -6567,7 +6589,7 @@ static void ApplySuccessfulAlternativeCooldown(edict_t *spawn_point)
 	if (!spawn_point || !spawn_point->inuse)
 		return;
 
-	const uint16_t index = g_spawn_system.spawn_point_map.at(spawn_point->s.number);
+	const uint16_t index = g_spawn_system.spawn_point_index_lookup[spawn_point->s.number];
 
 	// FIX: Cast the signed 'index' to the unsigned 'size_t' for each array access.
 	g_spawn_system.spawn_points_data.alternative_attempts[static_cast<size_t>(index)] = 0;
