@@ -863,3 +863,12 @@ baseq2/characters/unknown.json
 /reduce_damage_only.py
 /restore_damage_only.py
 /validate_damage_changes.py
+/analyze_containers.py
+/analyze_overflow_risks.py
+/analyze_std_usage.py
+/container_analysis.json
+/CONTAINER_OPTIMIZATION_REPORT.md
+/overflow_analysis.json
+/OVERFLOW_RISK_ANALYSIS.md
+/std_analysis.json
+/HORDE_MEMORY_PERFORMANCE_ANALYSIS.md
