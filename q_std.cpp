@@ -127,6 +127,21 @@ skipwhite:
 // NB: these funcs are duplicated in the engine; this define gates us for
 // static compilation.
 #if defined(KEX_Q2GAME_DYNAMIC)
+
+// MSVC provides highly optimized intrinsic versions of case-insensitive comparison
+// These are significantly faster than manual character-by-character loops
+#ifdef _MSC_VER
+int Q_strcasecmp(const char* s1, const char* s2)
+{
+	return _stricmp(s1, s2);
+}
+
+int Q_strncasecmp(const char* s1, const char* s2, size_t n)
+{
+	return _strnicmp(s1, s2, n);
+}
+#else
+// Portable implementation for non-MSVC compilers
 int Q_strcasecmp(const char* s1, const char* s2)
 {
 	int c1, c2;
@@ -175,6 +190,7 @@ int Q_strncasecmp(const char* s1, const char* s2, size_t n)
 
 	return 0; // strings are equal
 }
+#endif
 
 /*
 =====================================================================

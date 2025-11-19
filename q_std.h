@@ -67,51 +67,6 @@ inline size_t G_FmtTo_(char(&buffer)[N], const S& format_str, Args &&... args)
 	return end.out - buffer;
 }
 
-// Safe version that checks buffer size at compile time for small buffers
-template<size_t N, typename S, typename... Args>
-inline size_t G_FmtTo_Safe(char(&buffer)[N], const S& format_str, Args &&... args)
-{
-	static_assert(N > 0, "Buffer size must be greater than 0");
-	// Add warning for small buffers that are prone to overflow
-	static_assert(N >= 32, "Buffer size is very small, consider using a larger buffer to avoid truncation");
-
-	auto end = fmt::format_to_n(buffer, N - 1, format_str, std::forward<Args>(args)...);
-	*(end.out) = '\0';
-
-	// In debug builds, check if truncation occurred
-#ifdef _DEBUG
-	if (end.size > N - 1) {
-		// Log truncation warning (implementation specific)
-		// This helps catch overflow issues during development
-	}
-#endif
-
-	return end.out - buffer;
-}
-
-// Compile-time buffer size validation for common operations
-template<size_t DstSize, size_t SrcSize>
-constexpr bool validate_buffer_copy() {
-	static_assert(DstSize > 0, "Destination buffer size must be positive");
-	static_assert(SrcSize > 0, "Source buffer size must be positive");
-	static_assert(DstSize >= SrcSize, "Destination buffer too small for source");
-	return true;
-}
-
-// Safe string copy with compile-time size validation
-template<size_t N, size_t M>
-inline void G_SafeStrCpy(char(&dst)[N], const char(&src)[M]) {
-	static_assert(validate_buffer_copy<N, M>(), "Buffer size validation failed");
-	Q_strlcpy(dst, src, N);
-}
-
-// Validate buffer is large enough for typical game strings
-template<size_t N>
-constexpr bool is_game_string_buffer() {
-	static_assert(N >= 64, "Buffer should be at least 64 bytes for game strings");
-	return N >= 64;
-}
-
 // format to temp buffers; doesn't use heap allocation
 // unlike `fmt::format` does directly
 #ifdef USE_CPP20_FORMAT
@@ -230,12 +185,13 @@ LerpAngle
 
 [[nodiscard]] inline float anglemod(float a)
 {
-	float const v = fmodf(a, 360.0f);
+	// Fast path for already-normalized angles (common case)
+	if (a >= 0.0f && a < 360.0f)
+		return a;
 
-	if (v < 0)
-		return 360.f + v;
-
-	return v;
+	// Robust path for out-of-range angles
+	// Using floor-based method instead of fmodf for better performance
+	return a - 360.0f * std::floor(a / 360.0f);
 }
 
 #include "q_vec3.h"
