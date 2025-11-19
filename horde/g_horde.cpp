@@ -1398,14 +1398,7 @@ static int32_t CalculateQueuedMonsters(const horde::MapSize& mapSize, int32_t lv
 	if (lvl <= 3) // No queue for first 3 waves still seems fine
 		return 0;
 
-	// Use global fast math cache for performance
-	static bool cache_initialized = false;
-	if (!cache_initialized) {
-		HordePerf::g_fast_math.Initialize();
-		cache_initialized = true;
-	}
-
-	float baseQueued = HordePerf::g_fast_math.GetSqrt(lvl) * 2.5f; // Reduced base from 3.0f
+	float baseQueued = std::sqrt(static_cast<float>(lvl)) * 2.5f; // Reduced base from 3.0f
 	baseQueued *= (1.0f + (lvl) * 0.13f); // Reduced scaling from 0.18f
 
 	float mapSizeMultiplier = 1.0f;
@@ -4658,7 +4651,6 @@ void ResetGame()
 	// --- FIX: Clear performance cache systems to prevent stale data ---
 	HordePerf::g_spawn_spatial_index.Clear();  // FIX: Clear spawn spatial index (also cleared in BuildSpawnPointMap, but explicit here)
 	HordePerf::g_monster_type_cache.Clear();   // FIX: Clear monster type property cache to prevent stale monster data
-	HordePerf::g_distance_cache.Clear();       // FIX: Clear distance calculation cache to prevent stale position data
 	HordePerf::g_visibility_cache.Clear();     // FIX: Clear visibility check cache to prevent stale entity reference checks
 
     // =======================================================================
@@ -5628,7 +5620,8 @@ static edict_t* FindSafeTeleportDestination(edict_t* self)
 
 	// --- PERFORMANCE FIX: Use spatial index for O(1) nearby spawn point lookup ---
 	constexpr float SEARCH_RADIUS = 1500.0f;
-	auto nearby_spawn_points = HordePerf::g_spawn_spatial_index.GetNearbySpawnPoints(target_player->s.origin, SEARCH_RADIUS);
+	boost::container::small_vector<edict_t*, 32> nearby_spawn_points;
+	HordePerf::g_spawn_spatial_index.GetNearbySpawnPoints(target_player->s.origin, SEARCH_RADIUS, nearby_spawn_points);
 
 	for (edict_t* spawn_point : nearby_spawn_points)
 	{

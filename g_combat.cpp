@@ -1510,7 +1510,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 			size_t i;
 			for (i = 0; i < client->num_damage_indicators; i++)
 			{
-				if (sqrtf(HordePerf::g_distance_cache.GetDistanceSquared(point, client->damage_indicators[i].from)) < 32.f)
+				if (sqrtf((client->damage_indicators[i].from - point).lengthSquared()) < 32.f)
 				{
 					indicator = &client->damage_indicators[i];
 					break;
@@ -1577,7 +1577,7 @@ void T_RadiusDamage(edict_t* inflictor, edict_t* attacker, float damage, edict_t
 
 		// Vector from explosion center to the entity's impact point
 		vec3_t force_vec = damage_point - inflictor_center;
-		float dist = sqrtf(HordePerf::g_distance_cache.GetDistanceSquared(damage_point, inflictor_center));
+		float dist = sqrtf((inflictor_center - damage_point).lengthSquared());
 
 		// Reject entities whose actual impact point is outside the explosion radius
 		if (dist > radius)

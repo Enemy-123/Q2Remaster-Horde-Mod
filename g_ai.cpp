@@ -1238,8 +1238,8 @@ static edict_t* AI_GetSoundClient(edict_t* self, bool direct)
 		if (!(time >= (level.time - FRAME_TIME_S)))
 			continue;
 
-		// prefer the closest one we heard - use distance cache for performance
-		float dist_sq = HordePerf::g_distance_cache.GetDistanceSquared(self->s.origin, sound->s.origin);
+		// prefer the closest one we heard
+		float dist_sq = (sound->s.origin - self->s.origin).lengthSquared();
 
 		if (!best_sound || dist_sq < best_distance)
 		{
@@ -1611,7 +1611,7 @@ bool FindTarget(edict_t* self)
 
 		temp = client->s.origin - self->s.origin;
 
-		if (HordePerf::g_distance_cache.GetDistanceSquared(client->s.origin, self->s.origin) > 1000000) // too far to hear (1000^2)
+		if ((client->s.origin - self->s.origin).lengthSquared() > 1000000) // too far to hear (1000^2)
 			return false;
 
 		// check area portals - if they are different and not connected then we can't hear it
@@ -2478,7 +2478,7 @@ void ai_run(edict_t* self, float dist)
 			// [Paril-KEX] special case: if we're stand ground & knocked way too far away
 			// from our path_corner, or we can't see it any more, assume all
 			// is lost.
-			if ((self->monsterinfo.aiflags & AI_REACHED_HOLD_COMBAT) && ((HordePerf::g_distance_cache.GetDistanceSquared(closest_point_to_box(self->movetarget->s.origin, self->absmin, self->absmax), self->movetarget->s.origin) > 25600.f) // 160^2
+			if ((self->monsterinfo.aiflags & AI_REACHED_HOLD_COMBAT) && (((self->movetarget->s.origin - closest_point_to_box(self->movetarget->s.origin, self->absmin, self->absmax)).lengthSquared() > 25600.f) // 160^2
 				|| (tr.fraction < 1.0f && tr.plane.normal.z <= 0.7f))) // if we hit a climbable, ignore this result
 			{
 				self->monsterinfo.aiflags &= ~AI_COMBAT_POINT;
@@ -2782,7 +2782,7 @@ void ai_run(edict_t* self, float dist)
 		boxes_intersect(self->monsterinfo.last_sighting, self->monsterinfo.last_sighting, self->s.origin + self->mins, self->s.origin + self->maxs))
 	{
 		self->monsterinfo.aiflags |= AI_PURSUE_NEXT;
-		dist = min(dist, sqrtf(HordePerf::g_distance_cache.GetDistanceSquared(self->s.origin, self->monsterinfo.last_sighting)));
+		dist = min(dist, sqrtf((self->monsterinfo.last_sighting - self->s.origin).lengthSquared()));
 		// [Paril-KEX] this helps them navigate corners when two next pursuits
 		// are really close together
 		self->monsterinfo.random_change_time = level.time + 10_hz;
@@ -2797,7 +2797,7 @@ void ai_run(edict_t* self, float dist)
 		if (tr.fraction < 1)
 		{
 			v = self->goalentity->s.origin - self->s.origin;
-			d1 = sqrtf(HordePerf::g_distance_cache.GetDistanceSquared(self->goalentity->s.origin, self->s.origin));
+			d1 = sqrtf((self->goalentity->s.origin - self->s.origin).lengthSquared());
 			center = tr.fraction;
 			d2 = d1 * ((center + 1) / 2);
 			float backup_yaw = self->s.angles.y;

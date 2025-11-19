@@ -15,52 +15,6 @@
 namespace HordePerf {
 
 // ============================================================================
-// Fast Math Cache
-// ============================================================================
-template<int MAX_VALUE = 251>
-class FastMathCache {
-    std::array<float, MAX_VALUE> sqrt_values{};
-    std::array<float, MAX_VALUE> squared_values{};
-    bool initialized = false;
-
-public:
-    // Call this explicitly at level load for best performance
-    void Initialize() {
-        if (initialized) return;
-        for (int i = 0; i < MAX_VALUE; ++i) {
-            sqrt_values[i] = std::sqrt(static_cast<float>(i));
-            squared_values[i] = static_cast<float>(i * i);
-        }
-        initialized = true;
-    }
-
-    float GetSqrt(int value) {
-        // Handle negative values - sqrt of negative is undefined
-        if (value < 0) {
-            #ifdef _DEBUG
-            gi.Com_PrintFmt("WARNING: GetSqrt called with negative value: {}\n", value);
-            #endif
-            value = 0;  // Clamp to 0 for safety
-        }
-        
-        if (value >= MAX_VALUE)
-            return std::sqrt(static_cast<float>(value));
-        
-        if (!initialized) Initialize();  // Lazy init for safety
-        return sqrt_values[value];
-    }
-
-    float GetSquared(int value) {
-        // Negative values are valid for squaring
-        if (value < 0 || value >= MAX_VALUE)
-            return static_cast<float>(value * value);
-        
-        if (!initialized) Initialize();  // Lazy init for safety
-        return squared_values[value];
-    }
-};
-
-// ============================================================================
 // Spawn Point Spatial Index (Optimized Hash-Grid Implementation)
 // ============================================================================
 class SpawnPointSpatialIndex {
@@ -94,8 +48,10 @@ class SpawnPointSpatialIndex {
     boost::container::small_vector<edict_t*, 64> all_spawn_points;
 
     static uint32_t GetCellKey(const vec3_t& pos) {
-        int x = static_cast<int>(pos.x) >> CELL_SHIFT;
-        int y = static_cast<int>(pos.y) >> CELL_SHIFT;
+        // Offset by 8192 (standard Q2 map max size) to ensure positive numbers
+        // before shifting. This prevents negative bit-shift undefined behavior.
+        int x = (static_cast<int>(pos.x) + 8192) >> CELL_SHIFT;
+        int y = (static_cast<int>(pos.y) + 8192) >> CELL_SHIFT;
         return (static_cast<uint32_t>(x) << 16) | (static_cast<uint32_t>(y) & 0xFFFF);
     }
 
@@ -113,13 +69,15 @@ public:
         all_spawn_points.clear();
     }
 
-    boost::container::small_vector<edict_t*, 32> GetNearbySpawnPoints(const vec3_t& pos, float radius) {
-        boost::container::small_vector<edict_t*, 32> result;
-        // small_vector has 32 inline elements, no reserve needed
+    // Output parameter version - allows caller to reuse vector memory frame-to-frame
+    void GetNearbySpawnPoints(const vec3_t& pos, float radius,
+                              boost::container::small_vector<edict_t*, 32>& out_result) {
+        out_result.clear();
 
         int cell_radius = static_cast<int>(radius / CELL_SIZE) + 1;
-        int center_x = static_cast<int>(pos.x) >> CELL_SHIFT;
-        int center_y = static_cast<int>(pos.y) >> CELL_SHIFT;
+        // Apply same +8192 offset as GetCellKey for consistency
+        int center_x = (static_cast<int>(pos.x) + 8192) >> CELL_SHIFT;
+        int center_y = (static_cast<int>(pos.y) + 8192) >> CELL_SHIFT;
         float radius_sq = radius * radius;
 
         for (int dx = -cell_radius; dx <= cell_radius; ++dx) {
@@ -136,14 +94,12 @@ public:
 
                         vec3_t diff = spawn->s.origin - pos;
                         if (diff.lengthSquared() <= radius_sq) {
-                            result.push_back(spawn);
+                            out_result.push_back(spawn);
                         }
                     }
                 }
             }
         }
-
-        return result;
     }
 
     const boost::container::small_vector<edict_t*, 64>& GetAllSpawnPoints() const {
@@ -286,7 +242,6 @@ public:
 // ============================================================================
 // Global Instances
 // ============================================================================
-inline FastMathCache<> g_fast_math;
 inline SpawnPointSpatialIndex g_spawn_spatial_index;
 inline MonsterTypeCache g_monster_type_cache;
 inline BatchedGridUpdater g_grid_updater;
@@ -302,79 +257,15 @@ inline gtime_t GetTeslaThinkTimeWithJitter() {
 }
 
 // ============================================================================
-// Distance Cache for Common Calculations
-// ============================================================================
-class DistanceCache {
-    struct CacheEntry {
-        vec3_t pos1 = vec3_origin;
-        vec3_t pos2 = vec3_origin;
-        float distance_sq = 0.0f;
-        gtime_t timestamp = 0_sec;
-    };
-
-    static constexpr size_t CACHE_SIZE = 256;
-    static constexpr gtime_t CACHE_LIFETIME = 500_ms;
-
-    std::array<CacheEntry, CACHE_SIZE> cache;
-    size_t current_index = 0;
-
-    static uint32_t HashPositions(const vec3_t& p1, const vec3_t& p2) {
-        // Order-independent hash with better distribution
-        // Use FNV-1a style hashing for better distribution
-        auto hash_vec = [](const vec3_t& v) -> uint32_t {
-            uint32_t hash = 2166136261u; // FNV offset basis
-            hash ^= static_cast<uint32_t>(v.x);
-            hash *= 16777619u; // FNV prime
-            hash ^= static_cast<uint32_t>(v.y);
-            hash *= 16777619u;
-            hash ^= static_cast<uint32_t>(v.z);
-            hash *= 16777619u;
-            return hash;
-        };
-
-        uint32_t h1 = hash_vec(p1);
-        uint32_t h2 = hash_vec(p2);
-        // Commutative operation - order doesn't matter
-        return h1 ^ h2;
-    }
-
-public:
-    float GetDistanceSquared(const vec3_t& pos1, const vec3_t& pos2) {
-        uint32_t hash = HashPositions(pos1, pos2);
-        size_t idx = hash % CACHE_SIZE;
-
-        // Check if cached - need to check both orderings
-        if (cache[idx].timestamp + CACHE_LIFETIME > level.time &&
-            ((cache[idx].pos1 == pos1 && cache[idx].pos2 == pos2) ||
-             (cache[idx].pos1 == pos2 && cache[idx].pos2 == pos1))) {
-            return cache[idx].distance_sq;
-        }
-
-        // Calculate and cache
-        vec3_t diff = pos2 - pos1;
-        float dist_sq = diff.lengthSquared();
-
-        cache[idx].pos1 = pos1;
-        cache[idx].pos2 = pos2;
-        cache[idx].distance_sq = dist_sq;
-        cache[idx].timestamp = level.time;
-
-        return dist_sq;
-    }
-
-    void Clear() {
-        for (auto& entry : cache) {
-            entry.timestamp = 0_ms;
-        }
-    }
-};
-
-inline DistanceCache g_distance_cache;
-
-// ============================================================================
 // Visibility Cache - Reduces expensive line-of-sight checks
 // ============================================================================
 class VisibilityCache {
+	// Union for fast entity pair packing - avoids expensive FNV hash
+	union EntityPair {
+		struct { uint16_t a, b; };
+		uint32_t key;
+	};
+
 	struct CacheEntry {
 		int entity_id1 = 0;
 		int entity_id2 = 0;
@@ -383,22 +274,9 @@ class VisibilityCache {
 	};
 
 	static constexpr size_t CACHE_SIZE = 256;
-	static constexpr gtime_t CACHE_LIFETIME = 200_ms; // Shorter than distance cache
+	static constexpr gtime_t CACHE_LIFETIME = 200_ms;
 
 	std::array<CacheEntry, CACHE_SIZE> cache;
-
-	static uint32_t HashEntities(int id1, int id2) {
-		// Ensure consistent hashing regardless of order with better distribution
-		if (id1 > id2) std::swap(id1, id2);
-
-		// FNV-1a hash for better distribution
-		uint32_t hash = 2166136261u; // FNV offset basis
-		hash ^= static_cast<uint32_t>(id1);
-		hash *= 16777619u; // FNV prime
-		hash ^= static_cast<uint32_t>(id2);
-		hash *= 16777619u;
-		return hash;
-	}
 
 public:
 	// Template version - no std::function overhead, direct function call
@@ -409,13 +287,26 @@ public:
 			return false;
 		}
 
-		int id1 = ent1->s.number;
-		int id2 = ent2->s.number;
-		uint32_t hash = HashEntities(id1, id2);
-		size_t idx = hash % CACHE_SIZE;
+		// Fast early out for same entity
+		if (ent1 == ent2) {
+			cached = false;
+			return true;
+		}
 
-		// Normalize IDs for consistent lookup
+		// Fast index calculation from entity pointers (Q2 entities are usually < 4096)
+		uint16_t id1 = static_cast<uint16_t>(ent1 - g_edicts);
+		uint16_t id2 = static_cast<uint16_t>(ent2 - g_edicts);
+
+		// Normalize order for consistent cache lookups
 		if (id1 > id2) std::swap(id1, id2);
+
+		// Pack two uint16_t IDs into one uint32_t - much faster than FNV hash
+		EntityPair pair;
+		pair.a = id1;
+		pair.b = id2;
+
+		// Use packed key directly (modulo CACHE_SIZE) - no expensive multiplications
+		size_t idx = pair.key % CACHE_SIZE;
 
 		// Check if cached
 		if (cache[idx].timestamp + CACHE_LIFETIME > level.time &&

@@ -466,6 +466,18 @@ inline bool safe_string_append(std::string& str, const std::string_view& to_appe
     }
 }
 
+// Safe C-string copy for fixed-size char buffers (e.g., config strings, centerprints)
+// Prevents buffer overflows by ensuring null-termination
+template<size_t N>
+inline void safe_pstrcpy(char (&dest)[N], const char* src) {
+    if (!src) {
+        dest[0] = '\0';
+        return;
+    }
+    strncpy(dest, src, N - 1);
+    dest[N - 1] = '\0';
+}
+
 // RAII wrapper for FILE* to prevent file handle leaks
 // Automatically closes file on scope exit (including exceptions)
 struct FileGuard {
