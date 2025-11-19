@@ -112,9 +112,8 @@ private:
 				size_t len = strnlen(input, MAX_INFO_STRING - 1);
 				if (len >= MAX_INFO_STRING - 1) {
 					// String is at least MAX_INFO_STRING-1 long, need to copy and truncate
-					// Use strncpy to safely copy up to MAX_INFO_STRING-1 bytes
-					strncpy(buffer, input, MAX_INFO_STRING - 1);
-					buffer[MAX_INFO_STRING - 1] = '\0';
+					// Use Q_strlcpy to safely copy and null-terminate
+					Q_strlcpy(buffer, input, MAX_INFO_STRING);
 					output = buffer;
 #ifdef _DEBUG
 					Com_Print("Warning: String truncated in loc_embed\n");
@@ -4153,10 +4152,9 @@ private:
 		return is_out_of_range(index);
 	}
 
-	inline void throw_if_out_of_range() const
+	inline void check_range() const
 	{
-		if (is_out_of_range())
-			throw std::out_of_range("index");
+		assert(!is_out_of_range() && "Entity iterator out of range");
 	}
 
 	inline difference_type clamped_index() const
@@ -4172,12 +4170,12 @@ public:
 	// the caller to ensure this index is filtered.	
 	constexpr entity_iterator_t(uint32_t i, uint32_t end_index = UINT32_MAX) : index(i), end_index((end_index >= globals.num_edicts) ? globals.num_edicts : end_index) {}
 
-	inline reference operator*() { throw_if_out_of_range(); return &g_edicts[index]; }
-	inline pointer operator->() { throw_if_out_of_range(); return &g_edicts[index]; }
+	inline reference operator*() { check_range(); return &g_edicts[index]; }
+	inline pointer operator->() { check_range(); return &g_edicts[index]; }
 
 	inline entity_iterator_t& operator++()
 	{
-		throw_if_out_of_range();
+		check_range();
 		// Optimized: scan forward once instead of using operator+ (which rescans)
 		do {
 			index++;
@@ -4187,7 +4185,7 @@ public:
 
 	inline entity_iterator_t& operator--()
 	{
-		throw_if_out_of_range();
+		check_range();
 		// Optimized: scan backward once instead of using operator- (which rescans)
 		do {
 			index--;

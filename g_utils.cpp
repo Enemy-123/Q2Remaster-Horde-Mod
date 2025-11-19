@@ -462,6 +462,9 @@ void G_InitEdict(edict_t* e)
 	e->client = saved_client; // Restore the client pointer
 	e->spawn_count = saved_spawn_count; // Restore the spawn count
 
+	// Re-initialize C++ objects after memset to avoid UB
+	e->monsterinfo = monsterinfo_t{}; // Default construct instead of using memset value
+
 	// Restore ONLY the flags that identify the entity as a player or bot.
 	// This prevents inheriting dangerous state like SVF_MONSTER or SVF_NOCLIENT from a reused slot.
 	e->svflags = saved_svflags & (SVF_PLAYER | SVF_BOT);
