@@ -54,7 +54,7 @@ void PVM_DropBackpack(edict_t *player)
     backpack->maxs = {15, 15, 15};
 
     // Store owner name for display
-    backpack->message = G_CopyString(player->client->pers.netname, TAG_GAME);
+    backpack->message = G_CopyString(player->client->pers.netname, TAG_LEVEL);
 
     // Copy ALL inventory (weapons and ammo)
     backpack->client = player->client; // Temporarily link to access inventory
@@ -65,7 +65,7 @@ void PVM_DropBackpack(edict_t *player)
     }
 
     // Create a temporary client structure to store inventory
-    gclient_t *temp_client = (gclient_t *)gi.TagMalloc(sizeof(gclient_t), TAG_GAME);
+    gclient_t *temp_client = (gclient_t *)gi.TagMalloc(sizeof(gclient_t), TAG_LEVEL);
     if (temp_client)
     {
         *temp_client = {};
