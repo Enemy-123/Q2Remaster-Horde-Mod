@@ -151,11 +151,11 @@ static vec3_t CalculateMonsterRepulsion(edict_t* ent)
 			continue;
 
 		// Now calculate actual distance only when needed
-		const float dist = sqrtf(dist_sq);
+		const float dist = std::sqrt(dist_sq);
 
 		// Calculate repulsion force - stronger when closer
-		float strength = (personal_space - dist) / personal_space;
-		strength = min(strength, 1.0f);
+		// Use C++17/23 std::clamp for cleaner, potentially better optimized code
+		float strength = std::clamp((personal_space - dist) / personal_space, 0.0f, 1.0f);
 
 		// Normalize and scale the repulsion vector
 		vec3_t push = diff * (1.0f / dist); // Manual normalization (already have dist)
@@ -1004,7 +1004,7 @@ if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::
 	vec3_t const end = chosen_forward.endpos + (ent->gravityVector * (steps * stepsize));
 	trace_t trace = gi.trace(chosen_forward.endpos, ent->mins, ent->maxs, end, ent, mask);
 
-	if (fabsf(ent->s.origin.z - trace.endpos.z) > 8.f)
+	if (std::abs(ent->s.origin.z - trace.endpos.z) > 8.f)
 		stepped = true;
 
 	// Paril: improved the water handling here.
@@ -1072,7 +1072,7 @@ if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::
 				else if (yaw_diff < -180.f)
 					yaw_diff += 360.f;
 
-				float abs_yaw_diff = fabsf(yaw_diff);
+				float abs_yaw_diff = std::abs(yaw_diff);
 				if (abs_yaw_diff > DIRECTION_YAW_MIN_DIFF && abs_yaw_diff < DIRECTION_YAW_MAX_DIFF)
 				{
 					// PERFORMANCE FIX: Smooth yaw interpolation instead of instant snap
@@ -1439,7 +1439,7 @@ bool SV_NewChaseDir(edict_t *actor, vec3_t pos, float dist)
 	}
 
 	// try other directions
-	if (brandom() || fabsf(deltay) > fabsf(deltax))
+	if (brandom() || std::abs(deltay) > std::abs(deltax))
 	{
 		tdir = d[1];
 		d[1] = d[2];

@@ -794,8 +794,9 @@ bool ValidateSpawnPointForMonster(edict_t* spawn_point, gtime_t current_time)
         return false;
 
     // OPTIMIZATION: O(1) vector lookup instead of O(log N) map lookup
-    const uint16_t index = g_spawn_system.spawn_point_index_lookup[spawn_point->s.number];
-    if (index == 0xFFFF)
+    // SAFETY: Use bounds-checked helper to prevent overflow
+    const uint16_t index = GetSpawnPointIndexSafe(spawn_point);
+    if (index == 0xFFFF) [[unlikely]]
         return false;
     if (index >= g_spawn_system.spawn_validation_cache.size())
         return false;

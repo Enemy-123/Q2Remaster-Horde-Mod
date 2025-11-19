@@ -149,6 +149,26 @@ struct SpawnSystemState {
 // Global spawn system state instance
 extern SpawnSystemState g_spawn_system;
 
+// SAFETY: Helper function to safely get spawn point index with bounds checking
+// Returns 0xFFFF (invalid) if out of bounds
+// CRITICAL FIX for 65530 overflow bug
+[[nodiscard]] inline uint16_t GetSpawnPointIndexSafe(const edict_t* spawn_point) noexcept {
+	if (!spawn_point) [[unlikely]]
+		return 0xFFFF;
+
+	// Bounds check to prevent array overflow
+	if (spawn_point->s.number >= g_spawn_system.spawn_point_index_lookup.size()) [[unlikely]] {
+		// Only warn in developer mode to avoid spam
+		if (developer && developer->integer) {
+			gi.Com_PrintFmt("WARNING: Spawn point entity number {} exceeds lookup table size {}\n",
+				spawn_point->s.number, g_spawn_system.spawn_point_index_lookup.size());
+		}
+		return 0xFFFF;
+	}
+
+	return g_spawn_system.spawn_point_index_lookup[spawn_point->s.number];
+}
+
 // ============================================================================
 // CORE MONSTER SPAWNING FUNCTIONS
 // ============================================================================

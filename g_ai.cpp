@@ -77,14 +77,22 @@ edict_t* AI_GetSightClient(edict_t* self)
 		bool touching = boxes_intersect(self_absmin, self_absmax,
 			player->absmin, player->absmax);
 
-			if ( (!touching && 
-				(!(self->monsterinfo.aiflags & AI_THIRD_EYE) &&
-				 !infront(self, player))
-			   ) ||
-			   !visible(self, player) )
-		  {
-			  continue;
-		  }
+		// Early exit if not touching and not in view
+		if (!touching &&
+			(!(self->monsterinfo.aiflags & AI_THIRD_EYE) &&
+			 !infront(self, player)))
+		{
+			continue;
+		}
+
+		// OPTIMIZATION: PVS (Potentially Visible Set) check before expensive trace
+		// This is a cheap engine lookup that avoids raycast if areas can't see each other
+		if (!gi.inPVS(self->s.origin, player->s.origin, true)) [[unlikely]]
+			continue;
+
+		// Expensive visibility trace (last resort)
+		if (!visible(self, player))
+			continue;
 
 		visible_players[num_visible++] = player;
 	}
@@ -863,26 +871,34 @@ bool FindMTarget(edict_t* self) {
 			continue;
 		}
 
-		// --- Distance Check ---
+		// --- Distance Check (Math - Fast) ---
 		// The grid gives us a square search area, so we still need a precise distance check.
 		float dist_squared = DistanceSquared(self_origin, ent->s.origin);
 		if (dist_squared > query_range_squared) {
 			continue;
 		}
 
-		// --- Visibility Check (most expensive) ---
+		// --- Priority Calculation (Math - Fast) ---
+		// Calculate BEFORE visibility check - if priority is too low, skip expensive trace
+		float current_priority = CalculateTargetPriority(self, ent, dist_squared);
+		if (current_priority <= highest_priority) {
+			continue;  // Not better than what we have, skip expensive checks
+		}
+
+		// --- PVS Check (Engine Lookup - Fast) ---
+		// Potentially Visible Set check - avoids raycast if areas can't see each other
+		if (!gi.inPVS(self_origin, ent->s.origin, true)) [[unlikely]] {
+			continue;
+		}
+
+		// --- Visibility Trace (Raycast - Expensive, Last Resort) ---
 		if (!visible(self, ent, false)) {
 			continue;
 		}
 
-		// --- Priority Calculation ---
-		float current_priority = CalculateTargetPriority(self, ent, dist_squared);
-
 		// --- Update Best Target ---
-		if (current_priority > highest_priority) {
-			highest_priority = current_priority;
-			best_target = ent;
-		}
+		highest_priority = current_priority;
+		best_target = ent;
 	}
 
 	// --- Finalize Target ---

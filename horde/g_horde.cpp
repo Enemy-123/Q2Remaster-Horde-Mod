@@ -48,6 +48,7 @@ boost::container::flat_map<int, AssetFamilyID> g_monster_family_map;
 // Provides a direct list of spawn point edicts for easy iteration
 // Using small_vector to avoid heap allocation for typical maps (most have < 64 spawn points)
 boost::container::small_vector<edict_t*, 64> g_spawn_point_list;
+
 // The actual number of spawn points found on the map
 size_t g_num_spawn_points = 0;
 
@@ -456,7 +457,9 @@ static void ApplyAlternativePositionCooldown(edict_t *spawn_point)
 	if (!spawn_point || !spawn_point->inuse)
 		return;
 
-	const uint16_t index = g_spawn_system.spawn_point_index_lookup[spawn_point->s.number];
+	const uint16_t index = GetSpawnPointIndexSafe(spawn_point);
+	if (index == 0xFFFF) [[unlikely]]
+		return;
 
 	g_spawn_system.spawn_points_data.alternative_attempts[index]++;
 	gtime_t cooldown_duration;
@@ -493,7 +496,9 @@ void IncreaseSpawnAttempts(edict_t *spawn_point)
 	if (!spawn_point || !spawn_point->inuse)
 		return;
 
-	const uint16_t index = g_spawn_system.spawn_point_index_lookup[spawn_point->s.number];
+	const uint16_t index = GetSpawnPointIndexSafe(spawn_point);
+	if (index == 0xFFFF) [[unlikely]]
+		return;
 
 	if (level.time - g_spawn_system.spawn_points_data.lastSpawnTime[index] > HordeConstants::SPAWN_POINT_INACTIVITY_RESET_THRESHOLD)
 	{
@@ -541,7 +546,9 @@ void OnSuccessfulSpawn(edict_t *spawn_point)
 	if (!spawn_point || !spawn_point->inuse)
 		return;
 
-	const uint16_t index = g_spawn_system.spawn_point_index_lookup[spawn_point->s.number];
+	const uint16_t index = GetSpawnPointIndexSafe(spawn_point);
+	if (index == 0xFFFF) [[unlikely]]
+		return;
 
 	g_spawn_system.spawn_points_data.successfulSpawns[index]++;
 	g_spawn_system.spawn_points_data.attempts[index] = 0;
@@ -577,9 +584,10 @@ struct SpawnPointCacheArray
 		}
 
 		// OPTIMIZATION: O(1) vector lookup instead of O(log N) map lookup
-		const uint16_t index = g_spawn_system.spawn_point_index_lookup[ent->s.number];
-		if (index == 0xFFFF) {
-			gi.Com_PrintFmt("ERROR: Spawn point {} not found in map!\n", ent->s.number);
+		// SAFETY: Use bounds-checked helper to prevent overflow
+		const uint16_t index = GetSpawnPointIndexSafe(ent);
+		if (index == 0xFFFF) [[unlikely]] {
+			gi.Com_PrintFmt("ERROR: Spawn point {} not found in map (or out of bounds)!\n", ent->s.number);
 
 			// Debug assertion to catch this during development
 			assert(false && "spawn point not found in map!");
@@ -608,9 +616,10 @@ struct SpawnPointCacheArray
 		}
 
 		// OPTIMIZATION: O(1) vector lookup instead of O(log N) map lookup
-		const uint16_t index = g_spawn_system.spawn_point_index_lookup[ent->s.number];
-		if (index == 0xFFFF) {
-			gi.Com_PrintFmt("ERROR: Spawn point {} not found in map!\n", ent->s.number);
+		// SAFETY: Use bounds-checked helper to prevent overflow
+		const uint16_t index = GetSpawnPointIndexSafe(ent);
+		if (index == 0xFFFF) [[unlikely]] {
+			gi.Com_PrintFmt("ERROR: Spawn point {} not found in map (or out of bounds)!\n", ent->s.number);
 
 			// Debug assertion to catch this during development
 			assert(false && "spawn point not found in map!");
@@ -691,6 +700,12 @@ void BuildSpawnPointMap()
 			uint16_t compact_index = static_cast<uint16_t>(g_spawn_point_list.size());
 			g_spawn_system.spawn_point_map[sp->s.number] = compact_index;
 			// OPTIMIZATION: O(1) vector lookup instead of O(log N) map lookup
+			// SAFETY: Bounds check to prevent out-of-bounds write
+			if (sp->s.number >= g_spawn_system.spawn_point_index_lookup.size()) [[unlikely]] {
+				gi.Com_PrintFmt("ERROR: Spawn point entity number {} exceeds max_edicts {}! Skipping.\n",
+					sp->s.number, g_spawn_system.spawn_point_index_lookup.size());
+				continue;
+			}
 			g_spawn_system.spawn_point_index_lookup[sp->s.number] = compact_index;
 			// Then add the pointer to the list
 			if (!safe_push_back(g_spawn_point_list, sp, MAX_SPAWN_POINTS)) {
@@ -5632,7 +5647,10 @@ static edict_t* FindSafeTeleportDestination(edict_t* self)
 		// --- END PERFORMANCE FIX ---
 
 		// --- A. Filter for Valid Spawn Points ---
-		const uint16_t index = g_spawn_system.spawn_point_index_lookup[spawn_point->s.number];
+		const uint16_t index = GetSpawnPointIndexSafe(spawn_point);
+		if (index == 0xFFFF) [[unlikely]]
+			continue;
+
 		if (level.time < g_spawn_system.spawn_points_data.teleport_cooldown[index] || IsSpawnPointOccupied(spawn_point))
 		{
 			continue;
@@ -6582,7 +6600,9 @@ static void ApplySuccessfulAlternativeCooldown(edict_t *spawn_point)
 	if (!spawn_point || !spawn_point->inuse)
 		return;
 
-	const uint16_t index = g_spawn_system.spawn_point_index_lookup[spawn_point->s.number];
+	const uint16_t index = GetSpawnPointIndexSafe(spawn_point);
+	if (index == 0xFFFF) [[unlikely]]
+		return;
 
 	// FIX: Cast the signed 'index' to the unsigned 'size_t' for each array access.
 	g_spawn_system.spawn_points_data.alternative_attempts[static_cast<size_t>(index)] = 0;
