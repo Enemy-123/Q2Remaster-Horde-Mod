@@ -934,6 +934,17 @@ static void Player_GiveStartItems(edict_t* ent, const char* ptr)
 	if (!ent || !ptr)
 		return;
 
+	// [Optimization] Use static dummy entity to avoid G_Spawn/G_FreeEdict overhead
+	alignas(edict_t) static char dummy_storage[sizeof(edict_t)];
+	edict_t* dummy_entity = reinterpret_cast<edict_t*>(dummy_storage);
+	static bool dummy_initialized = false;
+	if (!dummy_initialized)
+	{
+		memset(dummy_entity, 0, sizeof(edict_t));
+		dummy_entity->classname = "temp_item";
+		dummy_initialized = true;
+	}
+
 	char token_copy[MAX_TOKEN_CHARS];
 	const char* token;
 
@@ -975,18 +986,19 @@ static void Player_GiveStartItems(edict_t* ent, const char* ptr)
 			continue;
 		}
 
-		edict_t* dummy = G_Spawn();
-		if (!dummy)
-		{
-			gi.Com_ErrorFmt("Failed to spawn dummy entity for item {}\n", item_name);
-			continue;
-		}
+		// [Optimization] Use static dummy instead of G_Spawn/G_FreeEdict
+		dummy_entity->item = item;
+		dummy_entity->count = count;
+		dummy_entity->spawnflags = SPAWNFLAG_ITEM_DROPPED | SPAWNFLAG_ITEM_START_ITEM;
+		dummy_entity->inuse = true; // Mark as active for pickup
 
-		dummy->item = item;
-		dummy->count = count;
-		dummy->spawnflags |= SPAWNFLAG_ITEM_DROPPED | SPAWNFLAG_ITEM_START_ITEM;
-		item->pickup(dummy, ent);
-		G_FreeEdict(dummy);
+		item->pickup(dummy_entity, ent);
+
+		// Clean up dummy for next use
+		dummy_entity->inuse = false;
+		dummy_entity->item = nullptr;
+		dummy_entity->count = 0;
+		dummy_entity->spawnflags = SPAWNFLAG_NONE;
 	}
 }
 
@@ -1725,8 +1737,47 @@ bool SpawnPointClear(edict_t* spot)
 	return !gi.trace(p, PLAYER_MINS, PLAYER_MAXS, p, spot, CONTENTS_PLAYER | CONTENTS_MONSTER).startsolid;
 }
 
+// [Optimization] Cache all deathmatch spawn points at level start
+// Called from SP_worldspawn or G_SpawnEntities to avoid O(N) iteration every spawn
+static void CacheSpawnPoints()
+{
+	level.dm_spawns_cached.clear();
+
+	// Reserve space to avoid reallocations (64 is stack-allocated in small_vector)
+	level.dm_spawns_cached.reserve(64);
+
+	// Find all spawn point types
+	edict_t* e = nullptr;
+
+	// Primary: info_player_deathmatch
+	while ((e = G_FindByString<&edict_t::classname>(e, "info_player_deathmatch")))
+		level.dm_spawns_cached.push_back(e);
+
+	// CTF team spawns
+	e = nullptr;
+	while ((e = G_FindByString<&edict_t::classname>(e, "info_player_team1")))
+		level.dm_spawns_cached.push_back(e);
+
+	e = nullptr;
+	while ((e = G_FindByString<&edict_t::classname>(e, "info_player_team2")))
+		level.dm_spawns_cached.push_back(e);
+
+	// Fallback: info_player_start
+	e = nullptr;
+	while ((e = G_FindByString<&edict_t::classname>(e, "info_player_start")))
+		level.dm_spawns_cached.push_back(e);
+
+	level.spawns_cached = true;
+
+	gi.Com_PrintFmt("Cached {} spawn points for deathmatch\n", level.dm_spawns_cached.size());
+}
+
 select_spawn_result_t SelectDeathmatchSpawnPoint(bool farthest, bool force_spawn, bool fallback_to_ctf_or_start)
 {
+	// [Optimization] Initialize spawn cache on first call
+	if (!level.spawns_cached)
+		CacheSpawnPoints();
+
 	struct spawn_point_t
 	{
 		edict_t* point;
@@ -1743,10 +1794,9 @@ select_spawn_result_t SelectDeathmatchSpawnPoint(bool farthest, bool force_spawn
 	static constexpr const char* team2_spawn_class = "info_player_team2";
 	static constexpr const char* start_spawn_class = "info_player_start";
 
-	// Gather all potential spawn points in a single pass over the edict list
-	for (uint32_t i = 1; i < globals.num_edicts; i++)
+	// [Optimization] Use cached spawn points instead of iterating all edicts (O(N) -> O(spawns))
+	for (edict_t* spot : level.dm_spawns_cached)
 	{
-		edict_t* spot = &g_edicts[i];
 		if (!spot->inuse || !spot->classname)
 			continue;
 
@@ -1755,7 +1805,7 @@ select_spawn_result_t SelectDeathmatchSpawnPoint(bool farthest, bool force_spawn
 
 		if (!is_valid_spawn && fallback_to_ctf_or_start)
 		{
-			is_valid_spawn = (strcmp(classname, team1_spawn_class) == 0 || 
+			is_valid_spawn = (strcmp(classname, team1_spawn_class) == 0 ||
 			                  strcmp(classname, team2_spawn_class) == 0);
 		}
 
@@ -1766,9 +1816,15 @@ select_spawn_result_t SelectDeathmatchSpawnPoint(bool farthest, bool force_spawn
 	// If still no points after the main loop, try the absolute fallback
 	if (spawn_points.empty() && fallback_to_ctf_or_start)
 	{
-		edict_t* spot = G_FindByString<&edict_t::classname>(nullptr, start_spawn_class);
-		if (spot)
-			spawn_points.push_back({ spot, PlayersRangeFromSpot(spot) });
+		// Check if we already have info_player_start in cache
+		for (edict_t* spot : level.dm_spawns_cached)
+		{
+			if (spot->inuse && spot->classname && strcmp(spot->classname, start_spawn_class) == 0)
+			{
+				spawn_points.push_back({ spot, PlayersRangeFromSpot(spot) });
+				break;
+			}
+		}
 	}
 
 	// No points at all
@@ -1985,7 +2041,11 @@ edict_t* SelectCoopSpawnPoint(edict_t* ent, bool force_spawn, bool check_players
 	// assume there are four coop spots at each spawnpoint
 	int32_t num_valid_spots = 0;
 
-	while (1)
+	// [Safety] Add iteration limit to prevent excessive loops on broken maps
+	constexpr int32_t MAX_SPAWN_ITERATIONS = 128;
+	int32_t iterations = 0;
+
+	while (iterations++ < MAX_SPAWN_ITERATIONS)
 	{
 		spot = G_FindByString<&edict_t::classname>(spot, "info_player_coop");
 		if (!spot)
@@ -2010,8 +2070,9 @@ edict_t* SelectCoopSpawnPoint(edict_t* ent, bool force_spawn, bool check_players
 	if (!num_valid_spots)
 	{
 		use_targetname = false;
+		iterations = 0; // Reset counter for next loop
 
-		while (1)
+		while (iterations++ < MAX_SPAWN_ITERATIONS)
 		{
 			spot = G_FindByString<&edict_t::classname>(spot, "info_player_coop");
 			if (!spot)
@@ -2035,8 +2096,9 @@ edict_t* SelectCoopSpawnPoint(edict_t* ent, bool force_spawn, bool check_players
 		spot = nullptr;
 
 		num_valid_spots = irandom(num_valid_spots);
+		iterations = 0; // Reset counter for next loop
 
-		while (1)
+		while (iterations++ < MAX_SPAWN_ITERATIONS)
 		{
 			spot = G_FindByString<&edict_t::classname>(spot, "info_player_coop");
 
@@ -3376,7 +3438,8 @@ Gets a token version of the players "name" to be decoded on the client.
 std::string G_EncodedPlayerName(edict_t* player)
 {
 	unsigned int const playernum = P_GetLobbyUserNum(player);
-	return std::string("##P") + std::to_string(playernum);
+	// [Optimization] Use std::format (C++23) instead of string concatenation
+	return std::format("##P{}", playernum);
 }
 
 /*
@@ -3481,11 +3544,9 @@ void ClientUserinfoChanged(edict_t* ent, const char* userinfo)
 
 inline bool IsSlotIgnored(edict_t* slot, edict_t** ignore, size_t num_ignore)
 {
-	for (size_t i = 0; i < num_ignore; i++)
-		if (slot == ignore[i])
-			return true;
-
-	return false;
+	// [Optimization] Use std::ranges (C++23) instead of manual loop
+	std::span<edict_t*> ignore_span(ignore, num_ignore);
+	return std::ranges::find(ignore_span, slot) != ignore_span.end();
 }
 
 inline edict_t* ClientChooseSlot_Any(edict_t** ignore, size_t num_ignore)
@@ -3769,10 +3830,13 @@ void ClientDisconnect(edict_t* ent)
 	if (ent->client->tracker_pain_time > 0_ms) // Check against 0_ms
 		RemoveAttackingPainDaemons(ent);
 
+	// [Safety] Clean up owned sphere with defensive checks against UAF
 	if (ent->client->owned_sphere)
 	{
-		if (ent->client->owned_sphere->inuse)
-			G_FreeEdict(ent->client->owned_sphere);
+		edict_t* sphere = ent->client->owned_sphere;
+		// Validate the sphere is still the same entity before accessing fields
+		if (sphere->inuse && sphere->classname && strcmp(sphere->classname, "sphere") == 0)
+			G_FreeEdict(sphere);
 		ent->client->owned_sphere = nullptr;
 	}
 

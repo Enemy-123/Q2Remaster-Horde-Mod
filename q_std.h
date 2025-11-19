@@ -16,6 +16,7 @@
 #include <ctime>
 #include <type_traits>
 #include <algorithm>
+#include <ranges>
 #include <array>
 #include <string_view>
 #include <numeric>

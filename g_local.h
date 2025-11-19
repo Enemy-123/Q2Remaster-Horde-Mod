@@ -25,6 +25,7 @@ constexpr vec3_t PLAYER_MAXS = { 16, 16, 32 };
 #include <charconv>
 #include <span>
 #include <utility>
+#include <boost/container/small_vector.hpp>
 
 template<typename T>
 constexpr bool is_char_ptr_v = std::is_convertible_v<T, const char*>;
@@ -1361,6 +1362,10 @@ struct level_locals_t
 
 	const char* primary_objective_title;
 	const char* secondary_objective_title;
+
+	// [Optimization] Cached spawn points for deathmatch to avoid O(N) iteration every spawn
+	boost::container::small_vector<edict_t*, 64> dm_spawns_cached;
+	bool spawns_cached = false;
 };
 
 struct shadow_light_temp_t
