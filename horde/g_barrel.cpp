@@ -79,9 +79,8 @@ void barrel_remove(edict_t* self)
     // Clean up player tracking
     barrel_cleanup_tracking(self);
 
-    // Remove from targetable entities if tracked
-    auto& vec = g_targetable_special_entities;
-    vec.erase(std::remove(vec.begin(), vec.end(), self), vec.end());
+    // Remove from targetable entities if tracked (O(1) swap-and-pop)
+    RemoveEntityFromGlobalList(self);
 
     G_FreeEdict(self);
 }

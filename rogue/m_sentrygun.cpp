@@ -1780,8 +1780,7 @@ PAIN(turret2_pain) (edict_t* self, edict_t* other, float kick, int damage, const
 
 DIE(turret2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-	auto& vec = g_targetable_special_entities;
-    vec.erase(std::remove(vec.begin(), vec.end(), self), vec.end());
+	RemoveEntityFromGlobalList(self);
 
 	// --- FIX: Free the allocated sentry state to prevent a memory leak ---
 	if (self->monsterinfo.sentry_state)

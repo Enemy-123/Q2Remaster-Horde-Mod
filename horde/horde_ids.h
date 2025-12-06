@@ -25,20 +25,6 @@ namespace horde {
 
 namespace horde {
 
-    // Compile-time string hashing using FNV-1a algorithm
-    // Can be used for fast string comparisons in constexpr contexts
-    constexpr uint32_t fnv1a_hash(std::string_view str) noexcept {
-        constexpr uint32_t FNV_PRIME = 0x01000193;
-        constexpr uint32_t FNV_OFFSET = 0x811C9DC5;
-
-        uint32_t hash = FNV_OFFSET;
-        for (char c : str) {
-            hash ^= static_cast<uint32_t>(c);
-            hash *= FNV_PRIME;
-        }
-        return hash;
-    }
-
     // IDs for monster types - allows array-based lookup instead of string-based
     enum class MonsterTypeID : uint8_t {
         SOLDIER_LIGHT = 0,

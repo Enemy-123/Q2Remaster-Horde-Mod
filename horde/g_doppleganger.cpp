@@ -70,8 +70,7 @@ DIE(doppleganger_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int
 	float	 dist;
 	vec3_t	 dir;
 
-	auto& vec = g_targetable_special_entities;
-	vec.erase(std::remove(vec.begin(), vec.end(), self), vec.end());
+	RemoveEntityFromGlobalList(self);
 
 	if ((self->enemy) && (self->enemy != self->teammaster))
 	{

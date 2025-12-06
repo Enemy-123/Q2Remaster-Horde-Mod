@@ -4,11 +4,8 @@
 #include <span>
 #include <array> // Included for std::array
 
-// Assuming gtime_t and other game-specific types are defined in "shared.h"
-// Also assuming fmt library is available and configured.
-
-// Stack-based buffer version - writes directly to output buffer
-// Returns pointer to end of written data for chaining
+// Formats a classname like "monster_soldier_light" into "Soldier Light"
+// Used by InitializeDisplayNames() in shared.cpp
 char* FormatClassname(const char* classname, char* out, const char* end) {
 	bool first_word = true;
 	bool capitalize_next = true;
@@ -33,7 +30,6 @@ char* FormatClassname(const char* classname, char* out, const char* end) {
 	}
 	return out;
 }
-
 
 static bool IsValidTarget(edict_t* ent, edict_t* other, bool check_visibility) {
 	if (!other || !other->inuse || !other->takedamage || other->solid == SOLID_NOT) {
