@@ -156,13 +156,15 @@ constexpr vec3_t vec3_origin{};
 
 inline void AngleVectors(const vec3_t& angles, vec3_t* forward, vec3_t* right, vec3_t* up)
 {
-    float angle = angles[YAW] * (PIf * 2 / 360);
+    constexpr float DEG_TO_RAD = PIf * 2.0f / 360.0f;
+    
+    float angle = angles[YAW] * DEG_TO_RAD;
     float const sy = std::sin(angle);
     float const cy = std::cos(angle);
-    angle = angles[PITCH] * (PIf * 2 / 360);
+    angle = angles[PITCH] * DEG_TO_RAD;
     float const sp = std::sin(angle);
     float const cp = std::cos(angle);
-    angle = angles[ROLL] * (PIf * 2 / 360);
+    angle = angles[ROLL] * DEG_TO_RAD;
     float const sr = std::sin(angle);
     float const cr = std::cos(angle);
 
@@ -284,7 +286,7 @@ using mat3_t = std::array<std::array<float, 3>, 3>;
     };
 }
 
-[[nodiscard]] inline vec3_t RotatePointAroundVector(const vec3_t& dir, const vec3_t& point, float degrees)
+[[nodiscard]] [[nodiscard]] inline vec3_t RotatePointAroundVector(const vec3_t& dir, const vec3_t& point, float degrees)
 {
     mat3_t  m{};
     mat3_t  im;
@@ -319,12 +321,15 @@ using mat3_t = std::array<std::array<float, 3>, 3>;
     im[2][1] = m[1][2];
 
     zrot = {};
-    zrot[0][0] = zrot[1][1] = zrot[2][2] = 1.0F;
+    zrot[2][2] = 1.0F;
 
-    zrot[0][0] = std::cos(DEG2RAD(degrees));
-    zrot[0][1] = std::sin(DEG2RAD(degrees));
-    zrot[1][0] = -std::sin(DEG2RAD(degrees));
-    zrot[1][1] = std::cos(DEG2RAD(degrees));
+    // Cache sin/cos to avoid redundant trig calls
+    float const c = std::cos(DEG2RAD(degrees));
+    float const s = std::sin(DEG2RAD(degrees));
+    zrot[0][0] = c;
+    zrot[0][1] = s;
+    zrot[1][0] = -s;
+    zrot[1][1] = c;
 
     rot = R_ConcatRotations(R_ConcatRotations(m, zrot), im);
 
