@@ -2531,6 +2531,16 @@ static bool ShouldAttemptHigherLevelSpawn(int32_t currentLevel, bool isRetaliati
 		return false;
 	}
 
+	// Don't spawn elites in waves 1-2 (too early for special monsters)
+	if (currentLevel < 3)
+	{
+		if (developer->integer)
+		{
+			gi.Com_PrintFmt("ShouldAttemptHigherLevelSpawn: BLOCKED (wave {} < 3, too early for elites)\n", currentLevel);
+		}
+		return false;
+	}
+
 	// Define probabilities based on wave progression
 	if (currentLevel <= 10)
 	{
