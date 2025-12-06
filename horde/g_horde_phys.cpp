@@ -145,9 +145,7 @@ namespace HordePhys
         std::fill(m_last_query_ids.begin(), m_last_query_ids.end(), 0);
 
         if (developer->integer >= 2) {
-            const char* query_method = (g_horde_use_query_ids->integer > 0) ? "Query ID system" : "Bool array";
-            gi.Com_PrintFmt("ProximityGrid built successfully. Cell size: %.2f, Query method: {}\n",
-                m_cell_size, query_method);
+            gi.Com_PrintFmt("ProximityGrid built successfully. Cell size: {:.2f}\n", m_cell_size);
         }
     }
     // ... (rest of g_horde_phys.cpp remains the same) ...
@@ -228,38 +226,25 @@ namespace HordePhys
     template<typename FilterFunc>
     std::span<edict_t* const> ProximityGrid::QueryCellRange(const int min_x, const int max_x, const int min_y, const int max_y, FilterFunc&& filter)
     {
-        // Choose visited tracking method based on cvar
-        const bool use_query_ids = (g_horde_use_query_ids->integer > 0);
-
-        if (use_query_ids)
+        // Increment query ID. If it wraps (very rare), reset the array.
+        m_current_query_id++;
+        if (m_current_query_id == 0)
         {
-            // PERFORMANCE TEST: Query ID System
-            // Increment query ID. If it wraps (very rare), reset the array.
-            m_current_query_id++;
-            if (m_current_query_id == 0)
-            {
-                std::fill(m_last_query_ids.begin(), m_last_query_ids.end(), 0);
-                m_current_query_id = 1;
-            }
-        }
-        else
-        {
-            // DEFAULT: Bool array approach (proven reliable)
-            std::fill(m_visited_entities.begin(), m_visited_entities.end(), false);
+            std::fill(m_last_query_ids.begin(), m_last_query_ids.end(), 0);
+            m_current_query_id = 1;
         }
 
         size_t buffer_count = 0;
-        bool buffer_full = false;
 
-        for (int y = min_y; y <= max_y && !buffer_full; ++y)
+        for (int y = min_y; y <= max_y; ++y)
         {
-            for (int x = min_x; x <= max_x && !buffer_full; ++x)
+            for (int x = min_x; x <= max_x; ++x)
             {
                 const int cell_idx = y * GRID_DIMENSION + x;
                 const auto& cell = m_cells[static_cast<size_t>(cell_idx)];
                 const auto& monsters = cell.monsters;
 
-                for (size_t i = 0; i < monsters.size() && !buffer_full; ++i)
+                for (size_t i = 0; i < monsters.size(); ++i)
                 {
                     edict_t* other = monsters[i];
 
@@ -270,40 +255,22 @@ namespace HordePhys
 
                     const int entity_num = other->s.number;
 
-                    // Check if entity has been visited this query
-                    bool already_visited = false;
-                    if (use_query_ids)
+                    // Query ID approach: Check if last query ID matches current
+                    if (m_last_query_ids[entity_num] == m_current_query_id) {
+                        continue; // Already visited this query
+                    }
+                    m_last_query_ids[entity_num] = m_current_query_id;
+
+                    if (buffer_count < m_query_buffer.size())
                     {
-                        // Query ID approach: Check if last query ID matches current
-                        already_visited = (m_last_query_ids[entity_num] == m_current_query_id);
-                        if (!already_visited)
-                        {
-                            m_last_query_ids[entity_num] = m_current_query_id;
-                        }
+                        m_query_buffer[buffer_count++] = other;
                     }
                     else
                     {
-                        // Bool array approach: Check and set visited flag
-                        already_visited = m_visited_entities[entity_num];
-                        if (!already_visited)
-                        {
-                            m_visited_entities[entity_num] = true;
+                        if (developer->integer) {
+                            gi.Com_PrintFmt("ProximityGrid WARNING: Query buffer is full! (Max {})\n", m_query_buffer.size());
                         }
-                    }
-
-                    if (!already_visited)
-                    {
-                        if (buffer_count < m_query_buffer.size())
-                        {
-                            m_query_buffer[buffer_count++] = other;
-                        }
-                        else
-                        {
-                            if (developer->integer) {
-                                gi.Com_PrintFmt("ProximityGrid WARNING: Query buffer is full! (Max {})\n", m_query_buffer.size());
-                            }
-                            buffer_full = true;
-                        }
+                        return { m_query_buffer.data(), buffer_count };
                     }
                 }
             }
@@ -585,13 +552,13 @@ void ProximityGrid::Reset()
         // Check for sufficient open space (reject enclosed boxes/tight spaces)
         // Test 4 horizontal directions at chest height
         const float test_height = (maxs.z - mins.z) * 0.5f;
-        const float min_clearance = 96.0f; // Minimum clearance in each direction
+        constexpr float min_clearance = 96.0f; // Minimum clearance in each direction
 
         vec3_t test_center = pos;
         test_center.z += test_height;
 
-        // Check forward, back, left, right
-        const vec3_t directions[4] = {
+        // Check forward, back, left, right - static to avoid per-call construction
+        static const vec3_t directions[4] = {
             {min_clearance, 0, 0},
             {-min_clearance, 0, 0},
             {0, min_clearance, 0},
@@ -703,6 +670,42 @@ void ProximityGrid::Reset()
 
         gi.Com_PrintFmt("Generating spawn grid for map {}...\n", level.mapname);
 
+        // --- SPATIAL HASH FOR O(1) NEARBY LOOKUPS ---
+        // Use 64-unit cells (2x min_distance of 32) for efficient nearby checks
+        constexpr float HASH_CELL_SIZE = 64.0f;
+        constexpr float INV_HASH_CELL_SIZE = 1.0f / HASH_CELL_SIZE;
+        constexpr int HASH_TABLE_SIZE = 4096; // Power of 2 for fast modulo
+        
+        // Hash table: each bucket contains indices into m_grid_nodes
+        std::array<boost::container::small_vector<int, 8>, HASH_TABLE_SIZE> spatial_hash;
+        
+        auto hash_pos = [&](const vec3_t& pos) -> int {
+            const int hx = static_cast<int>((pos.x - world_mins.x) * INV_HASH_CELL_SIZE);
+            const int hy = static_cast<int>((pos.y - world_mins.y) * INV_HASH_CELL_SIZE);
+            // Simple hash combining x and y
+            return ((hx * 73856093) ^ (hy * 19349663)) & (HASH_TABLE_SIZE - 1);
+        };
+        
+        auto is_nearby_fast = [&](const vec3_t& pos, float min_distance) -> bool {
+            const float min_dist_sq = min_distance * min_distance;
+            const int hx = static_cast<int>((pos.x - world_mins.x) * INV_HASH_CELL_SIZE);
+            const int hy = static_cast<int>((pos.y - world_mins.y) * INV_HASH_CELL_SIZE);
+            
+            // Check 3x3 neighborhood of cells
+            for (int dy = -1; dy <= 1; dy++) {
+                for (int dx = -1; dx <= 1; dx++) {
+                    const int cell_hash = (((hx + dx) * 73856093) ^ ((hy + dy) * 19349663)) & (HASH_TABLE_SIZE - 1);
+                    for (int idx : spatial_hash[cell_hash]) {
+                        const float dist_sq = (m_grid_nodes[idx] - pos).lengthSquared();
+                        if (dist_sq < min_dist_sq)
+                            return true;
+                    }
+                }
+            }
+            return false;
+        };
+        // --- END SPATIAL HASH ---
+
         // Scan the entire map in a 3D grid pattern
         for (int x = 0; x < GRID_DIMENSION; x++) {
             for (int y = 0; y < GRID_DIMENSION; y++) {
@@ -787,14 +790,19 @@ void ProximityGrid::Reset()
                         continue; // Too close to sky - reject position
                     }
 
-                    // OPTIMIZED: Reduced spacing for higher density (was 64, now 32 units)
-                    if (IsNearbyGridNode(final_pos, generated_count, 32.0f)) {
+                    // OPTIMIZED: Use spatial hash for O(1) nearby check instead of O(n) scan
+                    if (is_nearby_fast(final_pos, 32.0f)) {
                         failed_nearby++;
                         continue;
                     }
 
                     // Valid spawn position found!
+                    const int new_idx = static_cast<int>(m_grid_nodes.size());
                     m_grid_nodes.push_back(final_pos);
+                    
+                    // Add to spatial hash for future nearby checks
+                    spatial_hash[hash_pos(final_pos)].push_back(new_idx);
+                    
                     generated_count++;
 
                     // Progress indicator

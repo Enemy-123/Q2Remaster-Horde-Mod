@@ -2178,7 +2178,6 @@ extern cvar_t* g_speedstuff;
 
 extern cvar_t* g_horde_profiler;
 extern cvar_t* g_horde_tactical_spawn;  // 0=off, 1=distance only, 2=distance+visibility
-extern cvar_t* g_horde_use_query_ids;   // 0=bool array (default), 1=query ID system
 extern cvar_t* g_vortex;
 
 extern cvar_t* g_chaotic;

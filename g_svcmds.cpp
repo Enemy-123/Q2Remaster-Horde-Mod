@@ -334,44 +334,6 @@ void SVCmd_TacticalSpawns_f()
 
 /*
 =================
-SVCmd_QueryIDs_f
-Admin command: sv queryids <0|1>
-Controls proximity grid query method (performance testing)
-0 = Bool array (default, proven reliable)
-1 = Query ID system (test for performance comparison)
-=================
-*/
-void SVCmd_QueryIDs_f()
-{
-	if (gi.argc() < 3)
-	{
-		const char* method_str = (g_horde_use_query_ids->integer == 0) ? "Bool array (default)" : "Query ID system";
-
-		gi.LocClient_Print(nullptr, PRINT_HIGH,
-			"Usage: sv queryids <0|1>\n"
-			"Current method: {} ({})\n"
-			"  0 = Bool array (default, proven reliable)\n"
-			"  1 = Query ID system (experimental performance test)\n",
-			g_horde_use_query_ids->integer, method_str);
-		return;
-	}
-
-	int mode = atoi(gi.argv(2));
-
-	if (mode < 0 || mode > 1)
-	{
-		gi.LocClient_Print(nullptr, PRINT_HIGH, "Invalid mode {}. Must be 0 or 1\n", mode);
-		return;
-	}
-
-	gi.cvar_set("g_horde_use_query_ids", G_Fmt("{}", mode).data());
-
-	const char* method_str = (mode == 0) ? "Bool array (default)" : "Query ID system";
-	gi.LocBroadcast_Print(PRINT_HIGH, "Proximity grid query method set to: {} ({})\n", mode, method_str);
-}
-
-/*
-=================
 ServerCommand
 
 ServerCommand will be called when an "sv" command is issued.
@@ -580,8 +542,6 @@ void ServerCommand()
 		SVCmd_ResetPlayer_f();
 	else if (Q_strcasecmp(cmd, "tacticspawns") == 0)
 		SVCmd_TacticalSpawns_f();
-	else if (Q_strcasecmp(cmd, "queryids") == 0)
-		SVCmd_QueryIDs_f();
 	// REMOVED: Asset manager commands (assetstats, assetlist, assetcleanup)
 	else
 		gi.LocClient_Print(nullptr, PRINT_HIGH, "Unknown server command \"{}\"\n", cmd);

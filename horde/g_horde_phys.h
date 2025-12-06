@@ -59,14 +59,9 @@ namespace HordePhys {
         std::array<ProximityGridCell, CELL_COUNT> m_cells;
         std::array<edict_t*, MAX_QUERY_RESULTS> m_query_buffer;
 
-        // --- MODIFICATION: Reusable buffer to avoid heap allocations in queries ---
-        std::array<bool, MAX_EDICTS> m_visited_entities;
-
-        // --- PERFORMANCE TEST: Query ID system (alternative to bool array) ---
-        // Controlled by g_horde_use_query_ids cvar: 0=bool array (default), 1=query ID system
+        // Query ID system for efficient duplicate detection across cells
         std::array<uint32_t, MAX_EDICTS> m_last_query_ids;
         uint32_t m_current_query_id = 0;
-        // --- END MODIFICATION ---
 
         vec3_t m_world_mins;
         float m_cell_size = 0.0f;
@@ -77,7 +72,7 @@ namespace HordePhys {
         // Helper method for common query logic
         template<typename FilterFunc>
         std::span<edict_t* const> QueryCellRange(int min_x, int max_x, int min_y, int max_y, FilterFunc&& filter);
-    };
+    };;
 
     extern ProximityGrid g_monster_grid;
 
