@@ -234,7 +234,7 @@ static int CheckPowerArmor(edict_t* ent, const vec3_t& point, const vec3_t& norm
 	else
 	{
 		if (ctf->integer)
-			damagePerCell = 2; // power armor is weaker in CTF
+			damagePerCell = 1; // power armor is weaker in CTF
 		else
 			damagePerCell = 2;
 		pa_te_type = TE_SCREEN_SPARKS;
@@ -364,6 +364,18 @@ static int CheckArmor(edict_t* ent, const vec3_t& point, const vec3_t& normal, i
 	return save;
 }
 
+// Helper function to check if an entity is a targetable deployable or special entity
+static bool IsThreatableDeployable(const edict_t* ent) {
+    if (!ent) return false;
+    return ent->monsterinfo.isfriendlyspawn ||
+           horde::IsSpecialType(ent, horde::SpecialEntityTypeID::TESLA_MINE) ||
+           horde::IsSpecialType(ent, horde::SpecialEntityTypeID::DOPPLEGANGER) ||
+           horde::IsSpecialType(ent, horde::SpecialEntityTypeID::MORPHED_PLAYER) ||
+           horde::IsSpecialType(ent, horde::SpecialEntityTypeID::LASER_EMITTER) ||
+           horde::IsSpecialType(ent, horde::SpecialEntityTypeID::BARREL) ||
+           horde::IsSpecialType(ent, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP);
+}
+
 void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 {
     // pmm
@@ -381,13 +393,7 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
     edict_t* threat_source = nullptr;
 
     // Case 1: The inflictor is a deployable itself (like a Tesla mine) or a morphed player.
-    if (inflictor && (horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::TESLA_MINE) ||
-                      inflictor->monsterinfo.isfriendlyspawn ||
-					  horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::DOPPLEGANGER) ||
-					  horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::MORPHED_PLAYER) ||
-                      horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::LASER_EMITTER) ||
-                      horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::BARREL) ||
-                      horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP)))
+    if (IsThreatableDeployable(inflictor))
     {
         threat_source = inflictor;
     }
@@ -417,33 +423,19 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
     if (threat_source && threat_source->inuse)
     {
         // Check if the monster should target this type of deployable or morphed player.
-        if (horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::TESLA_MINE) ||
-            threat_source->monsterinfo.isfriendlyspawn ||
-			horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::DOPPLEGANGER) ||
-			horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::MORPHED_PLAYER) ||
-            horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::LASER_EMITTER) ||
-            horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::BARREL) ||
-            horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP))
+        if (IsThreatableDeployable(threat_source))
         {
             new_tesla = MarkTeslaArea(targ, threat_source); // Assuming this function marks the area around any deployable.
 
             // Summoned entities, morphed players, Laser Emitter, Barrel, or Trap logic
-            if (threat_source->monsterinfo.isfriendlyspawn ||
-				horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::DOPPLEGANGER) ||
-				horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::MORPHED_PLAYER) ||
-				horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::LASER_EMITTER) ||
-				horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::BARREL) ||
-				horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP))
+            // Note: Tesla mines have separate handling below, so exclude them here
+            if (!horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::TESLA_MINE) &&
+                IsThreatableDeployable(threat_source))
             {
                 if (level.time - targ->monsterinfo.last_reacttodamage_target_time > target_cooldown_react)
                 {
                     if ((new_tesla || brandom()) && (!targ->enemy ||
-                        !(targ->enemy->monsterinfo.isfriendlyspawn ||
-					  	 horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::DOPPLEGANGER) ||
-						 horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::MORPHED_PLAYER) ||
-						 horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::LASER_EMITTER) ||
-						 horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::BARREL) ||
-						 horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP))))
+                        !IsThreatableDeployable(targ->enemy)))
                     {
                         // For laser emitters: target owner if visible, otherwise target emitter
                         if (horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::LASER_EMITTER))
@@ -500,7 +492,7 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 		if (targ->enemy->inuse)
 		{
 			percentHealth = static_cast<float>(targ->health) / static_cast<float>(targ->max_health);
-			if (targ->enemy->inuse && percentHealth > 0.33f)
+			if (percentHealth > 0.33f)
 				return;
 		}
 
@@ -660,7 +652,7 @@ ctfteam_t GetEntityTeam(const edict_t* ent)
         return ent->ctf_team;
     }
 
-    // 5. If none of the above, it has no team.
+    // 4. If none of the above, it has no team.
     return CTF_NOTEAM;
 }
 
@@ -695,7 +687,6 @@ bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 
 static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_damage, const mod_t& mod);
 void ApplyGradualArmor(edict_t* ent);
-// Nueva estructura para manejar la regeneración gradual
 
 
 namespace VampireConfig {
@@ -705,14 +696,14 @@ namespace VampireConfig {
 	constexpr float TECH_STRENGTH_DIVISOR = 1.6f;
 	constexpr int MAX_ARMOR = 200;
 
-	// Nuevos parámetros para el sistema de regeneración gradual
-	constexpr gtime_t REGEN_INTERVAL = 80_ms;  // Intervalo de regeneración en segundos
-	constexpr float SENTRY_HEALING_FACTOR = 0.4f;  // Factor de reducción para sentries
-	constexpr int MAX_STORED_HEALING = 35;  // Máximo de curación almacenada
+	// Gradual regeneration system parameters
+	constexpr gtime_t REGEN_INTERVAL = 80_ms;  // Regeneration interval
+	constexpr float SENTRY_HEALING_FACTOR = 0.4f;  // Reduction factor for sentries
+	constexpr int MAX_STORED_HEALING = 35;  // Maximum stored healing
 
 	constexpr float ARMOR_STEAL_RATIO = 0.166f;
-	constexpr int MAX_STORED_ARMOR = 25;  // Máximo de armor almacenado
-	constexpr float ARMOR_REGEN_AMOUNT = 1.0f;  // Cantidad de armor regenerado por tick
+	constexpr int MAX_STORED_ARMOR = 25;  // Maximum stored armor
+	constexpr float ARMOR_REGEN_AMOUNT = 1.0f;  // Armor regenerated per tick
 }
 
 void ApplyGradualHealing(edict_t* ent) {
@@ -896,7 +887,7 @@ int calculate_health_stolen(edict_t* attacker, int base_health_stolen) {
 		multiplier *= 0.5f;
 	}
 
-	// Aplicar modificadores de poder
+	// Apply power modifiers
 	if (attacker->client->quad_time > level.time)
 		multiplier /= VampireConfig::QUAD_DIVISOR;
 	if (attacker->client->double_time > level.time)
@@ -906,20 +897,6 @@ int calculate_health_stolen(edict_t* attacker, int base_health_stolen) {
 
 	return std::max(1, static_cast<int>(base_health_stolen * multiplier));
 }
-
-//void heal_attacker_sentries(const edict_t* attacker, int health_stolen) noexcept {
-//	if (!attacker || current_wave_level < 17) return;
-//
-//	// Use traditional loop (replaces std::span)
-//	std::span entities_view{ g_edicts, globals.num_edicts };
-//	for (auto& ent : entities_view) {
-//		if (!ent.inuse || ent.health <= 0 || ent.owner != attacker ||
-//			strcmp(ent.classname, "monster_sentrygun") != 0) {
-//			continue;
-//		}
-//		ent.health = std::min(ent.health + health_stolen, ent.max_health);
-//	}
-//}
 
 void apply_armor_vampire(edict_t* attacker, int damage) {
 	if (!attacker || !attacker->client)
@@ -1577,7 +1554,7 @@ void T_RadiusDamage(edict_t* inflictor, edict_t* attacker, float damage, edict_t
 
 		// Vector from explosion center to the entity's impact point
 		vec3_t force_vec = damage_point - inflictor_center;
-		float dist = sqrtf((inflictor_center - damage_point).lengthSquared());
+		float dist = sqrtf(force_vec.lengthSquared());
 
 		// Reject entities whose actual impact point is outside the explosion radius
 		if (dist > radius)
