@@ -838,15 +838,23 @@ void flyer_laser_warn(edict_t* self)
 	if (!self || !self->inuse)
 		return;
 
-	// --- NEW: Clean up any previous controller before creating a new one ---
+	// --- Clean up any previous controller and its flares before creating a new one ---
 	// This prevents orphaned entities if the function is called unexpectedly again.
 	if (self->teamchain && self->teamchain->inuse)
 	{
-		// The controller's think function handles freeing its flares.
-		// We just need to free the controller itself.
-		G_FreeEdict(self->teamchain);
+		edict_t* controller = self->teamchain;
+
+		// Must free the flares BEFORE freeing the controller
+		// (G_FreeEdict doesn't run the think function)
+		if (controller->mynoise && controller->mynoise->inuse)
+			G_FreeEdict(controller->mynoise);
+		if (controller->mynoise2 && controller->mynoise2->inuse)
+			G_FreeEdict(controller->mynoise2);
+
+		G_FreeEdict(controller);
+		self->teamchain = nullptr;
 	}
-	// --- END NEW ---
+	// --- END cleanup ---
 
 	// --- Spawn the Controller Entity ---
 	edict_t* controller = G_Spawn();
