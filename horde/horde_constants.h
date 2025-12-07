@@ -82,14 +82,30 @@ namespace HordeConstants
 	inline constexpr float SPECIAL_WAVE_CHANCE = 0.25f;
 	inline constexpr float AMBUSH_CHANCE_PER_WAVE = 0.03f;
 
+	// --- Grid Spawn Cooldown Settings ---
+	inline constexpr gtime_t GRID_POSITION_COOLDOWN = 4.0_sec;        // Cooldown before same grid area can be used again
+	inline constexpr float GRID_COOLDOWN_RADIUS = 200.0f;             // Radius around used position that's on cooldown
+	inline constexpr size_t MAX_GRID_COOLDOWN_POSITIONS = 32;         // Max tracked positions in cooldown buffer
+
+	// --- Tactical Spawn Distance Settings ---
+	// Increased minimum distances to give players more reaction time
+	inline constexpr float TELEPORT_MIN_DIST_FROM_PLAYER = 400.0f;    // Min distance for monster teleports
+	inline constexpr float EMERGENCY_MIN_DIST_FROM_PLAYER = 350.0f;   // Min distance for emergency/ambush spawns (was 120, then 250)
+	inline constexpr float REGULAR_SPAWN_MIN_DIST_FROM_PLAYER = 350.0f; // Min distance for regular wave spawns on spawn points
+
+	// --- Out-of-Visibility Spawn Settings ---
+	// 25% chance to force spawns in areas not visible to players
+	inline constexpr float OUT_OF_VISIBILITY_CHANCE = 0.25f;
+
 	// Helper function for min player distance based on map size
+	// UPDATED: Increased distances to give players more reaction time
 	inline float GetMinPlayerDistSpawnpoint(const horde::MapSize& mapSize) {
 		if (mapSize.isSmallMap) {
-			return 100.0f; // Reduced from 150.0f for small maps
+			return 150.0f; // Increased from 100.0f for small maps (still reduced for map constraints)
 		} else if (mapSize.isMediumMap) {
-			return 125.0f; // Slightly reduced for medium maps
+			return 200.0f; // Increased from 125.0f for medium maps
 		} else {
-			return MIN_PLAYER_DIST_SPAWNPOINT_BASE; // Keep original for big maps
+			return 250.0f; // Increased from 150.0f for big maps
 		}
 	}
 

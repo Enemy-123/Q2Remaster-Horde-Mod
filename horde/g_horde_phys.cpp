@@ -1,4 +1,5 @@
 #include "g_horde_phys.h"
+#include "horde_constants.h"  // For HordeConstants
 #include "../g_local.h"
 #include "../memory_safety.h" // For FileGuard
 #include <algorithm> // For std::min/max
@@ -611,6 +612,37 @@ void ProximityGrid::Reset()
     void SpawnGrid::Clear() {
         m_grid_nodes.clear();
         m_node_count = 0;
+        ClearCooldowns();
+    }
+
+    // Mark a position as recently used (adds cooldown)
+    void SpawnGrid::MarkPositionUsed(const vec3_t& pos) {
+        m_cooldown_positions[m_cooldown_write_index] = pos;
+        m_cooldown_expiry[m_cooldown_write_index] = level.time + HordeConstants::GRID_POSITION_COOLDOWN;
+        m_cooldown_write_index = (m_cooldown_write_index + 1) % MAX_COOLDOWN_POSITIONS;
+    }
+
+    // Check if position is too close to a recently used position
+    bool SpawnGrid::IsPositionOnCooldown(const vec3_t& pos, float cooldown_radius) const {
+        const float radius_sq = cooldown_radius * cooldown_radius;
+        const gtime_t current_time = level.time;
+
+        for (size_t i = 0; i < MAX_COOLDOWN_POSITIONS; ++i) {
+            if (m_cooldown_expiry[i] > current_time) {
+                const float dist_sq = (pos - m_cooldown_positions[i]).lengthSquared();
+                if (dist_sq < radius_sq) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    // Clear all cooldowns
+    void SpawnGrid::ClearCooldowns() {
+        m_cooldown_positions.fill(vec3_origin);
+        m_cooldown_expiry.fill(0_sec);
+        m_cooldown_write_index = 0;
     }
 
     // Grid coordinate conversion helpers
@@ -877,7 +909,9 @@ void ProximityGrid::Reset()
         return GetRandomPosition(out_pos);
     }
 
-    // Check if a spawn position is visible to any active player
+    // Check if a spawn position is in the Potentially Visible Set (PVS) of any active player
+    // Uses gi.inPVS which checks if the position could be visible from any angle
+    // This is broader than direct line-of-sight - catches positions that could be seen by turning around
     bool SpawnGrid::IsVisibleToPlayers(const vec3_t& pos) const {
         // Iterate through all clients
         for (int i = 1; i <= maxclients->integer; i++) {
@@ -887,42 +921,36 @@ void ProximityGrid::Reset()
             if (!player->inuse || player->health <= 0)
                 continue;
 
-            // Quick PVS check first (cheaper than trace)
-            if (!gi.inPVS(pos, player->s.origin, false))
-                continue;
-
-            // Line of sight trace to confirm visibility
-            // Trace from player's eye position to spawn candidate
-            vec3_t player_eye = player->s.origin;
-            player_eye.z += player->viewheight;
-
-            trace_t tr = gi.trace(player_eye, vec3_origin, vec3_origin, pos, player, MASK_OPAQUE);
-
-            // If trace reached spawn position, player can see it
-            if (tr.fraction >= 0.99f) {
-                return true;  // Visible to this player
-            }
+            // PVS check - returns true if pos could be visible from player's area from any angle
+            // The 'false' parameter means don't check through portals (stricter visibility check)
+            if (gi.inPVS(pos, player->s.origin, false))
+                return true;  // Position is in PVS of this player
         }
 
-        return false;  // Not visible to any player
+        return false;  // Not in PVS of any player
     }
 
-    // Get a tactical spawn position (distance + visibility checks)
-    bool SpawnGrid::GetTacticalSpawnPosition(vec3_t& out_pos, float min_dist_from_players, int max_attempts) const {
+    // Get a tactical spawn position (distance + visibility + cooldown checks)
+    // Features are ENABLED BY DEFAULT:
+    // - Cooldowns: Always applied to prevent repeated spawns in same area
+    // - Distance checks: Always applied (min distance from players)
+    // - Visibility checks: Applied when prefer_out_of_visibility=true (25% chance from caller)
+    // The g_horde_tactical_spawn cvar can ENHANCE behavior (mode 2 = always check visibility)
+    bool SpawnGrid::GetTacticalSpawnPosition(vec3_t& out_pos, float min_dist_from_players, int max_attempts, bool prefer_out_of_visibility) const {
         if (m_node_count < 1)
             return false;
 
-        // Get tactical spawn mode from cvar
+        // Get tactical spawn mode from cvar (can enhance default behavior)
         const int tactical_mode = g_horde_tactical_spawn->integer;
-
-        // Mode 0: Disabled, use standard random spawning
-        if (tactical_mode == 0) {
-            return GetRandomPosition(out_pos);
-        }
-
         const float min_dist_sq = min_dist_from_players * min_dist_from_players;
-        int attempts = 0;
 
+        // Determine what checks to apply:
+        // - Cooldowns: ALWAYS applied (default behavior)
+        // - Distance checks: ALWAYS applied (default behavior)
+        // - Visibility checks: Applied when prefer_out_of_visibility=true OR tactical_mode >= 2
+        const bool require_out_of_visibility = prefer_out_of_visibility || (tactical_mode >= 2);
+
+        int attempts = 0;
         while (attempts < max_attempts) {
             attempts++;
 
@@ -930,9 +958,13 @@ void ProximityGrid::Reset()
             const int idx = irandom(m_node_count);
             const vec3_t& candidate = m_grid_nodes[idx];
 
-            // Check distance to all active players
-            bool too_close = false;
+            // ALWAYS check cooldowns (default behavior - prevents spawn clustering)
+            if (IsPositionOnCooldown(candidate, HordeConstants::GRID_COOLDOWN_RADIUS)) {
+                continue;
+            }
 
+            // ALWAYS check distance to players (default behavior - gives reaction time)
+            bool too_close = false;
             for (int i = 1; i <= maxclients->integer; i++) {
                 edict_t* player = &g_edicts[i];
 
@@ -950,31 +982,36 @@ void ProximityGrid::Reset()
             if (too_close)
                 continue;
 
-            // Mode 1: Distance checks only
-            if (tactical_mode == 1) {
-                out_pos = candidate;
-                return true;
-            }
-
-            // Mode 2: Distance + visibility checks
-            if (tactical_mode == 2) {
-                // Check if position is visible to any player
+            // Check visibility if required (25% chance from caller OR tactical_mode >= 2)
+            if (require_out_of_visibility) {
                 if (IsVisibleToPlayers(candidate)) {
-                    // Position is visible, try another
-                    continue;
+                    continue;  // Position is visible, try another
                 }
+            }
 
-                // Found good tactical position
+            // Found valid position
+            out_pos = candidate;
+            return true;
+        }
+
+        // Fallback: couldn't find position meeting all criteria
+        // Try one more pass with just cooldown check (skip distance/visibility for emergency)
+        if (developer->integer >= 1) {
+            gi.Com_PrintFmt("GetTacticalSpawnPosition: No optimal position found after {} attempts, trying relaxed fallback\n", max_attempts);
+        }
+
+        for (int i = 0; i < max_attempts / 2; i++) {
+            const int idx = irandom(m_node_count);
+            const vec3_t& candidate = m_grid_nodes[idx];
+
+            // Only check cooldown in fallback
+            if (!IsPositionOnCooldown(candidate, HordeConstants::GRID_COOLDOWN_RADIUS)) {
                 out_pos = candidate;
                 return true;
             }
         }
 
-        // Fallback: couldn't find tactical position, use random
-        if (developer->integer >= 1) {
-            gi.Com_PrintFmt("GetTacticalSpawnPosition: No tactical position found after {} attempts, using fallback\n", max_attempts);
-        }
-
+        // Final fallback: pure random (no cooldown check)
         return GetRandomPosition(out_pos);
     }
 

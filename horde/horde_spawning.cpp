@@ -242,7 +242,23 @@ static bool CheckSpawnPointCooldowns(uint16_t index, gtime_t current_time, bool 
             current_time >= g_spawn_system.spawn_points_data.cooldownEndsAt[index]);
 }
 
-/// Checks if spawn point is too close to players
+/// Checks if spawn position is in the Potentially Visible Set (PVS) of any active player
+/// Uses gi.inPVS which checks if the position could be visible from any angle, not just direct line-of-sight
+static bool IsSpawnPositionInPlayerPVS(const vec3_t& spawn_pos) noexcept
+{
+    for (const auto* player : active_players_no_spect())
+    {
+        // Use PVS check - returns true if spawn_pos is in the player's potentially visible set
+        // This is broader than line-of-sight: it catches positions visible from any angle
+        // The 'false' parameter means don't check through portals (stricter)
+        if (gi.inPVS(spawn_pos, player->s.origin, false))
+            return true;  // Position is in PVS of at least one player
+    }
+    return false;  // Not in PVS of any player
+}
+
+/// Checks if spawn point is too close to players and optionally checks visibility
+/// UPDATED: Now includes 25% chance to require out-of-visibility spawning
 static bool CheckSpawnPointPlayerProximity(const vec3_t& spawn_pos, bool emergency_mode, bool recovery_mode) noexcept
 {
     float min_dist = HordeConstants::GetMinPlayerDistSpawnpoint(g_horde_local.current_map_size);
@@ -259,6 +275,29 @@ static bool CheckSpawnPointPlayerProximity(const vec3_t& spawn_pos, bool emergen
         if (DistanceSquared(spawn_pos, player->s.origin) < MIN_DIST_SQ)
             return false;
     }
+
+    // 25% chance to require out-of-visibility position (only in normal mode, not recovery/emergency)
+    if (!emergency_mode && !recovery_mode)
+    {
+        // Use a deterministic check based on position to avoid flickering validation results
+        // This ensures the same spawn point gives consistent results within a short time window
+        static thread_local gtime_t last_visibility_roll_time = 0_sec;
+        static thread_local bool last_visibility_required = false;
+
+        // Re-roll visibility requirement every 0.5 seconds
+        if (level.time - last_visibility_roll_time > 500_ms)
+        {
+            last_visibility_roll_time = level.time;
+            last_visibility_required = (frandom() < HordeConstants::OUT_OF_VISIBILITY_CHANCE);
+        }
+
+        if (last_visibility_required)
+        {
+            if (IsSpawnPositionInPlayerPVS(spawn_pos))
+                return false;  // Position is in player's PVS but we required out-of-visibility
+        }
+    }
+
     return true;
 }
 

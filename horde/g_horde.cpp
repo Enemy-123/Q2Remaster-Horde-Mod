@@ -5639,9 +5639,16 @@ static edict_t* FindSafeTeleportDestination(edict_t* self)
 	// --- 2. Get Monster Properties ---
 	const bool can_monster_fly = IsFlying(static_cast<horde::MonsterTypeID>(self->monsterinfo.monster_type_id));
 
+	// 25% chance to require out-of-visibility position for this teleport
+	const bool require_out_of_visibility = frandom() < HordeConstants::OUT_OF_VISIBILITY_CHANCE;
+
 	// --- 3. Search for a Suitable Spawn Point ---
 	edict_t* best_spot = nullptr;
 	float best_score = -1.0f;
+
+	// Use increased minimum teleport distance from constants
+	const float min_dist_sq = HordeConstants::TELEPORT_MIN_DIST_FROM_PLAYER * HordeConstants::TELEPORT_MIN_DIST_FROM_PLAYER;
+	constexpr float MAX_DIST_SQ = 1200.0f * 1200.0f;
 
 	// --- PERFORMANCE FIX: Use spatial index for O(1) nearby spawn point lookup ---
 	constexpr float SEARCH_RADIUS = 1500.0f;
@@ -5690,21 +5697,30 @@ static edict_t* FindSafeTeleportDestination(edict_t* self)
 		float score = 100.0f;
 		float dist_sq = (spawn_point->s.origin - target_player->s.origin).lengthSquared();
 
-		constexpr float MIN_DIST_SQ = 400.0f * 400.0f;
-		constexpr float MAX_DIST_SQ = 1200.0f * 1200.0f;
-		if (dist_sq > MIN_DIST_SQ && dist_sq < MAX_DIST_SQ)
+		// Use PVS check - catches positions visible from any angle, not just direct line-of-sight
+		// The 'false' parameter means don't check through portals (stricter visibility)
+		const bool is_in_player_pvs = gi.inPVS(spawn_point->s.origin, target_player->s.origin, false);
+
+		// If we require out-of-visibility and position is in PVS, skip it
+		if (require_out_of_visibility && is_in_player_pvs)
+		{
+			continue;
+		}
+
+		// Bonus for being in optimal distance range (400-1200 units)
+		if (dist_sq > min_dist_sq && dist_sq < MAX_DIST_SQ)
 		{
 			score += 100.0f;
 		}
 
-		vec3_t player_eye_pos = target_player->s.origin + vec3_t{ 0, 0, static_cast<float>(target_player->viewheight) };
-		trace_t los = gi.trace(player_eye_pos, vec3_origin, vec3_origin, spawn_point->s.origin, target_player, MASK_SOLID);
-		if (los.fraction < 1.0f)
+		// Bonus for positions not in player's PVS
+		if (!is_in_player_pvs)
 		{
 			score += 150.0f;
 		}
 
-		if (dist_sq < (350.0f * 350.0f))
+		// Penalty for being too close to player (use constant for consistency)
+		if (dist_sq < min_dist_sq)
 		{
 			score -= 200.0f;
 		}
@@ -5721,7 +5737,8 @@ static edict_t* FindSafeTeleportDestination(edict_t* self)
 
 	if (developer->integer > 1 && best_spot)
 	{
-		gi.Com_PrintFmt("FindSafeTeleportDestination: Selected spot at {} with score {:.1f}\n", best_spot->s.origin, best_score);
+		gi.Com_PrintFmt("FindSafeTeleportDestination: Selected spot at {} with score {:.1f} (out-of-vis required: {})\n",
+			best_spot->s.origin, best_score, require_out_of_visibility ? "yes" : "no");
 	}
 	else if (developer->integer > 1 && !best_spot)
 	{
@@ -6894,7 +6911,8 @@ private:
     bool TryPlayerCandidatesFromCache(const PlayerSpawnCandidates& candidates,
                                     const vec3_t& mins, const vec3_t& maxs, bool is_flying,
                                     vec3_t& out_pos, vec3_t& out_angles) {
-        static constexpr float MIN_PLAYER_DISTANCE_SQ = 120.0f * 120.0f; // 120 units minimum
+        // Use increased minimum distance from HordeConstants (250 units instead of 120)
+        const float min_player_dist_sq = HordeConstants::EMERGENCY_MIN_DIST_FROM_PLAYER * HordeConstants::EMERGENCY_MIN_DIST_FROM_PLAYER;
 
         for (size_t i = 0; i < candidates.valid_count; ++i) {
             vec3_t test_pos = candidates.positions[i];
@@ -6907,7 +6925,7 @@ private:
                     continue;
 
                 float dist_sq = (test_pos - player->s.origin).lengthSquared();
-                if (dist_sq < MIN_PLAYER_DISTANCE_SQ) {
+                if (dist_sq < min_player_dist_sq) {
                     too_close_to_player = true;
                     break;
                 }
@@ -6928,6 +6946,7 @@ private:
 
     // Updates candidates with custom distance range (for fallback logic)
     // MODIFIED: Now uses spawn grid as primary source, with procedural generation as fallback
+    // ENHANCED: Adds 25% chance for out-of-visibility spawns and grid cooldown tracking
     void UpdatePlayerCandidatesWithRange(edict_t* player, PlayerSpawnCandidates& candidates,
                                         const ScaledDistances& distances) {
         constexpr size_t NUM_CANDIDATES = 16;
@@ -6938,6 +6957,9 @@ private:
 
         const vec3_t player_origin = player->s.origin;
 
+        // 25% chance to prefer out-of-visibility positions for this spawn batch
+        const bool prefer_out_of_visibility = frandom() < HordeConstants::OUT_OF_VISIBILITY_CHANCE;
+
         // OPTIMIZATION: Try to use spawn grid positions first (guaranteed in-map)
         if (HordePhys::g_spawn_grid.IsGenerated()) {
             constexpr int MAX_GRID_ATTEMPTS = 64;  // Try more grid positions than we need
@@ -6945,18 +6967,14 @@ private:
             for (int attempt = 0; attempt < MAX_GRID_ATTEMPTS && candidates.valid_count < NUM_CANDIDATES; ++attempt) {
                 vec3_t grid_pos;
 
-                // Use tactical spawning if enabled
-                bool got_position = false;
-                if (g_horde_tactical_spawn->integer > 0)
-                {
-                    // Tactical spawn with distance checks (and visibility checks in mode 2)
-                    got_position = HordePhys::g_spawn_grid.GetTacticalSpawnPosition(grid_pos, distances.min_radius, 10);
-                }
-                else
-                {
-                    // Standard random position
-                    got_position = HordePhys::g_spawn_grid.GetRandomPosition(grid_pos);
-                }
+                // ALWAYS use tactical spawning (distance + cooldown checks are now default)
+                // The 25% out-of-visibility chance is passed through prefer_out_of_visibility
+                bool got_position = HordePhys::g_spawn_grid.GetTacticalSpawnPosition(
+                    grid_pos,
+                    HordeConstants::EMERGENCY_MIN_DIST_FROM_PLAYER,  // 350 units
+                    10,
+                    prefer_out_of_visibility
+                );
 
                 if (!got_position)
                     break;
@@ -7394,6 +7412,9 @@ bool FindEmergencySpawnPosition(vec3_t &position, vec3_t &angles, bool &used_hum
 {
     edict_t* actual_used_player = nullptr;
     if (g_emergency_spawn_optimizer.FindOptimalPosition(position, angles, typeId, specific_target, &actual_used_player)) {
+        // Mark grid position as used to prevent spawning in same area too soon
+        HordePhys::g_spawn_grid.MarkPositionUsed(position);
+
         // Determine if the actually used player was human
         if (actual_used_player) {
             used_human_player = !(actual_used_player->svflags & SVF_BOT);

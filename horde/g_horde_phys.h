@@ -117,6 +117,7 @@ namespace HordePhys {
         static constexpr int MAX_GRID_NODES = 10000;
         static constexpr int GRID_DIMENSION = 64;   // 64x64x64 grid cells (adaptive to map size)
         static constexpr int GRID_SPACING = 16;     // 16 units between grid points
+        static constexpr size_t MAX_COOLDOWN_POSITIONS = 32;  // Ring buffer size for cooldown tracking
 
         // Generate the spawn grid for the current map
         // Scans the entire map and validates spawn positions
@@ -130,8 +131,18 @@ namespace HordePhys {
 
         // Get a tactical spawn position (not visible to players, with distance checks)
         // min_dist_from_players: Minimum distance from any player
+        // prefer_out_of_visibility: If true, strongly prefer positions not visible to players
         // Returns false if no suitable position found after max_attempts
-        bool GetTacticalSpawnPosition(vec3_t& out_pos, float min_dist_from_players = 512.0f, int max_attempts = 20) const;
+        bool GetTacticalSpawnPosition(vec3_t& out_pos, float min_dist_from_players = 512.0f, int max_attempts = 20, bool prefer_out_of_visibility = false) const;
+
+        // Mark a grid position as recently used (adds cooldown)
+        void MarkPositionUsed(const vec3_t& pos);
+
+        // Check if a position is too close to a recently used position (on cooldown)
+        bool IsPositionOnCooldown(const vec3_t& pos, float cooldown_radius) const;
+
+        // Clear all cooldowns (call on map change/wave reset)
+        void ClearCooldowns();
 
         // Get number of grid nodes generated
         [[nodiscard]] int GetNodeCount() const noexcept { return m_node_count; }
@@ -156,6 +167,11 @@ namespace HordePhys {
         vec3_t m_world_mins{};
         vec3_t m_world_maxs{};
         vec3_t m_grid_size{};  // Size per grid cell
+
+        // Cooldown tracking - ring buffer of recently used positions
+        mutable std::array<vec3_t, MAX_COOLDOWN_POSITIONS> m_cooldown_positions{};
+        mutable std::array<gtime_t, MAX_COOLDOWN_POSITIONS> m_cooldown_expiry{};
+        mutable size_t m_cooldown_write_index = 0;
 
         // Helper functions for grid generation (ported from Vortex)
         bool ValidateSpawnPosition(const vec3_t& pos, const vec3_t& mins, const vec3_t& maxs) const;
