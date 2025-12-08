@@ -35,6 +35,7 @@ namespace HordeConstants
 
 	// --- Spawn Timing ---
 	inline constexpr gtime_t SPAWN_INTERVAL = 1.5_sec;
+	inline constexpr gtime_t MIN_MONSTER_SPAWN_INTERVAL = 0.4_sec;  // Minimum time between individual monster spawns
 	inline constexpr gtime_t MIN_WAVE_TIME = 30_sec;
 	inline constexpr gtime_t WAVE_COMPLETE_GRACE_PERIOD = 1_sec;
 	inline constexpr gtime_t FOG_PERSIST_TIME = 30_sec;
@@ -49,9 +50,17 @@ namespace HordeConstants
 	inline constexpr int MAX_UNSTICK_ATTEMPTS = 3;
 
 	// --- Spawn Batch Sizes ---
-	inline constexpr int32_t SPAWN_BATCH_SMALL_MAP = 4;
-	inline constexpr int32_t SPAWN_BATCH_MEDIUM_MAP = 5;
-	inline constexpr int32_t SPAWN_BATCH_BIG_MAP = 6;
+	// UPDATED: Smaller batches for smarter tactical spawning across all map sizes
+	inline constexpr int32_t SPAWN_BATCH_SMALL_MAP = 2;   // Small batches for tight spaces
+	inline constexpr int32_t SPAWN_BATCH_MEDIUM_MAP = 3;  // Reduced from 5 for smarter positioning
+	inline constexpr int32_t SPAWN_BATCH_BIG_MAP = 4;     // Reduced from 6 for smarter positioning
+
+	// --- Early Wave Warmup (Slower Start) ---
+	// Waves 1-4 spawn slower, progressively speeding up to normal by wave 5
+	inline constexpr int32_t EARLY_WAVE_WARMUP_END = 5;        // Wave at which spawning reaches normal speed
+	inline constexpr float EARLY_WAVE_SLOW_MULTIPLIER = 1.4f;  // 40% slower spawning in wave 1
+	inline constexpr float WAVE_SPEED_INCREASE_PER_WAVE = 0.1f; // Each wave gets 10% faster until normal
+	inline constexpr float SMALL_MAP_EXTRA_SLOWDOWN = 1.25f;   // Extra 25% slowdown for small maps
 
 	// --- Emergency Spawn Settings ---
 	inline constexpr int32_t EMERGENCY_SPAWN_LIMIT_PER_CALL = 3;

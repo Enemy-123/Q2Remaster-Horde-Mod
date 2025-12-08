@@ -174,10 +174,11 @@ namespace HordeConstants
 	constexpr std::array<vec3_t, NUM_HORDE_ALT_POSITIONS> horde_alternative_positions = { /* ... your positions ... */ };
 
 	// --- Monster Spawning Timing ---
-	constexpr gtime_t MIN_MONSTER_SPAWN_INTERVAL = 0.8_sec;
+	// NOTE: MIN_MONSTER_SPAWN_INTERVAL moved to horde_constants.h
+	// NOTE: BASE_SPAWN_TIMES also defined in SetNextMonsterSpawnTime() - keep in sync!
 	constexpr std::array<std::pair<gtime_t, gtime_t>, 3> BASE_SPAWN_TIMES = {{
-		{0.6_sec, 0.8_sec}, // Small maps
-		{0.8_sec, 1.0_sec}, // Medium maps
+		{0.5_sec, 0.7_sec}, // Small maps - faster for smaller batches
+		{0.7_sec, 0.9_sec}, // Medium maps
 		{0.4_sec, 0.6_sec}	// Big maps
 	}};
 
@@ -6315,10 +6316,11 @@ static void TriggerRetaliation(const horde::MapSize& mapSize, int32_t waveLevel,
 {
 	if (g_spawn_system.special_spawn_state.type != SpecialSpawnType::None) return; // Another special spawn is already planned
 
-	int baseSize = mapSize.isSmallMap ? 2 : (mapSize.isBigMap ? 4 : 2);
-	int spreeBonus = (target_player && target_player->client) ? (target_player->client->resp.spree / 8) : 0;
-	int levelBonus = waveLevel / 10;
-	int ambushSize = std::min(baseSize + spreeBonus + levelBonus, 5);
+	// Smaller retaliation sizes - feels less overwhelming, more tactical
+	int baseSize = mapSize.isSmallMap ? 1 : (mapSize.isBigMap ? 3 : 2);
+	int spreeBonus = (target_player && target_player->client) ? (target_player->client->resp.spree / 10) : 0;
+	int levelBonus = waveLevel / 15;
+	int ambushSize = std::min(baseSize + spreeBonus + levelBonus, 4);
 
 	horde::MonsterTypeID typeId = PickRetaliationMonsterTypeID(waveLevel);
 	if (typeId == horde::MonsterTypeID::UNKNOWN) return;
@@ -6340,6 +6342,7 @@ static void TriggerRetaliation(const horde::MapSize& mapSize, int32_t waveLevel,
 }
 
 // This function is called when a random ambush is triggered.
+// UPDATED: Smaller ambushes that follow a specific player - feels less intrusive
 void TriggerAmbush(const horde::MapSize& mapSize, int32_t waveLevel)
 {
 	if (g_spawn_system.special_spawn_state.type != SpecialSpawnType::None) return;
@@ -6352,18 +6355,31 @@ void TriggerAmbush(const horde::MapSize& mapSize, int32_t waveLevel)
     };
     monster_typeId_for_ambush = random_element(fallback_types);
 
-	const int baseCount = mapSize.isSmallMap ? 3 : (mapSize.isBigMap ? 5 : 4);
-	const int ambushSize = baseCount + (waveLevel >= 15 ? 2 : 1);
+	// Smaller ambush sizes - less overwhelming, feels more like "disabled" for those who didn't like it
+	const int baseCount = mapSize.isSmallMap ? 1 : (mapSize.isBigMap ? 3 : 2);
+	const int ambushSize = baseCount + (waveLevel >= 20 ? 1 : 0);  // Only +1 at high waves
+
+	// Pick a random player to be the target - ambush will follow this player
+	edict_t* target_player = nullptr;
+	for (uint32_t i = 0; i < game.maxclients; i++) {
+		edict_t* player = g_edicts + 1 + i;
+		if (player->inuse && player->client && player->health > 0) {
+			if (!target_player || frandom() < 0.5f) {
+				target_player = player;
+			}
+		}
+	}
 
 	if (developer->integer) {
-		gi.Com_PrintFmt("HORDE: PLANNING Ambush (Size: {}). Spawning will be time-sliced.\n", ambushSize);
+		gi.Com_PrintFmt("HORDE: PLANNING Ambush (Size: {}) targeting {}. Spawning will be time-sliced.\n",
+			ambushSize, target_player ? GetPlayerName(target_player) : "random");
 	}
 
 	g_spawn_system.special_spawn_state.type = SpecialSpawnType::Ambush;
 	g_spawn_system.special_spawn_state.remaining_count = ambushSize;
 	g_spawn_system.special_spawn_state.monster_type_id = monster_typeId_for_ambush;
-	g_spawn_system.special_spawn_state.champion_chance = 0.20f;
-	g_spawn_system.special_spawn_state.target_player = nullptr; // Target will be chosen per-spawn
+	g_spawn_system.special_spawn_state.champion_chance = 0.15f;  // Lower champion chance
+	g_spawn_system.special_spawn_state.target_player = target_player;  // Follow this player
 }
 
 // This single function runs every frame to execute one spawn from the special plan.
@@ -6768,30 +6784,34 @@ void SetNextMonsterSpawnTime(const horde::MapSize &mapSize)
 {
 	// Original spawn time ranges (Big maps are faster)
 	constexpr std::array<std::pair<gtime_t, gtime_t>, 3> BASE_SPAWN_TIMES = {{
-		{0.6_sec, 0.8_sec}, // Small maps
-		{0.8_sec, 1.0_sec}, // Medium maps
+		{0.5_sec, 0.7_sec}, // Small maps - slightly faster base for smaller batches
+		{0.7_sec, 0.9_sec}, // Medium maps
 		{0.4_sec, 0.6_sec}	// Big maps
 	}};
 
-	// Apply early wave modifier (waves 1-10) - slows down spawn rate initially
+	// Apply early wave warmup (waves 1-4) - SLOWER spawning that speeds up to normal by wave 5
+	// This gives players time to warm up in early waves, then reaches normal speed
 	float earlyWaveMultiplier = 1.0f;
-	// Check level is valid before calculation
-	if (current_wave_level >= 1 && current_wave_level <= 10)
+	if (current_wave_level >= 1 && current_wave_level < HordeConstants::EARLY_WAVE_WARMUP_END)
 	{
-		// Linearly decreases interval multiplier from 2.0x at wave 1 down to 1.1x at wave 10.
-		// After wave 10, the multiplier is 1.0x (no modification).
-		earlyWaveMultiplier = 2.0f - ((static_cast<float>(current_wave_level) - 1.0f) * 0.1f);
-		// Clamp just in case level somehow goes outside 1-10 despite the check
-		earlyWaveMultiplier = std::clamp(earlyWaveMultiplier, 1.1f, 2.0f);
+		// Wave 1: 1.4x (40% slower), Wave 2: 1.3x, Wave 3: 1.2x, Wave 4: 1.1x, Wave 5+: 1.0x
+		// Higher multiplier = slower spawning (more time between spawns)
+		earlyWaveMultiplier = HordeConstants::EARLY_WAVE_SLOW_MULTIPLIER -
+			(static_cast<float>(current_wave_level - 1) * HordeConstants::WAVE_SPEED_INCREASE_PER_WAVE);
+		earlyWaveMultiplier = std::clamp(earlyWaveMultiplier, 1.0f, 1.5f);
 	}
 
 	// Select base times based on map size
 	const size_t mapIndex = mapSize.isSmallMap ? 0 : (mapSize.isBigMap ? 2 : 1);
 	const auto &[base_min_time, base_max_time] = BASE_SPAWN_TIMES[mapIndex];
 
-	// Apply the early wave multiplier to get the target time range
-	const gtime_t min_time = gtime_t::from_sec(base_min_time.seconds() * earlyWaveMultiplier);
-	const gtime_t max_time = gtime_t::from_sec(base_max_time.seconds() * earlyWaveMultiplier);
+	// Apply extra slowdown for small maps (tighter spaces need more time between spawns)
+	float mapSizeMultiplier = mapSize.isSmallMap ? HordeConstants::SMALL_MAP_EXTRA_SLOWDOWN : 1.0f;
+	float combinedMultiplier = earlyWaveMultiplier * mapSizeMultiplier;
+
+	// Apply the combined multiplier to get the target time range
+	const gtime_t min_time = gtime_t::from_sec(base_min_time.seconds() * combinedMultiplier);
+	const gtime_t max_time = gtime_t::from_sec(base_max_time.seconds() * combinedMultiplier);
 
 	// Calculate the random interval within the adjusted range
 	// Ensure min_time <= max_time before calling random_time to avoid potential issues
