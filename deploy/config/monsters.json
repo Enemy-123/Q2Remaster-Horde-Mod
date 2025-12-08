@@ -1110,7 +1110,7 @@
     },
     "parasite": {
       "initial_health": 150,
-      "addon_health": 85,
+      "addon_health": 25,
       "initial_armor": 0,
       "addon_armor": 0
     },
