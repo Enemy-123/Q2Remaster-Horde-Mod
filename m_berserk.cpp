@@ -1201,6 +1201,7 @@ mframe_t berserkerkl_frames_forward_cast[] = {
 	{ai_charge},
 	{ai_charge},
 	{ai_charge},
+	{ai_charge},
 	{ai_charge}};
 MMOVE_T(berserkerkl_move_forward_cast) = { FRAME_att_c19, FRAME_att_c34, berserkerkl_frames_forward_cast, ZerkGoSpellbomb };
 

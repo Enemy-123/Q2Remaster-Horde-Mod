@@ -177,9 +177,9 @@ namespace HordeConstants
 	// NOTE: MIN_MONSTER_SPAWN_INTERVAL moved to horde_constants.h
 	// NOTE: BASE_SPAWN_TIMES also defined in SetNextMonsterSpawnTime() - keep in sync!
 	constexpr std::array<std::pair<gtime_t, gtime_t>, 3> BASE_SPAWN_TIMES = {{
-		{0.5_sec, 0.7_sec}, // Small maps - faster for smaller batches
-		{0.7_sec, 0.9_sec}, // Medium maps
-		{0.4_sec, 0.6_sec}	// Big maps
+		{0.8_sec, 1.0_sec}, // Small maps - slower for better pacing
+		{1.0_sec, 1.2_sec}, // Medium maps
+		{0.7_sec, 0.9_sec}	// Big maps
 	}};
 
 	// --- Base Stuck Monster / Teleport Logic ---
@@ -1411,68 +1411,69 @@ inline static void ClampNumToSpawn(const horde::MapSize &mapSize, const char* ma
 
 static int32_t CalculateQueuedMonsters(const horde::MapSize& mapSize, int32_t lvl, bool isHardMode)
 {
-	if (lvl <= 3) // No queue for first 3 waves still seems fine
+	if (lvl <= 1) // Start queueing from wave 2 (was wave 4)
 		return 0;
 
-	float baseQueued = std::sqrt(static_cast<float>(lvl)) * 2.5f; // Reduced base from 3.0f
-	baseQueued *= (1.0f + (lvl) * 0.13f); // Reduced scaling from 0.18f
+	// Reduced base formula for slower progression
+	float baseQueued = std::sqrt(static_cast<float>(lvl)) * 2.0f; // Reduced from 2.5f
+	baseQueued *= (1.0f + (lvl) * 0.10f); // Reduced scaling from 0.13f
 
 	float mapSizeMultiplier = 1.0f;
 	if (mapSize.isSmallMap)
 	{
-		mapSizeMultiplier = 1.1f; // Slightly reduced from 1.3
+		mapSizeMultiplier = 1.0f; // Reduced from 1.1 - small maps get base queue
 	}
 	else if (mapSize.isMediumMap)
 	{
-		mapSizeMultiplier = 1.2f; // Slightly reduced from 1.4
+		mapSizeMultiplier = 1.1f; // Reduced from 1.2
 	}
 	else if (mapSize.isBigMap)
 	{
 		if (lvl <= 7)
-		{							   // For early waves on big maps
-			mapSizeMultiplier = 1.15f; // Significantly reduced from 1.5
+		{						   // For early waves on big maps
+			mapSizeMultiplier = 1.1f; // Reduced from 1.15
 		}
 		else if (lvl <= 12)
 		{
-			mapSizeMultiplier = 1.3f; // Moderately reduced
+			mapSizeMultiplier = 1.2f; // Reduced from 1.3
 		}
 		else
 		{
-			mapSizeMultiplier = 1.5f; // Full multiplier for later waves
+			mapSizeMultiplier = 1.4f; // Reduced from 1.5
 		}
 	}
 	baseQueued *= mapSizeMultiplier;
 
-	const int32_t maxQueuedBase = mapSize.isSmallMap ? 20 : (mapSize.isBigMap ? 32 : 25); // Reduced maxes
+	const int32_t maxQueuedBase = mapSize.isSmallMap ? 15 : (mapSize.isBigMap ? 28 : 20); // Reduced maxes
 	// Further reduce max queue for very early waves
 	int32_t maxQueued = maxQueuedBase;
 	if (lvl <= 7)
 	{
-		maxQueued = std::max(5, static_cast<int32_t>(maxQueuedBase * 0.5f)); // e.g., half max, but at least 5
+		maxQueued = std::max(4, static_cast<int32_t>(maxQueuedBase * 0.4f)); // Reduced from 0.5f, min 4 instead of 5
 	}
 	else if (lvl <= 12)
 	{
-		maxQueued = std::max(10, static_cast<int32_t>(maxQueuedBase * 0.75f));
+		maxQueued = std::max(8, static_cast<int32_t>(maxQueuedBase * 0.65f)); // Reduced from 0.75f
 	}
 
 	if (lvl > 20)
 	{ // Bonus for high levels
 		// FIX: Explicitly cast the result of std::pow (a double) to a float.
-		baseQueued *= static_cast<float>(std::pow(1.15f, std::min(lvl - 20, 18)));
+		baseQueued *= static_cast<float>(std::pow(1.12f, std::min(lvl - 20, 18))); // Reduced from 1.15f
 	}
 
 	if (isHardMode)
 	{ // Difficulty adjustment
-		float difficultyMultiplier = 1.25f;
+		float difficultyMultiplier = 1.20f; // Reduced from 1.25f
 		if (lvl > 25)
 		{
-			difficultyMultiplier += (lvl - 25) * 0.025f;
-			difficultyMultiplier = std::min(difficultyMultiplier, 1.75f);
+			difficultyMultiplier += (lvl - 25) * 0.02f; // Reduced from 0.025f
+			difficultyMultiplier = std::min(difficultyMultiplier, 1.6f); // Reduced from 1.75f
 		}
 		baseQueued *= difficultyMultiplier;
 	}
 
-	baseQueued *= 0.85f; // Final reduction factor
+	baseQueued *= 0.80f; // Final reduction factor (was 0.85f)
 
 	return std::min(static_cast<int32_t>(baseQueued), maxQueued);
 }
@@ -6033,11 +6034,11 @@ static void TriggerRetaliation(const horde::MapSize& mapSize, int32_t waveLevel,
 {
 	if (g_spawn_system.special_spawn_state.type != SpecialSpawnType::None) return; // Another special spawn is already planned
 
-	// Smaller retaliation sizes - feels less overwhelming, more tactical
-	int baseSize = mapSize.isSmallMap ? 1 : (mapSize.isBigMap ? 3 : 2);
-	int spreeBonus = (target_player && target_player->client) ? (target_player->client->resp.spree / 10) : 0;
-	int levelBonus = waveLevel / 15;
-	int ambushSize = std::min(baseSize + spreeBonus + levelBonus, 4);
+	// Reduced retaliation sizes for better balancing
+	int baseSize = mapSize.isSmallMap ? 1 : (mapSize.isBigMap ? 2 : 1); // Reduced: was 1/2/3
+	int spreeBonus = (target_player && target_player->client) ? (target_player->client->resp.spree / 12) : 0; // Reduced from /10
+	int levelBonus = waveLevel / 18; // Reduced from /15
+	int ambushSize = std::min(baseSize + spreeBonus + levelBonus, 3); // Reduced max from 4 to 3
 
 	horde::MonsterTypeID typeId = PickRetaliationMonsterTypeID(waveLevel);
 	if (typeId == horde::MonsterTypeID::UNKNOWN) return;
@@ -6072,9 +6073,9 @@ void TriggerAmbush(const horde::MapSize& mapSize, int32_t waveLevel)
     };
     monster_typeId_for_ambush = random_element(fallback_types);
 
-	// Smaller ambush sizes - less overwhelming, feels more like "disabled" for those who didn't like it
-	const int baseCount = mapSize.isSmallMap ? 1 : (mapSize.isBigMap ? 3 : 2);
-	const int ambushSize = baseCount + (waveLevel >= 20 ? 1 : 0);  // Only +1 at high waves
+	// Reduced ambush sizes for better balancing
+	const int baseCount = mapSize.isSmallMap ? 1 : (mapSize.isBigMap ? 2 : 1); // Reduced: was 1/2/3
+	const int ambushSize = baseCount + (waveLevel >= 25 ? 1 : 0);  // Only +1 at very high waves (was >= 20)
 
 	// Pick a random player to be the target - ambush will follow this player
 	edict_t* target_player = nullptr;

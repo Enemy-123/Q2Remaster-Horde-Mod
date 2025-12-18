@@ -1134,8 +1134,8 @@ mframe_t chickkl_frames_slash[] = {
 	{ ai_charge, 1 },
 	{ ai_charge, 1 },
 	{ ai_charge, 1, ChickSaveLoc },  // Save enemy location before bombspell
-	{ ai_charge, 7, ChickBombSpell }
-//	{ ai_charge, -2, chickkl_reslash }
+	{ ai_charge, 7, ChickBombSpell },
+	{ ai_charge, -2 }
 };
 MMOVE_T(chickkl_move_slash) = { FRAME_attak204, FRAME_attak212, chickkl_frames_slash, chick_run };
 
@@ -1147,6 +1147,7 @@ mframe_t chickkl_frames_grenade[] = {
 	{ ai_charge, -1 },
 	{ ai_charge, 1 },
 	{ ai_charge, 7, chickkl_grenade },  // Fire grenade
+	{ ai_charge, 1 },
 	{ ai_charge, 1 },
 	{ ai_charge, 1 }
 };

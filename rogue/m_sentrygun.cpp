@@ -1598,9 +1598,8 @@ mframe_t turret2_frames_fire[] = {
 	{ ai_run, 0, turret2Aim },
 	{ ai_run, 0, turret2Fire },
 	{ ai_run, 0, turret2Fire },
-	{ ai_run, 0, turret2Fire },
-	{ ai_run, 0, turret2_reattack_heatbeam }, // Check for heatbeam continuation
-};;
+	{ ai_run, 0, turret2_reattack_heatbeam }, // Fire + check for heatbeam continuation
+};
 MMOVE_T(turret2_move_fire) = { FRAME_pow01, FRAME_pow04, turret2_frames_fire, turret2_run };
 
 // PMM

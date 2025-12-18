@@ -172,7 +172,7 @@ void runnertank_stop_run_to_attack(edict_t* self);
 //MMOVE_T(runnertank_move_start_run) = { FRAME_walk01, FRAME_walk04, runnertank_frames_start_run, runnertank_run };
 
 mframe_t runnertank_frames_start_run[] = {
-	{ ai_run, 6 }, { ai_run, 5 }, { ai_run, 7, runnertank_footstep }
+	{ ai_run, 6 }, { ai_run, 5 }, { ai_run, 6 }, { ai_run, 7, runnertank_footstep }
 };
 MMOVE_T(runnertank_move_start_run) = { FRAME_walk35, FRAME_walk38, runnertank_frames_start_run, runnertank_walk_to_run };
 

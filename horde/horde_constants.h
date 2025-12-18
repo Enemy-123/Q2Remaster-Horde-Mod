@@ -34,8 +34,8 @@ namespace HordeConstants
 	inline constexpr int32_t RECENT_SPAWN_BUFFER_SIZE = 20;
 
 	// --- Spawn Timing ---
-	inline constexpr gtime_t SPAWN_INTERVAL = 1.5_sec;
-	inline constexpr gtime_t MIN_MONSTER_SPAWN_INTERVAL = 0.4_sec;  // Minimum time between individual monster spawns
+	inline constexpr gtime_t SPAWN_INTERVAL = 2.0_sec;
+	inline constexpr gtime_t MIN_MONSTER_SPAWN_INTERVAL = 0.6_sec;  // Minimum time between individual monster spawns
 	inline constexpr gtime_t MIN_WAVE_TIME = 30_sec;
 	inline constexpr gtime_t WAVE_COMPLETE_GRACE_PERIOD = 1_sec;
 	inline constexpr gtime_t FOG_PERSIST_TIME = 30_sec;
@@ -99,7 +99,7 @@ namespace HordeConstants
 	// --- Tactical Spawn Distance Settings ---
 	// Increased minimum distances to give players more reaction time
 	inline constexpr float TELEPORT_MIN_DIST_FROM_PLAYER = 400.0f;    // Min distance for monster teleports
-	inline constexpr float EMERGENCY_MIN_DIST_FROM_PLAYER = 350.0f;   // Min distance for emergency/ambush spawns (was 120, then 250)
+	inline constexpr float EMERGENCY_MIN_DIST_FROM_PLAYER = 500.0f;   // Min distance for emergency/ambush spawns (increased for better reaction time)
 	inline constexpr float REGULAR_SPAWN_MIN_DIST_FROM_PLAYER = 350.0f; // Min distance for regular wave spawns on spawn points
 
 	// --- Out-of-Visibility Spawn Settings ---
