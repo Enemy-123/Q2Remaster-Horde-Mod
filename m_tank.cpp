@@ -2008,7 +2008,7 @@ void tank_vanillaStrike(edict_t* self)
 
 	void T_SlamRadiusDamage(vec3_t point, edict_t * inflictor, edict_t * attacker, float damage, float kick, edict_t * ignore, float radius, mod_t mod);
 	// Daño radial
-	T_SlamRadiusDamage(tr.endpos, self, self, M_GET_DMG_OR(self, SLAM, 75), 450.f, self, 165, MOD_TANK_PUNCH);
+	T_SlamRadiusDamage(tr.endpos, self, self, M_GET_DMG_OR(self, SLAM, 45), 450.f, self, 165, MOD_TANK_PUNCH);
 
 	// Check if we have slots left to spawn monsters
 	if (self->monsterinfo.monster_used <= 3)

@@ -72,8 +72,8 @@ constexpr gtime_t RAIL_COOLDOWN = 2.0_sec;
 constexpr gtime_t BLASTER_COOLDOWN = 1.0_sec;
 constexpr int	WIDOW_BLASTER_DAMAGE = 20;
 constexpr int	WIDOW1_BLASTER_DAMAGE = 10;
-constexpr int	WIDOW_RAIL_DAMAGE = 90;
-constexpr int	WIDOW1_RAIL_DAMAGE = 60;
+constexpr int	WIDOW_RAIL_DAMAGE = 65;
+constexpr int	WIDOW1_RAIL_DAMAGE = 45;
 constexpr int	WIDOW_BLASTER_SPEED = 1000;
 constexpr int	WIDOW1_BLASTER_SPEED = 850;
 

@@ -277,7 +277,7 @@
       "weapon_damage": {
         "blaster2": 30,
         "heat": 50,
-        "slam": 75
+        "slam": 45
       }
     },
     "tank_commander": {
@@ -292,7 +292,7 @@
         "flechette": 10,
         "rocket": 30,
         "heat": 40,
-        "slam": 75,
+        "slam": 45,
         "grenade": 50
       },
       "weapon_speed": {
@@ -322,7 +322,7 @@
         "railgun": 45,
         "rocket": 35,
         "plasma": 27,
-        "slam": 75
+        "slam": 45
       }
     },
     "chick": {
@@ -511,7 +511,7 @@
       "weapon_damage": {
         "melee": 22,
         "plasma": 10,
-        "slam": 75
+        "slam": 45
       }
     },
     "stalker": {
@@ -812,7 +812,7 @@
         "machinegun": 8,
         "rocket": 55,
         "bolt": 40,
-        "slam": 80
+        "slam": 45
       }
     },
     "perrokl": {

@@ -1325,7 +1325,7 @@ void gm_arachnid_rockets(edict_t* self)
     trace = gi.traceline(start, vec, self, MASK_PROJECTILE);
     if (blindfire)
     {
-        int damage = M_GET_DMG_OR(self, ROCKET, 60);
+        int damage = M_GET_DMG_OR(self, ROCKET, 40);
 
         // blindfire has different fail criteria for the trace
         if (!(trace.startsolid || trace.allsolid || (trace.fraction < 0.5f)))
@@ -1366,7 +1366,7 @@ void gm_arachnid_rockets(edict_t* self)
     {
         if (trace.fraction > 0.5f || trace.ent->solid != SOLID_BSP)
         {
-            int damage = M_GET_DMG_OR(self, ROCKET, 50);
+            int damage = M_GET_DMG_OR(self, ROCKET, 40);
             monster_fire_heat(self, start, dir, damage, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.095f);
         }
     }
