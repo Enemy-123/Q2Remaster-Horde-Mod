@@ -528,7 +528,7 @@ MMOVE_T(berserk_move_run_attack1) = { FRAME_r_att1, FRAME_r_att18, berserk_frame
 // Attack parameters
 constexpr float BERSERK_ZAP_RADIUS         = 280.0f;
 constexpr float BERSERK_ZAP_RADIUS_SQUARED = BERSERK_ZAP_RADIUS * BERSERK_ZAP_RADIUS; // Pre-calculate for performance
-constexpr int   BERSERK_ZAP_DAMAGE         = 10;
+constexpr int   BERSERK_ZAP_DAMAGE         = 6;
 constexpr int   BERSERK_ZAP_KNOCKBACK      = 10;
 constexpr int   BERSERK_ZAP_MAX_TARGETS    = 3;
 constexpr gtime_t BERSERK_ZAP_COOLDOWN       = 2.0_sec;   // Time between zaps
