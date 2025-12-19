@@ -4299,6 +4299,40 @@ inline bool IsBonusMonster(const edict_t* ent)
     return (ent->monsterinfo.bonus_flags != BF_NONE && !(ent->monsterinfo.bonus_flags & BF_FRIENDLY));
 }
 
+// Check if entity is a body queue entity (cannot be freed via G_FreeEdict)
+inline bool IsBodyQueueEntity(const edict_t* ent)
+{
+    if (!ent)
+        return false;
+    ptrdiff_t idx = ent - g_edicts;
+    return idx > 0 && idx <= (ptrdiff_t)(game.maxclients + BODY_QUEUE_SIZE);
+}
+
+// Properly disable a body queue entity when crushed (since G_FreeEdict won't free it)
+// This prevents infinite explosion loops when elevators/doors crush player corpses
+// Matches body_die() behavior for MOD_CRUSH
+inline void DisableCrushedBodyQueue(edict_t* ent)
+{
+    if (!ent || !ent->inuse)
+        return;
+
+    // Create explosion effect (one time only)
+    gi.WriteByte(svc_temp_entity);
+    gi.WriteByte(TE_EXPLOSION1);
+    gi.WritePosition(ent->s.origin);
+    gi.multicast(ent->s.origin, MULTICAST_PHS, false);
+
+    // Disable the entity completely so it stops blocking (matches body_die for MOD_CRUSH)
+    ent->takedamage = false;
+    ent->die = nullptr;
+    ent->solid = SOLID_NOT;
+    ent->movetype = MOVETYPE_NOCLIP;
+    ent->svflags = SVF_NOCLIENT;
+    ent->s.modelindex = 0;
+    ent->health = 0;
+    gi.unlinkentity(ent);
+}
+
 inline constexpr float DistanceSquared(const vec3_t& v1, const vec3_t& v2) {
     // Direct calculation without temporary object creation
     const float dx = v1.x - v2.x;

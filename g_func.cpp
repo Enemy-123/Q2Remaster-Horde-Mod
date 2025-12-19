@@ -598,20 +598,29 @@ MOVEINFO_BLOCKED(plat_blocked) (edict_t* self, edict_t* other) -> void
 		// give it a chance to go away on it's own terms (like gibs)
 		T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, DAMAGE_NONE, MOD_CRUSH);
 		// if it's still there, nuke it
-		if (other && other->inuse && other->solid) // PGM
-			BecomeExplosion1(other);
-		return;
+		if (other && other->inuse && other->solid)
+		{
+			// Body queue entities can't be freed - disable them instead to prevent infinite explosion loops
+			if (IsBodyQueueEntity(other))
+				DisableCrushedBodyQueue(other);
+			else
+				BecomeExplosion1(other);
+		}
+		// Don't return early - let the platform continue its movement
+		// Fall through to check if obstruction was cleared
+	}
+	else
+	{
+		// PGM
+		//  gib dead things
+		if (other->health < 1)
+			T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, g_horde->integer ? 1000 : 100, 1, DAMAGE_NONE, MOD_CRUSH);
+		// PGM
+
+		T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MOD_CRUSH);
 	}
 
-	// PGM
-	//  gib dead things
-	if (other->health < 1)
-		T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, g_horde->integer ? 1000 : 100, 1, DAMAGE_NONE, MOD_CRUSH);
-	// PGM
-
-	T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MOD_CRUSH);
-
-	// [Paril-KEX] killed the thing, so don't switch directions
+	// [Paril-KEX] killed/destroyed the thing, so don't switch directions
 	if (!other->inuse || !other->solid)
 		return;
 
@@ -1701,8 +1710,14 @@ MOVEINFO_BLOCKED(door_blocked) (edict_t* self, edict_t* other) -> void
 		// give it a chance to go away on it's own terms (like gibs)
 		T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, DAMAGE_NONE, MOD_CRUSH);
 		// if it's still there, nuke it
-		if (other && other->inuse)
-			BecomeExplosion1(other);
+		if (other && other->inuse && other->solid)
+		{
+			// Body queue entities can't be freed - disable them instead to prevent infinite explosion loops
+			if (IsBodyQueueEntity(other))
+				DisableCrushedBodyQueue(other);
+			else
+				BecomeExplosion1(other);
+		}
 		return;
 	}
 
@@ -2104,8 +2119,14 @@ MOVEINFO_BLOCKED(smart_water_blocked) (edict_t* self, edict_t* other) -> void
 		// give it a chance to go away on it's own terms (like gibs)
 		T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, DAMAGE_NONE, MOD_LAVA);
 		// if it's still there, nuke it
-		if (other && other->inuse && other->solid) // PGM
-			BecomeExplosion1(other);
+		if (other && other->inuse && other->solid)
+		{
+			// Body queue entities can't be freed - disable them instead to prevent infinite explosion loops
+			if (IsBodyQueueEntity(other))
+				DisableCrushedBodyQueue(other);
+			else
+				BecomeExplosion1(other);
+		}
 		return;
 	}
 
@@ -2240,7 +2261,13 @@ MOVEINFO_BLOCKED(train_blocked) (edict_t* self, edict_t* other) -> void
 		T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, DAMAGE_NONE, MOD_CRUSH);
 		// if it's still there, nuke it
 		if (other && other->inuse && other->solid)
-			BecomeExplosion1(other);
+		{
+			// Body queue entities can't be freed - disable them instead to prevent infinite explosion loops
+			if (IsBodyQueueEntity(other))
+				DisableCrushedBodyQueue(other);
+			else
+				BecomeExplosion1(other);
+		}
 		return;
 	}
 
@@ -2871,7 +2898,13 @@ MOVEINFO_BLOCKED(door_secret_blocked) (edict_t* self, edict_t* other) -> void
 		T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, DAMAGE_NONE, MOD_CRUSH);
 		// if it's still there, nuke it
 		if (other && other->inuse && other->solid)
-			BecomeExplosion1(other);
+		{
+			// Body queue entities can't be freed - disable them instead to prevent infinite explosion loops
+			if (IsBodyQueueEntity(other))
+				DisableCrushedBodyQueue(other);
+			else
+				BecomeExplosion1(other);
+		}
 		return;
 	}
 

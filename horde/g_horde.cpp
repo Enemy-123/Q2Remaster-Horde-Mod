@@ -4143,6 +4143,8 @@ void ClearHordeMessage()
 }
 
 void ResetWaveAdvanceState() noexcept;
+static void ResetStragglerCleanup();
+static bool ForceKillMostStuckMonster();
 
 //
 // game resetting
@@ -4534,57 +4536,59 @@ static bool CheckRemainingMonstersCondition(const horde::MapSize &mapSize, WaveE
 		.mapSize = mapSize,
 		.params = g_lastParams};
 
-	// --- 2. Immediate Win/Advance Condition ---
-	// Check if the wave is over because all monsters are gone or an admin forced it.
-	// MODIFIED: Percentage-based early wave start (adapts to map size)
-
-	// Calculate early wave threshold based on map size
-	float earlyWavePercentageThreshold = 0.05f; // Default 5%
-	int minMonstersForEarlyWave = 3;             // Minimum absolute count
-
-	if (ctx.mapSize.isBigMap)
-	{
-		earlyWavePercentageThreshold = 0.10f; // 10% for big maps (more hiding spots)
-		minMonstersForEarlyWave = 5;
-	}
-	else if (ctx.mapSize.isMediumMap)
-	{
-		earlyWavePercentageThreshold = 0.06f; // 6% for medium maps
-		minMonstersForEarlyWave = 4;
-	}
-	else // Small map
-	{
-		earlyWavePercentageThreshold = 0.04f; // 4% for small maps
-		minMonstersForEarlyWave = 3;
-	}
-
-	// Calculate actual threshold (percentage of total wave, but at least the minimum)
-	const int earlyWaveThreshold = std::max(
-		static_cast<int>(g_totalMonstersInWave * earlyWavePercentageThreshold),
-		minMonstersForEarlyWave
-	);
-
-	if (allowWaveAdvance || (ctx.liveMonsters <= earlyWaveThreshold && g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters <= 0))
+	// --- 2. Immediate Win Condition (100% Elimination Required) ---
+	// Wave ends ONLY when all monsters are dead (no early advancement)
+	if (allowWaveAdvance || GetStroggsNum() == 0)
 	{
 		if (GetStroggsNum() == 0)
 		{
 			reason = WaveEndReason::AllMonstersDead;
 			ResetWaveAdvanceState();
+			ResetStragglerCleanup();
 			return true;
 		}
-		// If few monsters remain (percentage-based), start next wave (stroggs will remain)
-		else if (ctx.liveMonsters > 0 && ctx.liveMonsters <= earlyWaveThreshold && g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters <= 0)
+	}
+
+	// --- 2b. Straggler Cleanup System ---
+	// When spawning is done and few monsters remain, start cleaning up stuck monsters
+	// This prevents the game from getting stuck while still requiring 100% elimination
+	using namespace HordeConstants;
+	const bool spawningComplete = (g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters <= 0);
+	const bool fewMonstersRemain = (ctx.liveMonsters > 0 && ctx.liveMonsters <= STRAGGLER_THRESHOLD);
+
+	if (spawningComplete && fewMonstersRemain)
+	{
+		// Start straggler cleanup if not already active
+		if (!g_horde_local.stragglerCleanupActive)
 		{
-			reason = WaveEndReason::FewMonstersRemaining;
-			ResetWaveAdvanceState();
-			return true;
+			g_horde_local.stragglerCleanupActive = true;
+			g_horde_local.stragglerCleanupStartTime = ctx.currentTime;
+			g_horde_local.lastStragglerKillTime = ctx.currentTime;
+			if (developer->integer)
+			{
+				gi.Com_PrintFmt("STRAGGLER CLEANUP: Started. {} monsters remain. Grace period: {:.0f}s\n",
+					ctx.liveMonsters, STRAGGLER_GRACE_PERIOD.seconds());
+			}
 		}
-		// else if (developer->integer)
-		// {
-		// 	// This warning is useful for debugging desyncs between counters and reality.
-		// 	gi.Com_PrintFmt("WARN: CheckRemaining: Pools empty, live count 0, but GetStroggsNum() != 0. Live: {}, NumSpawn: {}, Queued: {}. Totalalives: {}.\n",
-		// 					ctx.liveMonsters, g_horde_local.num_to_spawn, g_horde_local.queued_monsters, GetStroggsNum());
-		// }
+
+		// After grace period, start force-killing stuck monsters
+		const gtime_t timeSinceCleanupStart = ctx.currentTime - g_horde_local.stragglerCleanupStartTime;
+		if (timeSinceCleanupStart >= STRAGGLER_GRACE_PERIOD)
+		{
+			// Kill one stuck monster per interval
+			if (ctx.currentTime >= g_horde_local.lastStragglerKillTime + STRAGGLER_FORCE_KILL_INTERVAL)
+			{
+				if (ForceKillMostStuckMonster())
+				{
+					g_horde_local.lastStragglerKillTime = ctx.currentTime;
+				}
+			}
+		}
+	}
+	else if (g_horde_local.stragglerCleanupActive && !fewMonstersRemain)
+	{
+		// Reset cleanup if monsters increased (new spawns, etc.)
+		ResetStragglerCleanup();
 	}
 
 	// --- 3. Absolute Failsafe Timer ---
@@ -5465,6 +5469,120 @@ static edict_t* FindSafeTeleportDestination(edict_t* self)
 	}
 
 	return best_spot;
+}
+
+// --- Straggler Cleanup System (100% Wave Elimination) ---
+// Finds and force-kills stuck monsters when the wave is winding down
+// Returns true if a monster was killed, false otherwise
+static bool ForceKillMostStuckMonster()
+{
+	using namespace HordeConstants;
+
+	edict_t* most_stuck = nullptr;
+	int highest_stuck_score = 0;
+
+	for (edict_t* ent : active_monsters())
+	{
+		if (!ent || !ent->inuse || ent->deadflag || ent->health <= 0)
+			continue;
+
+		// Skip bosses - let them be killed normally
+		if (ent->monsterinfo.IS_BOSS)
+			continue;
+
+		int stuck_score = 0;
+
+		// Critical: Monster is in the void (below map)
+		if (ent->s.origin.z < VOID_Z_THRESHOLD)
+		{
+			stuck_score += 1000; // Highest priority
+		}
+
+		// Check if stuck in solid geometry
+		if (gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin, ent, MASK_SOLID).startsolid)
+		{
+			stuck_score += 500;
+		}
+
+		// Check if on/near sky (outside map)
+		vec3_t sky_check = ent->s.origin;
+		sky_check.z += ent->maxs.z;
+		vec3_t sky_end = sky_check;
+		sky_end.z += 64.0f;
+		trace_t sky_trace = gi.trace(sky_check, vec3_origin, vec3_origin, sky_end, ent, MASK_SOLID);
+		if (sky_trace.surface && (sky_trace.surface->flags & SURF_SKY))
+		{
+			stuck_score += 400;
+		}
+
+		// Check if unreachable (no visibility to any player)
+		bool visible_to_player = false;
+		for (auto* player : active_players_no_spect())
+		{
+			if (player && player->inuse && visible(ent, player, false))
+			{
+				visible_to_player = true;
+				break;
+			}
+		}
+		if (!visible_to_player)
+		{
+			stuck_score += 200;
+			// Even higher if never been visible
+			if (!ent->monsterinfo.was_ever_visible_to_player)
+				stuck_score += 100;
+		}
+
+		// Flying monsters that can't reach players are likely stuck
+		if ((ent->flags & FL_FLY) && !visible_to_player)
+		{
+			stuck_score += 150;
+		}
+
+		// Add score based on how long monster has been unreachable
+		if (ent->monsterinfo.unreachable_start_time > 0_sec)
+		{
+			gtime_t unreachable_time = level.time - ent->monsterinfo.unreachable_start_time;
+			stuck_score += static_cast<int>(unreachable_time.seconds() * 10);
+		}
+
+		if (stuck_score > highest_stuck_score)
+		{
+			highest_stuck_score = stuck_score;
+			most_stuck = ent;
+		}
+	}
+
+	// Kill the most stuck monster if found
+	if (most_stuck && highest_stuck_score > 0)
+	{
+		if (developer->integer)
+		{
+			gi.Com_PrintFmt("STRAGGLER CLEANUP: Force-killing {} (stuck score: {}, pos: [{:.0f}, {:.0f}, {:.0f}])\n",
+				most_stuck->classname ? most_stuck->classname : "unknown",
+				highest_stuck_score,
+				most_stuck->s.origin.x, most_stuck->s.origin.y, most_stuck->s.origin.z);
+		}
+
+		// Use T_Damage to kill the monster properly - this ensures:
+		// 1. Monster count decreases correctly
+		// 2. Death callbacks fire (items drop, effects trigger)
+		// 3. All game state updates properly
+		T_Damage(most_stuck, world, world, vec3_origin, most_stuck->s.origin, vec3_origin,
+			most_stuck->health + 1000, 0, DAMAGE_NO_PROTECTION, MOD_UNKNOWN);
+
+		return true;
+	}
+
+	return false;
+}
+
+// Resets straggler cleanup state for new wave
+static void ResetStragglerCleanup()
+{
+	g_horde_local.stragglerCleanupActive = false;
+	g_horde_local.stragglerCleanupStartTime = 0_sec;
+	g_horde_local.lastStragglerKillTime = 0_sec;
 }
 
 bool CheckAndTeleportStuckMonster(edict_t* self)
@@ -7631,6 +7749,7 @@ void Horde_RunFrame()
 		g_horde_local.monster_spawn_time = currentTime + 0.5_sec;  // REDUCED: 1.5s -> 0.5s for faster pacing
 		g_horde_local.state = horde_state_t::cleanup;
 		ResetWaveAdvanceState();
+		ResetStragglerCleanup();
 	}
 
 	if (horde_message_end_time != 0_sec && currentTime >= horde_message_end_time) {

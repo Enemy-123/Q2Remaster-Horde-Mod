@@ -252,7 +252,13 @@ MOVEINFO_BLOCKED(plat2_blocked) (edict_t* self, edict_t* other) -> void
 		T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, DAMAGE_NONE, MOD_CRUSH);
 		// if it's still there, nuke it
 		if (other && other->inuse && other->solid)
-			BecomeExplosion1(other);
+		{
+			// Body queue entities can't be freed - disable them instead to prevent infinite explosion loops
+			if (IsBodyQueueEntity(other))
+				DisableCrushedBodyQueue(other);
+			else
+				BecomeExplosion1(other);
+		}
 		return;
 	}
 
