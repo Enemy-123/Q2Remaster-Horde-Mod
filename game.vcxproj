@@ -84,11 +84,15 @@
       <AdditionalLibraryDirectories>$(SolutionDir)vcpkg_installed\x64-windows-static\x64-windows-static\debug\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
-      <Command>robocopy "$(SolutionDir)deploy\bots" "$(OutDir)..\bots" /E /XO /NJH /NJS /NDL /NC /NS /NP || (exit 0)
-robocopy "$(SolutionDir)deploy\ents" "$(OutDir)..\ents" /E /XO /NJH /NJS /NDL /NC /NS /NP || (exit 0)
-robocopy "$(SolutionDir)deploy" "$(OutDir).." horde_config.json /XO /NJH /NJS /NDL /NC /NS /NP || (exit 0)
-echo Data files deployed (only new/modified files copied)</Command>
-      <Message>Deploying bots, ents, and horde_config.json (smart copy)</Message>
+      <Command>fsutil reparsepoint query "$(OutDir)ents" >nul 2>&amp;1 &amp;&amp; (echo Symlinks detected, skipping deploy) || (
+robocopy "$(SolutionDir)deploy\bots" "$(OutDir)bots" /E /XO /NJH /NJS /NDL /NC /NS /NP
+robocopy "$(SolutionDir)deploy\ents" "$(OutDir)ents" /E /XO /NJH /NJS /NDL /NC /NS /NP
+robocopy "$(SolutionDir)deploy\config" "$(OutDir)config" /E /XO /NJH /NJS /NDL /NC /NS /NP
+robocopy "$(SolutionDir)deploy" "$(OutDir)" horde_config.json /XO /NJH /NJS /NDL /NC /NS /NP
+echo Data files deployed
+)
+exit /b 0</Command>
+      <Message>Deploying data files (skipped if symlinks exist)</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -116,11 +120,15 @@ echo Data files deployed (only new/modified files copied)</Command>
       <AdditionalLibraryDirectories>$(SolutionDir)vcpkg_installed\x64-windows-static\x64-windows-static\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
-      <Command>robocopy "$(SolutionDir)deploy\bots" "$(OutDir)..\bots" /E /XO /NJH /NJS /NDL /NC /NS /NP || (exit 0)
-robocopy "$(SolutionDir)deploy\ents" "$(OutDir)..\ents" /E /XO /NJH /NJS /NDL /NC /NS /NP || (exit 0)
-robocopy "$(SolutionDir)deploy" "$(OutDir).." horde_config.json /XO /NJH /NJS /NDL /NC /NS /NP || (exit 0)
-echo Data files deployed (only new/modified files copied)</Command>
-      <Message>Deploying bots, ents, and horde_config.json (smart copy)</Message>
+      <Command>fsutil reparsepoint query "$(OutDir)ents" >nul 2>&amp;1 &amp;&amp; (echo Symlinks detected, skipping deploy) || (
+robocopy "$(SolutionDir)deploy\bots" "$(OutDir)bots" /E /XO /NJH /NJS /NDL /NC /NS /NP
+robocopy "$(SolutionDir)deploy\ents" "$(OutDir)ents" /E /XO /NJH /NJS /NDL /NC /NS /NP
+robocopy "$(SolutionDir)deploy\config" "$(OutDir)config" /E /XO /NJH /NJS /NDL /NC /NS /NP
+robocopy "$(SolutionDir)deploy" "$(OutDir)" horde_config.json /XO /NJH /NJS /NDL /NC /NS /NP
+echo Data files deployed
+)
+exit /b 0</Command>
+      <Message>Deploying data files (skipped if symlinks exist)</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -328,6 +336,14 @@ echo Data files deployed (only new/modified files copied)</Command>
     <ClCompile Include="xatrix\m_xatrix_fixbot.cpp" />
     <ClCompile Include="xatrix\m_xatrix_gekk.cpp" />
     <ClCompile Include="xatrix\p_xatrix_weapon.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="deploy\horde.cfg" />
+    <None Include="deploy\horde_config.json" />
+    <None Include="deploy\config\maps_config.json" />
+    <None Include="deploy\config\horde_config.json" />
+    <None Include="deploy\config\monsters_config.json" />
+    <None Include="deploy\ents\*.ent" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />
