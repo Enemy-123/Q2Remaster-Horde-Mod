@@ -1776,9 +1776,8 @@ static ConditionParams GetConditionParams(const horde::MapSize &mapSize, int32_t
 	{ // Target very early waves on big maps
 		// Estimate initial spawn count for big maps, early levels.
 		// This needs to roughly match what UnifiedAdjustSpawnRate would produce for num_to_spawn.
-		// From HordeConstants::BASE_COUNTS, for big maps, level <= 5, it's 15.
-		// Let's use a slightly higher base to be safe.
-		int32_t estimatedInitialSpawn = HordeConstants::BASE_COUNTS[2][0]; // 15 for Big Map, Level <= 5
+		// Uses BASE_COUNTS for big maps, level <= 5.
+		int32_t estimatedInitialSpawn = HordeConstants::BASE_COUNTS[2][0]; // Big Map, Level <= 5
 		if (numHumanPlayers > 1)
 		{ // Rough approximation of player scaling in UnifiedAdjustSpawnRate
 			estimatedInitialSpawn = static_cast<int32_t>(estimatedInitialSpawn * (HordeConstants::BASE_DIFFICULTY_MULTIPLIER + ((std::min(numHumanPlayers, 4) - 1) * HordeConstants::PLAYER_COUNT_SCALE)));
@@ -4006,17 +4005,18 @@ void Horde_CleanBodies()
 		}
 	}
 
-	// Clean up gibs, bodyque, and stuck projectiles
+	// Clean up gibs and stuck projectiles
 	// NOTE: This linear scan is necessary as gibs/projectiles are not indexed separately
-	for (int i = game.maxclients + 1; i < static_cast<int>(globals.num_edicts); i++)
+	// Start after body queue to avoid trying to free special edicts
+	for (int i = game.maxclients + static_cast<int>(BODY_QUEUE_SIZE) + 1; i < static_cast<int>(globals.num_edicts); i++)
 	{
 		edict_t* ent = &g_edicts[i];
-		
+
 		if (!ent->inuse || !ent->classname)
 			continue;
 
-		// Check for gibs or bodyque
-		if (strcmp(ent->classname, "gib") == 0 || strcmp(ent->classname, "bodyque") == 0)
+		// Check for gibs (bodyque entities are in the protected range and handled separately)
+		if (strcmp(ent->classname, "gib") == 0)
 		{
 			// Start fade out if not already fading
 			if (!ent->is_fading_out)

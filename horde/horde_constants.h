@@ -17,9 +17,9 @@ namespace HordeConstants
 	inline constexpr int8_t MAX_MONSTERS_SMALL_MAP = 12;
 
 	inline constexpr std::array<std::array<int32_t, 4>, 3> BASE_COUNTS = {{
-		{{4, 6, 8, 9}},    // Small maps
-		{{6, 9, 11, 12}},  // Medium maps
-		{{11, 14, 18, 20}} // Large maps
+		{{3, 6, 8, 9}},    // Small maps (reduced early waves from 4 to 3)
+		{{4, 9, 11, 12}},  // Medium maps (reduced early waves from 6 to 4)
+		{{8, 14, 18, 20}}  // Large maps (reduced early waves from 11 to 8)
 	}};
 	inline constexpr std::array<int32_t, 3> ADDITIONAL_SPAWNS = {6, 5, 9};
 
@@ -35,7 +35,7 @@ namespace HordeConstants
 
 	// --- Spawn Timing ---
 	inline constexpr gtime_t SPAWN_INTERVAL = 2.0_sec;
-	inline constexpr gtime_t MIN_MONSTER_SPAWN_INTERVAL = 0.6_sec;  // Minimum time between individual monster spawns
+	inline constexpr gtime_t MIN_MONSTER_SPAWN_INTERVAL = 1.0_sec;  // Minimum time between individual monster spawns (increased for easier gameplay)
 	inline constexpr gtime_t MIN_WAVE_TIME = 30_sec;
 	inline constexpr gtime_t WAVE_COMPLETE_GRACE_PERIOD = 1_sec;
 	inline constexpr gtime_t FOG_PERSIST_TIME = 30_sec;
@@ -56,9 +56,9 @@ namespace HordeConstants
 	inline constexpr int32_t SPAWN_BATCH_BIG_MAP = 4;     // Reduced from 6 for smarter positioning
 
 	// --- Early Wave Warmup (Slower Start) ---
-	// Waves 1-4 spawn slower, progressively speeding up to normal by wave 5
-	inline constexpr int32_t EARLY_WAVE_WARMUP_END = 5;        // Wave at which spawning reaches normal speed
-	inline constexpr float EARLY_WAVE_SLOW_MULTIPLIER = 1.4f;  // 40% slower spawning in wave 1
+	// Waves 1-7 spawn slower, progressively speeding up to normal by wave 8
+	inline constexpr int32_t EARLY_WAVE_WARMUP_END = 8;        // Wave at which spawning reaches normal speed (extended for easier gameplay)
+	inline constexpr float EARLY_WAVE_SLOW_MULTIPLIER = 1.6f;  // 60% slower spawning in wave 1 (increased for easier gameplay)
 	inline constexpr float WAVE_SPEED_INCREASE_PER_WAVE = 0.1f; // Each wave gets 10% faster until normal
 	inline constexpr float SMALL_MAP_EXTRA_SLOWDOWN = 1.25f;   // Extra 25% slowdown for small maps
 
