@@ -1138,6 +1138,11 @@ gtime_t SPAWN_POINT_COOLDOWN = 2.8_sec; // spawns Cooldown
 // FIX: Time-sliced cooldown checking to reduce per-frame overhead on large maps
 static void CheckAndReduceSpawnCooldowns()
 {
+	// Safety check: ensure spawn system is initialized
+	if (g_num_spawn_points == 0 || 
+		g_spawn_system.spawn_points_data.isTemporarilyDisabled.size() < g_num_spawn_points)
+		return;
+
 	if (GetStroggsNum() > 6 || IsBossWave()) {
 		return;
 	}
@@ -1173,13 +1178,6 @@ static void CheckAndReduceSpawnCooldowns()
 	{
 		SPAWN_POINT_COOLDOWN *= REDUCTION_FACTOR;
 		SPAWN_POINT_COOLDOWN = std::max(SPAWN_POINT_COOLDOWN, HordeConstants::MIN_GLOBAL_SPAWN_COOLDOWN);
-
-		// if (developer->integer > 1)
-		// {
-		// 	// FIX: Explicitly cast the result to a standard float to satisfy the
-		// 	// compile-time (consteval) format string validation.
-		// 	gi.Com_PrintFmt("Global spawn cooldown reduced and clamped to {:.2f}s\n", static_cast<float>(SPAWN_POINT_COOLDOWN.seconds()));
-		// }
 	}
 }
 
@@ -3542,23 +3540,85 @@ void Horde_PreInit()
 
 void VerifyAndAdjustBots()
 {
+	// Safety check: ensure game is fully initialized and not in map transition
+	if (!g_edicts || !game.clients || game.maxclients == 0 || 
+		level.intermissiontime || !level.mapname[0])
+		return;
+
 	// developer >= 2: Disable bot spawning for debugging
 	if (developer->integer >= 2)
 	{
 		gi.cvar_set("bot_minClients", "-1");
+		return;
 	}
-	else
-	{
-		const horde::MapSize mapSize = GetMapSize(static_cast<const char *>(level.mapname));
-		const int32_t spectPlayers = GetNumSpectPlayers();
-		const int32_t baseBots = mapSize.isBigMap ? 6 : 4;
 
-		// Agregar bot extra si current_wave_level >= 20
-		//const int32_t extraBot = (current_wave_level >= 20) ? 1 : 0;
-		//const int32_t requiredBots = std::max(baseBots + spectPlayers + extraBot, baseBots);
-		const int32_t requiredBots = std::max(baseBots + spectPlayers, baseBots);
-		gi.cvar_set("bot_minClients", std::to_string(requiredBots).c_str());
+	// Track server initialization and previous map size
+	static bool server_first_map = true;
+	static bool previous_map_was_big = false;
+	static char last_map_for_bot_init[MAX_QPATH] = {0};
+
+	const horde::MapSize mapSize = GetMapSize(static_cast<const char *>(level.mapname));
+	const int32_t spectPlayers = GetNumSpectPlayers();
+	const int32_t baseBots = mapSize.isBigMap ? 6 : 4;
+
+	// Calculate required bots with a maximum cap to prevent overloading
+	constexpr int32_t MAX_BOTS = 8;
+	const int32_t requiredBots = std::min(baseBots + spectPlayers, MAX_BOTS);
+
+	// Detect map change
+	const bool map_changed = Q_strcasecmp(last_map_for_bot_init, level.mapname) != 0;
+	
+	if (map_changed)
+	{
+		if (server_first_map)
+		{
+			// First map ever on server start - instant spawn all bots
+			for (int32_t i = 0; i < baseBots; i++)
+			{
+				gi.AddCommandString("addbot\n");
+			}
+			server_first_map = false;
+
+			if (developer->integer)
+			{
+				gi.Com_PrintFmt("VerifyAndAdjustBots: First map - spawned {} bots (map: {}, isBig: {})\n",
+					baseBots, level.mapname, mapSize.isBigMap);
+			}
+		}
+		else
+		{
+			// Subsequent map - adjust based on size change
+			if (mapSize.isBigMap && !previous_map_was_big)
+			{
+				// Small/Medium -> Big: add 2 bots instantly
+				gi.AddCommandString("addbot\n");
+				gi.AddCommandString("addbot\n");
+
+				if (developer->integer)
+				{
+					gi.Com_PrintFmt("VerifyAndAdjustBots: Small->Big map transition - added 2 bots\n");
+				}
+			}
+			else if (!mapSize.isBigMap && previous_map_was_big)
+			{
+				// Big -> Small/Medium: kick 2 bots instantly
+				gi.AddCommandString("kickbot\n");
+				gi.AddCommandString("kickbot\n");
+
+				if (developer->integer)
+				{
+					gi.Com_PrintFmt("VerifyAndAdjustBots: Big->Small map transition - kicked 2 bots\n");
+				}
+			}
+		}
+
+		// Update tracking
+		Q_strlcpy(last_map_for_bot_init, level.mapname, sizeof(last_map_for_bot_init));
+		previous_map_was_big = mapSize.isBigMap;
 	}
+
+	// Always set bot_minClients for the engine to maintain the bot count
+	gi.cvar_set("bot_minClients", std::to_string(requiredBots).c_str());
 }
 
 void InitializeWaveSystem();
@@ -4193,6 +4253,9 @@ static void ResetAllSpawnPointDataAndTrackers()
 	// 1. Reset all individual spawn point data with a single, efficient call.
 	// This clears all arrays within the SoA struct to their default values.
 	g_spawn_system.spawn_points_data.clear();
+
+	// Reset spawn point count to match cleared vectors (prevents out-of-bounds access)
+	g_num_spawn_points = 0;
 
 	// 2. Reset global helper trackers.
 	horde::g_monsterSpawnTracker.Reset();
@@ -7503,6 +7566,11 @@ static void SendCleanupMessage(WaveEndReason reason)
 
 void CheckAndResetDisabledSpawnPoints()
 {
+	// Safety check: ensure spawn system is initialized
+	if (g_num_spawn_points == 0 || 
+		g_spawn_system.spawn_points_data.isTemporarilyDisabled.size() < g_num_spawn_points)
+		return;
+
 	// Iterate using the compact index, which is much more efficient.
 	for (size_t index = 0; index < g_num_spawn_points; ++index)
 	{
@@ -7524,10 +7592,14 @@ edict_t* Horde_SpawnMonster(
 
 void Horde_RunFrame()
 {
-
-	if (level.intermissiontime) {
+	// Safety check: don't run during intermission or before spawn system is initialized
+	if (level.intermissiontime || !level.mapname[0])
 		return;
-	}
+
+	// Safety check: ensure spawn system vectors are initialized before any spawn point access
+	if (g_num_spawn_points > 0 &&
+		g_spawn_system.spawn_points_data.isTemporarilyDisabled.size() < g_num_spawn_points)
+		return;
 
 	// --- TIME-SLICED EXECUTION PHASE ---
 	ExecuteSpawnPlan();
