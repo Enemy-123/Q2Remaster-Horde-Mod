@@ -328,7 +328,7 @@
     "chick": {
       "health": 65,
       "power_armor_power": 45,
-      "power_armor_type": "combat",
+      "power_armor_type": "shield",
       "damage_scale": 1,
       "weapon_damage": {
         "melee": 25,
@@ -436,7 +436,7 @@
     "daedalus": {
       "health": 120,
       "power_armor_power": 80,
-      "power_armor_type": "screen",
+      "power_armor_type": "shield",
       "damage_scale": 0.8,
       "weapon_damage": {
         "blaster2": 13
