@@ -4262,7 +4262,7 @@ void ClearHordeMessage()
 }
 
 void ResetWaveAdvanceState() noexcept;
-static void ResetStragglerCleanup();
+static void ResetStroggCleanup();
 static bool ForceKillMostStuckMonster();
 
 //
@@ -4665,51 +4665,51 @@ static bool CheckRemainingMonstersCondition(const horde::MapSize &mapSize, WaveE
 		{
 			reason = WaveEndReason::AllMonstersDead;
 			ResetWaveAdvanceState();
-			ResetStragglerCleanup();
+			ResetStroggCleanup();
 			return true;
 		}
 	}
 
-	// --- 2b. Straggler Cleanup System ---
+	// --- 2b. Strogg Cleanup System ---
 	// When spawning is done and few monsters remain, start cleaning up stuck monsters
 	// This prevents the game from getting stuck while still requiring 100% elimination
 	using namespace HordeConstants;
 	const bool spawningComplete = (g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters <= 0);
-	const bool fewMonstersRemain = (ctx.liveMonsters > 0 && ctx.liveMonsters <= STRAGGLER_THRESHOLD);
+	const bool fewMonstersRemain = (ctx.liveMonsters > 0 && ctx.liveMonsters <= STROGG_THRESHOLD);
 
 	if (spawningComplete && fewMonstersRemain)
 	{
-		// Start straggler cleanup if not already active
-		if (!g_horde_local.stragglerCleanupActive)
+		// Start strogg cleanup if not already active
+		if (!g_horde_local.stroggCleanupActive)
 		{
-			g_horde_local.stragglerCleanupActive = true;
-			g_horde_local.stragglerCleanupStartTime = ctx.currentTime;
-			g_horde_local.lastStragglerKillTime = ctx.currentTime;
+			g_horde_local.stroggCleanupActive = true;
+			g_horde_local.stroggCleanupStartTime = ctx.currentTime;
+			g_horde_local.lastStroggKillTime = ctx.currentTime;
 			if (developer->integer)
 			{
-				gi.Com_PrintFmt("STRAGGLER CLEANUP: Started. {} monsters remain. Grace period: {:.0f}s\n",
-					ctx.liveMonsters, STRAGGLER_GRACE_PERIOD.seconds());
+				gi.Com_PrintFmt("STROGG CLEANUP: Started. {} monsters remain. Grace period: {:.0f}s\n",
+					ctx.liveMonsters, STROGG_GRACE_PERIOD.seconds());
 			}
 		}
 
 		// After grace period, start force-killing stuck monsters
-		const gtime_t timeSinceCleanupStart = ctx.currentTime - g_horde_local.stragglerCleanupStartTime;
-		if (timeSinceCleanupStart >= STRAGGLER_GRACE_PERIOD)
+		const gtime_t timeSinceCleanupStart = ctx.currentTime - g_horde_local.stroggCleanupStartTime;
+		if (timeSinceCleanupStart >= STROGG_GRACE_PERIOD)
 		{
 			// Kill one stuck monster per interval
-			if (ctx.currentTime >= g_horde_local.lastStragglerKillTime + STRAGGLER_FORCE_KILL_INTERVAL)
+			if (ctx.currentTime >= g_horde_local.lastStroggKillTime + STROGG_FORCE_KILL_INTERVAL)
 			{
 				if (ForceKillMostStuckMonster())
 				{
-					g_horde_local.lastStragglerKillTime = ctx.currentTime;
+					g_horde_local.lastStroggKillTime = ctx.currentTime;
 				}
 			}
 		}
 	}
-	else if (g_horde_local.stragglerCleanupActive && !fewMonstersRemain)
+	else if (g_horde_local.stroggCleanupActive && !fewMonstersRemain)
 	{
 		// Reset cleanup if monsters increased (new spawns, etc.)
-		ResetStragglerCleanup();
+		ResetStroggCleanup();
 	}
 
 	// --- 3. Absolute Failsafe Timer ---
@@ -5583,7 +5583,7 @@ static edict_t* FindSafeTeleportDestination(edict_t* self)
 	return best_spot;
 }
 
-// --- Straggler Cleanup System (100% Wave Elimination) ---
+// --- Strogg Cleanup System (100% Wave Elimination) ---
 // Finds and force-kills stuck monsters when the wave is winding down
 // Returns true if a monster was killed, false otherwise
 static bool ForceKillMostStuckMonster()
@@ -5670,7 +5670,7 @@ static bool ForceKillMostStuckMonster()
 	{
 		if (developer->integer)
 		{
-			gi.Com_PrintFmt("STRAGGLER CLEANUP: Force-killing {} (stuck score: {}, pos: [{:.0f}, {:.0f}, {:.0f}])\n",
+			gi.Com_PrintFmt("STROGG CLEANUP: Force-killing {} (stuck score: {}, pos: [{:.0f}, {:.0f}, {:.0f}])\n",
 				most_stuck->classname ? most_stuck->classname : "unknown",
 				highest_stuck_score,
 				most_stuck->s.origin.x, most_stuck->s.origin.y, most_stuck->s.origin.z);
@@ -5689,12 +5689,12 @@ static bool ForceKillMostStuckMonster()
 	return false;
 }
 
-// Resets straggler cleanup state for new wave
-static void ResetStragglerCleanup()
+// Resets strogg cleanup state for new wave
+static void ResetStroggCleanup()
 {
-	g_horde_local.stragglerCleanupActive = false;
-	g_horde_local.stragglerCleanupStartTime = 0_sec;
-	g_horde_local.lastStragglerKillTime = 0_sec;
+	g_horde_local.stroggCleanupActive = false;
+	g_horde_local.stroggCleanupStartTime = 0_sec;
+	g_horde_local.lastStroggKillTime = 0_sec;
 }
 
 bool CheckAndTeleportStuckMonster(edict_t* self)
@@ -7873,7 +7873,7 @@ void Horde_RunFrame()
 		g_horde_local.monster_spawn_time = currentTime + 0.5_sec;  // REDUCED: 1.5s -> 0.5s for faster pacing
 		g_horde_local.state = horde_state_t::cleanup;
 		ResetWaveAdvanceState();
-		ResetStragglerCleanup();
+		ResetStroggCleanup();
 	}
 
 	if (horde_message_end_time != 0_sec && currentTime >= horde_message_end_time) {

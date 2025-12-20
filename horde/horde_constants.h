@@ -94,9 +94,9 @@ namespace HordeConstants
 	// --- Stuck Monster Cleanup (100% Wave Elimination) ---
 	// When spawning is done and few monsters remain, start a cleanup timer
 	// After timeout, force-kill stuck monsters instead of ending wave early
-	inline constexpr int32_t STRAGGLER_THRESHOLD = 4;              // Start cleanup when this many or fewer remain
-	inline constexpr gtime_t STRAGGLER_GRACE_PERIOD = 20_sec;      // Time to let players find stragglers naturally
-	inline constexpr gtime_t STRAGGLER_FORCE_KILL_INTERVAL = 2_sec; // Kill one stuck monster every N seconds after grace
+	inline constexpr int32_t STROGG_THRESHOLD = 4;              // Start cleanup when this many or fewer remain
+	inline constexpr gtime_t STROGG_GRACE_PERIOD = 20_sec;      // Time to let players find stroggs naturally
+	inline constexpr gtime_t STROGG_FORCE_KILL_INTERVAL = 2_sec; // Kill one stuck monster every N seconds after grace
 	inline constexpr float VOID_Z_THRESHOLD = -4096.0f;            // Monsters below this Z are considered in the void
 
 	// --- Grid Spawn Cooldown Settings ---

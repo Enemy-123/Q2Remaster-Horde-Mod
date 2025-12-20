@@ -140,10 +140,10 @@ struct HordeState
 	gtime_t accelerationStartTime = 0_sec;   // When acceleration began
 	gtime_t accelerationDuration = 2_sec;    // How long to interpolate
 
-	// Straggler cleanup (100% wave elimination)
-	bool stragglerCleanupActive = false;     // True when cleanup mode is active
-	gtime_t stragglerCleanupStartTime = 0_sec; // When cleanup started
-	gtime_t lastStragglerKillTime = 0_sec;   // Last time we force-killed a stuck monster
+	// Strogg cleanup (100% wave elimination)
+	bool stroggCleanupActive = false;     // True when cleanup mode is active
+	gtime_t stroggCleanupStartTime = 0_sec; // When cleanup started
+	gtime_t lastStroggKillTime = 0_sec;   // Last time we force-killed a stuck monster
 
 	void update_map_size(const char *mapname);
 	void reset_hud_state();
