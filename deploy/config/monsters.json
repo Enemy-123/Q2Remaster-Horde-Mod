@@ -121,8 +121,8 @@
     },
     "soldier_ss": {
       "health": 40,
-      "power_armor_power": 30,
-      "power_armor_type": "combat",
+      "armor_power": 30,
+      "armor_type": "combat",
       "damage_scale": 1
     },
     "soldier_hypergun": {
@@ -1189,8 +1189,8 @@
     "soldier_ss": {
       "initial_health": 40,
       "addon_health": 15,
-      "initial_power_armor": 40,
-      "addon_power_armor": 15
+      "initial_armor": 30,
+      "addon_armor": 15
     },
     "spider": {
       "initial_health": 180,

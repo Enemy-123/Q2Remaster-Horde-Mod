@@ -2454,7 +2454,7 @@ void SP_monster_soldier_ss(edict_t* self)
 
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER_SS);
 
-	// Armor
+	// Regular combat armor (not power armor)
 	if (!st.was_key_specified("armor_type") && M_SOLDIER_SS_INITIAL_ARMOR > 0) {
 		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
 		if (!st.was_key_specified("armor_power"))

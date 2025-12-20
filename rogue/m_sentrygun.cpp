@@ -2355,7 +2355,8 @@ void SP_monster_sentrygun(edict_t* self)
 
 	self->monsterinfo.last_sentry_missile_fire_time = gtime_t::from_sec(2);
 	self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-	self->monsterinfo.attack_state = AS_BLIND;
+	// Don't set AS_BLIND - it prevents turret2_attack from firing when blind_fire_target is not set
+	self->monsterinfo.attack_state = AS_STRAIGHT;
 	self->s.effects = EF_BOB;
 	self->target_hint_chain = nullptr;
 	
