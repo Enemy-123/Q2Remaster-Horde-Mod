@@ -38,7 +38,9 @@
       "Bash(powershell.exe:*)",
       "Bash(\"C:\\\\Program Files\\\\Microsoft Visual Studio\\\\2022\\\\Community\\\\MSBuild\\\\Current\\\\Bin\\\\MSBuild.exe\" \"C:\\\\Users\\\\pipev\\\\OneDrive\\\\Documents\\\\repos\\\\Q2Remaster-Horde-Mod\\\\game.vcxproj\" /p:Configuration=Release /p:Platform=x64 /v:minimal)",
       "Bash(\"C:\\\\Program Files\\\\Microsoft Visual Studio\\\\2022\\\\Community\\\\MSBuild\\\\Current\\\\Bin\\\\MSBuild.exe\" game.vcxproj -p:Configuration=Release -p:Platform=x64 -p:PlatformToolset=v143 -v:minimal)",
-      "Bash(git show:*)"
+      "Bash(git show:*)",
+      "mcp__serena__initial_instructions",
+      "mcp__serena__insert_after_symbol"
     ],
     "deny": [],
     "ask": []

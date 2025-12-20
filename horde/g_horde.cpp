@@ -82,7 +82,7 @@ static int g_last_precache_wave = 0;
 static int32_t g_last_dynamic_precache_wave = -1;
 static int g_dynamic_precache_count_this_wave = 0;
 
-constexpr int MONSTERS_TO_EXCLUDE_PER_MAP = 28; // Exclude about 28 monsters per map to reduce memory pressure
+constexpr int MONSTERS_TO_EXCLUDE_PER_MAP = 15; // Reduced from 28 for more monster variety
 constexpr int WAVES_BETWEEN_PRECACHE = 8; // Add new monsters every 8 waves (reduced frequency to save memory)
 constexpr int MIN_MONSTERS_AVAILABLE = 12; // Always have at least 12 monster types available
 
@@ -227,38 +227,39 @@ namespace HordeConstants
 	// --- Base Proximity / Distance Checks ---
 	constexpr vec3_t VALIDATE_CHECK_MINS = {-16, -16, -24};
 	constexpr vec3_t VALIDATE_CHECK_MAXS = {16, 16, 32};
-	constexpr float MIN_PLAYER_DIST_GENERATE_BASE = 200.0f;
-	constexpr float MIN_PLAYER_DIST_CHECK_BASE = 360.0f;
-	constexpr float MIN_RECENT_TELEPORT_DIST_BASE = 300.0f;
+	constexpr float MIN_PLAYER_DIST_GENERATE_BASE = 400.0f;  // Doubled from 200
+	constexpr float MIN_PLAYER_DIST_CHECK_BASE = 500.0f;    // Doubled from 360
+	constexpr float MIN_RECENT_TELEPORT_DIST_BASE = 450.0f; // Doubled from 300
 
 	// --- Map-Size-Aware Distance Functions ---
+	// All distances doubled to prevent spawning too close to players
 	static inline float GetMinPlayerDistGenerate(const horde::MapSize& mapSize) {
 		if (mapSize.isSmallMap) {
-			return 120.0f; // Reduced from 200.0f for small maps
+			return 240.0f; // Doubled from 120.0f for small maps
 		} else if (mapSize.isMediumMap) {
-			return 160.0f; // Slightly reduced for medium maps
+			return 320.0f; // Doubled from 160.0f for medium maps
 		} else {
-			return MIN_PLAYER_DIST_GENERATE_BASE; // Keep original for big maps
+			return MIN_PLAYER_DIST_GENERATE_BASE; // 400 for big maps
 		}
 	}
 
 	static inline float GetMinPlayerDistCheck(const horde::MapSize& mapSize) {
 		if (mapSize.isSmallMap) {
-			return 220.0f; // Reduced from 360.0f for small maps
+			return 350.0f; // Doubled from 220.0f for small maps
 		} else if (mapSize.isMediumMap) {
-			return 290.0f; // Slightly reduced for medium maps
+			return 420.0f; // Doubled from 290.0f for medium maps
 		} else {
-			return MIN_PLAYER_DIST_CHECK_BASE; // Keep original for big maps
+			return MIN_PLAYER_DIST_CHECK_BASE; // 500 for big maps
 		}
 	}
 
 	static inline float GetMinRecentTeleportDist(const horde::MapSize& mapSize) {
 		if (mapSize.isSmallMap) {
-			return 200.0f; // Reduced from 300.0f for small maps
+			return 300.0f; // Doubled from 200.0f for small maps
 		} else if (mapSize.isMediumMap) {
-			return 250.0f; // Slightly reduced for medium maps
+			return 380.0f; // Doubled from 250.0f for medium maps
 		} else {
-			return MIN_RECENT_TELEPORT_DIST_BASE; // Keep original for big maps
+			return MIN_RECENT_TELEPORT_DIST_BASE; // 450 for big maps
 		}
 	}
 
@@ -443,7 +444,8 @@ void ResetQueueMonitorVars()
 }
 
 // --- Global/Static Variables ---
-bool champion_spawned_this_wave = false;
+static constexpr int32_t MAX_ELITES_PER_WAVE = 2;  // Allow up to 2 elites per wave for variety
+int32_t elites_spawned_this_wave = 0;  // Counter instead of boolean
 // int champion_spawn_cooldown = 0;
 static gtime_t champion_spawn_cooldown_ends_at = 0_sec;
 int consistent_zero_counts = 0;
@@ -1847,7 +1849,7 @@ inline int32_t GetAdjustedMonsterCap(const horde::MapSize &mapSize, int32_t wave
 
 static void ResetChampionMonsterState()
 {
-	champion_spawned_this_wave = false;
+	elites_spawned_this_wave = 0;  // Reset counter for new wave
 	// champion_spawn_cooldown = 0; // REMOVED
 	champion_spawn_cooldown_ends_at = 0_sec;
 }
@@ -2519,13 +2521,13 @@ static MonsterCache g_monster_picker_internal_cache;
 //-----------------------------------------------------
 static bool ShouldAttemptHigherLevelSpawn(int32_t currentLevel, bool isRetaliationActive, bool isRecoveryModeActive)
 {
-	// Don't spawn a special elite if we're already in a special mode or if one has already spawned
-	if (g_special_high_level_monster_spawned_this_wave || isRetaliationActive || isRecoveryModeActive)
+	// Don't spawn a special elite if we're already in a special mode or if we've hit the elite cap
+	if (elites_spawned_this_wave >= MAX_ELITES_PER_WAVE || isRetaliationActive || isRecoveryModeActive)
 	{
 		if (developer->integer)
 		{
-			gi.Com_PrintFmt("ShouldAttemptHigherLevelSpawn: BLOCKED (flag={}, retaliation={}, recovery={})\n",
-				g_special_high_level_monster_spawned_this_wave, isRetaliationActive, isRecoveryModeActive);
+			gi.Com_PrintFmt("ShouldAttemptHigherLevelSpawn: BLOCKED (elites={}/{}, retaliation={}, recovery={})\n",
+				elites_spawned_this_wave, MAX_ELITES_PER_WAVE, isRetaliationActive, isRecoveryModeActive);
 		}
 		return false;
 	}
@@ -2540,7 +2542,7 @@ static bool ShouldAttemptHigherLevelSpawn(int32_t currentLevel, bool isRetaliati
 		return false;
 	}
 
-	// Define probabilities based on wave progression
+	// Define probabilities based on wave progression (increased for more variety)
 	if (currentLevel <= 10)
 	{
 		if (developer->integer)
@@ -2550,8 +2552,8 @@ static bool ShouldAttemptHigherLevelSpawn(int32_t currentLevel, bool isRetaliati
 		return true; // 100% chance in early waves - FORCE elite spawn for variety
 	}
 	if (currentLevel <= 20)
-		return frandom() < 0.25f; // 25% chance in mid waves
-	return frandom() < 0.10f;	  // 10% chance in late waves
+		return frandom() < 0.30f; // Increased from 25% to 30% in mid waves
+	return frandom() < 0.15f;	  // Increased from 10% to 15% in late waves
 }
 
 static int32_t CalculateEffectiveMonsterLevel(int32_t currentActualLevel, bool attemptHigherLevel, MonsterWaveType waveTypeForFiltering)
@@ -3788,8 +3790,7 @@ static void PrecacheAllMonsters()
 	{
 		return;
 	}
-    // OLD: g_precached_monster_types.clear();
-    // NEW: Reset all flags to false.
+    // Reset all flags to false.
     g_precached_monster_types_flags.fill(false);
 
 	// PVM Mode: Precache all random monsters for this map
@@ -3834,18 +3835,19 @@ static void PrecacheAllMonsters()
 		}
 	}
 
-	// Normal Horde Mode: Precache wave 1 monsters
+	// Normal Horde Mode: AGGRESSIVE PRECACHING for variety
+	// Phase 1: Precache all wave 1-3 monsters (core gameplay)
 	if (developer->integer)
 	{
-		gi.Com_Print("INITIAL PRECACHE: Loading all monsters for Wave 1...\n");
+		gi.Com_Print("INITIAL PRECACHE: Loading monsters for Waves 1-3 (aggressive mode)...\n");
 	}
 
 	for (size_t i = 0; i < MONSTER_DATA_COUNT; ++i)
 	{
 		const auto &monster_info = monsterTypes[i];
-		if (monster_info.minWave > 1)
+		if (monster_info.minWave > 3)
 		{
-			break;
+			continue; // Changed from break to continue - process all monsters
 		}
 
 		const char *classname = horde::MonsterTypeRegistry::GetClassname(monster_info.typeId);
@@ -3861,12 +3863,69 @@ static void PrecacheAllMonsters()
 				{
 					G_FreeEdict(temp_monster);
 				}
-                // OLD: g_precached_monster_types.insert(monster_info.typeId);
-                // NEW: Set the flag for this monster type to true.
                 g_precached_monster_types_flags[static_cast<size_t>(monster_info.typeId)] = true;
+				
+				if (developer->integer)
+				{
+					gi.Com_PrintFmt("  - Precached (wave {}): {}\n", monster_info.minWave, classname);
+				}
 			}
 		}
 	}
+
+	// Phase 2: Precache one monster from each priority family for variety
+	// This ensures key monster types are always available
+	static constexpr AssetFamilyID priority_families[] = {
+		AssetFamilyID::GUNNER_FAMILY,
+		AssetFamilyID::TANK_FAMILY,
+		AssetFamilyID::FIXBOT_FAMILY,
+		AssetFamilyID::GLADIATOR_FAMILY,
+		AssetFamilyID::BERSERK_FAMILY,
+		AssetFamilyID::MUTANT_FAMILY,
+		AssetFamilyID::FLYER_FAMILY
+	};
+
+	if (developer->integer)
+	{
+		gi.Com_Print("INITIAL PRECACHE: Loading priority family representatives...\n");
+	}
+
+	for (const auto family : priority_families)
+	{
+		// Find the lowest minWave monster in this family that isn't already precached
+		for (size_t i = 0; i < MONSTER_DATA_COUNT; ++i)
+		{
+			const auto& monster = monsterTypes[i];
+			if (GetMonsterAssetFamily(monster.typeId) == family &&
+				monster.minWave < 999 &&
+				!g_precached_monster_types_flags[static_cast<size_t>(monster.typeId)])
+			{
+				const char *classname = horde::MonsterTypeRegistry::GetClassname(monster.typeId);
+				if (classname && *classname)
+				{
+					edict_t *temp_monster = G_Spawn();
+					if (temp_monster)
+					{
+						temp_monster->classname = classname;
+						temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+						ED_CallSpawn(temp_monster);
+						if (temp_monster->inuse)
+						{
+							G_FreeEdict(temp_monster);
+						}
+						g_precached_monster_types_flags[static_cast<size_t>(monster.typeId)] = true;
+						
+						if (developer->integer)
+						{
+							gi.Com_PrintFmt("  - Precached family rep (wave {}): {}\n", monster.minWave, classname);
+						}
+					}
+				}
+				break; // One per family
+			}
+		}
+	}
+
 	monsters_precached = true;
 }
 
@@ -6414,8 +6473,10 @@ static int SelectChampionBonusType() {
 bool ApplyHordeBonuses(edict_t* monster, const int32_t currentLevel, const float champion_chance)
 {
 	bool became_champion = false;
-	if ((!pvm->integer && currentLevel >= 3 && !champion_spawned_this_wave && champion_spawn_cooldown_ends_at < level.time && !monster->monsterinfo.IS_BOSS && frandom() < champion_chance) ||
-		(pvm->integer && currentLevel >= 10 && !champion_spawned_this_wave && champion_spawn_cooldown_ends_at < level.time && !monster->monsterinfo.IS_BOSS && frandom() < champion_chance))
+	// Allow multiple elites per wave (up to MAX_ELITES_PER_WAVE)
+	// Reduced cooldown for more dynamic gameplay
+	if ((!pvm->integer && currentLevel >= 3 && elites_spawned_this_wave < MAX_ELITES_PER_WAVE && champion_spawn_cooldown_ends_at < level.time && !monster->monsterinfo.IS_BOSS && frandom() < champion_chance) ||
+		(pvm->integer && currentLevel >= 10 && elites_spawned_this_wave < MAX_ELITES_PER_WAVE && champion_spawn_cooldown_ends_at < level.time && !monster->monsterinfo.IS_BOSS && frandom() < champion_chance))
 	{
 		// FIXED: Use weighted selection table
 		const int bonus_type = SelectChampionBonusType();
@@ -6428,8 +6489,8 @@ bool ApplyHordeBonuses(edict_t* monster, const int32_t currentLevel, const float
 		monster->item = G_HordePickItem();
 		monster->spawnflags = monster->item ? (monster->spawnflags & ~SPAWNFLAG_MONSTER_NO_DROP) : (monster->spawnflags | SPAWNFLAG_MONSTER_NO_DROP);
 
-		champion_spawned_this_wave = true;
-		champion_spawn_cooldown_ends_at = level.time + random_time(10_sec, 20_sec);
+		elites_spawned_this_wave++;  // Increment counter instead of setting boolean
+		champion_spawn_cooldown_ends_at = level.time + random_time(8_sec, 15_sec);  // Reduced from 10-20 sec
 		gi.LocBroadcast_Print(PRINT_HIGH, "*** A {} has appeared! ***\n", GetDisplayName(monster));
 		became_champion = true;
 	}
@@ -6754,33 +6815,34 @@ private:
 
     ScaledDistances GetScaledDistances(const horde::MapSize& mapSize, int fallback_level = 0) const {
         ScaledDistances distances;
-        
+
+        // All distances doubled to prevent spawning too close to players
         if (mapSize.isSmallMap) {
-            // Small maps: much tighter distances
+            // Small maps: doubled minimum distances
             switch (fallback_level) {
-                case 0: distances = {120.0f, 280.0f, 0.85f}; break;  // Was 300-800
-                case 1: distances = {100.0f, 200.0f, 0.80f}; break;  // Was 200-600  
-                case 2: distances = {80.0f, 150.0f, 0.75f}; break;   // Was 150-400
-                default: distances = {60.0f, 120.0f, 0.70f}; break;  // New ultra-tight fallback
+                case 0: distances = {240.0f, 400.0f, 0.85f}; break;  // Doubled from 120-280
+                case 1: distances = {200.0f, 350.0f, 0.80f}; break;  // Doubled from 100-200
+                case 2: distances = {160.0f, 280.0f, 0.75f}; break;  // Doubled from 80-150
+                default: distances = {120.0f, 200.0f, 0.70f}; break; // Doubled from 60-120
             }
         } else if (mapSize.isMediumMap) {
-            // Medium maps: moderately scaled
+            // Medium maps: doubled minimum distances
             switch (fallback_level) {
-                case 0: distances = {200.0f, 500.0f, 0.90f}; break;
-                case 1: distances = {150.0f, 400.0f, 0.85f}; break;
-                case 2: distances = {120.0f, 300.0f, 0.80f}; break;
-                default: distances = {100.0f, 200.0f, 0.75f}; break;
+                case 0: distances = {400.0f, 700.0f, 0.90f}; break;  // Doubled from 200-500
+                case 1: distances = {300.0f, 550.0f, 0.85f}; break;  // Doubled from 150-400
+                case 2: distances = {240.0f, 450.0f, 0.80f}; break;  // Doubled from 120-300
+                default: distances = {200.0f, 350.0f, 0.75f}; break; // Doubled from 100-200
             }
         } else {
-            // Big maps: use original or even larger distances
+            // Big maps: doubled minimum distances
             switch (fallback_level) {
-                case 0: distances = {350.0f, 900.0f, 0.95f}; break;  // Slightly larger than original
-                case 1: distances = {250.0f, 700.0f, 0.90f}; break;
-                case 2: distances = {180.0f, 500.0f, 0.85f}; break;
-                default: distances = {150.0f, 400.0f, 0.80f}; break;
+                case 0: distances = {700.0f, 1200.0f, 0.95f}; break; // Doubled from 350-900
+                case 1: distances = {500.0f, 1000.0f, 0.90f}; break; // Doubled from 250-700
+                case 2: distances = {360.0f, 750.0f, 0.85f}; break;  // Doubled from 180-500
+                default: distances = {300.0f, 600.0f, 0.80f}; break; // Doubled from 150-400
             }
         }
-        
+
         return distances;
     }
 
@@ -6803,7 +6865,7 @@ private:
     // Scores a potential position based on distance and proximity to recent events.
     float CalculatePositionScore(const vec3_t& pos, const vec3_t& player_pos, const horde::MapSize& mapSize) const {
         const float dist_sq = (pos - player_pos).lengthSquared();
-        constexpr float OPTIMAL_DIST_SQ = 450.0f * 450.0f;
+        constexpr float OPTIMAL_DIST_SQ = 700.0f * 700.0f;  // Increased from 450 for better spawn distance
 
         // Score is higher the closer it is to the optimal distance
         float score = 100.0f - std::abs(dist_sq - OPTIMAL_DIST_SQ) * 0.0001f;
@@ -8285,11 +8347,16 @@ static void InitializeMonsterRotation()
 		const auto& monster = monsterTypes[i];
 
 		// Never exclude bosses, semi-bosses, or wave 1-3 monsters (core monsters)
+		// Also protect critical monsters that should always be available for variety
 		if (monster.minWave > 3 &&
 			!HasWaveType(monster.types, MonsterWaveType::Boss) &&
 			!HasWaveType(monster.types, MonsterWaveType::SemiBoss) &&
-			monster.typeId != horde::MonsterTypeID::MEDIC && // Always keep medics
-			monster.typeId != horde::MonsterTypeID::GUNNER) { // Always keep gunners
+			monster.typeId != horde::MonsterTypeID::MEDIC &&           // Always keep medics
+			monster.typeId != horde::MonsterTypeID::GUNNER &&          // Always keep gunners
+			monster.typeId != horde::MonsterTypeID::GUNNER_VANILLA &&  // Always keep vanilla gunners
+			monster.typeId != horde::MonsterTypeID::FIXBOT &&          // Always keep fixbots (flying variety)
+			monster.typeId != horde::MonsterTypeID::TANK &&            // Always keep tanks
+			monster.typeId != horde::MonsterTypeID::TANK_COMMANDER) {  // Always keep tank commanders
 
 			AssetFamilyID family = GetMonsterAssetFamily(monster.typeId);
 			int32_t prev_usage = GetFamilyUsageInPreviousMaps(family);
@@ -8445,9 +8512,12 @@ static void BuildEligibleMonstersNormal(int32_t current_wave, MonsterWaveType wa
 	{
 		const auto& monster = monsterTypes[i];
 
-		if (monster.minWave > max_level_for_eligibility)
+		// Use adjusted minWave with per-map variance for dynamic monster variety
+		int32_t adjusted_min_wave = GetAdjustedMinWave(monster.typeId, g_map_rotation_seed);
+
+		if (adjusted_min_wave > max_level_for_eligibility)
 		{
-			break;
+			continue; // Changed from break to continue due to variance reordering
 		}
 
 		if (IsValidMonsterForWave(monster.typeId, wave_type))
@@ -8638,7 +8708,8 @@ static void PrecacheFutureWaveMonsters(int32_t lvl, float precache_budget, float
 // Progressive precache logic - handles both current and future wave precaching
 static void ProgressivePrecacheMonsters(int32_t lvl)
 {
-	float precache_budget = 6.0f + (lvl / 3.0f);
+	// Increased budget for more monster variety
+	float precache_budget = 10.0f + (lvl / 2.0f);  // Increased from 6.0f + lvl/3.0f
 	float precache_cost_this_wave = 0.0f;
 	int precached_count = 0;
 

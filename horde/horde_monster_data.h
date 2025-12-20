@@ -47,6 +47,10 @@ struct MonsterDataSoA
 MonsterWaveType GetMonsterWaveTypes(horde::MonsterTypeID typeId);
 bool GetPredictedScaledBounds(horde::MonsterTypeID typeId, vec3_t &out_mins, vec3_t &out_maxs);
 
+// Get wave unlock with per-map variance for dynamic monster variety
+// Returns the adjusted minWave with ±2 wave variance based on map seed
+int32_t GetAdjustedMinWave(horde::MonsterTypeID typeId, int32_t map_seed);
+
 // Monster category checks
 bool IsFlying(horde::MonsterTypeID typeId);
 bool IsGroundUnit(horde::MonsterTypeID typeId);

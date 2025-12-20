@@ -105,10 +105,10 @@ namespace HordeConstants
 	inline constexpr size_t MAX_GRID_COOLDOWN_POSITIONS = 32;         // Max tracked positions in cooldown buffer
 
 	// --- Tactical Spawn Distance Settings ---
-	// Increased minimum distances to give players more reaction time
-	inline constexpr float TELEPORT_MIN_DIST_FROM_PLAYER = 400.0f;    // Min distance for monster teleports
-	inline constexpr float EMERGENCY_MIN_DIST_FROM_PLAYER = 500.0f;   // Min distance for emergency/ambush spawns (increased for better reaction time)
-	inline constexpr float REGULAR_SPAWN_MIN_DIST_FROM_PLAYER = 350.0f; // Min distance for regular wave spawns on spawn points
+	// Doubled minimum distances to prevent spawning too close to players
+	inline constexpr float TELEPORT_MIN_DIST_FROM_PLAYER = 600.0f;    // Min distance for monster teleports (doubled from 400)
+	inline constexpr float EMERGENCY_MIN_DIST_FROM_PLAYER = 700.0f;   // Min distance for emergency/ambush spawns (doubled from 500)
+	inline constexpr float REGULAR_SPAWN_MIN_DIST_FROM_PLAYER = 500.0f; // Min distance for regular wave spawns (doubled from 350)
 
 	// --- Out-of-Visibility Spawn Settings ---
 	// 25% chance to force spawns in areas not visible to players
@@ -118,11 +118,11 @@ namespace HordeConstants
 	// UPDATED: Increased distances to give players more reaction time
 	inline float GetMinPlayerDistSpawnpoint(const horde::MapSize& mapSize) {
 		if (mapSize.isSmallMap) {
-			return 150.0f; // Increased from 100.0f for small maps (still reduced for map constraints)
+			return 300.0f; // Doubled from 150.0f for small maps
 		} else if (mapSize.isMediumMap) {
-			return 200.0f; // Increased from 125.0f for medium maps
+			return 400.0f; // Doubled from 200.0f for medium maps
 		} else {
-			return 250.0f; // Increased from 150.0f for big maps
+			return 500.0f; // Doubled from 250.0f for big maps
 		}
 	}
 
@@ -138,4 +138,11 @@ namespace HordeConstants
 	}
 
 } // namespace HordeConstants
+
+// Wave unlock variance settings - adds randomness to when monsters first appear
+namespace MonsterUnlockVariance {
+	inline constexpr int32_t BASE_VARIANCE = 2;         // +/- 2 waves variance
+	inline constexpr int32_t MIN_WAVE_FOR_VARIANCE = 4; // Don't apply to wave 1-3 monsters
+	inline constexpr uint32_t VARIANCE_SEED_MULTIPLIER = 17; // For deterministic per-map variance
+}
 

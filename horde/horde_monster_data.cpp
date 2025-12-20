@@ -259,16 +259,22 @@ bool IsValidMonsterForWave(horde::MonsterTypeID typeId, MonsterWaveType waveRequ
 	const bool monster_is_ground = HasWaveType(monster_flags, MonsterWaveType::Ground);
 	const bool monster_is_flying = HasWaveType(monster_flags, MonsterWaveType::Flying);
 
+	// Special case: Allow certain flying monsters on ground waves for variety
+	// FIXBOT can hover low and works on ground maps after wave 6
+	const bool allow_flying_on_ground = (typeId == horde::MonsterTypeID::FIXBOT ||
+	                                     typeId == horde::MonsterTypeID::HOVER_VANILLA ||
+	                                     typeId == horde::MonsterTypeID::FLOATER);
+
 	// If the wave wants BOTH ground and flying, the monster must be one or the other
 	if (wave_wants_ground && wave_wants_flying)
 	{
 		if (!monster_is_ground && !monster_is_flying)
 			return false;
 	}
-	// If the wave wants ONLY ground, the monster must be ground
+	// If the wave wants ONLY ground, the monster must be ground (or allowed flying)
 	else if (wave_wants_ground)
 	{
-		if (!monster_is_ground)
+		if (!monster_is_ground && !allow_flying_on_ground)
 			return false;
 	}
 	// If the wave wants ONLY flying, the monster must be flying
@@ -298,4 +304,35 @@ bool IsValidMonsterForWave(horde::MonsterTypeID typeId, MonsterWaveType waveRequ
 
 	// All checks passed
 	return true;
+}
+
+
+// Get wave unlock with per-map variance for dynamic monster variety
+// Returns the adjusted minWave with ±2 wave variance based on map seed
+// This creates deterministic but per-map variation in when monsters unlock
+int32_t GetAdjustedMinWave(horde::MonsterTypeID typeId, int32_t map_seed)
+{
+	const size_t index = static_cast<size_t>(typeId);
+	if (index >= MONSTER_DATA_COUNT)
+		return 999;
+
+	const int32_t base_wave = g_monsterData.minWaves[index];
+
+	// Don't apply variance to very early monsters (wave 1-3) or special monsters (999)
+	if (base_wave < MonsterUnlockVariance::MIN_WAVE_FOR_VARIANCE || base_wave >= 999)
+	{
+		return base_wave;
+	}
+
+	// Deterministic variance based on monster ID and map seed
+	// This ensures the same map always has the same variance pattern
+	uint32_t hash = static_cast<uint32_t>(typeId) * MonsterUnlockVariance::VARIANCE_SEED_MULTIPLIER 
+	              + static_cast<uint32_t>(map_seed);
+
+	// Generate variance in range [-BASE_VARIANCE, +BASE_VARIANCE]
+	int32_t variance = static_cast<int32_t>(hash % (2 * MonsterUnlockVariance::BASE_VARIANCE + 1))
+	                  - MonsterUnlockVariance::BASE_VARIANCE;
+
+	// Clamp to ensure minimum wave is at least 3
+	return std::max(3, base_wave + variance);
 }
