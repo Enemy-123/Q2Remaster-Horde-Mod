@@ -50,7 +50,7 @@
     <TargetName>$(ProjectName)_x64</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>C:\Program Files (x86)\GOG Galaxy\Games\Quake II Enhanced\baseq2\</OutDir>
+    <OutDir>..\..\..\..\..\..\Program Files %28x86%29\Steam\steamapps\common\Quake 2\rerelease\baseq2</OutDir>
     <TargetName>$(ProjectName)_x64</TargetName>
   </PropertyGroup>
   <!-- CHANGE 1: Tell vcpkg to use static libraries for both configurations -->
@@ -84,7 +84,7 @@
       <AdditionalLibraryDirectories>$(SolutionDir)vcpkg_installed\x64-windows-static\x64-windows-static\debug\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
-      <Command>fsutil reparsepoint query "$(OutDir)ents" >nul 2>&amp;1 &amp;&amp; (echo Symlinks detected, skipping deploy) || (
+      <Command>fsutil reparsepoint query "$(OutDir)ents" &gt;nul 2&gt;&amp;1 &amp;&amp; (echo Symlinks detected, skipping deploy) || (
 robocopy "$(SolutionDir)deploy\bots" "$(OutDir)bots" /E /XO /NJH /NJS /NDL /NC /NS /NP
 robocopy "$(SolutionDir)deploy\ents" "$(OutDir)ents" /E /XO /NJH /NJS /NDL /NC /NS /NP
 robocopy "$(SolutionDir)deploy\config" "$(OutDir)config" /E /XO /NJH /NJS /NDL /NC /NS /NP
@@ -120,7 +120,7 @@ exit /b 0</Command>
       <AdditionalLibraryDirectories>$(SolutionDir)vcpkg_installed\x64-windows-static\x64-windows-static\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
-      <Command>fsutil reparsepoint query "$(OutDir)ents" >nul 2>&amp;1 &amp;&amp; (echo Symlinks detected, skipping deploy) || (
+      <Command>fsutil reparsepoint query "$(OutDir)ents" &gt;nul 2&gt;&amp;1 &amp;&amp; (echo Symlinks detected, skipping deploy) || (
 robocopy "$(SolutionDir)deploy\bots" "$(OutDir)bots" /E /XO /NJH /NJS /NDL /NC /NS /NP
 robocopy "$(SolutionDir)deploy\ents" "$(OutDir)ents" /E /XO /NJH /NJS /NDL /NC /NS /NP
 robocopy "$(SolutionDir)deploy\config" "$(OutDir)config" /E /XO /NJH /NJS /NDL /NC /NS /NP
