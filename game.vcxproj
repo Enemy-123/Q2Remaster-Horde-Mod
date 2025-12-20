@@ -341,8 +341,11 @@ exit /b 0</Command>
     <None Include="deploy\horde.cfg" />
     <None Include="deploy\horde_config.json" />
     <None Include="deploy\config\maps_config.json" />
-    <None Include="deploy\config\horde_config.json" />
-    <None Include="deploy\config\monsters_config.json" />
+    <None Include="deploy\config\monsters.json" />
+    <None Include="deploy\config\scaling.json" />
+    <None Include="deploy\config\player_horde_config.json" />
+    <None Include="deploy\config\player_pvm_config.json" />
+    <None Include="deploy\config\pvm_stats.json" />
     <None Include="deploy\ents\base1.ent" />
     <None Include="deploy\ents\base2.ent" />
     <None Include="deploy\ents\base3.ent" />

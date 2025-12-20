@@ -441,10 +441,19 @@
     <None Include="deploy\config\maps_config.json">
       <Filter>deploy\config</Filter>
     </None>
-    <None Include="deploy\config\horde_config.json">
+    <None Include="deploy\config\monsters.json">
       <Filter>deploy\config</Filter>
     </None>
-    <None Include="deploy\config\monsters_config.json">
+    <None Include="deploy\config\scaling.json">
+      <Filter>deploy\config</Filter>
+    </None>
+    <None Include="deploy\config\player_horde_config.json">
+      <Filter>deploy\config</Filter>
+    </None>
+    <None Include="deploy\config\player_pvm_config.json">
+      <Filter>deploy\config</Filter>
+    </None>
+    <None Include="deploy\config\pvm_stats.json">
       <Filter>deploy\config</Filter>
     </None>
     <None Include="deploy\ents\base1.ent">

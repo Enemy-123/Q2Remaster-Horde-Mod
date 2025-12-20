@@ -26,9 +26,9 @@
     "// BLASTER VARIANTS": "",
     "blaster": 5,
     "blaster2": 7,
-    "blaster_bolt": 7,
+    "blaster_bolt": 8,
     "blueblaster": 5,
-    "hyperblaster": 7,
+    "hyperblaster": 6,
     "// BULLET WEAPONS": "",
     "shotgun": 1,
     "machinegun": 3,
@@ -42,7 +42,7 @@
     "// BFG": "",
     "bfg": 25,
     "// XATRIX WEAPONS": "",
-    "ionripper": 7,
+    "ionripper": 6,
     "flechette": 4,
     "// ROGUE WEAPONS": "",
     "plasma": 17,
@@ -120,8 +120,8 @@
       }
     },
     "soldier_ss": {
-      "health": 60,
-      "power_armor_power": 40,
+      "health": 40,
+      "power_armor_power": 30,
       "power_armor_type": "combat",
       "damage_scale": 1
     },
@@ -1187,7 +1187,7 @@
       "addon_power_armor": 15
     },
     "soldier_ss": {
-      "initial_health": 60,
+      "initial_health": 40,
       "addon_health": 15,
       "initial_power_armor": 40,
       "addon_power_armor": 15
