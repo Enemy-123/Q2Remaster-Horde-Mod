@@ -1,11 +1,38 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="bots">
+      <UniqueIdentifier>{185665ce-b604-4d9a-b22b-02a83797d112}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ctf">
+      <UniqueIdentifier>{2b0fdaa0-3de9-4bbd-9bc6-3cadf798c291}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="rogue">
+      <UniqueIdentifier>{76ef0be8-1c1d-472a-ada1-3aa1b354e022}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="xatrix">
+      <UniqueIdentifier>{6565427e-a805-4dc7-ba57-3ce0b62e4336}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="horde">
+      <UniqueIdentifier>{288861d7-238d-4c49-a9e1-79ce7d491152}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="deploy">
+      <UniqueIdentifier>{a1b2c3d4-e5f6-7890-abcd-ef1234567890}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="deploy\ents">
+      <UniqueIdentifier>{b2c3d4e5-f6a7-8901-bcde-f12345678901}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="deploy\config">
+      <UniqueIdentifier>{c3d4e5f6-a7b8-9012-cdef-123456789012}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bg_local.h" />
     <ClInclude Include="cg_local.h" />
     <ClInclude Include="g_local.h" />
     <ClInclude Include="g_statusbar.h" />
     <ClInclude Include="game.h" />
+    <ClInclude Include="g_config.h" />
     <ClInclude Include="m_actor.h" />
     <ClInclude Include="m_arachnid.h" />
     <ClInclude Include="m_berserk.h" />
@@ -33,8 +60,14 @@
     <ClInclude Include="m_soldier.h" />
     <ClInclude Include="m_supertank.h" />
     <ClInclude Include="m_tank.h" />
+    <ClInclude Include="m_redmutant.h" />
+    <ClInclude Include="m_runnertank.h" />
+    <ClInclude Include="memory_safety.h" />
+    <ClInclude Include="monster_constants.h" />
+    <ClInclude Include="profiler.h" />
     <ClInclude Include="q_std.h" />
     <ClInclude Include="q_vec3.h" />
+    <ClInclude Include="shared.h" />
     <ClInclude Include="bots\bot_debug.h">
       <Filter>bots</Filter>
     </ClInclude>
@@ -55,6 +88,63 @@
     </ClInclude>
     <ClInclude Include="ctf\p_ctf_menu.h">
       <Filter>ctf</Filter>
+    </ClInclude>
+    <ClInclude Include="horde\g_character.h">
+      <Filter>horde</Filter>
+    </ClInclude>
+    <ClInclude Include="horde\g_entity_properties.h">
+      <Filter>horde</Filter>
+    </ClInclude>
+    <ClInclude Include="horde\g_horde.h">
+      <Filter>horde</Filter>
+    </ClInclude>
+    <ClInclude Include="horde\g_horde_benefits.h">
+      <Filter>horde</Filter>
+    </ClInclude>
+    <ClInclude Include="horde\g_horde_phys.h">
+      <Filter>horde</Filter>
+    </ClInclude>
+    <ClInclude Include="horde\g_horde_scaling.h">
+      <Filter>horde</Filter>
+    </ClInclude>
+    <ClInclude Include="horde\g_laser.h">
+      <Filter>horde</Filter>
+    </ClInclude>
+    <ClInclude Include="horde\g_pvm.h">
+      <Filter>horde</Filter>
+    </ClInclude>
+    <ClInclude Include="horde\g_pvm_menu.h">
+      <Filter>horde</Filter>
+    </ClInclude>
+    <ClInclude Include="horde\g_upgrades.h">
+      <Filter>horde</Filter>
+    </ClInclude>
+    <ClInclude Include="horde\horde_boss.h">
+      <Filter>horde</Filter>
+    </ClInclude>
+    <ClInclude Include="horde\horde_constants.h">
+      <Filter>horde</Filter>
+    </ClInclude>
+    <ClInclude Include="horde\horde_ids.h">
+      <Filter>horde</Filter>
+    </ClInclude>
+    <ClInclude Include="horde\horde_monster_data.h">
+      <Filter>horde</Filter>
+    </ClInclude>
+    <ClInclude Include="horde\horde_performance.h">
+      <Filter>horde</Filter>
+    </ClInclude>
+    <ClInclude Include="horde\horde_spawning.h">
+      <Filter>horde</Filter>
+    </ClInclude>
+    <ClInclude Include="horde\p_brain_morph.h">
+      <Filter>horde</Filter>
+    </ClInclude>
+    <ClInclude Include="horde\p_flyer_morph.h">
+      <Filter>horde</Filter>
+    </ClInclude>
+    <ClInclude Include="horde\weapon_id.h">
+      <Filter>horde</Filter>
     </ClInclude>
     <ClInclude Include="rogue\m_rogue_carrier.h">
       <Filter>rogue</Filter>
@@ -77,62 +167,6 @@
     <ClInclude Include="xatrix\m_xatrix_gekk.h">
       <Filter>xatrix</Filter>
     </ClInclude>
-    <ClInclude Include="shared.h" />
-    <ClInclude Include="horde\g_horde.h">
-      <Filter>horde</Filter>
-    </ClInclude>
-    <ClInclude Include="m_redmutant.h" />
-    <ClInclude Include="m_runnertank.h" />
-    <ClInclude Include="horde\horde_ids.h">
-      <Filter>horde</Filter>
-    </ClInclude>
-    <ClInclude Include="horde\g_horde_benefits.h">
-      <Filter>horde</Filter>
-    </ClInclude>
-    <ClInclude Include="horde\horde_boss.h">
-      <Filter>horde</Filter>
-    </ClInclude>
-    <ClInclude Include="horde\horde_spawning.h">
-      <Filter>horde</Filter>
-    </ClInclude>
-    <ClInclude Include="profiler.h" />
-    <ClInclude Include="horde\g_entity_properties.h">
-      <Filter>horde</Filter>
-    </ClInclude>
-    <ClInclude Include="horde\g_horde_phys.h">
-      <Filter>horde</Filter>
-    </ClInclude>
-    <ClInclude Include="horde\g_laser.h">
-      <Filter>horde</Filter>
-    </ClInclude>
-    <ClInclude Include="horde\horde_performance.h">
-      <Filter>horde</Filter>
-    </ClInclude>
-    <ClInclude Include="horde\p_flyer_morph.h">
-      <Filter>horde</Filter>
-    </ClInclude>
-    <ClInclude Include="horde\p_brain_morph.h">
-      <Filter>horde</Filter>
-    </ClInclude>
-    <ClInclude Include="memory_safety.h">
-      <Filter>horde</Filter>
-    </ClInclude>
-    <ClInclude Include="g_config.h" />
-    <ClInclude Include="horde\horde_constants.h" />
-    <ClInclude Include="horde\horde_monster_data.h" />
-    <ClInclude Include="horde\g_horde_scaling.h" />
-    <ClInclude Include="monster_constants.h" />
-    <ClInclude Include="horde\g_pvm.h">
-      <Filter>horde</Filter>
-    </ClInclude>
-    <ClInclude Include="horde\g_character.h">
-      <Filter>horde</Filter>
-    </ClInclude>
-    <ClInclude Include="horde\g_pvm_menu.h" />
-    <ClInclude Include="horde\g_upgrades.h">
-      <Filter>horde</Filter>
-    </ClInclude>
-    <ClInclude Include="horde\weapon_id.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cg_main.cpp" />
@@ -141,6 +175,7 @@
     <ClCompile Include="g_chase.cpp" />
     <ClCompile Include="g_cmds.cpp" />
     <ClCompile Include="g_combat.cpp" />
+    <ClCompile Include="g_config.cpp" />
     <ClCompile Include="g_func.cpp" />
     <ClCompile Include="g_items.cpp" />
     <ClCompile Include="g_main.cpp" />
@@ -155,6 +190,7 @@
     <ClCompile Include="g_turret.cpp" />
     <ClCompile Include="g_utils.cpp" />
     <ClCompile Include="g_weapon.cpp" />
+    <ClCompile Include="hook.cpp" />
     <ClCompile Include="m_actor.cpp" />
     <ClCompile Include="m_arachnid.cpp" />
     <ClCompile Include="m_berserk.cpp" />
@@ -166,11 +202,13 @@
     <ClCompile Include="m_chick.cpp" />
     <ClCompile Include="m_flipper.cpp" />
     <ClCompile Include="m_float.cpp" />
+    <ClCompile Include="m_float_vanilla.cpp" />
     <ClCompile Include="m_flyer.cpp" />
     <ClCompile Include="m_gladiator.cpp" />
     <ClCompile Include="m_guardian.cpp" />
     <ClCompile Include="m_guncmdr.cpp" />
     <ClCompile Include="m_gunner.cpp" />
+    <ClCompile Include="m_gunner_vanilla.cpp" />
     <ClCompile Include="m_hover.cpp" />
     <ClCompile Include="m_infantry.cpp" />
     <ClCompile Include="m_insane.cpp" />
@@ -178,6 +216,9 @@
     <ClCompile Include="m_move.cpp" />
     <ClCompile Include="m_mutant.cpp" />
     <ClCompile Include="m_parasite.cpp" />
+    <ClCompile Include="m_psxguardian.cpp" />
+    <ClCompile Include="m_redmutant.cpp" />
+    <ClCompile Include="m_runnertank.cpp" />
     <ClCompile Include="m_shambler.cpp" />
     <ClCompile Include="m_soldier.cpp" />
     <ClCompile Include="m_supertank.cpp" />
@@ -188,7 +229,9 @@
     <ClCompile Include="p_trail.cpp" />
     <ClCompile Include="p_view.cpp" />
     <ClCompile Include="p_weapon.cpp" />
+    <ClCompile Include="profiler.cpp" />
     <ClCompile Include="q_std.cpp" />
+    <ClCompile Include="shared.cpp" />
     <ClCompile Include="bots\bot_debug.cpp">
       <Filter>bots</Filter>
     </ClCompile>
@@ -206,6 +249,87 @@
     </ClCompile>
     <ClCompile Include="ctf\p_ctf_menu.cpp">
       <Filter>ctf</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\g_barrel.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\g_bombspell.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\g_character.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\g_doppleganger.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\g_entity_properties.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\g_fire.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\g_horde.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\g_horde_benefits.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\g_horde_phys.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\g_horde_scaling.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\g_idview.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\g_laser.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\g_pvm.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\g_pvm_menu.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\g_strogg_summoner.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\g_teleport.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\g_tesla.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\g_traps.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\g_upgrades.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\horde_boss.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\horde_ids.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\horde_menu.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\horde_monster_data.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\horde_spawning.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\p_brain_morph.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\p_flyer_morph.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\weapon_id.cpp">
+      <Filter>horde</Filter>
     </ClCompile>
     <ClCompile Include="rogue\g_rogue_combat.cpp">
       <Filter>rogue</Filter>
@@ -258,10 +382,16 @@
     <ClCompile Include="rogue\m_rogue_stalker.cpp">
       <Filter>rogue</Filter>
     </ClCompile>
+    <ClCompile Include="rogue\m_rogue_turret.cpp">
+      <Filter>rogue</Filter>
+    </ClCompile>
     <ClCompile Include="rogue\m_rogue_widow.cpp">
       <Filter>rogue</Filter>
     </ClCompile>
     <ClCompile Include="rogue\m_rogue_widow2.cpp">
+      <Filter>rogue</Filter>
+    </ClCompile>
+    <ClCompile Include="rogue\m_sentrygun.cpp">
       <Filter>rogue</Filter>
     </ClCompile>
     <ClCompile Include="rogue\p_rogue_weapon.cpp">
@@ -300,108 +430,205 @@
     <ClCompile Include="xatrix\p_xatrix_weapon.cpp">
       <Filter>xatrix</Filter>
     </ClCompile>
-    <ClCompile Include="hook.cpp" />
-    <ClCompile Include="shared.cpp" />
-    <ClCompile Include="horde\g_horde.cpp">
-      <Filter>horde</Filter>
-    </ClCompile>
-    <ClCompile Include="m_gunner_vanilla.cpp" />
-    <ClCompile Include="m_float_vanilla.cpp" />
-    <ClCompile Include="m_redmutant.cpp" />
-    <ClCompile Include="rogue\m_sentrygun.cpp">
-      <Filter>rogue</Filter>
-    </ClCompile>
-    <ClCompile Include="rogue/m_rogue_turret.cpp" />
-    <ClCompile Include="m_runnertank.cpp" />
-    <ClCompile Include="m_psxguardian.cpp" />
-    <ClCompile Include="horde\horde_ids.cpp">
-      <Filter>horde</Filter>
-    </ClCompile>
-    <ClCompile Include="horde\horde_menu.cpp">
-      <Filter>horde</Filter>
-    </ClCompile>
-    <ClCompile Include="horde\g_horde_benefits.cpp">
-      <Filter>horde</Filter>
-    </ClCompile>
-    <ClCompile Include="horde\horde_boss.cpp">
-      <Filter>horde</Filter>
-    </ClCompile>
-    <ClCompile Include="horde\horde_spawning.cpp">
-      <Filter>horde</Filter>
-    </ClCompile>
-    <ClCompile Include="profiler.cpp" />
-    <ClCompile Include="horde\g_entity_properties.cpp">
-      <Filter>horde</Filter>
-    </ClCompile>
-    <ClCompile Include="horde\g_horde_phys.cpp">
-      <Filter>horde</Filter>
-    </ClCompile>
-    <ClCompile Include="horde\g_laser.cpp">
-      <Filter>horde</Filter>
-    </ClCompile>
-    <ClCompile Include="horde\g_traps.cpp">
-      <Filter>horde</Filter>
-    </ClCompile>
-    <ClCompile Include="horde\g_idview.cpp">
-      <Filter>horde</Filter>
-    </ClCompile>
-    <ClCompile Include="horde\g_doppleganger.cpp">
-      <Filter>horde</Filter>
-    </ClCompile>
-    <ClCompile Include="horde\g_tesla.cpp">
-      <Filter>horde</Filter>
-    </ClCompile>
-    <ClCompile Include="horde\g_strogg_summoner.cpp">
-      <Filter>horde</Filter>
-    </ClCompile>
-    <ClCompile Include="horde\p_flyer_morph.cpp">
-      <Filter>horde</Filter>
-    </ClCompile>
-    <ClCompile Include="horde\p_brain_morph.cpp">
-      <Filter>horde</Filter>
-    </ClCompile>
-    <ClCompile Include="horde\g_barrel.cpp">
-      <Filter>horde</Filter>
-    </ClCompile>
-    <ClCompile Include="horde\g_bombspell.cpp">
-      <Filter>horde</Filter>
-    </ClCompile>
-    <ClCompile Include="g_config.cpp" />
-    <ClCompile Include="horde\horde_monster_data.cpp" />
-    <ClCompile Include="horde\g_teleport.cpp">
-      <Filter>horde</Filter>
-    </ClCompile>
-    <ClCompile Include="horde\g_horde_scaling.cpp" />
-    <ClCompile Include="horde\g_fire.cpp">
-      <Filter>horde</Filter>
-    </ClCompile>
-    <ClCompile Include="horde\g_pvm.cpp">
-      <Filter>horde</Filter>
-    </ClCompile>
-    <ClCompile Include="horde\g_character.cpp">
-      <Filter>horde</Filter>
-    </ClCompile>
-    <ClCompile Include="horde\g_pvm_menu.cpp" />
-    <ClCompile Include="horde\g_upgrades.cpp">
-      <Filter>horde</Filter>
-    </ClCompile>
-    <ClCompile Include="horde\weapon_id.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="bots">
-      <UniqueIdentifier>{185665ce-b604-4d9a-b22b-02a83797d112}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ctf">
-      <UniqueIdentifier>{2b0fdaa0-3de9-4bbd-9bc6-3cadf798c291}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="rogue">
-      <UniqueIdentifier>{76ef0be8-1c1d-472a-ada1-3aa1b354e022}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="xatrix">
-      <UniqueIdentifier>{6565427e-a805-4dc7-ba57-3ce0b62e4336}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="horde">
-      <UniqueIdentifier>{288861d7-238d-4c49-a9e1-79ce7d491152}</UniqueIdentifier>
-    </Filter>
+    <None Include="deploy\horde.cfg">
+      <Filter>deploy</Filter>
+    </None>
+    <None Include="deploy\horde_config.json">
+      <Filter>deploy</Filter>
+    </None>
+    <None Include="deploy\config\maps_config.json">
+      <Filter>deploy\config</Filter>
+    </None>
+    <None Include="deploy\config\horde_config.json">
+      <Filter>deploy\config</Filter>
+    </None>
+    <None Include="deploy\config\monsters_config.json">
+      <Filter>deploy\config</Filter>
+    </None>
+    <None Include="deploy\ents\base1.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\base2.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\base3.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\base_ec.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\bunk1.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\comm.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\command.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\dm1.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\dm2.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\dm4.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\dm7.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\dm9.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\dm10.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\fact3.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\industry.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\jail1.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\jail2.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\jail3.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\jail_e3.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\kmdm3.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\lab_e3.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\mals_barrier_test.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\mgdm1.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\mgu1trial.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\mgu3m4.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\mgu4trial.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\mgu6m3.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\mgu6trial.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\ndctf0.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\q2ctf4.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\q2ctf5.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\q2dm1.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\q2dm2.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\q2dm3.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\q2dm4.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\q2dm5.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\q2dm6.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\q2dm7.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\q2dm8.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\rboss.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\rdm3.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\rdm4.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\rdm5.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\rdm6.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\rdm8.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\rdm9.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\rdm12.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\rdm14.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\space_ec.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\spbox.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\test_kaiser.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\train.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\ware1.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\ware2.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\waste2.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\xdm1.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\xdm2.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\xdm3.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\xdm4.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\xdm6.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
+    <None Include="deploy\ents\xintell.ent">
+      <Filter>deploy\ents</Filter>
+    </None>
   </ItemGroup>
 </Project>
