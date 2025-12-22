@@ -616,9 +616,16 @@ void infantry_cock_gun(edict_t* self)
 
 static void infantry_grenade(edict_t* self);
 
+// Yaw speed constants for attack tracking
+constexpr float INFANTRY_DEFAULT_YAW_SPEED = 20.f;
+constexpr float INFANTRY_ATTACK_YAW_SPEED = 60.f;  // Faster tracking during attack
+
 void infantry_prep_grenade(edict_t* self)
 {
 	gi.sound(self, CHAN_WEAPON, sound_grenade_pin, 1, ATTN_NORM, 0);
+
+	// Boost yaw_speed for faster tracking during grenade attack
+	self->yaw_speed = INFANTRY_ATTACK_YAW_SPEED;
 
 	// gun cocked
 	self->count = 1;
@@ -627,6 +634,9 @@ void infantry_prep_grenade(edict_t* self)
 // New function to clean up after a grenade throw
 void infantry_grenade_cleanup(edict_t* self)
 {
+	// Restore normal yaw_speed
+	self->yaw_speed = INFANTRY_DEFAULT_YAW_SPEED;
+
 	// clear the blindfire flag
 	self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
 	infantry_run(self);
@@ -846,9 +856,10 @@ static void infantry_grenade(edict_t* self)
         vec3_t dir_to_target = target_pos - self->s.origin;
         self->ideal_yaw = vectoyaw(dir_to_target);
 
-        // Calculate start position
+        // Calculate start position using ideal_yaw (not current facing)
         vec3_t forward, right, up;
-        AngleVectors(self->s.angles, forward, right, up);
+        vec3_t real_angles = { self->s.angles[0], self->ideal_yaw, 0.f };
+        AngleVectors(real_angles, forward, right, up);
         start_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
 
         // Use the simple and reliable upward lob calculation
@@ -870,9 +881,10 @@ static void infantry_grenade(edict_t* self)
         // Set ideal yaw (ai_charge will handle the turning)
         self->ideal_yaw = vectoyaw(self->enemy->s.origin - self->s.origin);
 
-        // Calculate start position
+        // Calculate start position using ideal_yaw (not current facing)
         vec3_t forward, right, up;
-        AngleVectors(self->s.angles, forward, right, up);
+        vec3_t real_angles = { self->s.angles[0], self->ideal_yaw, 0.f };
+        AngleVectors(real_angles, forward, right, up);
         start_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
         float const dist_to_target = range_to(self, self->enemy);
 

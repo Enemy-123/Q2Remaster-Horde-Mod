@@ -691,7 +691,9 @@ void chickkl_grenade(edict_t* self)
 		return;
 
 	vec3_t start, forward, right, target, aim;
-	AngleVectors(self->s.angles, forward, right, nullptr);
+	// Use ideal_yaw for muzzle position to ensure projectile spawns in correct direction
+	vec3_t real_angles = { self->s.angles[0], self->ideal_yaw, 0.f };
+	AngleVectors(real_angles, forward, right, nullptr);
 	start = G_ProjectSource(self->s.origin, monster_flash_offset[MZ2_CHICK_ROCKET_1], forward, right);
 
 	// Aim at enemy
@@ -735,7 +737,10 @@ void ChickRocket(edict_t* self)
 	if (!self->enemy || !self->enemy->inuse) // PGM
 		return;								 // PGM
 
-	AngleVectors(self->s.angles, forward, right, nullptr);
+	// Use ideal_yaw for muzzle position to ensure projectile spawns in correct direction
+	// (monster may not have finished turning when attack frame fires)
+	vec3_t real_angles = { self->s.angles[0], self->ideal_yaw, 0.f };
+	AngleVectors(real_angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CHICK_ROCKET_1], forward, right);
 	// [Paril-KEX]
 	int config_speed = (self->s.skinnum > 1) ? M_HEAT_SPEED(self) : M_ROCKET_SPEED(self);
@@ -911,7 +916,9 @@ void ChickRailgun(edict_t* self)
 	if (!self->enemy || !self->enemy->inuse)
 		return;
 
-	AngleVectors(self->s.angles, forward, right, nullptr);
+	// Use ideal_yaw for muzzle position to ensure projectile spawns in correct direction
+	vec3_t real_angles = { self->s.angles[0], self->ideal_yaw, 0.f };
+	AngleVectors(real_angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CHICK_ROCKET_1], forward, right);
 
 	if (blindfire)
@@ -926,15 +933,28 @@ void ChickRailgun(edict_t* self)
 	monster_fire_railgun(self, start, dir, M_RAILGUN_DMG(self), 100, MZ2_CHICK_ROCKET_1); // Using MZ2_CHICK_ROCKET_1 for flash
 }
 
+// Store default yaw_speed to restore after attack
+constexpr float CHICK_DEFAULT_YAW_SPEED = 20.f;
+constexpr float CHICK_ATTACK_YAW_SPEED = 60.f;  // Faster tracking during attack
+
 void Chick_PreAttack1(edict_t* self)
 {
 	gi.sound(self, CHAN_VOICE, sound_missile_prelaunch, 1, ATTN_NORM, 0);
+
+	// Boost yaw_speed for faster tracking during attack animation
+	self->yaw_speed = CHICK_ATTACK_YAW_SPEED;
 
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
 	{
 		vec3_t const aim = self->monsterinfo.blind_fire_target - self->s.origin;
 		self->ideal_yaw = vectoyaw(aim);
 	}
+}
+
+// Restore normal yaw_speed after attack ends
+void Chick_EndAttack(edict_t* self)
+{
+	self->yaw_speed = CHICK_DEFAULT_YAW_SPEED;
 }
 
 void chick_endanim(edict_t* self);
@@ -998,7 +1018,7 @@ mframe_t chick_frames_attack1[] = {
 MMOVE_T(chick_move_attack1) = { FRAME_attak114, FRAME_attak127, chick_frames_attack1, nullptr };
 
 mframe_t chick_frames_end_attack1[] = {
-	{ ai_charge, -3 },
+	{ ai_charge, -3, Chick_EndAttack },  // Restore normal yaw_speed
 	{ ai_charge },
 	{ ai_charge, -6 },
 	{ ai_charge, -4 },
@@ -1056,7 +1076,7 @@ void chick_attack1(edict_t* self)
 static void chickkl_rerocket(edict_t* self);
 
 mframe_t chickkl_frames_attack1[] = {
-	{ ai_charge, 19, chickkl_fire_plasma },
+	{ ai_charge, 19, [](edict_t* self) { self->yaw_speed = CHICK_ATTACK_YAW_SPEED; chickkl_fire_plasma(self); } },
 	{ ai_charge, -6, monster_footstep },
 	{ ai_charge, -5 },
 	{ ai_charge, 19, chickkl_fire_plasma },
@@ -1626,7 +1646,9 @@ void chickkl_fire_plasma(edict_t* self)
 		return;
 
 	vec3_t forward, right, up;
-	AngleVectors(self->s.angles, forward, right, up);
+	// Use ideal_yaw for muzzle position to ensure projectile spawns in correct direction
+	vec3_t real_angles = { self->s.angles[0], self->ideal_yaw, 0.f };
+	AngleVectors(real_angles, forward, right, up);
 
 	// Scale the offset for larger monsters
 	vec3_t scaled_offset = monster_flash_offset[MZ2_CHICK_ROCKET_1] * self->s.scale;
