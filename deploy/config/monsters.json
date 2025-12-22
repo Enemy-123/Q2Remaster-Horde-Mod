@@ -342,7 +342,7 @@
       "damage_scale": 1.2,
       "health_scale": 1.5,
       "weapon_damage": {
-        "heat": 60,
+        "heat": 40,
         "melee": 35
       }
     },
