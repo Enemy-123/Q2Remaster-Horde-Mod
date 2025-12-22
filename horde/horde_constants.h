@@ -13,13 +13,14 @@ namespace HordeConstants
 
 	// --- Monster Counts & Caps ---
 	inline constexpr int8_t MAX_MONSTERS_BIG_MAP = 26;
-	inline constexpr int8_t MAX_MONSTERS_MEDIUM_MAP = 14;
+	inline constexpr int8_t MAX_MONSTERS_MEDIUM_MAP = 15;
 	inline constexpr int8_t MAX_MONSTERS_SMALL_MAP = 12;
 
+	// RESTORED from 0.995: More aggressive early wave monster counts
 	inline constexpr std::array<std::array<int32_t, 4>, 3> BASE_COUNTS = {{
-		{{3, 6, 8, 9}},    // Small maps (reduced early waves from 4 to 3)
-		{{4, 9, 11, 12}},  // Medium maps (reduced early waves from 6 to 4)
-		{{8, 14, 18, 20}}  // Large maps (reduced early waves from 11 to 8)
+		{{4, 6, 8, 9}},    // Small maps (restored from 0.995)
+		{{6, 9, 11, 12}},  // Medium maps (restored from 0.995)
+		{{11, 14, 18, 20}} // Large maps (restored from 0.995)
 	}};
 	inline constexpr std::array<int32_t, 3> ADDITIONAL_SPAWNS = {6, 5, 9};
 
@@ -34,8 +35,9 @@ namespace HordeConstants
 	inline constexpr int32_t RECENT_SPAWN_BUFFER_SIZE = 20;
 
 	// --- Spawn Timing ---
-	inline constexpr gtime_t SPAWN_INTERVAL = 2.0_sec;
-	inline constexpr gtime_t MIN_MONSTER_SPAWN_INTERVAL = 1.0_sec;  // Minimum time between individual monster spawns (increased for easier gameplay)
+	// RESTORED from 0.995: Faster spawn interval for more intense gameplay
+	inline constexpr gtime_t SPAWN_INTERVAL = 1.5_sec;  // Restored from 0.995 (was 2.0s)
+	inline constexpr gtime_t MIN_MONSTER_SPAWN_INTERVAL = 0.5_sec;  // Reduced from 1.0s for faster spawning
 	inline constexpr gtime_t MIN_WAVE_TIME = 30_sec;
 	inline constexpr gtime_t WAVE_COMPLETE_GRACE_PERIOD = 1_sec;
 	inline constexpr gtime_t FOG_PERSIST_TIME = 30_sec;
@@ -50,17 +52,17 @@ namespace HordeConstants
 	inline constexpr int MAX_UNSTICK_ATTEMPTS = 3;
 
 	// --- Spawn Batch Sizes ---
-	// UPDATED: Smaller batches for smarter tactical spawning across all map sizes
-	inline constexpr int32_t SPAWN_BATCH_SMALL_MAP = 2;   // Small batches for tight spaces
-	inline constexpr int32_t SPAWN_BATCH_MEDIUM_MAP = 3;  // Reduced from 5 for smarter positioning
-	inline constexpr int32_t SPAWN_BATCH_BIG_MAP = 4;     // Reduced from 6 for smarter positioning
+	// RESTORED from 0.995: Larger batches for more intense gameplay
+	inline constexpr int32_t SPAWN_BATCH_SMALL_MAP = 4;   // Restored from 0.995
+	inline constexpr int32_t SPAWN_BATCH_MEDIUM_MAP = 5;  // Restored from 0.995
+	inline constexpr int32_t SPAWN_BATCH_BIG_MAP = 6;     // Restored from 0.995
 
 	// --- Early Wave Warmup (Slower Start) ---
-	// Waves 1-7 spawn slower, progressively speeding up to normal by wave 8
-	inline constexpr int32_t EARLY_WAVE_WARMUP_END = 8;        // Wave at which spawning reaches normal speed (extended for easier gameplay)
-	inline constexpr float EARLY_WAVE_SLOW_MULTIPLIER = 1.6f;  // 60% slower spawning in wave 1 (increased for easier gameplay)
+	// REDUCED: 0.995 had no warmup, keeping minimal warmup for smoother start
+	inline constexpr int32_t EARLY_WAVE_WARMUP_END = 4;        // Reduced from 8 - only waves 1-3 are slower
+	inline constexpr float EARLY_WAVE_SLOW_MULTIPLIER = 1.2f;  // Reduced from 1.6 - only 20% slower on wave 1
 	inline constexpr float WAVE_SPEED_INCREASE_PER_WAVE = 0.1f; // Each wave gets 10% faster until normal
-	inline constexpr float SMALL_MAP_EXTRA_SLOWDOWN = 1.25f;   // Extra 25% slowdown for small maps
+	inline constexpr float SMALL_MAP_EXTRA_SLOWDOWN = 1.1f;    // Reduced from 1.25 - only 10% extra slowdown
 
 	// --- Emergency Spawn Settings ---
 	inline constexpr int32_t EMERGENCY_SPAWN_LIMIT_PER_CALL = 3;
@@ -144,5 +146,22 @@ namespace MonsterUnlockVariance {
 	inline constexpr int32_t BASE_VARIANCE = 2;         // +/- 2 waves variance
 	inline constexpr int32_t MIN_WAVE_FOR_VARIANCE = 4; // Don't apply to wave 1-3 monsters
 	inline constexpr uint32_t VARIANCE_SEED_MULTIPLIER = 17; // For deterministic per-map variance
+}
+
+// --- Monster Precache Limit Settings ---
+// Limits total precached model families to prevent bad_alloc crashes on late waves
+// Players connecting past wave 40 would crash without this limit
+namespace PrecacheLimits {
+	// Maximum number of unique model families that can be precached per map
+	// This prevents memory exhaustion - monsters sharing models count as ONE slot
+	inline constexpr int32_t MAX_PRECACHED_MODEL_FAMILIES = 20;  // Increased from 18 for more variety
+
+	// Number of slots reserved for "core" families that are always available
+	// Includes basic monsters + essential heavy units (tanks, gladiators, mutants)
+	inline constexpr int32_t CORE_FAMILY_SLOTS = 13;  // 13 core families always available
+
+	// Remaining slots for "rotating" families that vary per map
+	// = MAX_PRECACHED_MODEL_FAMILIES - CORE_FAMILY_SLOTS = 7 rotating slots
+	inline constexpr int32_t ROTATING_FAMILY_SLOTS = MAX_PRECACHED_MODEL_FAMILIES - CORE_FAMILY_SLOTS;
 }
 

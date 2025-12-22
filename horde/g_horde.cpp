@@ -83,7 +83,7 @@ static int32_t g_last_dynamic_precache_wave = -1;
 static int g_dynamic_precache_count_this_wave = 0;
 
 constexpr int MONSTERS_TO_EXCLUDE_PER_MAP = 15; // Reduced from 28 for more monster variety
-constexpr int WAVES_BETWEEN_PRECACHE = 8; // Add new monsters every 8 waves (reduced frequency to save memory)
+constexpr int WAVES_BETWEEN_PRECACHE = 5; // RESTORED from 0.995: Add new monsters every 5 waves
 constexpr int MIN_MONSTERS_AVAILABLE = 12; // Always have at least 12 monster types available
 
 // --- Asset Family System Implementation ---
@@ -107,6 +107,76 @@ struct MapFamilyUsage {
 static std::array<MapFamilyUsage, MAP_HISTORY_SIZE> g_map_family_history;
 static size_t g_map_history_index = 0;
 
+// --- Precache Family Limit System ---
+// Tracks which model families are precached this map to enforce the limit
+static boost::container::flat_set<AssetFamilyID> g_precached_families_this_map;
+
+// Core families that are ALWAYS precached (basic gameplay essentials + heavy units)
+// These use CORE_FAMILY_SLOTS from PrecacheLimits (13 slots)
+static constexpr std::array<AssetFamilyID, 13> CORE_FAMILIES = {{
+	AssetFamilyID::SOLDIER_FAMILY,      // Always - basic enemies
+	AssetFamilyID::INFANTRY_FAMILY,     // Always - basic enemies
+	AssetFamilyID::GUNNER_FAMILY,       // Always - core mid-tier
+	AssetFamilyID::BERSERK_FAMILY,      // Always - melee variety
+	AssetFamilyID::BRAIN_FAMILY,        // Always - special attacks
+	AssetFamilyID::CHICK_FAMILY,        // Always - ranged variety
+	AssetFamilyID::PARASITE_FAMILY,     // Always - small ground unit
+	AssetFamilyID::FLYER_FAMILY,        // Always - basic flying
+	AssetFamilyID::HOVER_FAMILY,        // Always - flying variety
+	AssetFamilyID::STALKER_FAMILY,      // Always - small agile unit
+	AssetFamilyID::TANK_FAMILY,         // Always - essential heavy (moved from rotating)
+	AssetFamilyID::GLADIATOR_FAMILY,    // Always - essential heavy (moved from rotating)
+	AssetFamilyID::MUTANT_FAMILY        // Always - mutant+redmutant together thematically
+}};
+
+// Rotating families that vary per map (selected based on map seed)
+// These compete for ROTATING_FAMILY_SLOTS from PrecacheLimits (7 slots)
+// Note: TANK, GLADIATOR, MUTANT moved to CORE
+// Note: TURRET removed - not spawned by horde directly, only by fixbot boss + sentrygun shares model
+static constexpr std::array<AssetFamilyID, 10> ROTATING_FAMILIES = {{
+	AssetFamilyID::MEDIC_FAMILY,        // Special - rotates
+	AssetFamilyID::FLOATER_FAMILY,      // Flying - rotates
+	AssetFamilyID::DAEDALUS_FAMILY,     // Flying - rotates
+	AssetFamilyID::ARACHNID_FAMILY,     // Ground - rotates (shares model: spider, arachnid, gm_arachnid)
+	AssetFamilyID::GEKK_FAMILY,         // Ground - rotates
+	AssetFamilyID::FIXBOT_FAMILY,       // Flying/special - rotates (fixbot boss spawns turrets)
+	AssetFamilyID::INSANE_FAMILY,       // Special - rotates
+	AssetFamilyID::GUARDIAN_FAMILY,     // Heavy - rotates (shares model: guardian, psx_guardian, janitor2)
+	AssetFamilyID::SUPERTANK_FAMILY,    // Boss-tier - rotates (shares model: janitor, supertank, boss5)
+	AssetFamilyID::SHAMBLER_FAMILY      // Boss-tier - rotates
+}};
+
+// Helper to check if a family is a core family (always precached)
+static bool IsCoreFamily(AssetFamilyID family) {
+	for (const auto& core : CORE_FAMILIES) {
+		if (core == family) return true;
+	}
+	return false;
+}
+
+// Helper to check if we can precache a new family
+static bool CanPrecacheFamily(AssetFamilyID family) {
+	// Core families are always allowed
+	if (IsCoreFamily(family)) return true;
+
+	// Already precached? Allow it
+	if (g_precached_families_this_map.find(family) != g_precached_families_this_map.end()) return true;
+
+	// Check if we've hit the limit
+	return static_cast<int32_t>(g_precached_families_this_map.size()) < PrecacheLimits::MAX_PRECACHED_MODEL_FAMILIES;
+}
+
+// Helper to mark a family as precached
+static void MarkFamilyPrecached(AssetFamilyID family) {
+	if (family != AssetFamilyID::UNKNOWN_FAMILY) {
+		g_precached_families_this_map.insert(family);
+	}
+}
+
+// Get current precached family count
+static int32_t GetPrecachedFamilyCount() {
+	return static_cast<int32_t>(g_precached_families_this_map.size());
+}
 
 int32_t monsters_spawned_in_current_phase = 0;
 int32_t initial_total_monsters_for_spawning_phase_timeout = 0;
@@ -2923,6 +2993,7 @@ static EliteCandidateResult FindEliteCandidate(const MonsterSelectionContext& ct
 }
 
 // Precache the selected elite monster and add family members to eligible list
+// Respects family limit - returns nullptr if the monster's family isn't allowed
 static const char* PrecacheEliteMonster(
 	horde::MonsterTypeID type_id,
 	size_t array_index,
@@ -2931,6 +3002,18 @@ static const char* PrecacheEliteMonster(
 	const char* classname = horde::MonsterTypeRegistry::GetClassname(type_id);
 	const char* model_path = GetMonsterModelPath(type_id);
 	if (!classname || !*classname || !model_path) return nullptr;
+
+	// Check family limit - skip if family not allowed for this map
+	AssetFamilyID family = GetMonsterAssetFamily(type_id);
+	if (g_precached_families_this_map.find(family) == g_precached_families_this_map.end())
+	{
+		if (developer->integer)
+		{
+			gi.Com_PrintFmt("Dynamic Precache: BLOCKED '{}' - family {} not allowed on this map\n",
+				classname, static_cast<int>(family));
+		}
+		return nullptr; // Family not allowed, don't precache
+	}
 
 	const bool already_precached = g_precached_monster_types_flags[array_index];
 
@@ -3782,7 +3865,7 @@ void AllowReset() noexcept
 
 // This function now ONLY precaches monsters for Wave 1 for a very fast initial map load.
 // Subsequent waves are handled by the JIT precacher in Horde_InitLevel.
-// In PrecacheAllMonsters()
+// Enforces PrecacheLimits::MAX_PRECACHED_MODEL_FAMILIES to prevent bad_alloc on late waves.
 static void PrecacheAllMonsters()
 {
 	// Only run this initial precache once per map load.
@@ -3792,6 +3875,36 @@ static void PrecacheAllMonsters()
 	}
     // Reset all flags to false.
     g_precached_monster_types_flags.fill(false);
+
+	// Initialize family limit tracking for this map
+	g_precached_families_this_map.clear();
+
+	// Pre-mark core families as allowed
+	for (const auto& core_family : CORE_FAMILIES) {
+		g_precached_families_this_map.insert(core_family);
+	}
+
+	// Select rotating families based on a simple rotation (map load doesn't have g_map_rotation_seed yet)
+	// Use level.mapname hash as a seed for variety
+	uint32_t map_hash = 0;
+	if (level.mapname) {
+		for (const char* p = level.mapname; *p; ++p) {
+			map_hash = map_hash * 31 + static_cast<uint32_t>(*p);
+		}
+	}
+	size_t rotation_offset = static_cast<size_t>(map_hash) % ROTATING_FAMILIES.size();
+
+	for (size_t i = 0; i < PrecacheLimits::ROTATING_FAMILY_SLOTS && i < ROTATING_FAMILIES.size(); ++i) {
+		size_t idx = (rotation_offset + i) % ROTATING_FAMILIES.size();
+		g_precached_families_this_map.insert(ROTATING_FAMILIES[idx]);
+	}
+
+	if (developer->integer) {
+		gi.Com_PrintFmt("PRECACHE LIMIT: {} families allowed ({} core + {} rotating)\n",
+			g_precached_families_this_map.size(),
+			CORE_FAMILIES.size(),
+			PrecacheLimits::ROTATING_FAMILY_SLOTS);
+	}
 
 	// PVM Mode: Precache all random monsters for this map
 	if (IsPvMMode())
@@ -3836,18 +3949,34 @@ static void PrecacheAllMonsters()
 	}
 
 	// Normal Horde Mode: AGGRESSIVE PRECACHING for variety
-	// Phase 1: Precache all wave 1-3 monsters (core gameplay)
+	// Phase 1: Precache all wave 1-3 monsters (core gameplay) - respecting family limit
 	if (developer->integer)
 	{
-		gi.Com_Print("INITIAL PRECACHE: Loading monsters for Waves 1-3 (aggressive mode)...\n");
+		gi.Com_Print("INITIAL PRECACHE: Loading monsters for Waves 1-3 (with family limit)...\n");
 	}
 
+	int precached_count = 0;
+	int skipped_family_limit = 0;
 	for (size_t i = 0; i < MONSTER_DATA_COUNT; ++i)
 	{
 		const auto &monster_info = monsterTypes[i];
 		if (monster_info.minWave > 3)
 		{
 			continue; // Changed from break to continue - process all monsters
+		}
+
+		// Check family limit before precaching
+		AssetFamilyID family = GetMonsterAssetFamily(monster_info.typeId);
+		if (g_precached_families_this_map.find(family) == g_precached_families_this_map.end())
+		{
+			// Family not in allowed list - skip this monster
+			if (developer->integer)
+			{
+				const char *classname = horde::MonsterTypeRegistry::GetClassname(monster_info.typeId);
+				gi.Com_PrintFmt("  - SKIPPED (family {} not allowed): {}\n", static_cast<int>(family), classname ? classname : "unknown");
+			}
+			skipped_family_limit++;
+			continue;
 		}
 
 		const char *classname = horde::MonsterTypeRegistry::GetClassname(monster_info.typeId);
@@ -3864,7 +3993,8 @@ static void PrecacheAllMonsters()
 					G_FreeEdict(temp_monster);
 				}
                 g_precached_monster_types_flags[static_cast<size_t>(monster_info.typeId)] = true;
-				
+				precached_count++;
+
 				if (developer->integer)
 				{
 					gi.Com_PrintFmt("  - Precached (wave {}): {}\n", monster_info.minWave, classname);
@@ -3873,8 +4003,14 @@ static void PrecacheAllMonsters()
 		}
 	}
 
+	if (developer->integer)
+	{
+		gi.Com_PrintFmt("INITIAL PRECACHE: {} monsters loaded, {} skipped due to family limit\n",
+			precached_count, skipped_family_limit);
+	}
+
 	// Phase 2: Precache one monster from each priority family for variety
-	// This ensures key monster types are always available
+	// Only precache families that are in the allowed list for this map
 	static constexpr AssetFamilyID priority_families[] = {
 		AssetFamilyID::GUNNER_FAMILY,
 		AssetFamilyID::TANK_FAMILY,
@@ -3887,11 +4023,21 @@ static void PrecacheAllMonsters()
 
 	if (developer->integer)
 	{
-		gi.Com_Print("INITIAL PRECACHE: Loading priority family representatives...\n");
+		gi.Com_Print("INITIAL PRECACHE: Loading priority family representatives (if allowed)...\n");
 	}
 
 	for (const auto family : priority_families)
 	{
+		// Skip if this family is not in the allowed list for this map
+		if (g_precached_families_this_map.find(family) == g_precached_families_this_map.end())
+		{
+			if (developer->integer)
+			{
+				gi.Com_PrintFmt("  - SKIPPED family {} (not in allowed list)\n", static_cast<int>(family));
+			}
+			continue;
+		}
+
 		// Find the lowest minWave monster in this family that isn't already precached
 		for (size_t i = 0; i < MONSTER_DATA_COUNT; ++i)
 		{
@@ -3914,7 +4060,7 @@ static void PrecacheAllMonsters()
 							G_FreeEdict(temp_monster);
 						}
 						g_precached_monster_types_flags[static_cast<size_t>(monster.typeId)] = true;
-						
+
 						if (developer->integer)
 						{
 							gi.Com_PrintFmt("  - Precached family rep (wave {}): {}\n", monster.minWave, classname);
@@ -3924,6 +4070,12 @@ static void PrecacheAllMonsters()
 				break; // One per family
 			}
 		}
+	}
+
+	if (developer->integer)
+	{
+		gi.Com_PrintFmt("PRECACHE COMPLETE: {} total families allowed for this map\n",
+			g_precached_families_this_map.size());
 	}
 
 	monsters_precached = true;
@@ -4475,6 +4627,7 @@ void ResetGame()
 	g_excluded_monsters_this_map.clear();
 	g_precached_monsters_this_map.clear();
 	g_precached_models_this_map.clear();
+	g_precached_families_this_map.clear();  // Reset family tracking for precache limit
 	// Note: g_map_rotation_seed is intentionally NOT reset here to maintain rotation across waves
 
 	// recent spawns
@@ -8072,7 +8225,10 @@ static const char* GetMonsterModelPath(horde::MonsterTypeID typeId)
 		case horde::MonsterTypeID::TANK:
 		case horde::MonsterTypeID::TANK_COMMANDER:
 		case horde::MonsterTypeID::TANK_64:
+		case horde::MonsterTypeID::TANK_SPAWNER:
+		case horde::MonsterTypeID::EASTERTANK:
 			return "models/monsters/tank/";
+		// Note: RUNNERTANK uses different model (models/vault/monsters/tank/)
 
 		// Soldiers share models
 		case horde::MonsterTypeID::SOLDIER:
@@ -8170,7 +8326,9 @@ static const char* GetMonsterModelPath(horde::MonsterTypeID typeId)
 
 		// Janitor/Supertank share models
 		case horde::MonsterTypeID::JANITOR:
-		case horde::MonsterTypeID::BOSS5:  // Supertank
+		case horde::MonsterTypeID::SUPERTANK:
+		case horde::MonsterTypeID::SUPERTANKKL:
+		case horde::MonsterTypeID::BOSS5:
 			return "models/monsters/boss5/";
 
 		// Makron/Jorg share some assets
@@ -8223,11 +8381,22 @@ static const char* GetMonsterModelPath(horde::MonsterTypeID typeId)
 
 // Unlock all monsters that share the same model as the given boss
 // This allows "free" monsters since the model is already loaded in memory
+// Note: Only unlocks monsters whose families are in the allowed list for this map
 void UnlockModelFamilyMembers(horde::MonsterTypeID boss_typeId, int32_t current_wave)
 {
 	const char* boss_model_path = GetMonsterModelPath(boss_typeId);
 	if (!boss_model_path) {
 		return; // No model path, nothing to unlock
+	}
+
+	// Check if the boss's family is allowed for this map
+	AssetFamilyID boss_family = GetMonsterAssetFamily(boss_typeId);
+	if (g_precached_families_this_map.find(boss_family) == g_precached_families_this_map.end()) {
+		if (developer->integer) {
+			gi.Com_PrintFmt("Model Family Unlock: BLOCKED - family {} not allowed on this map\n",
+				static_cast<int>(boss_family));
+		}
+		return; // Boss's family not allowed, don't unlock family members
 	}
 
 	// Mark the model as loaded
@@ -8330,8 +8499,42 @@ static void InitializeMonsterRotation()
 	g_excluded_monsters_this_map.clear();
 	g_precached_monsters_this_map.clear();
 	g_precached_models_this_map.clear();
+	g_precached_families_this_map.clear();  // Reset family tracking for new map
 	g_map_rotation_seed++;
 	g_last_precache_wave = 0;
+
+	// Pre-mark core families as "will be precached" to reserve their slots
+	for (const auto& core_family : CORE_FAMILIES) {
+		g_precached_families_this_map.insert(core_family);
+	}
+
+	// Select which rotating families are available this map based on seed
+	// This ensures variety across maps while staying within the limit
+	boost::container::small_vector<AssetFamilyID, 14> available_rotating;
+	size_t rotation_offset = static_cast<size_t>(g_map_rotation_seed) % ROTATING_FAMILIES.size();
+
+	for (size_t i = 0; i < PrecacheLimits::ROTATING_FAMILY_SLOTS && i < ROTATING_FAMILIES.size(); ++i) {
+		size_t idx = (rotation_offset + i) % ROTATING_FAMILIES.size();
+		available_rotating.push_back(ROTATING_FAMILIES[idx]);
+	}
+
+	// Pre-mark selected rotating families as allowed
+	for (const auto& family : available_rotating) {
+		g_precached_families_this_map.insert(family);
+	}
+
+	if (developer->integer) {
+		gi.Com_PrintFmt("Precache Limit: Map {} - {} core + {} rotating = {} families allowed\n",
+			g_map_rotation_seed,
+			CORE_FAMILIES.size(),
+			available_rotating.size(),
+			g_precached_families_this_map.size());
+		gi.Com_Print("  Rotating families this map: ");
+		for (const auto& family : available_rotating) {
+			gi.Com_PrintFmt("{} ", static_cast<int>(family));
+		}
+		gi.Com_Print("\n");
+	}
 
 	// Create a deterministic but rotating exclusion list
 	// IMPROVED: Prefer excluding families that were heavily used in previous maps
@@ -8649,6 +8852,7 @@ static bool PrecacheMonsterForWave(const MonsterTypeInfo* monster_info, float& p
 }
 
 // Progressive precache - first pass: current wave monsters
+// Respects family limit - only precaches monsters whose families are allowed
 static void PrecacheCurrentWaveMonsters(int32_t lvl, float precache_budget, float& precache_cost_this_wave, int& precached_count)
 {
 	for (const MonsterTypeInfo* monster_info : g_eligible_monsters_for_wave)
@@ -8657,6 +8861,13 @@ static void PrecacheCurrentWaveMonsters(int32_t lvl, float precache_budget, floa
 		{
 			g_precached_monsters_this_map.insert(monster_info->typeId);
 			continue;
+		}
+
+		// Check family limit - skip if family not allowed for this map
+		AssetFamilyID family = GetMonsterAssetFamily(monster_info->typeId);
+		if (g_precached_families_this_map.find(family) == g_precached_families_this_map.end())
+		{
+			continue; // Family not allowed, skip silently
 		}
 
 		float precache_cost = CalculatePrecacheCost(monster_info->typeId);
@@ -8677,6 +8888,7 @@ static void PrecacheCurrentWaveMonsters(int32_t lvl, float precache_budget, floa
 }
 
 // Progressive precache - second pass: future wave monsters
+// Respects family limit - only precaches monsters whose families are allowed
 static void PrecacheFutureWaveMonsters(int32_t lvl, float precache_budget, float& precache_cost_this_wave, int& precached_count)
 {
 	if (precache_cost_this_wave >= precache_budget || !ShouldPrecacheMoreMonsters(lvl))
@@ -8686,6 +8898,13 @@ static void PrecacheFutureWaveMonsters(int32_t lvl, float precache_budget, float
 	{
 		if (g_precached_monster_types_flags[static_cast<size_t>(monster_info->typeId)])
 			continue;
+
+		// Check family limit - skip if family not allowed for this map
+		AssetFamilyID family = GetMonsterAssetFamily(monster_info->typeId);
+		if (g_precached_families_this_map.find(family) == g_precached_families_this_map.end())
+		{
+			continue; // Family not allowed, skip silently
+		}
 
 		float precache_cost = CalculatePrecacheCost(monster_info->typeId);
 
