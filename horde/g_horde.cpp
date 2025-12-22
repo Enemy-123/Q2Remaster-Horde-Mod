@@ -112,33 +112,32 @@ static size_t g_map_history_index = 0;
 static boost::container::flat_set<AssetFamilyID> g_precached_families_this_map;
 
 // Core families that are ALWAYS precached (basic gameplay essentials + heavy units)
-// These use CORE_FAMILY_SLOTS from PrecacheLimits (13 slots)
-static constexpr std::array<AssetFamilyID, 13> CORE_FAMILIES = {{
+// These use CORE_FAMILY_SLOTS from PrecacheLimits (14 slots)
+static constexpr std::array<AssetFamilyID, 14> CORE_FAMILIES = {{
 	AssetFamilyID::SOLDIER_FAMILY,      // Always - basic enemies
 	AssetFamilyID::INFANTRY_FAMILY,     // Always - basic enemies
 	AssetFamilyID::GUNNER_FAMILY,       // Always - core mid-tier
-	AssetFamilyID::BERSERK_FAMILY,      // Always - melee variety
+	AssetFamilyID::BERSERK_FAMILY,      // Always - melee + fog wave (berserk/berserkerkl)
 	AssetFamilyID::BRAIN_FAMILY,        // Always - special attacks
 	AssetFamilyID::CHICK_FAMILY,        // Always - ranged variety
 	AssetFamilyID::PARASITE_FAMILY,     // Always - small ground unit
 	AssetFamilyID::FLYER_FAMILY,        // Always - basic flying
 	AssetFamilyID::HOVER_FAMILY,        // Always - flying variety
 	AssetFamilyID::STALKER_FAMILY,      // Always - small agile unit
-	AssetFamilyID::TANK_FAMILY,         // Always - essential heavy (moved from rotating)
-	AssetFamilyID::GLADIATOR_FAMILY,    // Always - essential heavy (moved from rotating)
-	AssetFamilyID::MUTANT_FAMILY        // Always - mutant+redmutant together thematically
+	AssetFamilyID::TANK_FAMILY,         // Always - essential heavy
+	AssetFamilyID::GLADIATOR_FAMILY,    // Always - essential heavy
+	AssetFamilyID::MUTANT_FAMILY,       // Always - mutant+redmutant together
+	AssetFamilyID::GEKK_FAMILY          // Always - wave 1 monster + fog wave (gekk/gekkkl)
 }};
 
 // Rotating families that vary per map (selected based on map seed)
-// These compete for ROTATING_FAMILY_SLOTS from PrecacheLimits (7 slots)
-// Note: TANK, GLADIATOR, MUTANT moved to CORE
-// Note: TURRET removed - not spawned by horde directly, only by fixbot boss + sentrygun shares model
-static constexpr std::array<AssetFamilyID, 10> ROTATING_FAMILIES = {{
+// These compete for ROTATING_FAMILY_SLOTS from PrecacheLimits (6 slots)
+// Note: TURRET removed - spawned by fixbot boss, sentrygun shares model
+static constexpr std::array<AssetFamilyID, 9> ROTATING_FAMILIES = {{
 	AssetFamilyID::MEDIC_FAMILY,        // Special - rotates
 	AssetFamilyID::FLOATER_FAMILY,      // Flying - rotates
 	AssetFamilyID::DAEDALUS_FAMILY,     // Flying - rotates
 	AssetFamilyID::ARACHNID_FAMILY,     // Ground - rotates (shares model: spider, arachnid, gm_arachnid)
-	AssetFamilyID::GEKK_FAMILY,         // Ground - rotates
 	AssetFamilyID::FIXBOT_FAMILY,       // Flying/special - rotates (fixbot boss spawns turrets)
 	AssetFamilyID::INSANE_FAMILY,       // Special - rotates
 	AssetFamilyID::GUARDIAN_FAMILY,     // Heavy - rotates (shares model: guardian, psx_guardian, janitor2)

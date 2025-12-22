@@ -154,14 +154,14 @@ namespace MonsterUnlockVariance {
 namespace PrecacheLimits {
 	// Maximum number of unique model families that can be precached per map
 	// This prevents memory exhaustion - monsters sharing models count as ONE slot
-	inline constexpr int32_t MAX_PRECACHED_MODEL_FAMILIES = 20;  // Increased from 18 for more variety
+	inline constexpr int32_t MAX_PRECACHED_MODEL_FAMILIES = 20;
 
 	// Number of slots reserved for "core" families that are always available
-	// Includes basic monsters + essential heavy units (tanks, gladiators, mutants)
-	inline constexpr int32_t CORE_FAMILY_SLOTS = 13;  // 13 core families always available
+	// Includes basic monsters + essential units (tanks, gladiators, mutants, gekk, berserk)
+	inline constexpr int32_t CORE_FAMILY_SLOTS = 14;  // 14 core families always available
 
 	// Remaining slots for "rotating" families that vary per map
-	// = MAX_PRECACHED_MODEL_FAMILIES - CORE_FAMILY_SLOTS = 7 rotating slots
+	// = MAX_PRECACHED_MODEL_FAMILIES - CORE_FAMILY_SLOTS = 6 rotating slots
 	inline constexpr int32_t ROTATING_FAMILY_SLOTS = MAX_PRECACHED_MODEL_FAMILIES - CORE_FAMILY_SLOTS;
 }
 

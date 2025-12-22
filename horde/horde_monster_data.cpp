@@ -13,7 +13,7 @@ const MonsterTypeInfo monsterTypes[] = {
 
 	// --- WAVE 2 ---
 	{horde::MonsterTypeID::SOLDIER_SS, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 2, 0.8f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
-	{horde::MonsterTypeID::GEKK, MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Melee | MonsterWaveType::Small | MonsterWaveType::Mutant | MonsterWaveType::Gekk, 1, 0.7f, {-16, -16, -24}, {16, 16, -8}, 1.0f},
+	{horde::MonsterTypeID::GEKK, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Fast | MonsterWaveType::Melee | MonsterWaveType::Small | MonsterWaveType::Mutant | MonsterWaveType::Gekk, 1, 0.7f, {-16, -16, -24}, {16, 16, -8}, 1.0f},
 	// --- WAVE 3 ---
 	{horde::MonsterTypeID::INFANTRY_VANILLA, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 3, 0.85f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
 
