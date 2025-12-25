@@ -243,7 +243,7 @@ namespace {
 static constexpr std::array<boss_t, 11> BOSS_SMALL_SRC = {{
 	{horde::MonsterTypeID::CARRIER_MINI, 24, -1, 0.1f, BossSizeCategory::Small},
 	{horde::MonsterTypeID::BOSS2_KL, 24, -1, 0.1f, BossSizeCategory::Small},
-	{horde::MonsterTypeID::FIXBOT_KL, 9, -1, 0.4f, BossSizeCategory::Small},
+	{horde::MonsterTypeID::FIXBOT_KL, 15, -1, 0.2, BossSizeCategory::Small},
 	{horde::MonsterTypeID::WIDOW2, 19, -1, 0.15f, BossSizeCategory::Small},
 	{horde::MonsterTypeID::TANK_64, -1, -1, 0.25f, BossSizeCategory::Small},
 	{horde::MonsterTypeID::SHAMBLER_KL, -1, 20, 0.3f, BossSizeCategory::Small},
@@ -257,10 +257,10 @@ static constexpr std::array<boss_t, 11> BOSS_SMALL_SRC = {{
 static constexpr std::array<boss_t, 11> BOSS_MEDIUM_SRC = {{
 	{horde::MonsterTypeID::CARRIER, 24, -1, 0.1f, BossSizeCategory::Medium},
 	{horde::MonsterTypeID::BOSS2, 19, -1, 0.1f, BossSizeCategory::Medium},
-	{horde::MonsterTypeID::FIXBOT_KL, 9, -1, 0.4f, BossSizeCategory::Medium},
+	{horde::MonsterTypeID::FIXBOT_KL, 15, -1, 0.1f, BossSizeCategory::Medium},
 	{horde::MonsterTypeID::SHAMBLER_KL, -1, 20, 0.3f, BossSizeCategory::Medium},
 	{horde::MonsterTypeID::TANK_64, 21, -1, 0.1f, BossSizeCategory::Medium},
-	{horde::MonsterTypeID::GUNCMDR_KL, 21, -1, 0.1f, BossSizeCategory::Medium},
+	{horde::MonsterTypeID::GUNCMDR_KL, 15, -1, 0.1f, BossSizeCategory::Medium},
 	{horde::MonsterTypeID::PSX_GUARDIAN, -1, 24, 0.1f, BossSizeCategory::Medium},
 	{horde::MonsterTypeID::WIDOW2, 19, -1, 0.15f, BossSizeCategory::Medium},
 	{horde::MonsterTypeID::PSX_ARACHNID, 14, -1, 0.1f, BossSizeCategory::Medium},
@@ -271,7 +271,7 @@ static constexpr std::array<boss_t, 11> BOSS_MEDIUM_SRC = {{
 static constexpr std::array<boss_t, 13> BOSS_LARGE_SRC = {{
 	{horde::MonsterTypeID::CARRIER, 24, -1, 0.1f, BossSizeCategory::Large},
 	{horde::MonsterTypeID::BOSS2, 19, -1, 0.1f, BossSizeCategory::Large},
-	{horde::MonsterTypeID::FIXBOT_KL, 9, -1, 0.4f, BossSizeCategory::Large},
+	{horde::MonsterTypeID::FIXBOT_KL, 15, -1, 0.1f, BossSizeCategory::Large},
 	{horde::MonsterTypeID::BOSS5, -1, -1, 0.1f, BossSizeCategory::Large},
 	{horde::MonsterTypeID::TANK_64, -1, 20, 0.45f, BossSizeCategory::Large},
 	{horde::MonsterTypeID::SHAMBLER_KL, -1, 20, 0.3f, BossSizeCategory::Large},

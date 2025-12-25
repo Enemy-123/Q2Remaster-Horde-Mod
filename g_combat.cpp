@@ -1056,34 +1056,7 @@ void HandleVampireEffect(edict_t* attacker, edict_t* targ, int damage)
         );
     }
 
-    // --- 3. Sentry Healing () ---
-    // If the attacker is a player, heal their deployed sentries as well.
-    // This is a critical optimization: we iterate ONLY over the player's sentries,
-    // not the entire global entity list.
-    if (attacker->client && current_wave_level >= 10)
-    {
-        // Pre-calculate the healing amount for sentries.
-        const float sentry_heal_amount = health_stolen * VampireConfig::SENTRY_HEALING_FACTOR;
-        const float max_stored_healing = static_cast<float>(VampireConfig::MAX_STORED_HEALING);
-
-        // Iterate through the player's specific array of deployed sentries.
-        for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER(); ++i)
-        {
-            edict_t* sentry = attacker->client->resp.deployed_sentries[i];
-
-            // Safety check: ensure the sentry exists, is in use, and is not dead.
-            if (sentry && sentry->inuse && sentry->health > 0)
-            {
-                // Add healing to the sentry's regeneration pool, clamping to the max.
-                sentry->regen_info.stored_healing = std::min(
-                    sentry->regen_info.stored_healing + sentry_heal_amount,
-                    max_stored_healing
-                );
-            }
-        }
-    }
-
-    // --- 4. Armor Vampire Effect ---
+    // --- 3. Armor Vampire Effect ---
     // At higher vampire levels (6+), the attacker can also steal armor.
     if (vampire_level >= 6) {
         apply_armor_vampire(attacker, damage);

@@ -65,24 +65,20 @@ static inline void HandleSentryRegeneration(edict_t* self, sentry_state_t* state
 	if (!self->owner || !self->owner->client || currently_attacking)
 		return;
 
-	// Only regenerate if health is above 30% of max health
-	int health_threshold = (int)(self->max_health * 0.3f);
-	if (self->health <= health_threshold)
+	// Only regenerate if health is below max
+	if (self->health >= self->max_health)
 		return;
 
 	// Check regeneration timer (every 2 seconds)
 	if (level.time < state->last_regeneration_time + 2_sec)
 		return;
 
-	// Regenerate 5% health
-	int health_regen = (int)(self->max_health * 0.05f);
-	if (health_regen > 0) {
-		self->health += health_regen;
-		// Cap regeneration at 200 health maximum
-		int health_cap = std::min(self->max_health, 200);
-		if (self->health > health_cap) {
-			self->health = health_cap;
-		}
+	// Regenerate 5% health (minimum 1)
+	int health_regen = std::max(1, (int)(self->max_health * 0.05f));
+	self->health += health_regen;
+	// Cap at max_health
+	if (self->health > self->max_health) {
+		self->health = self->max_health;
 	}
 
 	// Power armor regeneration disabled for skill-based sentries
