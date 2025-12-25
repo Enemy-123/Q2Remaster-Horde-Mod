@@ -83,6 +83,13 @@ constexpr gtime_t REACT_DAMAGE_MAX = 5_sec;
 constexpr gtime_t FLY_WALL_STUCK_THRESHOLD = 1500_ms; // Time before forcing descent
 constexpr float FLY_DESCENT_SPEED_MULTIPLIER = 0.6f;  // How fast to descend when stuck
 
+// Path progress detection constants - for dynamic recalculation when stuck
+constexpr float PATH_PROGRESS_MIN_DISTANCE = 16.0f;    // Must move at least this far toward goal
+constexpr gtime_t PATH_PROGRESS_CHECK_TIME = 500_ms;   // Check progress every 500ms
+constexpr gtime_t PATH_STUCK_RECALC_TIME = 750_ms;     // Recalculate path after this long without progress
+constexpr gtime_t PATH_CACHE_TIME_NORMAL = 2_sec;      // Normal path cache time
+constexpr gtime_t PATH_CACHE_TIME_STUCK = 500_ms;      // Reduced cache time when stuck
+
 // this is used for communications out of sv_movestep to say what entity
 // is blocking us
 // Anti-stacking system for monsters
@@ -1592,17 +1599,57 @@ static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 	vec3_t const mon_mins = ground_origin + PLAYER_MINS;
 	vec3_t const mon_maxs = ground_origin + PLAYER_MAXS;
 
+	// --- Progress-based path recalculation ---
+	// Track if monster is actually making progress toward goal
+	const vec3_t goal_pos = self->enemy ? self->enemy->s.origin : self->goalentity->s.origin;
+	const float current_dist_to_goal = (goal_pos - self->s.origin).length();
+	bool force_recalc = false;
+	bool is_stuck = false;
+
+	// Check progress every PATH_PROGRESS_CHECK_TIME
+	if (self->monsterinfo.path_progress_time <= level.time)
+	{
+		self->monsterinfo.path_progress_time = level.time + PATH_PROGRESS_CHECK_TIME;
+
+		// Compare current distance to goal with last recorded distance
+		if (self->monsterinfo.path_last_goal_dist > 0)
+		{
+			float progress = self->monsterinfo.path_last_goal_dist - current_dist_to_goal;
+
+			// If we haven't moved significantly closer to goal, we might be stuck
+			if (progress < PATH_PROGRESS_MIN_DISTANCE)
+			{
+				self->monsterinfo.path_no_progress_time += PATH_PROGRESS_CHECK_TIME;
+
+				// If stuck for too long, force path recalculation
+				if (self->monsterinfo.path_no_progress_time >= PATH_STUCK_RECALC_TIME)
+				{
+					force_recalc = true;
+					is_stuck = true;
+					self->monsterinfo.path_no_progress_time = 0_ms;
+				}
+			}
+			else
+			{
+				// Making progress, reset stuck counter
+				self->monsterinfo.path_no_progress_time = 0_ms;
+			}
+		}
+
+		self->monsterinfo.path_last_goal_dist = current_dist_to_goal;
+	}
+
 	// Check if we need to recalculate path
 	const bool path_expired = self->monsterinfo.nav_path_cache_time <= level.time;
 	const bool path_intersecting = self->monsterinfo.nav_path.returnCode != PathReturnCode::TraversalPending &&
 		boxes_intersect(mon_mins, mon_maxs, path_to, path_to);
 
-	if (path_expired || path_intersecting)
+	if (path_expired || path_intersecting || force_recalc)
 	{
 		PathRequest request;
 
 		// Set goal based on enemy or goalentity
-		request.goal = self->enemy ? self->enemy->s.origin : self->goalentity->s.origin;
+		request.goal = goal_pos;
 		request.moveDist = dist;
 		request.start = self->s.origin;
 		request.pathFlags = PathFlags::Walk;
@@ -1616,11 +1663,10 @@ static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 			request.debugging.drawTime = gi.frame_time_s;
 
 		// Special handling for specific monster types
-		// Consider using monster dimensions for radius calculation
-	if (horde::IsMonsterType(self, horde::MonsterTypeID::GUARDIAN) || horde::IsMonsterType(self, horde::MonsterTypeID::PSX_GUARDIAN))
-	{
-		request.nodeSearch.radius = std::max(2048.f, width * 4); // Use width to inform radius
-	}
+		if (horde::IsMonsterType(self, horde::MonsterTypeID::GUARDIAN) || horde::IsMonsterType(self, horde::MonsterTypeID::PSX_GUARDIAN))
+		{
+			request.nodeSearch.radius = std::max(2048.f, width * 4);
+		}
 
 		// Configure movement capabilities
 		if (self->monsterinfo.can_jump || (self->flags & FL_FLY))
@@ -1628,13 +1674,11 @@ static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 			if (self->monsterinfo.jump_height)
 			{
 				request.pathFlags |= PathFlags::BarrierJump;
-				// Scale jump height based on monster size
 				request.traversals.jumpHeight = std::min(self->monsterinfo.jump_height, height * 3);
 			}
 			if (self->monsterinfo.drop_height)
 			{
 				request.pathFlags |= PathFlags::WalkOffLedge;
-				// Scale drop height based on monster size
 				request.traversals.dropHeight = std::min(self->monsterinfo.drop_height, height * 4);
 			}
 		}
@@ -1642,7 +1686,6 @@ static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 		// Flying monsters get special treatment
 		if (self->flags & FL_FLY)
 		{
-			// Use monster's actual height for vertical limits
 			const float vertical_limit = std::max(8192.f, height * 8);
 			request.nodeSearch.maxHeight = request.nodeSearch.minHeight = vertical_limit;
 			request.pathFlags |= PathFlags::LongJump;
@@ -1656,7 +1699,11 @@ static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 			return false;
 		}
 
-		self->monsterinfo.nav_path_cache_time = level.time + 2_sec;
+		// Use shorter cache time if we were stuck, to recover faster
+		self->monsterinfo.nav_path_cache_time = level.time + (is_stuck ? PATH_CACHE_TIME_STUCK : PATH_CACHE_TIME_NORMAL);
+
+		// Reset progress tracking for new path
+		self->monsterinfo.path_last_goal_dist = current_dist_to_goal;
 	}
 
 	// Store original yaw values for potential restoration
@@ -1664,7 +1711,7 @@ static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 	const float old_yaw = self->s.angles[YAW];
 	const float old_ideal_yaw = self->ideal_yaw;
 
-	// Calculate movement direction
+	// Calculate movement direction with yaw smoothing to prevent diagonal stuttering
 	if (self->monsterinfo.random_change_time >= level.time &&
 		!(self->monsterinfo.aiflags & AI_ALTERNATE_FLY))
 	{
@@ -1674,7 +1721,30 @@ static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 	{
 		vec3_t dir = path_to - self->s.origin;
 		dir.normalize();
-		yaw = vectoyaw(dir);
+		float target_yaw = vectoyaw(dir);
+
+		// Smooth yaw transition to prevent jittery diagonal movement
+		// Only apply smoothing if we already have a valid ideal_yaw direction
+		if (old_ideal_yaw >= 0)
+		{
+			float yaw_diff = target_yaw - old_ideal_yaw;
+			// Normalize to -180 to 180 range
+			if (yaw_diff > 180.f)
+				yaw_diff -= 360.f;
+			else if (yaw_diff < -180.f)
+				yaw_diff += 360.f;
+
+			// Only smooth small changes (< 45°) - larger changes should be immediate
+			// This prevents stuttering from micro-adjustments while allowing quick turns
+			if (std::abs(yaw_diff) < 45.f)
+				yaw = anglemod(old_ideal_yaw + yaw_diff * 0.6f);  // 60% blend toward target
+			else
+				yaw = target_yaw;
+		}
+		else
+		{
+			yaw = target_yaw;
+		}
 	}
 
 	// Try primary movement

@@ -1858,6 +1858,10 @@ struct monsterinfo_t
 	gtime_t	  path_wait_time; // don't try nav nodes until this is over
 	PathInfo  nav_path; // if AI_PATHING, this is where we are trying to reach
 	gtime_t	  nav_path_cache_time; // cache nav_path result for this much time
+	// Progress-based path recalculation tracking
+	gtime_t   path_progress_time;     // next time to check movement progress
+	float     path_last_goal_dist;    // last recorded distance to goal
+	gtime_t   path_no_progress_time;  // accumulated time without progress
 	combat_style_t combat_style; // pathing style
 
 	edict_t* damage_attacker;

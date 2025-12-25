@@ -1682,10 +1682,12 @@ FacingIdeal
 bool FacingIdeal(edict_t* self)
 {
     float delta = anglemod(self->s.angles[YAW] - self->ideal_yaw);
-    
+
+    // Path-following uses relaxed threshold (20°) to prevent stuttering during diagonal movement
+    // The tight 5° threshold caused monsters to constantly revert position while turning
     if (self->monsterinfo.aiflags & AI_PATHING)
-        return delta <= 5 || delta >= 355;
-        
+        return delta <= 20 || delta >= 340;
+
     return delta <= 45 || delta >= 315;
 }
 
