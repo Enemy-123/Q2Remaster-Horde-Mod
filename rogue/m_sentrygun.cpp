@@ -2302,6 +2302,9 @@ void SP_monster_sentrygun(edict_t* self)
     state->last_grenade_burst_time = 0_sec;
     state->last_regeneration_time = 0_sec;
 
+	// Clear regen_info to prevent garbage values from vampire system
+	self->regen_info.clear();
+
 	// --- Unconditional Pre-caching Block ---
 	// By placing all asset loading at the top, we guarantee that every possible
 	// model and sound for every sentry variant is precached when this function
