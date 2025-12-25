@@ -1877,6 +1877,7 @@ struct monsterinfo_t
 	bool fly_thrusters; // slightly different flight mechanics, for melee attacks
 	gtime_t fly_recovery_time; // time to try a new dir to get away from hazards
 	vec3_t fly_recovery_dir;
+	gtime_t fly_wall_stuck_time; // time when flying monster started being blocked by walls
 
 	gtime_t checkattack_time;
 	int32_t start_frame;

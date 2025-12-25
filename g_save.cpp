@@ -1386,6 +1386,7 @@ FIELD_AUTO(monsterinfo.fly_pinned),
 FIELD_AUTO(monsterinfo.fly_thrusters),
 FIELD_AUTO(monsterinfo.fly_recovery_time),
 FIELD_AUTO(monsterinfo.fly_recovery_dir),
+FIELD_AUTO(monsterinfo.fly_wall_stuck_time),
 
 FIELD_AUTO(monsterinfo.checkattack_time),
 FIELD_AUTO(monsterinfo.start_frame),

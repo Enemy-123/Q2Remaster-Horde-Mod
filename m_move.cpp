@@ -79,6 +79,10 @@ constexpr gtime_t STUCK_TELEPORT_MAX = 17.0_sec;
 constexpr gtime_t REACT_DAMAGE_MIN = 3_sec;
 constexpr gtime_t REACT_DAMAGE_MAX = 5_sec;
 
+// Flying monster wall stuck recovery constants
+constexpr gtime_t FLY_WALL_STUCK_THRESHOLD = 1500_ms; // Time before forcing descent
+constexpr float FLY_DESCENT_SPEED_MULTIPLIER = 0.6f;  // How fast to descend when stuck
+
 // this is used for communications out of sv_movestep to say what entity
 // is blocking us
 // Anti-stacking system for monsters
@@ -572,6 +576,10 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 	// If blocked closely, try to navigate around
 	if (tr.fraction < 0.25f)
 	{
+		// Track when we started being blocked
+		if (ent->monsterinfo.fly_wall_stuck_time == 0_ms)
+			ent->monsterinfo.fly_wall_stuck_time = level.time;
+
 		// Pre-calculate common positions to reduce vector operations
 		const vec3_t bottom_pos = ent->s.origin + vec3_t{ 0, 0, ent->mins.z };
 		const vec3_t top_pos = ent->s.origin + vec3_t{ 0, 0, ent->maxs.z };
@@ -582,29 +590,59 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 		bool const top_visible = SV_flystep_testvisposition(top_pos, wanted_pos,
 			ent->s.origin, top_pos + accel_offset, ent);
 
-		if (bottom_visible == top_visible) // Blocked horizontally
+		// Check if we've been stuck for too long - force descent to floor
+		bool force_descent = false;
+		if (level.time > ent->monsterinfo.fly_wall_stuck_time + FLY_WALL_STUCK_THRESHOLD)
 		{
-			// Pre-calculate side positions
-			const vec3_t side_offset = aim_fwd.scaled(ent->maxs);
-			const vec3_t lateral_offset = aim_rgt.scaled(ent->maxs);
+			// Check if there's floor below us
+			vec3_t floor_check = ent->s.origin;
+			floor_check.z -= 512.f;
+			trace_t floor_trace = gi.trace(ent->s.origin, ent->mins, ent->maxs, floor_check, ent, obstacle_mask);
 
-			bool const left_visible = gi.traceline(ent->s.origin + side_offset - lateral_offset, wanted_pos, ent, obstacle_mask).fraction == 1.0f;
-			bool const right_visible = gi.traceline(ent->s.origin + side_offset + lateral_offset, wanted_pos, ent, obstacle_mask).fraction == 1.0f;
-
-			if (left_visible != right_visible) // Clear path to one side
+			// If there's floor below and not in sky, descend
+			if (floor_trace.fraction < 1.0f &&
+				!(floor_trace.surface && (floor_trace.surface->flags & SURF_SKY)))
 			{
-				wanted_dir += (right_visible ? aim_rgt : -aim_rgt);
-			}
-			else // Blocked on both sides, push away from obstacle
-			{
-				wanted_dir = tr.plane.normal;
+				force_descent = true;
+				// Add strong downward component
+				wanted_dir = vec3_t{ wanted_dir.x * 0.3f, wanted_dir.y * 0.3f, -FLY_DESCENT_SPEED_MULTIPLIER };
+				wanted_dir.normalize();
 			}
 		}
-		else // Blocked vertically
+
+		if (!force_descent)
 		{
-			wanted_dir += (top_visible ? aim_up : -aim_up);
+			if (bottom_visible == top_visible) // Blocked horizontally
+			{
+				// Pre-calculate side positions
+				const vec3_t side_offset = aim_fwd.scaled(ent->maxs);
+				const vec3_t lateral_offset = aim_rgt.scaled(ent->maxs);
+
+				bool const left_visible = gi.traceline(ent->s.origin + side_offset - lateral_offset, wanted_pos, ent, obstacle_mask).fraction == 1.0f;
+				bool const right_visible = gi.traceline(ent->s.origin + side_offset + lateral_offset, wanted_pos, ent, obstacle_mask).fraction == 1.0f;
+
+				if (left_visible != right_visible) // Clear path to one side
+				{
+					wanted_dir += (right_visible ? aim_rgt : -aim_rgt);
+				}
+				else // Blocked on both sides, push away from obstacle
+				{
+					wanted_dir = tr.plane.normal;
+					// Also add slight downward bias when stuck on all sides
+					wanted_dir.z -= 0.2f;
+				}
+			}
+			else // Blocked vertically
+			{
+				wanted_dir += (top_visible ? aim_up : -aim_up);
+			}
 		}
 		wanted_dir.normalize(); // Re-normalize after adjustment
+	}
+	else
+	{
+		// Not blocked - reset wall stuck timer
+		ent->monsterinfo.fly_wall_stuck_time = 0_ms;
 	}
 	// --- End Obstacle Avoidance ---
 
@@ -1503,6 +1541,11 @@ bool SV_NewChaseDir(edict_t *actor, vec3_t pos, float dist)
 
 	actor->ideal_yaw = frandom(0, 360); // can't move; pick a random yaw...
 
+	// All directions blocked - add pause to prevent stuttering from rapid retries
+	// This prevents the monster from trying and failing every frame
+	actor->monsterinfo.bump_time = level.time + BUMP_TIME_FALLBACK;
+	actor->monsterinfo.bad_move_time = level.time + BAD_MOVE_TIME_PENALTY;
+
 	// if a bridge was pulled out from underneath a monster, it may not have
 	// a valid standing position at all
 
@@ -1875,6 +1918,13 @@ void M_MoveToGoal(edict_t* ent, float dist)
 	}
 
 	// bump around...
+	// Skip if still in bump time cooldown (prevents stuttering from rapid direction changes)
+	if (ent->monsterinfo.bump_time > level.time)
+	{
+		M_ChangeYaw(ent); // Still face the target while waiting
+		return;
+	}
+
 	if ((ent->monsterinfo.random_change_time <= level.time // random change time is up
 		&& irandom(4) == 1 // random bump around
 		&& !(ent->monsterinfo.aiflags & AI_CHARGING) // PMM - charging monsters (AI_CHARGING) don't deflect unless they have to
