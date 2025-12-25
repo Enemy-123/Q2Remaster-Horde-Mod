@@ -1408,29 +1408,37 @@ void turret2Fire(edict_t* self) {
 		dir.normalize();
 	}
 
-	// Check firing angle with more lenient threshold
-	vec3_t forward;
-	AngleVectors(self->s.angles, forward, nullptr, nullptr);
-	const float chance = dir.dot(forward);
+	// Calculate distance for weapon selection and checks
+	const float dist = (end - start).length();
+	
+	// For close-range enemies (within 200 units), skip angle and trace checks
+	// Close enemies need to be engaged immediately
+	bool close_range = dist <= 200.0f;
 
-	// Relaxed angle check - 0.92 is about 23 degrees from center
-	if (chance < 0.92f) {
-		return;
+	// Check firing angle - skip for close-range enemies
+	if (!close_range) {
+		vec3_t forward;
+		AngleVectors(self->s.angles, forward, nullptr, nullptr);
+		const float chance = dir.dot(forward);
+
+		// Relaxed angle check - 0.92 is about 23 degrees from center
+		if (chance < 0.92f) {
+			return;
+		}
 	}
 
-	// Calculate distance for weapon selection
-	const float dist = (end - start).length();
+	// Trace check - skip for close-range enemies (traces can fail when very close)
+	if (!close_range) {
+		trace_t tr = gi.traceline(start, end, self, MASK_SHOT);
 
-	// More permissive trace to ensure we can hit the target
-	trace_t tr = gi.traceline(start, end, self, MASK_SHOT);
-
-	// Only consider it a failed trace if we hit something that isn't the enemy or world
-	// AND it's not close to the enemy (sometimes entities overlap)
-	if (tr.ent != self->enemy && tr.ent != world) {
-		// Check if trace endpoint is close to enemy
-		float dist_to_enemy = (tr.endpos - self->enemy->s.origin).length();
-		if (dist_to_enemy > 32.0f) { // Not close enough to enemy
-			return;
+		// Only consider it a failed trace if we hit something that isn't the enemy or world
+		// AND it's not close to the enemy (sometimes entities overlap)
+		if (tr.ent != self->enemy && tr.ent != world) {
+			// Check if trace endpoint is close to enemy
+			float dist_to_enemy = (tr.endpos - self->enemy->s.origin).length();
+			if (dist_to_enemy > 32.0f) { // Not close enough to enemy
+				return;
+			}
 		}
 	}
 
@@ -1448,10 +1456,7 @@ void turret2Fire(edict_t* self) {
 		// Allow firing even if we just started holding frame
 		TurretFireMachinegun(self, start, dir);
 
-		// Only try rockets outside of minimum range
-		//if (dist > 200.0f) { // Commented out: Allow rockets at any range
-			TurretFireRocket(self, start, dir, dist);
-		//}
+		TurretFireRocket(self, start, dir, dist);
 	}
 	else if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER)) {
 		// HEATBEAM - Use AI_HOLD_FRAME like machinegun for continuous beam
@@ -1474,6 +1479,8 @@ void turret2Fire(edict_t* self) {
 			self->monsterinfo.next_duck_time = level.time + 0.05_sec; // Keep updating rapidly
 			
 			// Simplified blaster/heatbeam logic
+			vec3_t forward;
+			AngleVectors(self->s.angles, forward, nullptr, nullptr);
 			vec3_t offset = { 20.f, 0.f, 0.f };
 			const vec3_t hbstart = start + (forward * offset[0]);
 
@@ -1491,14 +1498,14 @@ void turret2Fire(edict_t* self) {
 				// Fire continuous heatbeam
 				TurretFireHeatbeam(self, hbstart, predictedDir, hbtr);
 
-				// Only try plasma at medium to long range
-				//if (dist > 300.0f && frandom() < 0.1f) { // Commented out: Allow plasma at any range
-				if (frandom() < 0.1f) { // Lower chance for plasma
+				// Lower chance for plasma
+				if (frandom() < 0.1f) {
 					TurretFirePlasma(self, hbstart, predictedDir);
 				}
 			}
 			else {
 				// Fallback to direct fire if prediction fails
+				trace_t tr = gi.traceline(start, end, self, MASK_SHOT);
 				TurretFireHeatbeam(self, hbstart, dir, tr);
 			}
 		}
@@ -1511,8 +1518,6 @@ void turret2Fire(edict_t* self) {
 		// Always fire grenades when possible, just like rockets
 		TurretFireGrenade(self, start, dir, dist);
 	}
-
-	// last_sentry_missile_fire_time is now set inside each fire function (rocket, plasma, grenade)
 }
 // PMM
 void turret2FireBlind(edict_t* self)
@@ -2132,27 +2137,33 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 		return false;
 	}
 
-	// Check if enemy is within firing arc
-	vec3_t dir = self->enemy->s.origin - self->s.origin;
-	vec3_t forward;
-	AngleVectors(self->s.angles, forward, nullptr, nullptr);
-	dir.normalize();
-	float const dot = dir.dot(forward);
-
-	// More permissive angle check (about 32 degrees)
-	if (dot < 0.85) {
-		// Not directly in front - check if we're already turning
-		// If we've been trying for more than half a second, find a new target
-		if (self->monsterinfo.attack_finished + 500_ms < level.time) {
-			FindMTarget(self);
-		}
+	// Calculate distance
+	float const range = range_to(self, self->enemy);
+	
+	// Don't try to fire if enemy is too far away
+	if (range > 1500.0f) {
 		return false;
 	}
 
-	// Calculate distance - don't try to fire if enemy is too far away
-	float const range = range_to(self, self->enemy);
-	if (range > 1500.0f) {
-		return false;
+	// For close-range enemies (within 200 units), skip angle check entirely
+	// The turret will aim while firing - this handles flyers and enemies above/below
+	if (range > 200.0f) {
+		// Check if enemy is within firing arc for distant targets
+		vec3_t dir = self->enemy->s.origin - self->s.origin;
+		vec3_t forward;
+		AngleVectors(self->s.angles, forward, nullptr, nullptr);
+		dir.normalize();
+		float const dot = dir.dot(forward);
+
+		// More permissive angle check (about 32 degrees)
+		if (dot < 0.85) {
+			// Not directly in front - check if we're already turning
+			// If we've been trying for more than half a second, find a new target
+			if (self->monsterinfo.attack_finished + 500_ms < level.time) {
+				FindMTarget(self);
+			}
+			return false;
+		}
 	}
 
 	// Sentry guns attack immediately and consistently when they have a valid target
