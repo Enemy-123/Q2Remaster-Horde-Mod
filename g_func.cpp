@@ -2,6 +2,7 @@
 // Licensed under the GNU General Public License 2.0.
 #include "g_local.h"
 #include "memory_safety.h"
+#include "horde/g_horde.h"
 #include <boost/container/small_vector.hpp>
 
 /*
@@ -1607,8 +1608,9 @@ TOUCH(Touch_DoorTrigger) (edict_t* self, edict_t* other, const trace_t& tr, bool
 
 	if (other->svflags & SVF_MONSTER)
 	{
-		// In horde mode, allow monsters to open all doors
-		if (!g_horde->integer && self->owner->spawnflags.has(SPAWNFLAG_DOOR_NOMONSTER))
+		// In horde mode on xintell, allow monsters to open all doors
+		bool is_xintell = horde::MapOriginRegistry::GetMapID(level.mapname) == horde::MapID::XINTELL;
+		if (!(g_horde->integer && is_xintell) && self->owner->spawnflags.has(SPAWNFLAG_DOOR_NOMONSTER))
 			return;
 		// [Paril-KEX] this is for PSX; the scale is so small that monsters walking
 		// around to path_corners often initiate doors unintentionally.
@@ -1901,9 +1903,13 @@ void SP_func_door(edict_t* ent)
 
 	ent->nextthink = level.time + FRAME_TIME_S;
 
+	// In horde mode on xintell, spawn door triggers for all doors so monsters can open them
+	bool is_xintell = horde::MapOriginRegistry::GetMapID(level.mapname) == horde::MapID::XINTELL;
+	bool force_door_trigger = g_horde->integer && is_xintell;
+
 	if (ent->spawnflags.has(SPAWNFLAG_DOOR_START_OPEN))
 		ent->think = Think_DoorActivateAreaPortal;
-	else if (ent->health || (ent->targetname && !g_horde->integer))
+	else if (ent->health || (ent->targetname && !force_door_trigger))
 		ent->think = Think_CalcMoveSpeed;
 	else
 		ent->think = Think_SpawnDoorTrigger;
