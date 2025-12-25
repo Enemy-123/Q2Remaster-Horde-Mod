@@ -483,6 +483,19 @@ void turret2Aim(edict_t* self)
 
 MONSTERINFO_SIGHT(turret2_sight) (edict_t* self, edict_t* other) -> void
 {
+	// Immediately ready the sentry for combat when sighting an enemy
+	if (self->s.frame < FRAME_run01) {
+		turret2_ready_gun(self);
+	}
+	
+	// Set attack state to trigger immediate attack check
+	self->monsterinfo.attack_finished = level.time;
+	
+	// Reset target search time so we're ready to acquire targets
+	sentry_state_t* state = self->monsterinfo.sentry_state;
+	if (state) {
+		state->next_target_search_time = level.time;
+	}
 }
 
 MONSTERINFO_SEARCH(turret2_search) (edict_t* self) -> void
@@ -574,8 +587,9 @@ MONSTERINFO_RUN(turret2_run) (edict_t* self) -> void
 	}
 
 	// Periodic target validation and search for better targets
+	// Faster search when idle (100ms) for immediate response, slower when engaged (1000ms)
 	if (level.time >= state->next_target_search_time) {
-		state->next_target_search_time = level.time + (has_valid_enemy ? 1500_ms : 1000_ms);
+		state->next_target_search_time = level.time + (has_valid_enemy ? 1000_ms : 100_ms);
 
 		if (has_valid_enemy) {
 			// Check if current target is still attackable
@@ -2090,7 +2104,7 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 	// Basic validity checks
 	if (!M_HasValidTarget(self))
 	{
-		return false; // Can't at a non-existent or dead target.
+		return false; // Can't attack a non-existent or dead target.
 	}
 
 	// Ignore monsters that should never be attacked
@@ -2108,9 +2122,7 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 	trace_t const tr = gi.traceline(spot1, spot2, self,
 		MASK_SHOT);
 
-	//  More permissive trace validation
-	// If we can't directly see the enemy but we've been trying for a while, 
-	// find a new target instead of just returning false
+	// If we can't directly see the enemy, try to find a new target
 	if (tr.fraction < 1.0f && tr.ent != self->enemy) {
 		if (self->monsterinfo.attack_finished + 500_ms < level.time) {
 			// We've been trying to attack for over half a second but couldn't trace to enemy
@@ -2127,8 +2139,7 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 	dir.normalize();
 	float const dot = dir.dot(forward);
 
-	//  More permissive angle check
-	// Use 0.85 (about 32 degrees) instead of 0.9 (26 degrees)
+	// More permissive angle check (about 32 degrees)
 	if (dot < 0.85) {
 		// Not directly in front - check if we're already turning
 		// If we've been trying for more than half a second, find a new target
@@ -2138,36 +2149,17 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 		return false;
 	}
 
-	// Calculate distance and adjust firing probability
+	// Calculate distance - don't try to fire if enemy is too far away
 	float const range = range_to(self, self->enemy);
-
-	// Don't try to fire if enemy is too far away
 	if (range > 1500.0f) {
 		return false;
 	}
 
-	// Adjust chance based on range
-	float chance = range <= RANGE_NEAR ? 0.9f :
-		(range <= RANGE_MID ? 0.7f : 0.4f);
-
-	//  Gradually increase chance based on time since last attack
-	// This ensures that even if RNG is bad, we'll eventually fire
-	float time_since_attack = (level.time - self->monsterinfo.attack_finished).seconds();
-	if (time_since_attack > 0.5f)
-		chance += time_since_attack * 0.2f; // +20% per second
-
-	// Cap at 99% to always leave some small RNG factor
-	if (chance > 0.99f)
-		chance = 0.99f;
-
-	// Roll for attack
-	if (frandom() < chance) {
-		self->monsterinfo.attack_state = AS_MISSILE;
-		self->monsterinfo.attack_finished = level.time + 50_ms;
-		return true;
-	}
-
-	return false;
+	// Sentry guns attack immediately and consistently when they have a valid target
+	// No random chance - sentries are automated turrets that should be reliable
+	self->monsterinfo.attack_state = AS_MISSILE;
+	self->monsterinfo.attack_finished = level.time + 50_ms;
+	return true;
 }
 
 // **********************
