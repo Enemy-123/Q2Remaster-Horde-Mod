@@ -1155,132 +1155,102 @@ static void TurretFirePlasma(edict_t* self, const vec3_t& start, const vec3_t& d
 static void TurretFireFlechette(edict_t* self, const vec3_t& start, const vec3_t& dir) {
 	if (!M_HasValidTarget(self))
 	{
-		return; // Stop immediately if the target is invalid.
+		return;
 	}
 
     sentry_state_t* state = self->monsterinfo.sentry_state;
     if (!state) return;
 
-	// Flechette burst timing logic - REFINED RAPID like ETF rifle
-	if (state->flechette_burst_count == 0) {
-		// Starting new burst - set target count and reset timing
-		state->flechette_burst_target = 5 + (rand() % 4); // Random 5-8 flechettes
-		state->last_flechette_burst_time = level.time;
-		state->flechette_to_grenade_pause_time = 0_sec; // Reset grenade pause
-	}
-	else if (level.time < state->last_flechette_burst_time + gtime_t::from_sec(0.04f + (frandom() * 0.06f))) {
-		// REFINED RAPID: 0.02-0.05 second intervals between flechettes (slightly slower than before)
+	// If grenade is ready to fire, don't fire flechettes
+	if (state->grenade_ready) {
 		return;
 	}
 
-	// Calculate muzzle position and get direction vectors
+	// BRRT burst timing - extremely fast
+	if (state->flechette_burst_count == 0) {
+		// Starting new burst - 12-16 flechettes per burst
+		state->flechette_burst_target = 12 + (rand() % 5);
+		state->last_flechette_burst_time = level.time;
+	}
+	else if (level.time < state->last_flechette_burst_time + 10_ms) {
+		// 10ms between shots - near instant brrt
+		return;
+	}
+
+	// Calculate muzzle position
 	vec3_t forward, right, up;
 	vec3_t muzzle_pos = CalculateTurretMuzzlePosition(self, &forward, &right, &up);
 
 	const float speed = self->monsterinfo.quadfire_time > level.time ? 4000.0f : 3200.0f;
-
-	// Calculate distance
 	float dist = (self->enemy->s.origin - muzzle_pos).length();
 
-	// Improved aiming
+	// Aiming
 	vec3_t aim_dir;
-
-	// Flechettes are fast, so PredictAim works well at all distances
-	// But we'll add more careful prediction for moving targets
 	if (self->enemy->velocity.lengthSquared() > 1.0f) {
-		// Moving target - use prediction with error compensation
 		float pred_time = dist / speed;
-		vec3_t pred_pos = self->enemy->s.origin + (self->enemy->velocity * pred_time * 0.9f); // 90% compensation
-
-		// Verify predicted position with trace
+		vec3_t pred_pos = self->enemy->s.origin + (self->enemy->velocity * pred_time * 0.9f);
 		trace_t tr = gi.traceline(muzzle_pos, pred_pos, self, MASK_SHOT);
 		if (tr.fraction >= 0.9f || tr.ent == self->enemy) {
 			aim_dir = (pred_pos - muzzle_pos).normalized();
 		}
 		else {
-			// If prediction is blocked, use standard PredictAim
 			PredictAim(self, self->enemy, muzzle_pos, speed, true, 0.0f, &aim_dir, nullptr);
 		}
 	}
 	else {
-		// Stationary target - aim with small random variation for realism
 		aim_dir = (self->enemy->s.origin - muzzle_pos).normalized();
-		aim_dir += right * (crandom() * 0.01f);
-		aim_dir.normalize();
 	}
-	// Calculate flechette damage based on owner's skill level
+
+	// Small spread for burst feel
+	aim_dir += right * (crandom() * 0.015f);
+	aim_dir += up * (crandom() * 0.01f);
+	aim_dir.normalize();
+
+	// Damage - halved because we fire twice as many projectiles
 	int base_damage = g_config.sentrygun.initial_flechette +
 	                  (self->monsterinfo.pvm_level * g_config.sentrygun.addon_flechette);
-	const int damage = static_cast<int>(CalculateDamage(self, base_damage));
-	const float spread_energymult = self->monsterinfo.quadfire_time > level.time ? 0.8f : 1.6f;
+	const int damage = static_cast<int>(CalculateDamage(self, base_damage)) / 2;
 
-	// Main shot with improved aiming
+	// Fire main flechette
 	monster_fire_flechette(self, muzzle_pos, aim_dir, damage, speed, MZ2_UNUSED_0);
-	monster_fire_energy_bullet(self, start, dir, 1, 8, DEFAULT_BULLET_HSPREAD * spread_energymult, DEFAULT_BULLET_VSPREAD * spread_energymult, MZ2_TURRET_MACHINEGUN);
 
+	// Double shot for more impact
+	vec3_t aim_dir2 = aim_dir + right * (crandom() * 0.02f);
+	aim_dir2.normalize();
+	monster_fire_flechette(self, muzzle_pos, aim_dir2, damage, speed, MZ2_UNUSED_0);
+
+	// Muzzle flash
 	gi.WriteByte(svc_muzzleflash);
 	gi.WriteEntity(self);
-	gi.WriteByte(frandom() < 0.2f ? MZ_ETF_RIFLE_2 : MZ_ETF_RIFLE);
+	gi.WriteByte(MZ_ETF_RIFLE);
 	gi.multicast(self->s.origin, MULTICAST_PVS, false);
-	
-	// Secondary spread shots
-	if (self->monsterinfo.quadfire_time > level.time || frandom() < 0.4f) {
-		// Calculate perpendicular vectors for spread
-		vec3_t spread_right;
-		AngleVectors(vectoangles(aim_dir), nullptr, &spread_right, nullptr);
-
-		// Right spread
-		vec3_t forward_right = aim_dir + (spread_right * 0.02f);
-		forward_right.normalize();
-		monster_fire_flechette(self, muzzle_pos, aim_dir, damage, speed, MZ2_UNUSED_0);
-
-		// Left spread (only for quad)
-		if (self->monsterinfo.quadfire_time > level.time) {
-			vec3_t forward_left = aim_dir - (spread_right * 0.02f);
-			forward_left.normalize();
-			monster_fire_flechette(self, muzzle_pos, aim_dir, damage, speed, MZ2_UNUSED_0);
-		}
-	}
 
 	// Update burst state
 	state->flechette_burst_count++;
 	state->last_flechette_burst_time = level.time;
 
-	// Check if burst is complete
+	// Burst complete - trigger grenade
 	if (state->flechette_burst_count >= state->flechette_burst_target) {
 		state->flechette_burst_count = 0;
-		// Set pause time before grenades can fire (0.4-0.5 seconds)
-		state->flechette_to_grenade_pause_time = level.time + gtime_t::from_sec(0.4f + (frandom() * 0.1f));
+		state->grenade_ready = true;
 	}
 }
 // Grenade fire function needs to use the state
 static void TurretFireGrenade(edict_t* self, const vec3_t& start, const vec3_t& dir, float dist) {
 	if (!M_HasValidTarget(self))
 	{
-		return; // Stop immediately if the target is invalid.
+		return;
 	}
 
     sentry_state_t* state = self->monsterinfo.sentry_state;
     if (!state) return;
 
-	// Check if we need to wait for flechette-to-grenade pause
-	if (level.time < state->flechette_to_grenade_pause_time) {
+	// Only fire grenade when ready (after flechette burst)
+	if (!state->grenade_ready) {
 		return;
 	}
 
-	// Burst timing logic
-	if (state->grenade_burst_count == 0) {
-		if (level.time <= self->monsterinfo.last_sentry_missile_fire_time +
-			(self->monsterinfo.quadfire_time > level.time ? 0.8_sec : 1.2_sec)) {
-			return;
-		}
-		state->last_grenade_burst_time = level.time;
-	}
-	else if (level.time < state->last_grenade_burst_time + 0.5_sec) {
-		return;
-	}
-
-	// Calculate muzzle position and get direction vectors
+	// Calculate muzzle position
 	vec3_t forward, right, up;
 	vec3_t muzzle_pos = CalculateTurretMuzzlePosition(self, &forward, &right, &up);
 
@@ -1291,57 +1261,40 @@ static void TurretFireGrenade(edict_t* self, const vec3_t& start, const vec3_t& 
 	const float speed = self->monsterinfo.quadfire_time > level.time ? 2000.0f : 1720.0f;
 	vec3_t fire_dir, aimpoint;
 
-	// Decide between high arc (mortar-style) and direct fire
 	bool use_high_arc = (dist > 500 || !visible(self, self->enemy));
 
-	// Similar dual-range strategy but with improved calculation
 	if (dist < 400) {
-		// SHORT RANGE: Direct prediction with small adjustments
 		PredictAim(self, self->enemy, muzzle_pos, speed, true, 0.0f, &fire_dir, &aimpoint);
-
-		// Add natural variance (more like tank grenades)
 		fire_dir += right * (crandom() * 0.02f);
-		fire_dir += up * (crandom() * 0.02f - 0.01f); // Slight downward bias
+		fire_dir += up * (crandom() * 0.02f - 0.01f);
 		fire_dir.normalize();
 	}
 	else {
-		// LONG RANGE: Calculate better arc trajectory
-		// Predict target position with velocity compensation
 		float pred_time = dist / speed;
 		vec3_t predicted_pos = self->enemy->s.origin + (self->enemy->velocity * pred_time * 0.8f);
-
-		// Add slight height adjustment to hit at feet level for splash damage
 		predicted_pos[2] -= 8.0f;
 
 		fire_dir = predicted_pos - muzzle_pos;
 		fire_dir.normalize();
 
-		// Use M_CalculatePitchToFire with high arc for long distance
 		if (M_CalculatePitchToFire(self, predicted_pos, muzzle_pos, fire_dir,
 			speed, pred_time, use_high_arc)) {
-			// Add tiny variation
 			fire_dir[2] += crandom_open() * 0.005f;
 			fire_dir.normalize();
 		}
 	}
 
-	// Fire grenade with calculated parameters
-	// Calculate grenade damage based on owner's skill level
+	// Damage
 	int base_damage = g_config.sentrygun.initial_grenade +
 	                  (self->monsterinfo.pvm_level * g_config.sentrygun.addon_grenade);
 	const int damage = static_cast<int>(CalculateDamage(self, base_damage));
 	fire_grenade(self, muzzle_pos, fire_dir, damage, speed, 3_sec, 0,
-		crandom_open() * 5.0f, // Add slight spin
-		200.f, false);
-
-// Manage burst state
-	state->grenade_burst_count++;
-	if (state->grenade_burst_count >= 2) {
-		state->grenade_burst_count = 0;
-		self->monsterinfo.last_sentry_missile_fire_time = level.time + 1_sec;
-	}
+		crandom_open() * 5.0f, 200.f, false);
 
 	gi.sound(self, CHAN_VOICE, sound_grenade_launcher, 1, ATTN_NORM, 0);
+
+	// Grenade fired, ready for next flechette burst
+	state->grenade_ready = false;
 }
 void turret2Fire(edict_t* self) {
 
@@ -1930,22 +1883,31 @@ void remove_sentries(edict_t* ent) noexcept {
         return;
     }
 
-    // Iterate backwards through the player's specific sentry list.
-    for (int i = SentryConstants::MAX_SENTRIES_PER_PLAYER() - 1; i >= 0; --i) {
+    // Iterate through the player's sentry list and remove each one
+    for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER(); ++i) {
         edict_t* sentry = ent->client->resp.deployed_sentries[i];
         
-        // If a valid sentry is found, call its die function.
-        if (sentry && sentry->inuse && horde::IsMonsterType(sentry, horde::MonsterTypeID::SENTRYGUN)) {
-            // turret2_die will handle decrementing the count and clearing this array slot.
-            turret2_die(sentry, ent, ent, 99999, sentry->s.origin, MOD_UNKNOWN);
+        if (sentry && sentry->inuse) {
+            // Kill the sentry directly
+            sentry->health = 0;
+            sentry->deadflag = true;
+            
+            // Free any sentry state
+            if (sentry->monsterinfo.sentry_state) {
+                gi.TagFree(sentry->monsterinfo.sentry_state);
+                sentry->monsterinfo.sentry_state = nullptr;
+            }
+            
+            // Free the entity
+            G_FreeEdict(sentry);
         }
-    }
-
-    // As a safeguard, ensure the count and array are fully cleared.
-    ent->client->resp.num_sentries = 0;
-    for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER(); ++i) {
+        
+        // Clear the slot
         ent->client->resp.deployed_sentries[i] = nullptr;
     }
+
+    // Reset the count
+    ent->client->resp.num_sentries = 0;
 }
 // **********************
 //  WALL SPAWN
@@ -2127,14 +2089,23 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 	trace_t const tr = gi.traceline(spot1, spot2, self,
 		MASK_SHOT);
 
-	// If we can't directly see the enemy, try to find a new target
+	// If we hit something that's not our target
 	if (tr.fraction < 1.0f && tr.ent != self->enemy) {
-		if (self->monsterinfo.attack_finished + 500_ms < level.time) {
-			// We've been trying to attack for over half a second but couldn't trace to enemy
-			// Try to find a new target instead
-			FindMTarget(self);
+		// Check if what we hit is a valid enemy - if so, switch to it!
+		// This handles monsters blocking line of sight to current target
+		if (tr.ent && tr.ent->inuse && !tr.ent->deadflag &&
+			(tr.ent->svflags & SVF_MONSTER) && !OnSameTeam(self, tr.ent)) {
+			// Switch to the blocking monster - it's a closer threat
+			self->enemy = tr.ent;
+			// Continue with attack on new target
 		}
-		return false;
+		else {
+			// Hit something else (world, friendly, etc.) - can't attack
+			if (self->monsterinfo.attack_finished + 500_ms < level.time) {
+				FindMTarget(self);
+			}
+			return false;
+		}
 	}
 
 	// Calculate distance

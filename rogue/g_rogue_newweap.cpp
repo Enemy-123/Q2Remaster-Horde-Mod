@@ -51,9 +51,14 @@ TOUCH(flechette_touch)(edict_t *self, edict_t *other, const trace_t &tr, bool ot
 		// Determine real attacker (handles sentry guns, doppelgangers, etc.)
 		edict_t *attacker = GetRealAttacker(self);
 
+		// Use MOD_TURRET for sentry gun projectiles to avoid strength tech doubling damage
+		mod_t mod_type = MOD_ETF_RIFLE;
+		if (self->owner && horde::IsMonsterType(self->owner, horde::MonsterTypeID::SENTRYGUN))
+			mod_type = MOD_TURRET;
+
 		// FIXED: ETF Rifle now bypasses both regular armor AND power armor completely
 		T_Damage(other, self, attacker, self->velocity, self->s.origin, tr.plane.normal,
-				 self->dmg, (int)self->dmg_radius, DAMAGE_NO_REG_ARMOR | DAMAGE_NO_POWER_ARMOR, MOD_ETF_RIFLE);
+				 self->dmg, (int)self->dmg_radius, DAMAGE_NO_REG_ARMOR | DAMAGE_NO_POWER_ARMOR, mod_type);
 	}
 	else
 	{
@@ -1136,6 +1141,10 @@ struct heatbeam_pierce_t : pierce_args_t
 static void fire_beams(edict_t *self, const vec3_t &start, const vec3_t &aimdir, const vec3_t &offset,
 					   int damage, int kick, int te_beam, int te_impact, mod_t mod)
 {
+	// Use MOD_TURRET for sentry gun beams to avoid strength tech doubling damage
+	if (self && horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN))
+		mod = MOD_TURRET;
+
 	// Apply plasmabeam damage upgrade: +1 per level
 	if (self && self->client)
 	{

@@ -1578,23 +1578,23 @@ void MiscMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	bool shouldCloseMenu = true; // Default to closing the menu
 
 	// Use strncmp for options that might have counts appended or dynamic text
-	if (strncmp(selected_text, "Remove Stroggs", strlen("Remove Stroggs")) == 0)
+	if (strncmp(selected_text, "  Remove Stroggs", strlen("  Remove Stroggs")) == 0)
 	{
 		// Remove Strogg summoner bases (which will also kill their spawned monsters)
 		Cmd_RemoveStrogg_f(ent);
 		// Message handled internally, menu should close.
 	}
-	else if (strncmp(selected_text, "Remove Lasers", strlen("Remove Lasers")) == 0)
+	else if (strncmp(selected_text, "  Remove Lasers", strlen("  Remove Lasers")) == 0)
 	{
 		Cmd_RemoveLaser_f(ent);
 		// Message handled internally, menu should close.
 	}
-	else if (strncmp(selected_text, "Remove Sentry Gun", strlen("Remove Sentry Gun")) == 0)
+	else if (strncmp(selected_text, "  Remove Sentry Gun", strlen("  Remove Sentry Gun")) == 0)
 	{
 		Cmd_RemoveSentry_f(ent);
 		// Message handled internally, menu should close.
 	}
-	else if (strncmp(selected_text, "Remove Barrels", strlen("Remove Barrels")) == 0)
+	else if (strncmp(selected_text, "  Remove Barrels", strlen("  Remove Barrels")) == 0)
 	{
 		Cmd_RemoveBarrel_f(ent);
 		// Message handled internally, menu should close.

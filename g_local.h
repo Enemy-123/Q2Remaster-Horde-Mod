@@ -1753,9 +1753,9 @@ typedef struct sentry_state_s {
     gtime_t         last_regeneration_time;
     // Flechette burst system
     int             flechette_burst_count;
-    int             flechette_burst_target;  // Random 5-8 flechettes per burst
+    int             flechette_burst_target;  // Random 12-16 flechettes per burst
     gtime_t         last_flechette_burst_time;
-    gtime_t         flechette_to_grenade_pause_time;
+    bool            grenade_ready;           // True when flechette burst done, grenade should fire
     // Heatbeam continuous tracking
     bool            heatbeam_active;
     gtime_t         heatbeam_start_time;

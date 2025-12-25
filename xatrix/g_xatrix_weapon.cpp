@@ -314,12 +314,21 @@ TOUCH(plasma_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other
 	// calculate position for the explosion entity
 	origin = ent->s.origin + tr.plane.normal;
 
-	if (other->takedamage)
+	// Use MOD_TURRET for sentry gun plasma to avoid strength tech doubling damage
+	mod_t mod_type = MOD_PHALANX;
+	edict_t* attacker = ent->owner;
+	if (ent->owner && horde::IsMonsterType(ent->owner, horde::MonsterTypeID::SENTRYGUN))
 	{
-		T_Damage(other, ent, ent->owner, ent->velocity, ent->s.origin, tr.plane.normal, ent->dmg, ent->dmg, DAMAGE_ENERGY, MOD_PHALANX);
+		mod_type = MOD_TURRET;
+		attacker = ent->owner->owner ? ent->owner->owner : ent->owner;
 	}
 
-	T_RadiusDamage(ent, ent->owner, (float)ent->radius_dmg, other, ent->dmg_radius, DAMAGE_ENERGY, MOD_PHALANX);
+	if (other->takedamage)
+	{
+		T_Damage(other, ent, attacker, ent->velocity, ent->s.origin, tr.plane.normal, ent->dmg, ent->dmg, DAMAGE_ENERGY, mod_type);
+	}
+
+	T_RadiusDamage(ent, attacker, (float)ent->radius_dmg, other, ent->dmg_radius, DAMAGE_ENERGY, mod_type);
 
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(TE_PLASMA_EXPLOSION);

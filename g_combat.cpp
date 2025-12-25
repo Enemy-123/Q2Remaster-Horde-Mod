@@ -1230,8 +1230,8 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		targ->monsterinfo.surprise_time = level.time;
 	}
 
-	// strength tech, laser won't double damage if tech
-	if (mod.id != MOD_PLAYER_LASER)
+	// strength tech, laser and sentry won't double damage if tech
+	if (mod.id != MOD_PLAYER_LASER && mod.id != MOD_TURRET)
 	{
 		damage = CTFApplyStrength(attacker, damage);
 	}

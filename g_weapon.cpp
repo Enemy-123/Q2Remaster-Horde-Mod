@@ -416,12 +416,20 @@ struct fire_lead_pierce_t : pierce_args_t
 		mask(mask)
 	{
 		// Determine the actual attacker inside the constructor
-		if (self && self->owner)
+		// Check if self is a sentry gun (for hitscan weapons like bullets)
+		if (self && horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN))
+		{
+			// Sentry gun is the shooter - attacker is the player owner, use MOD_TURRET
+			attacker = self->owner ? self->owner : self;
+			this->mod = MOD_TURRET;
+		}
+		else if (self && self->owner)
 		{
 			if (horde::IsSpecialType(self->owner, horde::SpecialEntityTypeID::SENTRY_GUN))
 			{
 				// If the owner is a turret, the attacker is the turret's owner (the player)
 				attacker = self->owner->owner ? self->owner->owner : self->owner;
+				this->mod = MOD_TURRET;
 			}
 			else
 			{
@@ -952,6 +960,9 @@ static void Grenade_ExplodeReal(edict_t* ent, edict_t* other, vec3_t normal, edi
 	vec3_t origin;
 	mod_t  mod;
 
+	// Check if grenade was fired by a sentry gun - use MOD_TURRET to avoid strength tech
+	bool is_sentry_grenade = (ent->owner && horde::IsMonsterType(ent->owner, horde::MonsterTypeID::SENTRYGUN));
+
 	if (ent->owner && ent->owner->client)
 		PlayerNoise(ent->owner, ent->s.origin, PNOISE_IMPACT);
 
@@ -959,7 +970,9 @@ static void Grenade_ExplodeReal(edict_t* ent, edict_t* other, vec3_t normal, edi
 	if (other && other->takedamage)
 	{
 		vec3_t const dir = other->s.origin - ent->s.origin;
-		if (ent->spawnflags.has(SPAWNFLAG_GRENADE_HAND))
+		if (is_sentry_grenade)
+			mod = MOD_TURRET;
+		else if (ent->spawnflags.has(SPAWNFLAG_GRENADE_HAND))
 			mod = MOD_HANDGRENADE;
 		else
 			mod = MOD_GRENADE;
@@ -967,7 +980,9 @@ static void Grenade_ExplodeReal(edict_t* ent, edict_t* other, vec3_t normal, edi
 	}
 
 	// Radius damage for the explosion
-	if (ent->spawnflags.has(SPAWNFLAG_GRENADE_HELD))
+	if (is_sentry_grenade)
+		mod = MOD_TURRET;
+	else if (ent->spawnflags.has(SPAWNFLAG_GRENADE_HELD))
 		mod = MOD_HELD_GRENADE;
 	else if (ent->spawnflags.has(SPAWNFLAG_GRENADE_HAND))
 		mod = MOD_HG_SPLASH;
@@ -1425,9 +1440,20 @@ TOUCH(rocket_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other
 	// calculate position for the explosion entity
 	origin = ent->s.origin + tr.plane.normal;
 
+	// Use MOD_TURRET for sentry gun rockets to avoid strength tech doubling damage
+	mod_t direct_mod = MOD_ROCKET;
+	mod_t splash_mod = MOD_R_SPLASH;
+	edict_t* attacker = ent->owner;
+	if (ent->owner && horde::IsMonsterType(ent->owner, horde::MonsterTypeID::SENTRYGUN))
+	{
+		direct_mod = MOD_TURRET;
+		splash_mod = MOD_TURRET;
+		attacker = ent->owner->owner ? ent->owner->owner : ent->owner;
+	}
+
 	if (other->takedamage)
 	{
-		T_Damage(other, ent, ent->owner, ent->velocity, ent->s.origin, tr.plane.normal, ent->dmg, ent->dmg, DAMAGE_NONE, MOD_ROCKET);
+		T_Damage(other, ent, attacker, ent->velocity, ent->s.origin, tr.plane.normal, ent->dmg, ent->dmg, DAMAGE_NONE, direct_mod);
 	}
 	else
 	{
@@ -1443,7 +1469,7 @@ TOUCH(rocket_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other
 		}
 	}
 
-	T_RadiusDamage(ent, ent->owner, (float)ent->radius_dmg, other, ent->dmg_radius, DAMAGE_NONE, MOD_R_SPLASH);
+	T_RadiusDamage(ent, attacker, (float)ent->radius_dmg, other, ent->dmg_radius, DAMAGE_NONE, splash_mod);
 
 	gi.WriteByte(svc_temp_entity);
 	if (ent->waterlevel)
