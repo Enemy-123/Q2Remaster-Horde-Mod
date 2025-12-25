@@ -785,6 +785,11 @@ static inline bool IsValidMonsterTargetForSummon(edict_t* self, edict_t* ent, gt
 static float CalculateTargetPriority(edict_t* self, edict_t* target, float dist_squared) {
     float priority = 1000000.0f / (dist_squared + 1.0f); // Closer is much better
 
+    // Sentry guns use pure distance-based targeting - always attack closest enemy
+    if (horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN)) {
+        return priority;
+    }
+
     // Big bonus for the entity that last damaged us
     if (target == self->monsterinfo.damage_attacker) {
         priority *= 2.0f;
