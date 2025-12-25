@@ -104,6 +104,70 @@ USE(trigger_teleport_use) (edict_t* self, edict_t* other, edict_t* activator) ->
 		self->delay = 1;
 }
 
+// Helper function to check if two bounding boxes overlap
+static inline bool TriggerBoxesOverlap(const vec3_t& mins1, const vec3_t& maxs1, const vec3_t& mins2, const vec3_t& maxs2)
+{
+	return mins1[0] <= maxs2[0] && maxs1[0] >= mins2[0] &&
+	       mins1[1] <= maxs2[1] && maxs1[1] >= mins2[1] &&
+	       mins1[2] <= maxs2[2] && maxs1[2] >= mins2[2];
+}
+
+// Think function to check for spectators in trigger_teleport bounds
+THINK(trigger_teleport_spectator_think) (edict_t* self) -> void
+{
+	self->nextthink = level.time + 100_ms;
+
+	// Don't teleport if trigger is disabled
+	if (self->delay)
+		return;
+
+	// Find the destination
+	edict_t* dest = G_PickTarget(self->target);
+	if (!dest)
+		return;
+
+	// Check all connected players
+	for (uint32_t i = 1; i <= game.maxclients; i++)
+	{
+		edict_t* player = &g_edicts[i];
+
+		if (!player->inuse || !player->client)
+			continue;
+
+		// Only handle spectators (CTF_NOTEAM)
+		if (player->client->resp.ctf_team != CTF_NOTEAM)
+			continue;
+
+		// Check if player's bounding box overlaps with teleporter bounds
+		if (!TriggerBoxesOverlap(player->absmin, player->absmax, self->absmin, self->absmax))
+			continue;
+
+		// Prevent teleport spam
+		if (player->teleport_time > level.time)
+			continue;
+
+		// Teleport the spectator
+		player->s.origin = dest->s.origin;
+		player->s.old_origin = dest->s.origin;
+		player->s.origin[2] += 10;
+		player->velocity = {};
+
+		// Set view angles to destination
+		player->client->ps.pmove.delta_angles = dest->s.angles - player->client->resp.cmd_angles;
+		player->s.angles = {};
+		player->client->ps.viewangles = {};
+		player->client->v_angle = {};
+
+		// Teleport effect (silent for spectators, just visual feedback)
+		player->s.event = EV_OTHER_TELEPORT;
+
+		gi.linkentity(player);
+
+		// Cooldown to prevent instant re-teleport
+		player->teleport_time = level.time + 500_ms;
+	}
+}
+
 void SP_trigger_teleport(edict_t* self)
 {
 	if (!self->wait)
@@ -128,6 +192,13 @@ void SP_trigger_teleport(edict_t* self)
 
 	gi.setmodel(self, self->model);
 	gi.linkentity(self);
+
+	// Enable spectator teleportation if cvar is set
+	if (g_spectator_teleport->integer)
+	{
+		self->think = trigger_teleport_spectator_think;
+		self->nextthink = level.time + 100_ms;
+	}
 }
 
 // ***************************

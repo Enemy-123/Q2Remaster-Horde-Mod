@@ -159,6 +159,7 @@ cvar_t* g_nolag; // Network optimization: convert gibs to temp entities
 cvar_t* g_horde_profiler;
 cvar_t* g_horde_tactical_spawn;
 cvar_t* g_vortex;
+cvar_t* g_spectator_teleport;
 cvar_t* pvm; // PvM (Player vs Monster) mode
 
 cvar_t* g_use_hook;
@@ -438,6 +439,7 @@ void InitGame()
 	g_horde_profiler = gi.cvar("g_horde_profiler", "0", CVAR_NOFLAGS);
 	g_horde_tactical_spawn = gi.cvar("g_horde_tactical_spawn", "0", CVAR_NOFLAGS);
 	g_vortex = gi.cvar("vortex", "0", CVAR_SERVERINFO);
+	g_spectator_teleport = gi.cvar("g_spectator_teleport", "1", CVAR_NOFLAGS); // Allow spectators to use teleporters
 	pvm = gi.cvar("pvm", "0", CVAR_NOFLAGS);
 
 	g_loadent = gi.cvar("g_loadent", "1", CVAR_LATCH);

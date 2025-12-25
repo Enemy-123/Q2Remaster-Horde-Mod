@@ -2180,6 +2180,7 @@ extern cvar_t* g_speedstuff;
 extern cvar_t* g_horde_profiler;
 extern cvar_t* g_horde_tactical_spawn;  // 0=off, 1=distance only, 2=distance+visibility
 extern cvar_t* g_vortex;
+extern cvar_t* g_spectator_teleport;    // Allow spectators to use teleporters
 
 extern cvar_t* g_chaotic;
 extern cvar_t* g_insane;

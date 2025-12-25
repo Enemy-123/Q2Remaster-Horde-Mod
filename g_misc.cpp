@@ -2163,6 +2163,70 @@ TOUCH(teleporter_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool 
 		gi.linkentity(sphere);
 	}
 }
+
+// Helper function to check if two bounding boxes overlap
+static inline bool BoxesOverlap(const vec3_t& mins1, const vec3_t& maxs1, const vec3_t& mins2, const vec3_t& maxs2)
+{
+	return mins1[0] <= maxs2[0] && maxs1[0] >= mins2[0] &&
+	       mins1[1] <= maxs2[1] && maxs1[1] >= mins2[1] &&
+	       mins1[2] <= maxs2[2] && maxs1[2] >= mins2[2];
+}
+
+// Think function to check for spectators in teleporter bounds
+THINK(teleporter_spectator_think) (edict_t* self) -> void
+{
+	self->nextthink = level.time + 100_ms;
+
+	// Find the destination
+	edict_t* dest = G_FindByString<&edict_t::targetname>(nullptr, self->target);
+	if (!dest)
+		return;
+
+	// Check all connected players
+	for (uint32_t i = 1; i <= game.maxclients; i++)
+	{
+		edict_t* player = &g_edicts[i];
+
+		if (!player->inuse || !player->client)
+			continue;
+
+		// Only handle spectators (CTF_NOTEAM)
+		if (player->client->resp.ctf_team != CTF_NOTEAM)
+			continue;
+
+		// Check if player's bounding box overlaps with teleporter bounds
+		if (!BoxesOverlap(player->absmin, player->absmax, self->absmin, self->absmax))
+			continue;
+
+		// Prevent teleport spam
+		if (player->teleport_time > level.time)
+			continue;
+
+		// Teleport the spectator
+		player->s.origin = dest->s.origin;
+		player->s.old_origin = dest->s.origin;
+		player->s.origin[2] += 10;
+		player->velocity = {};
+
+		// Set view angles to destination
+		player->client->ps.pmove.delta_angles = dest->s.angles - player->client->resp.cmd_angles;
+		player->s.angles = {};
+		player->client->ps.viewangles = {};
+		player->client->v_angle = {};
+
+		// Teleport effect (silent for spectators, just visual feedback)
+		if (!self->spawnflags.has(SPAWNFLAG_TELEPORTER_NO_TELEPORT_EFFECT))
+		{
+			player->s.event = EV_OTHER_TELEPORT;
+		}
+
+		gi.linkentity(player);
+
+		// Cooldown to prevent instant re-teleport
+		player->teleport_time = level.time + 500_ms;
+	}
+}
+
 /*QUAKED misc_teleporter (1 0 0) (-32 -32 -24) (32 32 -16) NO_SOUND NO_TELEPORT_EFFECT N64_EFFECT
 Stepping onto this disc will teleport players to the targeted misc_teleporter_dest object.
 */
@@ -2205,10 +2269,18 @@ void SP_misc_teleporter(edict_t* ent)
 	trig->solid = SOLID_TRIGGER;
 	trig->target = ent->target;
 	trig->owner = ent;
+	trig->spawnflags = ent->spawnflags;
 	trig->s.origin = ent->s.origin;
 	trig->mins = { -8, -8, 8 };
 	trig->maxs = { 8, 8, 24 };
 	gi.linkentity(trig);
+
+	// Enable spectator teleportation if cvar is set
+	if (g_spectator_teleport->integer)
+	{
+		trig->think = teleporter_spectator_think;
+		trig->nextthink = level.time + 100_ms;
+	}
 }
 
 /*QUAKED misc_teleporter_dest (1 0 0) (-32 -32 -24) (32 32 -16)
