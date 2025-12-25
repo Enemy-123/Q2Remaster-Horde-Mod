@@ -1924,6 +1924,7 @@ struct monsterinfo_t
 	bool was_ever_visible_to_player = false; // Track if monster was ever visible to prioritize never-seen monsters for teleport
 
 	bool was_stuck = false;
+	uint8_t failsafe_teleport_count = 0; // Track how many times this monster was teleported due to failsafe (kill after threshold)
 	bool isfriendlyspawn = false; // corpse cleaning management
 	bool issummoned = false; // Part of Strogg summoner system (for removal/limits)
 	bool IS_BOSS = false; // Is monster a boss?

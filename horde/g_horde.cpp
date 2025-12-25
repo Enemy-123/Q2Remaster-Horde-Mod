@@ -259,6 +259,7 @@ namespace HordeConstants
 	constexpr gtime_t MAX_TELEPORT_COOLDOWN_MONSTER = 20_sec;
 	constexpr gtime_t GLOBAL_TELEPORT_RESET_INTERVAL = 12_sec;
 	constexpr int MAX_TELEPORTS_PER_INTERVAL = 2;
+	constexpr int MAX_FAILSAFE_TELEPORTS_PER_MONSTER = 5; // Kill monster after this many failsafe teleports
 	inline int g_teleport_rate_count = 0;
 	inline gtime_t g_teleport_rate_reset_time = level.time;
 
@@ -5992,6 +5993,8 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 			self->monsterinfo.unreachable_start_time = 0_sec;
 			// Mark that this monster was visible at least once
 			self->monsterinfo.was_ever_visible_to_player = true;
+			// Reset failsafe teleport count since monster has visibility
+			self->monsterinfo.failsafe_teleport_count = 0;
 		}
 		else
 		{
@@ -6064,6 +6067,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 			if (monster_can_see_enemy || monster_recently_moved || monster_recently_attacked)
 			{
 				self->monsterinfo.last_activity_time = level.time;
+				self->monsterinfo.failsafe_teleport_count = 0; // Monster is engaging, reset teleport count
 				return false;
 			}
 
@@ -6093,12 +6097,27 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 	if (!needs_teleport)
 		return false;
 
+	// --- Check per-monster failsafe teleport limit ---
+	// If this monster has been teleported too many times due to failsafe, kill it instead
+	if (self->monsterinfo.failsafe_teleport_count >= HordeConstants::MAX_FAILSAFE_TELEPORTS_PER_MONSTER)
+	{
+		if (developer->integer)
+		{
+			gi.Com_PrintFmt("[CATS] {} exceeded max failsafe teleports ({}), killing instead\n",
+				self->classname, self->monsterinfo.failsafe_teleport_count);
+		}
+		// Kill the monster - it's unreachable/stuck and keeps triggering failsafe
+		T_Damage(self, world, world, vec3_origin, self->s.origin, vec3_origin,
+			self->health + 1000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG);
+		return false;
+	}
+
 	// **PERFORMANCE**: Only print debug in developer mode and limit frequency
 	static gtime_t last_debug_print = 0_sec;
 	if (developer->integer && (level.time > last_debug_print + 1_sec))
 	{
-		gi.Com_PrintFmt("[CATS] Trigger for {}: {}. Remaining: {}, MaxTeleports: {}\n",
-			self->classname, reason_str, remaining_monsters, max_teleports);
+		gi.Com_PrintFmt("[CATS] Trigger for {}: {}. Remaining: {}, MaxTeleports: {}, FailsafeTeleports: {}\n",
+			self->classname, reason_str, remaining_monsters, max_teleports, self->monsterinfo.failsafe_teleport_count);
 		last_debug_print = level.time;
 	}
 
@@ -6137,6 +6156,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 			
 		}
 		HordeConstants::g_teleport_rate_count++;
+		self->monsterinfo.failsafe_teleport_count++; // Track per-monster teleport count
 		self->monsterinfo.was_stuck = false;
 		// Reset check interval for next stuck check
 		self->monsterinfo.stuck_check_time = level.time + random_time(4.0_sec, 6.0_sec);
