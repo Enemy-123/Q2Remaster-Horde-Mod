@@ -243,7 +243,7 @@ namespace {
 static constexpr std::array<boss_t, 11> BOSS_SMALL_SRC = {{
 	{horde::MonsterTypeID::CARRIER_MINI, 24, -1, 0.1f, BossSizeCategory::Small},
 	{horde::MonsterTypeID::BOSS2_KL, 24, -1, 0.1f, BossSizeCategory::Small},
-	{horde::MonsterTypeID::FIXBOT_KL, 15, -1, 0.2, BossSizeCategory::Small},
+	{horde::MonsterTypeID::FIXBOT_KL, 15, -1, 0.2f, BossSizeCategory::Small},
 	{horde::MonsterTypeID::WIDOW2, 19, -1, 0.15f, BossSizeCategory::Small},
 	{horde::MonsterTypeID::TANK_64, -1, -1, 0.25f, BossSizeCategory::Small},
 	{horde::MonsterTypeID::SHAMBLER_KL, -1, 20, 0.3f, BossSizeCategory::Small},

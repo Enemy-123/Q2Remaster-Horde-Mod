@@ -989,7 +989,10 @@ void ApplyBossEffects(edict_t* boss)
 		boss->mass *= scale_factor;
 
 		// Adjust origin to prevent floating (uses original mins[2] before this boss scaling)
-		boss->s.origin[2] -= (original_mins_z * scale_factor - original_mins_z);
+		// Skip for PSX_GUARDIAN - its model origin is already at feet level, not bbox bottom
+		if (!horde::IsMonsterType(boss, horde::MonsterTypeID::PSX_GUARDIAN)) {
+			boss->s.origin[2] -= (original_mins_z * scale_factor - original_mins_z);
+		}
 		gi.linkentity(boss);
 	}
 

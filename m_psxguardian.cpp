@@ -984,7 +984,7 @@ void SP_monster_psxguardian(edict_t* self)
 
 	self->s.modelindex = gi.modelindex("models/monsters/guardian/tris.md2");
 	self->mins = { -78, -78, -66 };
-	self->maxs = { 78, 78, 76 };
+	self->maxs = { 78, 78, 62 };
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 
