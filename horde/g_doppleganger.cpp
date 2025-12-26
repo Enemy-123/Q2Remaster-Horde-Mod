@@ -11,18 +11,73 @@ edict_t* Sphere_Spawn(edict_t* owner, spawnflags_t spawnflags);
 // Touch function for doppelgangers - allows anyone to push them (like bot-summoned entities)
 TOUCH(doppleganger_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
-	// Bots pass through all doppelgangers (no collision)
-	if (other->svflags & SVF_BOT)
-		return;
-
 	// Validate that the toucher is a client and owner exists
 	if (!other->client || !self->teammaster || !self->teammaster->client)
 		return;
 
-	// Doppelgangers work like bot-summoned entities - anyone can push them
-	// This helps prevent players and bots from getting stuck
+	// If toucher is NOT the owner -> teleport the doppleganger away
+	if (other != self->teammaster)
+	{
+		// Teleport the doppleganger a few feet away
+		constexpr float TELEPORT_DISTANCE = 96.0f; // ~3 feet
+		constexpr int NUM_DIRECTIONS = 8;
+		constexpr std::array<vec3_t, NUM_DIRECTIONS> directions = {{
+			{1.0f, 0.0f, 0.0f},         // 0°
+			{0.707f, 0.707f, 0.0f},     // 45°
+			{0.0f, 1.0f, 0.0f},         // 90°
+			{-0.707f, 0.707f, 0.0f},    // 135°
+			{-1.0f, 0.0f, 0.0f},        // 180°
+			{-0.707f, -0.707f, 0.0f},   // 225°
+			{0.0f, -1.0f, 0.0f},        // 270°
+			{0.707f, -0.707f, 0.0f}     // 315°
+		}};
 
-	// Don't push if player is not on ground or not touching properly
+		// Try each direction to find a valid teleport spot
+		for (int i = 0; i < NUM_DIRECTIONS; i++)
+		{
+			// Calculate target position away from current position
+			vec3_t end = self->s.origin + (directions[i] * (self->maxs[0] + TELEPORT_DISTANCE));
+
+			// Trace to check path (avoid walls)
+			trace_t path_tr = gi.traceline(self->s.origin, end, self, MASK_MONSTERSOLID);
+
+			// Check floor under the endpoint
+			vec3_t floor_start = path_tr.endpos;
+			vec3_t floor_end = path_tr.endpos;
+			floor_end.z -= fabsf(self->mins[2]) + 32.0f;
+
+			trace_t floor_tr = gi.traceline(floor_start, floor_end, nullptr, MASK_MONSTERSOLID);
+
+			// Don't teleport off ledges
+			if (floor_tr.fraction == 1.0f)
+				continue;
+
+			// Calculate final position on floor
+			vec3_t spawn_pos = floor_tr.endpos;
+			spawn_pos.z += fabsf(self->mins[2]) + 1.0f;
+
+			// Check if position is valid (not inside solid)
+			trace_t valid_tr = gi.trace(spawn_pos, self->mins, self->maxs, spawn_pos, nullptr, MASK_MONSTERSOLID);
+			if (valid_tr.contents & MASK_MONSTERSOLID)
+				continue;
+
+			// Valid position found - teleport with quiet effect
+			gi.WriteByte(svc_temp_entity);
+			gi.WriteByte(TE_TELEPORT_EFFECT);
+			gi.WritePosition(spawn_pos);
+			gi.multicast(spawn_pos, MULTICAST_PVS, false);
+
+			gi.unlinkentity(self);
+			self->s.origin = spawn_pos;
+			gi.linkentity(self);
+			return;
+		}
+		// No valid position found - just ignore the collision
+		return;
+	}
+
+	// Owner is touching their own doppleganger -> push behavior
+	// Don't push if not on ground or not touching properly
 	if (!other->groundentity || !other_touching_self)
 		return;
 
