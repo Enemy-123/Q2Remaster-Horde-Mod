@@ -85,13 +85,17 @@ contents_t G_GetClipMask(edict_t* ent)
 
         for (auto* other : potential_colliders)
         {
-            if (OnSameTeam(ent, other))
+            // Check if same team OR if both are summoned monsters (they can walk through each other)
+            bool same_side = OnSameTeam(ent, other) ||
+                (ent->monsterinfo.issummoned && other->monsterinfo.issummoned);
+
+            if (same_side)
             {
                 // YOU MUST DO THIS CHECK. It is fast.
                 if (boxes_intersect(ent->absmin, ent->absmax, other->absmin, other->absmax))
                 {
                     potential_teammate_collision = true;
-                    break; 
+                    break;
                 }
             }
         }
@@ -100,11 +104,18 @@ contents_t G_GetClipMask(edict_t* ent)
         if (potential_teammate_collision)
         {
             trace_t tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin, ent, mask);
-            if (tr.ent && (tr.ent->svflags & SVF_MONSTER) && OnSameTeam(ent, tr.ent))
+            if (tr.ent && (tr.ent->svflags & SVF_MONSTER))
             {
-                // Don't filter collision for morphed players - they need proper collision
-                if (!IsMorphed(ent)) {
-                    mask &= ~CONTENTS_MONSTER;
+                // Check if same team OR both summoned
+                bool same_side = OnSameTeam(ent, tr.ent) ||
+                    (ent->monsterinfo.issummoned && tr.ent->monsterinfo.issummoned);
+
+                if (same_side)
+                {
+                    // Don't filter collision for morphed players - they need proper collision
+                    if (!IsMorphed(ent)) {
+                        mask &= ~CONTENTS_MONSTER;
+                    }
                 }
             }
         }

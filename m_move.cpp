@@ -153,6 +153,10 @@ static vec3_t CalculateMonsterRepulsion(edict_t* ent)
 		if (other->health <= 0 || other->deadflag)
 			continue;
 
+		// Skip repulsion between summoned Stroggs - they can walk through each other
+		if (ent->monsterinfo.issummoned && other->monsterinfo.issummoned)
+			continue;
+
 		// Calculate distance using squared distance for performance
 		vec3_t diff = ent->s.origin - other->s.origin;
 		const float dist_sq = diff.lengthSquared();
