@@ -1037,9 +1037,9 @@
       "addon_armor": 20
     },
     "hover": {
-      "initial_health": 50,
+      "initial_health": 140,
       "addon_health": 15,
-      "initial_armor": 50,
+      "initial_armor": 150,
       "addon_armor": 20
     },
     "hover_vanilla": {

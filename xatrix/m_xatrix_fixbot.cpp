@@ -1957,16 +1957,9 @@ MONSTERINFO_ATTACK(fixbot_attack) (edict_t* self) -> void
 		}
 	}
 
-	// Add strafing behavior for more dynamic movement
-	if (frandom() > 0.4f) // 60% chance to strafe
-	{
-		self->monsterinfo.lefty = (frandom() <= 0.5f); // Randomly choose direction
-		self->monsterinfo.attack_state = AS_SLIDING;
-	}
-	else
-	{
-		self->monsterinfo.attack_state = AS_STRAIGHT;
-	}
+	// Always strafe during attack - fixbot has no melee, should maintain distance like hover
+	self->monsterinfo.lefty = (frandom() <= 0.5f);
+	self->monsterinfo.attack_state = AS_SLIDING;
 
 	// Default to the main blaster/plasma attack sequence
 	M_SetAnimation(self, &fixbot_move_attack2);

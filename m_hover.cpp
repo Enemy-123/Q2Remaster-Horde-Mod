@@ -496,6 +496,14 @@ PAIN(hover_pain) (edict_t* self, edict_t* other, float kick, int damage, const m
 
     if (!M_ShouldReactToPain(self, mod)) return;
 
+    // Apply knockback velocity away from damage source
+    if (other && other->inuse)
+    {
+        vec3_t knockback_dir = (self->s.origin - other->s.origin).normalized();
+        float knockback_strength = min(200.f, 50.f + damage * 2.f);
+        self->velocity += knockback_dir * knockback_strength;
+    }
+
     if (damage <= 25) {
         if (frandom() < 0.5f) M_SetAnimation(self, &hover_move_pain3);
         else M_SetAnimation(self, &hover_move_pain2);
@@ -556,8 +564,8 @@ static void hover_set_fly_parameters(edict_t* self)
         self->monsterinfo.fly_thrusters = false;
         self->monsterinfo.fly_acceleration = 20.f;
         self->monsterinfo.fly_speed = 270.f;
-        self->monsterinfo.fly_min_distance = 425.f;
-        self->monsterinfo.fly_max_distance = 900.f;
+        self->monsterinfo.fly_min_distance = 325.f;
+        self->monsterinfo.fly_max_distance = 670.f;
     }
     else // Is a Daedalus
     {
