@@ -556,7 +556,7 @@ static void hover_set_fly_parameters(edict_t* self)
         self->monsterinfo.fly_thrusters = false;
         self->monsterinfo.fly_acceleration = 20.f;
         self->monsterinfo.fly_speed = 270.f;
-        self->monsterinfo.fly_min_distance = 300.f;
+        self->monsterinfo.fly_min_distance = 425.f;
         self->monsterinfo.fly_max_distance = 900.f;
     }
     else // Is a Daedalus
@@ -565,12 +565,12 @@ static void hover_set_fly_parameters(edict_t* self)
         self->monsterinfo.fly_acceleration = 20.f;
         if (style.has_grenade()) {
             self->monsterinfo.fly_speed = 320.f;
-            self->monsterinfo.fly_min_distance = 550.f;
+            self->monsterinfo.fly_min_distance = 500.f;
             self->monsterinfo.fly_max_distance = 850.f;
         } else { // Blaster2 Daedalus
-            self->monsterinfo.fly_speed = 270.f;
-            self->monsterinfo.fly_min_distance = 350.f;
-            self->monsterinfo.fly_max_distance = 750.f;
+            self->monsterinfo.fly_speed = 290.f;
+            self->monsterinfo.fly_min_distance = 400.f;
+            self->monsterinfo.fly_max_distance = 850.f;
         }
     }
 }

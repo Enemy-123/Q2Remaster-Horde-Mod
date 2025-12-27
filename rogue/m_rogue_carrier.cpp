@@ -1337,8 +1337,15 @@ void SP_monster_carrier(edict_t* self)
 	self->monsterinfo.fly_acceleration = 5.f;
 	self->monsterinfo.fly_speed = 150.f;
 	self->monsterinfo.fly_above = true;
-	self->monsterinfo.fly_min_distance = 1000.f;
-	self->monsterinfo.fly_max_distance = 1000.f;
+
+	// Mini variant flies closer than full carrier
+	if (self->monsterinfo.monster_type_id == static_cast<uint8_t>(horde::MonsterTypeID::CARRIER_MINI)) {
+		self->monsterinfo.fly_min_distance = 600.f;
+		self->monsterinfo.fly_max_distance = 1000.f;
+	} else {
+		self->monsterinfo.fly_min_distance = 1000.f;
+		self->monsterinfo.fly_max_distance = 1000.f;
+	}
 
 	ApplyMonsterBonusFlags(self);
 }
@@ -1347,29 +1354,25 @@ void SP_monster_carrier_mini(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
-	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::CARRIER_MINI);    // This check is redundant, the engine only calls this function
-    // for this classname anyway. It can be removed.
-	// if (!strcmp(self->classname, "monster_carrier_mini")) {
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::CARRIER_MINI);
 
-		SP_monster_carrier(self);
+	SP_monster_carrier(self);
 
-		self->s.scale = 0.6f;
-		// Removed manual (mins/maxs)  scaling - monster_start() handles it automatically
+	self->s.scale = 0.6f;
 
-		int base_health = M_CARRIER_MINI_INITIAL_HEALTH;
-		if (g_horde && g_horde->integer && current_wave_level > 0) {
-			self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
-		} else {
-			self->health = base_health * st.health_multiplier;
-		}
-		self->mass = 1000;
+	int base_health = M_CARRIER_MINI_INITIAL_HEALTH;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+	} else {
+		self->health = base_health * st.health_multiplier;
+	}
+	self->mass = 1000;
 
-		if (self->monsterinfo.IS_BOSS) {
-			self->health *= 3.6f;
-		}
+	if (self->monsterinfo.IS_BOSS) {
+		self->health *= 3.6f;
+	}
 
-		ApplyMonsterBonusFlags(self);
-	// }
+	ApplyMonsterBonusFlags(self);
 }
 
 

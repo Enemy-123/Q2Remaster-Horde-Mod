@@ -814,10 +814,10 @@ edict_t* fixbot_FindDeadMonster(edict_t* self)
 static void fixbot_set_attack_fly_parameters(edict_t* self)
 {
 	self->monsterinfo.fly_thrusters = false;
-	self->monsterinfo.fly_acceleration = 25.f;   // Was 20, now 25
-	self->monsterinfo.fly_speed = 240.f;         // Was 120, now 240
-	self->monsterinfo.fly_min_distance = 250.f;  // Was 300, now 250
-	self->monsterinfo.fly_max_distance = 800.f;  // Was 900, now 800
+	self->monsterinfo.fly_acceleration = 25.f;
+	self->monsterinfo.fly_speed = 220.f;
+	self->monsterinfo.fly_min_distance = 420.f;  // No melee, keep distance like hover
+	self->monsterinfo.fly_max_distance = 950.f;
 }
 
 // Consolidated function for creating a temporary goal entity for movement.

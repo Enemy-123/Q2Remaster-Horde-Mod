@@ -492,9 +492,11 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 	if ((ent->flags & FL_SWIM) && ent->waterlevel < WATER_UNDER)
 		return true;
 
-	// Recalculate ideal hover position if timer expires or pinned target lost
+	// Recalculate ideal hover position if timer expires, pinned target lost,
+	// or enemy acquired but ideal position was never set (prevents face-to-face on spawn)
 	if (ent->monsterinfo.fly_position_time <= level.time ||
-		(ent->enemy && ent->monsterinfo.fly_pinned && !visible(ent, ent->enemy)))
+		(ent->enemy && ent->monsterinfo.fly_pinned && !visible(ent, ent->enemy)) ||
+		(ent->enemy && ent->monsterinfo.fly_ideal_position == vec3_origin))
 	{
 		ent->monsterinfo.fly_pinned = false;
 		ent->monsterinfo.fly_position_time = level.time + random_time(FLY_POSITION_UPDATE_MIN, FLY_POSITION_UPDATE_MAX);

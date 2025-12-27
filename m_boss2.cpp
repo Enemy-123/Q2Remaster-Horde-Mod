@@ -32,9 +32,15 @@ static void boss2_set_fly_parameters(edict_t *self, bool firing)
 	self->monsterinfo.fly_thrusters = false;
 	self->monsterinfo.fly_acceleration = firing ? 1.5f : 3.f;
 	self->monsterinfo.fly_speed = firing ? 10.f : 80.f;
-	// BOSS2 stays far-ish away if he's in the open
-	self->monsterinfo.fly_min_distance = 400.f;
-	self->monsterinfo.fly_max_distance = 600.f;
+
+	// Mini variant keeps more distance
+	if (self->monsterinfo.monster_type_id == static_cast<uint8_t>(horde::MonsterTypeID::BOSS2_MINI)) {
+		self->monsterinfo.fly_min_distance = 600.f;
+		self->monsterinfo.fly_max_distance = 1000.f;
+	} else {
+		self->monsterinfo.fly_min_distance = 400.f;
+		self->monsterinfo.fly_max_distance = 600.f;
+	}
 }
 
 MONSTERINFO_SEARCH(boss2_search)(edict_t *self)->void
