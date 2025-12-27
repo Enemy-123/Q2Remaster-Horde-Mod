@@ -774,13 +774,19 @@ void loogie(edict_t* self)
 	if (!self->enemy || self->enemy->health <= 0)
 		return;
 
+	// The target position 'end' is now self->pos1, which was set by gekk_save_enemy_pos
+	vec3_t end = self->pos1;
+
+	// Set ideal yaw and immediately face the target
+	self->ideal_yaw = vectoyaw(end - self->s.origin);
+	M_ChangeYaw(self);
+
+	// Get vectors after facing the target
 	AngleVectors(self->s.angles, forward, right, up);
 	start = M_ProjectFlashSource(self, gekkoffset, forward, right);
 
 	start += (up * 2);
 
-	// The target position 'end' is now self->pos1, which was set by gekk_save_enemy_pos
-	vec3_t end = self->pos1;
 	dir = end - start;
 	dir.normalize();
 

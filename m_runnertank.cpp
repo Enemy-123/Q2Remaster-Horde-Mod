@@ -624,16 +624,6 @@ void runnertankPlasmaGun(edict_t* self) {
 
 	int damage = M_GET_DMG_OR(self, PLASMA, 35);
 
-	// Verificar ángulo de disparo
-	vec3_t initial_forward;
-	AngleVectors(self->s.angles, initial_forward, nullptr, nullptr);
-
-	vec3_t dir_to_enemy = (self->enemy->s.origin - self->s.origin).normalized();
-	dir_to_enemy.z = 0; // Aplanar para comparación horizontal
-
-	if (initial_forward.dot(dir_to_enemy) < 0.5f)
-		return;
-
 	// Blindfire support for plasma (like gunner ionripper)
 	bool blindfire = (self->monsterinfo.aiflags & AI_MANUAL_STEERING);
 	vec3_t target;
@@ -653,6 +643,10 @@ void runnertankPlasmaGun(edict_t* self) {
 		target = self->enemy->s.origin;
 	}
 
+	// Set ideal yaw and immediately face the target
+	self->ideal_yaw = vectoyaw(target - self->s.origin);
+	M_ChangeYaw(self);
+
 	// Constantes del arma
 	constexpr float SPREAD = 0.08f;
 	constexpr float PREDICTION_TIME = 0.2f;
@@ -663,7 +657,7 @@ void runnertankPlasmaGun(edict_t* self) {
 	monster_muzzleflash_id_t const flash_number = static_cast<monster_muzzleflash_id_t>
 		(MZ2_TANK_MACHINEGUN_1 + (self->s.frame - FRAME_attak406));
 
-	// Obtener vectores de dirección de manera correcta
+	// Obtener vectores de dirección después de enfrentar al objetivo
 	vec3_t forward, right, up;
 	AngleVectors(self->s.angles, &forward, &right, &up);
 
@@ -674,13 +668,6 @@ void runnertankPlasmaGun(edict_t* self) {
 	target = self->enemy->s.origin;
 	target.z += self->enemy->viewheight;
 	vec3_t dir = (target - start).normalized();
-
-	// Calcular ángulo de abanico
-	//float fan_angle;
-	//if (self->s.frame <= FRAME_attak415)
-	//	fan_angle = -20.0f + (self->s.frame - FRAME_attak406) * 4.0f;
-	//else
-	//	fan_angle = 20.0f - (self->s.frame - FRAME_attak416) * 4.0f;
 
 	// Añadir dispersión a la dirección
 	dir += vec3_t{
@@ -883,17 +870,17 @@ void runnertank_doattack_rocket(edict_t* self)
 mframe_t runnertank_frames_attack_chain[] = {
 	{ ai_charge },
 	{ ai_charge }, 
-	{ nullptr, 0, runnertankPlasmaGun },
-	{ nullptr, 0, runnertankPlasmaGun },
-	{ nullptr, 0, runnertankPlasmaGun },
-	{ nullptr, 0, runnertankPlasmaGun },
-	{ nullptr, 0, runnertankPlasmaGun },
-	{ nullptr, 0, runnertankPlasmaGun },
-	{ nullptr, 0, runnertankPlasmaGun },
-	{ nullptr, 0, runnertankPlasmaGun },
-	{ nullptr, 0, runnertankPlasmaGun },
+	{ ai_charge, 0, runnertankPlasmaGun },
+	{ ai_charge, 0, runnertankPlasmaGun },
+	{ ai_charge, 0, runnertankPlasmaGun },
+	{ ai_charge, 0, runnertankPlasmaGun },
+	{ ai_charge, 0, runnertankPlasmaGun },
+	{ ai_charge, 0, runnertankPlasmaGun },
+	{ ai_charge, 0, runnertankPlasmaGun },
+	{ ai_charge, 0, runnertankPlasmaGun },
+	{ ai_charge, 0, runnertankPlasmaGun },
 	{ ai_charge }
-};
+};;
 MMOVE_T(runnertank_move_attack_chain) = { FRAME_attak404, FRAME_attak415, runnertank_frames_attack_chain, runnertank_run };
 
 void runnertank_stop_run_to_attack(edict_t* self)

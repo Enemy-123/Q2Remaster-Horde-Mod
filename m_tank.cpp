@@ -715,6 +715,22 @@ void TankBlaster(edict_t* self)
 	else // (self->s.frame == FRAME_attak116)
 		flash_number = MZ2_TANK_BLASTER_3;
 
+	// Determine target position for facing
+	vec3_t target_pos;
+	if (blindfire) {
+		target_pos = self->monsterinfo.blind_fire_target;
+	}
+	else {
+		if (!M_HasValidTarget(self))
+			return;
+		target_pos = self->enemy->s.origin;
+	}
+
+	// Set ideal yaw and immediately face the target
+	self->ideal_yaw = vectoyaw(target_pos - self->s.origin);
+	M_ChangeYaw(self);
+
+	// Get vectors after facing the target
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	const vec3_t start = G_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right);
 
@@ -742,9 +758,6 @@ void TankBlaster(edict_t* self)
 	}
 	else
 	{
-		// Not blindfiring - need fully valid target
-		if (!M_HasValidTarget(self))
-			return;
 		PredictAim(self, self->enemy, start, 0, false, 0.f, &dir, nullptr);
 	}
 
