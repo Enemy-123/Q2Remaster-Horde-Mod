@@ -737,10 +737,15 @@ void ChickRocket(edict_t* self)
 	if (!self->enemy || !self->enemy->inuse) // PGM
 		return;								 // PGM
 
-	// Use ideal_yaw for muzzle position to ensure projectile spawns in correct direction
-	// (monster may not have finished turning when attack frame fires)
-	vec3_t real_angles = { self->s.angles[0], self->ideal_yaw, 0.f };
-	AngleVectors(real_angles, forward, right, nullptr);
+	// Set ideal yaw and immediately face the target
+	if (blindfire)
+		self->ideal_yaw = vectoyaw(self->monsterinfo.blind_fire_target - self->s.origin);
+	else
+		self->ideal_yaw = vectoyaw(self->enemy->s.origin - self->s.origin);
+	M_ChangeYaw(self);
+
+	// Use current angles for muzzle position (now facing target)
+	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CHICK_ROCKET_1], forward, right);
 	// [Paril-KEX]
 	int config_speed = (self->s.skinnum > 1) ? M_HEAT_SPEED(self) : M_ROCKET_SPEED(self);
@@ -1000,20 +1005,20 @@ mframe_t chick_frames_start_attack1[] = {
 MMOVE_T(chick_move_start_attack1) = { FRAME_attak101, FRAME_attak113, chick_frames_start_attack1, nullptr };
 
 mframe_t chick_frames_attack1[] = {
-	{ ai_charge, 19, ChickRocket },
-	{ ai_charge, -6, monster_footstep },
-	{ ai_charge, -5 },
-	{ ai_charge, 19, ChickRocket },
-	{ ai_charge, -7, monster_footstep },
-	{ ai_charge },
-	{ ai_charge, 1 },
-	{ ai_charge, 10, ChickReload },
-	{ ai_charge, 4 },
-	{ ai_charge, 5, monster_footstep },
-	{ ai_charge, 6 },
-	{ ai_charge, 6 },
-	{ ai_charge, 4 },
-	{ ai_charge, 3, [](edict_t* self) { chick_rerocket(self); monster_footstep(self); } }
+	{ ai_charge, 0, ChickRocket },
+	{ ai_charge, 0, monster_footstep },
+	{ ai_charge, 0 },
+	{ ai_charge, 0, ChickRocket },
+	{ ai_charge, 0, monster_footstep },
+	{ ai_charge, 0 },
+	{ ai_charge, 0 },
+	{ ai_charge, 0, ChickReload },
+	{ ai_charge, 0 },
+	{ ai_charge, 0, monster_footstep },
+	{ ai_charge, 0 },
+	{ ai_charge, 0 },
+	{ ai_charge, 0 },
+	{ ai_charge, 0, [](edict_t* self) { chick_rerocket(self); monster_footstep(self); } }
 };
 MMOVE_T(chick_move_attack1) = { FRAME_attak114, FRAME_attak127, chick_frames_attack1, nullptr };
 
@@ -1076,20 +1081,20 @@ void chick_attack1(edict_t* self)
 static void chickkl_rerocket(edict_t* self);
 
 mframe_t chickkl_frames_attack1[] = {
-	{ ai_charge, 19, [](edict_t* self) { self->yaw_speed = CHICK_ATTACK_YAW_SPEED; chickkl_fire_plasma(self); } },
-	{ ai_charge, -6, monster_footstep },
-	{ ai_charge, -5 },
-	{ ai_charge, 19, chickkl_fire_plasma },
-	{ ai_charge, -7, monster_footstep },
-	{ ai_charge },
-	{ ai_charge, 1 },
-	{ ai_charge, 10, ChickReload },
-	{ ai_charge, 4 },
-	{ ai_charge, 5, monster_footstep },
-	{ ai_charge, 6 },
-	{ ai_charge, 6 },
-	{ ai_charge, 4 },
-	{ ai_charge, 3, [](edict_t* self) { chickkl_rerocket(self); monster_footstep(self); } }
+	{ ai_charge, 0, [](edict_t* self) { self->yaw_speed = CHICK_ATTACK_YAW_SPEED; chickkl_fire_plasma(self); } },
+	{ ai_charge, 0, monster_footstep },
+	{ ai_charge, 0 },
+	{ ai_charge, 0, chickkl_fire_plasma },
+	{ ai_charge, 0, monster_footstep },
+	{ ai_charge, 0 },
+	{ ai_charge, 0 },
+	{ ai_charge, 0, ChickReload },
+	{ ai_charge, 0 },
+	{ ai_charge, 0, monster_footstep },
+	{ ai_charge, 0 },
+	{ ai_charge, 0 },
+	{ ai_charge, 0 },
+	{ ai_charge, 0, [](edict_t* self) { chickkl_rerocket(self); monster_footstep(self); } }
 };
 MMOVE_T(chickkl_move_attack1) = { FRAME_attak114, FRAME_attak127, chickkl_frames_attack1, nullptr };
 
@@ -1645,10 +1650,13 @@ void chickkl_fire_plasma(edict_t* self)
 	if (!M_HasValidTarget(self))
 		return;
 
+	// Set ideal yaw and immediately face the enemy
+	self->ideal_yaw = vectoyaw(self->enemy->s.origin - self->s.origin);
+	M_ChangeYaw(self);
+
 	vec3_t forward, right, up;
-	// Use ideal_yaw for muzzle position to ensure projectile spawns in correct direction
-	vec3_t real_angles = { self->s.angles[0], self->ideal_yaw, 0.f };
-	AngleVectors(real_angles, forward, right, up);
+	// Use current angles for muzzle position (now facing target)
+	AngleVectors(self->s.angles, forward, right, up);
 
 	// Scale the offset for larger monsters
 	vec3_t scaled_offset = monster_flash_offset[MZ2_CHICK_ROCKET_1] * self->s.scale;

@@ -643,14 +643,14 @@ void infantry_grenade_cleanup(edict_t* self)
 }
 
 mframe_t infantry_frames_grenade_throw[] = {
-	{ ai_charge, 3, nullptr },
-	{ ai_charge, 6 },
-	{ ai_charge, 5 },
+	{ ai_charge, 0, nullptr },
+	{ ai_charge, 0 },
+	{ ai_charge, 0 },
 	{ ai_charge, 0, nullptr }, // No swing sound needed
-	{ ai_charge, 8 },
-	{ ai_charge, 8, infantry_grenade }, // Throws grenade and plays pin sound
-	{ ai_charge, 8, monster_footstep },
-	{ ai_charge, 3 }
+	{ ai_charge, 0 },
+	{ ai_charge, 0, infantry_grenade }, // Throws grenade and plays pin sound
+	{ ai_charge, 0, monster_footstep },
+	{ ai_charge, 0 }
 };
 MMOVE_T(infantry_move_grenade_throw) = { FRAME_attak201, FRAME_attak208, infantry_frames_grenade_throw, infantry_grenade_cleanup };
 
@@ -852,14 +852,14 @@ static void infantry_grenade(edict_t* self)
         }
         vec3_t target_pos = self->monsterinfo.blind_fire_target;
 
-        // Set ideal yaw (ai_charge will handle the turning)
+        // Set ideal yaw and immediately face the target
         vec3_t dir_to_target = target_pos - self->s.origin;
         self->ideal_yaw = vectoyaw(dir_to_target);
+        M_ChangeYaw(self);
 
-        // Calculate start position using ideal_yaw (not current facing)
+        // Calculate start position using current facing (now updated)
         vec3_t forward, right, up;
-        vec3_t real_angles = { self->s.angles[0], self->ideal_yaw, 0.f };
-        AngleVectors(real_angles, forward, right, up);
+        AngleVectors(self->s.angles, forward, right, up);
         start_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
 
         // Use the simple and reliable upward lob calculation
@@ -878,13 +878,13 @@ static void infantry_grenade(edict_t* self)
             return;
         }
 
-        // Set ideal yaw (ai_charge will handle the turning)
+        // Set ideal yaw and immediately face the enemy
         self->ideal_yaw = vectoyaw(self->enemy->s.origin - self->s.origin);
+        M_ChangeYaw(self);
 
-        // Calculate start position using ideal_yaw (not current facing)
+        // Calculate start position using current facing (now updated)
         vec3_t forward, right, up;
-        vec3_t real_angles = { self->s.angles[0], self->ideal_yaw, 0.f };
-        AngleVectors(real_angles, forward, right, up);
+        AngleVectors(self->s.angles, forward, right, up);
         start_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
         float const dist_to_target = range_to(self, self->enemy);
 
