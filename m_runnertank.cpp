@@ -20,6 +20,7 @@ void runnertankStrike(edict_t* self);
 void runnertank_refire_rocket(edict_t* self);
 //void runnetank_doattack_rocket(edict_t* self);
 void runnertank_reattack_blaster(edict_t* self);
+void runnertank_attack_finished(edict_t* self);
 //bool runnertank_check_wall(edict_t* self, float dist);
 
 static cached_soundindex sound_thud;
@@ -276,18 +277,13 @@ MMOVE_T(tank_move_punch_attack) = { FRAME_attak222, FRAME_attak235, tank_frames_
 // Jump attack animation - using frames that make sense for jumping
 mframe_t runnertank_frames_jump_attack[] =
 {
-	{ai_charge, 10, nullptr},  // Wind up 1
-	{ai_charge, 10, nullptr},  // Wind up 2
-	{ai_move, 0, runnertank_jump_attack_takeoff}, // Launch!
+	{ai_charge, 15, runnertank_jump_attack_takeoff}, // Launch immediately!
 	{ai_move, 0, runnertank_high_gravity}, // In air 1
 	{ai_move, 0, runnertank_check_jump_landing}, // Check landing (loops here until landed)
 	{ai_move, 0, nullptr}, // Landing recovery 1
-	{ai_move, -2, nullptr}, // Recovery 2
-	{ai_move, -2, nullptr}, // Recovery 3
-	{ai_move, -2, nullptr}, // Recovery 4
-	{ai_move, -2, nullptr} // Recovery 5
+	{ai_move, 0, nullptr} // Recovery 2
 };
-MMOVE_T(runnertank_move_jump_attack) = { FRAME_run01, FRAME_run10, runnertank_frames_jump_attack, runnertank_run };
+MMOVE_T(runnertank_move_jump_attack) = { FRAME_run01, FRAME_run05, runnertank_frames_jump_attack, runnertank_attack_finished };
 
 MONSTERINFO_MELEE(runnertank_melee) (edict_t* self) -> void
 {
@@ -733,7 +729,16 @@ mframe_t runnertank_frames_attack_post_blast[] = {
 	{ ai_move, 2 },
 	{ ai_move, -2, runnertank_footstep } // 22
 };
-MMOVE_T(runnertank_move_attack_post_blast) = { FRAME_attak117, FRAME_attak122, runnertank_frames_attack_post_blast, runnertank_run };
+MMOVE_T(runnertank_move_attack_post_blast) = { FRAME_attak117, FRAME_attak122, runnertank_frames_attack_post_blast, runnertank_attack_finished };
+
+
+// Called when attack animations finish - adds cooldown before next attack
+void runnertank_attack_finished(edict_t* self)
+{
+	// Add random cooldown after attack ends
+	self->monsterinfo.attack_finished = level.time + random_time(0.4_sec, 2.3_sec);
+	runnertank_run(self);
+}
 
 void runnertank_reattack_blaster(edict_t* self)
 {
@@ -823,7 +828,7 @@ mframe_t runnertank_frames_attack_post_rocket[] = {
 	{ ai_charge },
 	{ ai_charge }
 };
-MMOVE_T(runnertank_move_attack_post_rocket) = { FRAME_attak326, FRAME_attak335, runnertank_frames_attack_post_rocket, runnertank_run };
+MMOVE_T(runnertank_move_attack_post_rocket) = { FRAME_attak326, FRAME_attak335, runnertank_frames_attack_post_rocket, runnertank_attack_finished };
 
 
 void runnertank_refire_rocket(edict_t* self)
@@ -880,8 +885,8 @@ mframe_t runnertank_frames_attack_chain[] = {
 	{ ai_charge, 0, runnertankPlasmaGun },
 	{ ai_charge, 0, runnertankPlasmaGun },
 	{ ai_charge }
-};;
-MMOVE_T(runnertank_move_attack_chain) = { FRAME_attak404, FRAME_attak415, runnertank_frames_attack_chain, runnertank_run };
+};
+MMOVE_T(runnertank_move_attack_chain) = { FRAME_attak404, FRAME_attak415, runnertank_frames_attack_chain, runnertank_attack_finished };
 
 void runnertank_stop_run_to_attack(edict_t* self)
 {
@@ -979,6 +984,15 @@ void runnertank_consider_strafe(edict_t* self)
 		// Moderate strafe duration
 		self->monsterinfo.pausetime = level.time + random_time(0.8_sec, 1.5_sec);
 	}
+}
+
+
+// Custom checkattack with higher attack chances than default
+// Default is: stand=0.7, melee=0.4, near=0.25, mid=0.06, far=0.0
+// Runnertank is aggressive and should attack more often
+MONSTERINFO_CHECKATTACK(runnertank_checkattack) (edict_t* self) -> bool
+{
+	return M_CheckAttack_Base(self, 0.8f, 0.5f, 0.4f, 0.25f, 0.15f, 1.0f);
 }
 
 MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
@@ -1335,28 +1349,16 @@ void runnertank_check_jump_landing(edict_t* self)
 
 	if (self->groundentity)
 	{
-		// Landed - do slam attack
+		// Landed - do slam attack immediately
 		self->monsterinfo.aiflags &= ~AI_DUCKED;
 		self->gravity = 1.0f;
 		self->velocity = {};
 		self->flags &= ~FL_KILL_VELOCITY;
 
-		// Check if we're close enough to an enemy for the slam
-		if (M_HasValidTarget(self))
-		{
-			float const range = range_to(self, self->enemy);
-			// If we're within slam range (generous range since we jumped at them)
-			if (range <= MELEE_DISTANCE * 3.0f)
-			{
-				// Transition to punch attack for the slam
-				M_SetAnimation(self, &tank_move_punch_attack);
-				return;
-			}
-		}
-
-		// If no valid target or too far, just do the slam effect and continue
-		//runnertankStrike(self);
-		// Continue with normal animation
+		// Always do the slam on landing - this is a jump attack!
+		runnertankStrike(self);
+		
+		// Continue with the animation
 		return;
 	}
 
@@ -1699,6 +1701,7 @@ void SP_monster_runnertank(edict_t* self)
 	self->monsterinfo.idle = runnertank_idle;
 	self->monsterinfo.blocked = runnertank_blocked; // PGM
 	self->monsterinfo.setskin = runnertank_setskin;
+	self->monsterinfo.checkattack = runnertank_checkattack;
 	self->yaw_speed = 20; // Better tracking but not too fast
 
 	self->s.renderfx |= RF_CUSTOMSKIN;

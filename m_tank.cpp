@@ -726,7 +726,8 @@ void TankBlaster(edict_t* self)
 		target_pos = self->enemy->s.origin;
 	}
 
-	// Set ideal yaw and immediately face the target
+	// Increase yaw speed for smooth tracking and immediately face the target
+	self->yaw_speed = 45;
 	self->ideal_yaw = vectoyaw(target_pos - self->s.origin);
 	M_ChangeYaw(self);
 
@@ -946,11 +947,8 @@ void TankMachineGun(edict_t* self)
 
 	int damage = useFlechette ? M_GET_DMG_OR(self, FLECHETTE, 6) : M_GET_DMG_OR(self, MACHINEGUN, 6);
 
-	// Aumenta velocidad de giro
+	// Calculate direction to enemy (don't force yaw change - let sweep pattern handle aiming)
 	vec3_t dir = self->enemy->s.origin - self->s.origin;
-	self->yaw_speed = 45;
-	self->ideal_yaw = vectoyaw(dir);
-	M_ChangeYaw(self);
 
 	monster_muzzleflash_id_t const flash_number = static_cast<monster_muzzleflash_id_t>(MZ2_TANK_MACHINEGUN_1 + (self->s.frame - FRAME_attak406));
 	vec3_t forward, right;
@@ -1213,25 +1211,25 @@ mframe_t tank_frames_attack_chain[] = {
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
-	{ nullptr, 0, TankMachineGun },
-	{ nullptr, 0, TankMachineGun },
-	{ nullptr, 0, TankMachineGun },
-	{ nullptr, 0, TankMachineGun },
-	{ nullptr, 0, TankMachineGun },
-	{ nullptr, 0, TankMachineGun },
-	{ nullptr, 0, TankMachineGun },
-	{ nullptr, 0, TankMachineGun },
-	{ nullptr, 0, TankMachineGun },
-	{ nullptr, 0, TankMachineGun },
-	{ nullptr, 0, TankMachineGun },
-	{ nullptr, 0, TankMachineGun },
-	{ nullptr, 0, TankMachineGun },
-	{ nullptr, 0, TankMachineGun },
-	{ nullptr, 0, TankMachineGun },
-	{ nullptr, 0, TankMachineGun },
-	{ nullptr, 0, TankMachineGun },
-	{ nullptr, 0, TankMachineGun },
-	{ nullptr, 0, TankMachineGun },
+	{ ai_charge, 0, TankMachineGun },
+	{ ai_charge, 0, TankMachineGun },
+	{ ai_charge, 0, TankMachineGun },
+	{ ai_charge, 0, TankMachineGun },
+	{ ai_charge, 0, TankMachineGun },
+	{ ai_charge, 0, TankMachineGun },
+	{ ai_charge, 0, TankMachineGun },
+	{ ai_charge, 0, TankMachineGun },
+	{ ai_charge, 0, TankMachineGun },
+	{ ai_charge, 0, TankMachineGun },
+	{ ai_charge, 0, TankMachineGun },
+	{ ai_charge, 0, TankMachineGun },
+	{ ai_charge, 0, TankMachineGun },
+	{ ai_charge, 0, TankMachineGun },
+	{ ai_charge, 0, TankMachineGun },
+	{ ai_charge, 0, TankMachineGun },
+	{ ai_charge, 0, TankMachineGun },
+	{ ai_charge, 0, TankMachineGun },
+	{ ai_charge, 0, TankMachineGun },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
