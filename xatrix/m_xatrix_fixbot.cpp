@@ -87,7 +87,11 @@ static inline bool IsEnemyValid(edict_t* self) {
 	if (OnSameTeam(self, self->enemy)) {
 		return false;
 	}
-	return visible(self, self->enemy);
+	// FIX: Removed visible() check - it was too strict and caused fixbot to
+	// lose track of enemies that were briefly obscured or behind cover.
+	// The enemy is valid if they're alive and in use. Line-of-sight checks
+	// should be done separately when needed for attack decisions.
+	return true;
 }
 
 // Helper to safely free the temporary "bot_goal" entity
@@ -1134,13 +1138,13 @@ MMOVE_T(fixbot_move_landing) = { FRAME_landing_01, FRAME_landing_58, fixbot_fram
 	generic ambient stand
 */
 mframe_t fixbot_frames_stand[] = {
-	{ ai_move }, { ai_move }, { ai_move, 1, change_to_roam },
-	{ ai_move }, { ai_move }, { ai_move, 1, change_to_roam },
-	{ ai_move }, { ai_move }, { ai_move },
-	{ ai_move, 1, change_to_roam }, { ai_move }, { ai_move },
-	{ ai_move }, { ai_move, 1, change_to_roam }, { ai_move },
-	{ ai_move }, { ai_move }, { ai_move, 1, change_to_roam },
-	{ ai_move }
+	{ ai_stand }, { ai_stand }, { ai_stand, 1, change_to_roam },
+	{ ai_stand }, { ai_stand }, { ai_stand, 1, change_to_roam },
+	{ ai_stand }, { ai_stand }, { ai_stand },
+	{ ai_stand, 1, change_to_roam }, { ai_stand }, { ai_stand },
+	{ ai_stand }, { ai_stand, 1, change_to_roam }, { ai_stand },
+	{ ai_stand }, { ai_stand }, { ai_stand, 1, change_to_roam },
+	{ ai_stand }
 };
 MMOVE_T(fixbot_move_stand) = { FRAME_ambient_01, FRAME_ambient_19, fixbot_frames_stand, fixbot_run };
 
@@ -1973,6 +1977,17 @@ PAIN(fixbot_pain) (edict_t* self, edict_t* other, float kick, int damage, const 
 	// Don't interrupt critical sequences like spawning
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING) {
 		return;
+	}
+
+	// FIX: Ensure we track the attacker as our enemy
+	// This fixes the bug where fixbot wouldn't detect enemies behind them
+	// even when shot, because M_ReactToDamage may have been blocked or
+	// the enemy cleared by other code paths
+	if (other && other->inuse && other->health > 0 && !OnSameTeam(self, other)) {
+		self->enemy = other;
+		self->goalentity = other;
+		// Clear any sound target flags - we have a real enemy now
+		self->monsterinfo.aiflags &= ~AI_SOUND_TARGET;
 	}
 
 	fixbot_set_attack_fly_parameters(self);
