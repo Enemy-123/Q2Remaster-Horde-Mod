@@ -759,6 +759,14 @@ void TankBlaster(edict_t* self)
 	}
 	else
 	{
+		// Check if blaster origin can see enemy before firing
+		vec3_t target_pos = self->enemy->s.origin;
+		target_pos[2] += self->enemy->viewheight;
+		trace_t trace = gi.traceline(start, target_pos, self, MASK_PROJECTILE);
+
+		if (!(trace.fraction > 0.5f || trace.ent->solid != SOLID_BSP))
+			return;
+
 		PredictAim(self, self->enemy, start, 0, false, 0.f, &dir, nullptr);
 	}
 
@@ -1993,7 +2001,17 @@ void tank_vanillaBlaster(edict_t* self)
 			return;
 	}
 	else
+	{
+		// Check if blaster origin can see enemy before firing
+		vec3_t target_pos = self->enemy->s.origin;
+		target_pos[2] += self->enemy->viewheight;
+		trace_t trace = gi.traceline(start, target_pos, self, MASK_PROJECTILE);
+
+		if (!(trace.fraction > 0.5f || trace.ent->solid != SOLID_BSP))
+			return;
+
 		PredictAim(self, self->enemy, start, 0, false, 0.f, &dir, nullptr);
+	}
 	// pmm
 
 	monster_fire_blaster(self, start, dir, damage,

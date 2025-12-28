@@ -312,6 +312,12 @@ void hover_fire_blaster(edict_t* self)
     start = M_ProjectFlashSource(self, o, forward, right);
     end = self->enemy->s.origin;
     end[2] += self->enemy->viewheight;
+
+    // Check if muzzle origin can see enemy before firing
+    trace_t trace = gi.traceline(start, end, self, MASK_PROJECTILE);
+    if (!(trace.fraction > 0.5f || trace.ent->solid != SOLID_BSP))
+        return;
+
     dir = end - start;
     dir.normalize();
     PredictAim(self, self->enemy, start, blasterSpeed / 1.5, true, 0.f, &dir, &end);
@@ -336,6 +342,12 @@ void hover_fire_blaster2(edict_t* self)
     start = M_ProjectFlashSource(self, o, forward, right);
     end = self->enemy->s.origin;
     end[2] += self->enemy->viewheight;
+
+    // Check if muzzle origin can see enemy before firing
+    trace_t trace = gi.traceline(start, end, self, MASK_PROJECTILE);
+    if (!(trace.fraction > 0.5f || trace.ent->solid != SOLID_BSP))
+        return;
+
     dir = end - start;
     dir.normalize();
     PredictAim(self, self->enemy, start, blasterSpeed / 1.5, true, 0.f, &dir, &end);

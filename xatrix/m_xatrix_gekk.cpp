@@ -787,6 +787,11 @@ void loogie(edict_t* self)
 
 	start += (up * 2);
 
+	// Check if muzzle origin can see target before firing
+	trace_t trace = gi.traceline(start, end, self, MASK_PROJECTILE);
+	if (!(trace.fraction > 0.5f || trace.ent->solid != SOLID_BSP))
+		return;
+
 	dir = end - start;
 	dir.normalize();
 
@@ -2390,6 +2395,14 @@ void gekk_kl_spit(edict_t* self)
 	{
 		// Use saved enemy position from jump/attack
 		end = self->pos1;
+	}
+
+	// Check if muzzle origin can see target before firing (skip for blindfire)
+	if (!blindfire)
+	{
+		trace_t trace = gi.traceline(start, end, self, MASK_PROJECTILE);
+		if (!(trace.fraction > 0.5f || trace.ent->solid != SOLID_BSP))
+			return;
 	}
 
 	dir = end - start;

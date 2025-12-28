@@ -393,6 +393,15 @@ void gunner_vanillaFire(edict_t* self)
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
+
+	// Check if muzzle origin can see enemy before firing
+	vec3_t target_pos = self->enemy->s.origin;
+	target_pos[2] += self->enemy->viewheight;
+	trace_t trace = gi.traceline(start, target_pos, self, MASK_PROJECTILE);
+
+	if (!(trace.fraction > 0.5f || trace.ent->solid != SOLID_BSP))
+		return;
+
 	PredictAim(self, self->enemy, start, 0, true, -0.2f, &aim, nullptr);
 	int damage = M_MACHINEGUN_DMG(self);
 	monster_fire_bullet(self, start, aim, damage > 0 ? damage : 3, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);

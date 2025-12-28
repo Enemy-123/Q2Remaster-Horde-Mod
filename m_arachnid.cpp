@@ -781,6 +781,11 @@ void arachnid_rail(edict_t* self)
     AngleVectors(self->s.angles, forward, right, nullptr);
     start = M_ProjectFlashSource(self, monster_flash_offset[id], forward, right);
 
+    // Check if muzzle origin can see target before firing
+    trace_t trace = gi.traceline(start, self->pos1, self, MASK_PROJECTILE);
+    if (!(trace.fraction > 0.5f || trace.ent->solid != SOLID_BSP))
+        return;
+
     // calc direction to where we targeted
     dir = self->pos1 - start;
     dir.normalize();
@@ -925,6 +930,14 @@ void spider_plasma(edict_t* self)
 
     if (!blindfire)
     {
+        // Check if muzzle origin can see enemy before firing
+        vec3_t check_pos = self->enemy->s.origin;
+        check_pos[2] += self->enemy->viewheight;
+        trace_t trace = gi.traceline(start, check_pos, self, MASK_PROJECTILE);
+
+        if (!(trace.fraction > 0.5f || trace.ent->solid != SOLID_BSP))
+            return;
+
         // Use PredictAim to lead the target based on plasma projectile speed
         PredictAim(self, self->enemy, start, plasma_speed, true, 0.0f, nullptr, &target_pos);
     }
@@ -1164,6 +1177,11 @@ void arachnid2_rail(edict_t* self)
 
     AngleVectors(self->s.angles, forward, right, nullptr);
     start = M_ProjectFlashSource(self, monster_flash_offset[id], forward, right);
+
+    // Check if muzzle origin can see target before firing
+    trace_t trace = gi.traceline(start, self->pos1, self, MASK_PROJECTILE);
+    if (!(trace.fraction > 0.5f || trace.ent->solid != SOLID_BSP))
+        return;
 
     // calc direction to where we targeted
     dir = self->pos1 - start;
@@ -1647,6 +1665,11 @@ void arachnid_psx_rail_real(edict_t* self, monster_muzzleflash_id_t id)
         dir = (self->pos1 - start).normalized();
         dmg = 50;
     }
+
+    // Check if muzzle origin can see target before firing
+    trace_t trace = gi.traceline(start, self->pos1, self, MASK_PROJECTILE);
+    if (!(trace.fraction > 0.5f || trace.ent->solid != SOLID_BSP))
+        return;
 
     bool const hit = monster_fire_railgun(self, start, dir, M_RAILGUN_DMG(self), dmg * 2.0f, id);
 

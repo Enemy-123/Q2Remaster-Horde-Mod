@@ -931,6 +931,14 @@ void ChickRailgun(edict_t* self)
 	else
 		target = self->pos1;
 
+	// Check if muzzle origin can see target before firing
+	if (!blindfire)
+	{
+		trace_t trace = gi.traceline(start, target, self, MASK_PROJECTILE);
+		if (!(trace.fraction > 0.5f || trace.ent->solid != SOLID_BSP))
+			return;
+	}
+
 	dir = target - start;
 	dir.normalize();
 
