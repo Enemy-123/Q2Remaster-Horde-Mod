@@ -647,10 +647,6 @@ void runnertankPlasmaGun(edict_t* self) {
 		target = self->enemy->s.origin;
 	}
 
-	// Set ideal yaw and immediately face the target
-	self->ideal_yaw = vectoyaw(target - self->s.origin);
-	M_ChangeYaw(self);
-
 	// Constantes del arma
 	constexpr float SPREAD = 0.08f;
 	constexpr float PREDICTION_TIME = 0.2f;
@@ -661,7 +657,7 @@ void runnertankPlasmaGun(edict_t* self) {
 	monster_muzzleflash_id_t const flash_number = static_cast<monster_muzzleflash_id_t>
 		(MZ2_TANK_MACHINEGUN_1 + (self->s.frame - FRAME_attak406));
 
-	// Obtener vectores de dirección después de enfrentar al objetivo
+	// Use current angles for muzzle position - don't force rotation before firing
 	vec3_t forward, right, up;
 	AngleVectors(self->s.angles, &forward, &right, &up);
 

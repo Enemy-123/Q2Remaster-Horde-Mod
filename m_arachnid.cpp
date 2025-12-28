@@ -917,11 +917,7 @@ void spider_plasma(edict_t* self)
         target_pos = self->enemy->s.origin;
     }
 
-    // Set ideal yaw and immediately face the target
-    self->ideal_yaw = vectoyaw(target_pos - self->s.origin);
-    M_ChangeYaw(self);
-
-    // Get vectors after facing the target
+    // Use current angles for muzzle position - don't force rotation before firing
     AngleVectors(self->s.angles, forward, right, up);
     start = M_ProjectFlashSource(self, monster_flash_offset[id], forward, right);
     // Adjust origin slightly forward and upward (adjust as needed)

@@ -737,14 +737,7 @@ void ChickRocket(edict_t* self)
 	if (!self->enemy || !self->enemy->inuse) // PGM
 		return;								 // PGM
 
-	// Set ideal yaw and immediately face the target
-	if (blindfire)
-		self->ideal_yaw = vectoyaw(self->monsterinfo.blind_fire_target - self->s.origin);
-	else
-		self->ideal_yaw = vectoyaw(self->enemy->s.origin - self->s.origin);
-	M_ChangeYaw(self);
-
-	// Use current angles for muzzle position (now facing target)
+	// Use current angles for muzzle position - don't force rotation before firing
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CHICK_ROCKET_1], forward, right);
 	// [Paril-KEX]
@@ -1658,12 +1651,8 @@ void chickkl_fire_plasma(edict_t* self)
 	if (!M_HasValidTarget(self))
 		return;
 
-	// Set ideal yaw and immediately face the enemy
-	self->ideal_yaw = vectoyaw(self->enemy->s.origin - self->s.origin);
-	M_ChangeYaw(self);
-
 	vec3_t forward, right, up;
-	// Use current angles for muzzle position (now facing target)
+	// Use current angles for muzzle position - don't force rotation before firing
 	AngleVectors(self->s.angles, forward, right, up);
 
 	// Scale the offset for larger monsters
