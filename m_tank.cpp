@@ -695,16 +695,13 @@ void TankGrenades(edict_t* self)
 
 void TankBlaster(edict_t* self)
 {
-	// Basic enemy check - blindfire logic needs to execute
-	if (!M_HasEnemy(self))
-		return;
-
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, horde::WeaponID::BLASTER);
-	if (damage <= 0) damage = 30;
-
 	vec3_t forward, right;
+	vec3_t start;
 	vec3_t dir;
 	monster_muzzleflash_id_t flash_number;
+
+	if (!self->enemy || !self->enemy->inuse)
+		return;
 
 	const bool blindfire = self->monsterinfo.aiflags & AI_MANUAL_STEERING;
 
@@ -715,45 +712,12 @@ void TankBlaster(edict_t* self)
 	else // (self->s.frame == FRAME_attak116)
 		flash_number = MZ2_TANK_BLASTER_3;
 
-	// Determine target position for facing
-	vec3_t target_pos;
-	if (blindfire) {
-		target_pos = self->monsterinfo.blind_fire_target;
-	}
-	else {
-		if (!M_HasValidTarget(self))
-			return;
-		target_pos = self->enemy->s.origin;
-	}
-
-	// Increase yaw speed for smooth tracking and immediately face the target
-	self->yaw_speed = 45;
-	self->ideal_yaw = vectoyaw(target_pos - self->s.origin);
-	M_ChangeYaw(self);
-
-	// Get vectors after facing the target
 	AngleVectors(self->s.angles, forward, right, nullptr);
-	const vec3_t start = G_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right);
+	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 
-	// Base offsets
-	vec3_t bullet_offset;
-	if (self->s.frame == FRAME_attak110) {
-		bullet_offset = vec3_t{ 28.7f, -18.5f, 28.7f };
-	}
-	else if (self->s.frame == FRAME_attak113) {
-		bullet_offset = vec3_t{ 24.6f, -21.5f, 30.1f };
-	}
-	else { // FRAME_attak116
-		bullet_offset = vec3_t{ 19.8f, -23.9f, 32.1f };
-	}
-
-	// Ajustar offset según el scale
-	bullet_offset = bullet_offset * self->s.scale;
-
-	const vec3_t bullet_start = G_ProjectSource(self->s.origin, bullet_offset, forward, right);
-
-	if (blindfire) {
-		vec3_t const target = self->monsterinfo.blind_fire_target;
+	if (blindfire)
+	{
+		vec3_t target = self->monsterinfo.blind_fire_target;
 		if (!M_AdjustBlindfireTarget(self, start, target, right, dir))
 			return;
 	}
@@ -770,11 +734,25 @@ void TankBlaster(edict_t* self)
 		PredictAim(self, self->enemy, start, 0, false, 0.f, &dir, nullptr);
 	}
 
+	// Boss lightning attack
 	const bool isBoss =
-    (horde::IsMonsterType(self, horde::MonsterTypeID::TANK_64) && self->monsterinfo.IS_BOSS) ||
-    (g_hardcoop->integer && horde::IsMonsterType(self, horde::MonsterTypeID::TANK_64));
+		(horde::IsMonsterType(self, horde::MonsterTypeID::TANK_64) && self->monsterinfo.IS_BOSS) ||
+		(g_hardcoop->integer && horde::IsMonsterType(self, horde::MonsterTypeID::TANK_64));
 
-	if (isBoss) {
+	if (isBoss)
+	{
+		// Calculate bullet_start for lightning effect
+		vec3_t bullet_offset;
+		if (self->s.frame == FRAME_attak110)
+			bullet_offset = vec3_t{ 28.7f, -18.5f, 28.7f };
+		else if (self->s.frame == FRAME_attak113)
+			bullet_offset = vec3_t{ 24.6f, -21.5f, 30.1f };
+		else
+			bullet_offset = vec3_t{ 19.8f, -23.9f, 32.1f };
+
+		bullet_offset = bullet_offset * self->s.scale;
+		const vec3_t bullet_start = G_ProjectSource(self->s.origin, bullet_offset, forward, right);
+
 		PredictAim(self, self->enemy, bullet_start, 0, false, 0.075f, &dir, nullptr);
 		const vec3_t end = bullet_start + (dir * 8192);
 		const trace_t tr = gi.traceline(bullet_start, end, self, MASK_PROJECTILE | CONTENTS_SLIME | CONTENTS_LAVA);
@@ -790,7 +768,11 @@ void TankBlaster(edict_t* self)
 		int lightning_damage = M_GET_DMG_OR(self, LIGHTNING, 15);
 		fire_bullet(self, bullet_start, dir, lightning_damage, 18, 0, 0, MOD_TESLA);
 	}
-	else {
+	else
+	{
+		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, horde::WeaponID::BLASTER);
+		if (damage <= 0) damage = 30;
+
 		monster_fire_blaster2(self, start, dir, damage,
 			M_GET_SPEED_OR(self, BLASTER2, 950), flash_number, EF_BLASTER);
 	}
