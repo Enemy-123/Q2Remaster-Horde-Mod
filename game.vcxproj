@@ -46,11 +46,11 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>..\..\..\..\..\..\Program Files %28x86%29\Steam\steamapps\common\Quake 2\rerelease\baseq2</OutDir>
+    <OutDir>..\..\..\..\..\Program Files %28x86%29\Steam\steamapps\common\Quake 2\rerelease\baseq2</OutDir>
     <TargetName>$(ProjectName)_x64</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>..\..\..\..\..\..\Program Files %28x86%29\Steam\steamapps\common\Quake 2\rerelease\baseq2</OutDir>
+    <OutDir>..\..\..\..\..\Program Files %28x86%29\Steam\steamapps\common\Quake 2\rerelease\baseq2</OutDir>
     <TargetName>$(ProjectName)_x64</TargetName>
   </PropertyGroup>
   <!-- CHANGE 1: Tell vcpkg to use static libraries for both configurations -->
