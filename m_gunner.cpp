@@ -397,8 +397,9 @@ void GunnerFire(edict_t* self)
 
 	flash_number = static_cast<monster_muzzleflash_id_t>(MZ2_SOLDIER_RIPPER_1 + (self->s.frame - FRAME_attak216));
 	AngleVectors(self->s.angles, forward, right, nullptr);
-	start = self->s.origin + (forward * offset[0]) + (right * offset[1]);
-	start.z += offset[2];
+	// Calculate proper muzzle position with scale support
+	vec3_t scaled_offset = self->s.scale ? (offset * self->s.scale) : offset;
+	start = M_ProjectFlashSource(self, scaled_offset, forward, right);
 
 	int machinegun_damage = M_MACHINEGUN_DMG(self);
 	int ionripper_damage = M_IONRIPPER_DMG(self);
