@@ -13,6 +13,7 @@ TURRET
 #include "../shared.h"
 #include <cfloat>
 #include "../monster_constants.h"
+#include "../m_flash.h"
 
 // Forward declarations
 bool turret2_CanShootThroughObstacles(edict_t* self, const vec3_t& start, const vec3_t& target);
@@ -1346,8 +1347,15 @@ void turret2Fire(edict_t* self) {
 			end[2] += (self->enemy->maxs[2] - self->enemy->mins[2]) * 0.5f;
 	}
 
+	// Calculate actual muzzle position using M_ProjectFlashSource (like tank blaster fix)
+	vec3_t forward, right;
+	AngleVectors(self->s.angles, forward, right, nullptr);
+
+	// Turret muzzle offset (same for all turret weapons: 20 units forward)
+	const vec3_t turret_muzzle_offset = { 20.f, 0.f, 0.f };
+	vec3_t start = M_ProjectFlashSource(self, turret_muzzle_offset, forward, right);
+
 	// Calculate direction with safer normalization
-	vec3_t start = self->s.origin;
 	vec3_t dir = end - start;
 	if (!is_valid_vector(dir)) {
 		return;
@@ -1380,18 +1388,14 @@ void turret2Fire(edict_t* self) {
 		}
 	}
 
-	// Trace check - skip for close-range enemies (traces can fail when very close)
+	// Trace check from actual muzzle position - skip for close-range enemies (traces can fail when very close)
 	if (!close_range) {
-		trace_t tr = gi.traceline(start, end, self, MASK_SHOT);
+		// Check if muzzle can see the target (like tank blaster fix)
+		trace_t tr = gi.traceline(start, end, self, MASK_PROJECTILE);
 
-		// Only consider it a failed trace if we hit something that isn't the enemy or world
-		// AND it's not close to the enemy (sometimes entities overlap)
-		if (tr.ent != self->enemy && tr.ent != world) {
-			// Check if trace endpoint is close to enemy
-			float dist_to_enemy = (tr.endpos - self->enemy->s.origin).length();
-			if (dist_to_enemy > 32.0f) { // Not close enough to enemy
-				return;
-			}
+		// Don't shoot if muzzle is blocked by BSP geometry
+		if (!(tr.fraction > 0.5f || tr.ent->solid != SOLID_BSP)) {
+			return;
 		}
 	}
 
@@ -1430,36 +1434,31 @@ void turret2Fire(edict_t* self) {
 		// Fire heatbeam continuously while holding frame
 		if (self->monsterinfo.next_duck_time <= level.time) {
 			self->monsterinfo.next_duck_time = level.time + 0.05_sec; // Keep updating rapidly
-			
-			// Simplified blaster/heatbeam logic
-			vec3_t forward;
-			AngleVectors(self->s.angles, forward, nullptr, nullptr);
-			vec3_t offset = { 20.f, 0.f, 0.f };
-			const vec3_t hbstart = start + (forward * offset[0]);
 
+			// Use the already-calculated muzzle position from M_ProjectFlashSource
 			// Simpler prediction calculation
 			vec3_t predictedDir;
-			PredictAim(self, self->enemy, hbstart, 9999, false,
+			PredictAim(self, self->enemy, start, 9999, false,
 				self->monsterinfo.quadfire_time > level.time ? 0.01f : 0.03f,
 				&predictedDir, nullptr);
 
 			// Check if the predicted direction is valid
 			if (is_valid_vector(predictedDir)) {
-				trace_t hbtr = gi.traceline(hbstart, hbstart + predictedDir * 8192,
+				trace_t hbtr = gi.traceline(start, start + predictedDir * 8192,
 					self, MASK_SHOT);
 
 				// Fire continuous heatbeam
-				TurretFireHeatbeam(self, hbstart, predictedDir, hbtr);
+				TurretFireHeatbeam(self, start, predictedDir, hbtr);
 
 				// Lower chance for plasma
 				if (frandom() < 0.1f) {
-					TurretFirePlasma(self, hbstart, predictedDir);
+					TurretFirePlasma(self, start, predictedDir);
 				}
 			}
 			else {
 				// Fallback to direct fire if prediction fails
 				trace_t tr = gi.traceline(start, end, self, MASK_SHOT);
-				TurretFireHeatbeam(self, hbstart, dir, tr);
+				TurretFireHeatbeam(self, start, dir, tr);
 			}
 		}
 	}
