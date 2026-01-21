@@ -1106,7 +1106,10 @@ edict_t* SelectNextShuffledSpawnPoint(TFilter filter)
 
 [[nodiscard]] std::optional<edict_t*> FindRandomHordeSpawnPoint(bool for_flying_monster)
 {
+	const bool allow_ground_for_flying = (for_flying_monster && g_spawn_system.cached_flying_spawn_count == 0);
 	edict_t* spawnPoint = SelectNextShuffledSpawnPoint([&](const edict_t* sp) {
+		if (allow_ground_for_flying)
+			return true;
 		return (for_flying_monster == (sp->style == 1));
 	});
 
@@ -5626,6 +5629,7 @@ static edict_t* FindSafeTeleportDestination(edict_t* self)
 
 	// --- 2. Get Monster Properties ---
 	const bool can_monster_fly = IsFlying(static_cast<horde::MonsterTypeID>(self->monsterinfo.monster_type_id));
+	const bool allow_ground_for_flying = (can_monster_fly && g_spawn_system.cached_flying_spawn_count == 0);
 
 	// 25% chance to require out-of-visibility position for this teleport
 	const bool require_out_of_visibility = frandom() < HordeConstants::OUT_OF_VISIBILITY_CHANCE;
@@ -5661,7 +5665,13 @@ static edict_t* FindSafeTeleportDestination(edict_t* self)
 			continue;
 		}
 
-		if (can_monster_fly != (spawn_point->style == 1))
+		const bool spawn_is_flying = (spawn_point->style == 1);
+		if (can_monster_fly)
+		{
+			if (!allow_ground_for_flying && !spawn_is_flying)
+				continue;
+		}
+		else if (spawn_is_flying)
 		{
 			continue;
 		}
