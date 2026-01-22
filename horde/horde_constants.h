@@ -101,6 +101,10 @@ namespace HordeConstants
 	inline constexpr gtime_t STROGG_FORCE_KILL_INTERVAL = 2_sec; // Kill one stuck monster every N seconds after grace
 	inline constexpr float VOID_Z_THRESHOLD = -4096.0f;            // Monsters below this Z are considered in the void
 
+	// --- Flying Monster Stuck Handling ---
+	// Teleport flying monsters that remain wall-blocked beyond this threshold.
+	inline constexpr gtime_t FLY_WALL_STUCK_TELEPORT_TIME = 3_sec;
+
 	// --- Grid Spawn Cooldown Settings ---
 	inline constexpr gtime_t GRID_POSITION_COOLDOWN = 4.0_sec;        // Cooldown before same grid area can be used again
 	inline constexpr float GRID_COOLDOWN_RADIUS = 200.0f;             // Radius around used position that's on cooldown
@@ -164,4 +168,3 @@ namespace PrecacheLimits {
 	// = MAX_PRECACHED_MODEL_FAMILIES - CORE_FAMILY_SLOTS = 6 rotating slots
 	inline constexpr int32_t ROTATING_FAMILY_SLOTS = MAX_PRECACHED_MODEL_FAMILIES - CORE_FAMILY_SLOTS;
 }
-

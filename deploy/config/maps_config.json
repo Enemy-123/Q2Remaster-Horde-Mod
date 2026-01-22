@@ -77,6 +77,10 @@
       "monster_cap": -1,
       "enable_grid": true
     },
+    "rboss": {
+      "monster_cap": -1,
+      "enable_grid": true
+    },
     "mgdm1": {
       "monster_cap": 24,
       "enable_grid": true,

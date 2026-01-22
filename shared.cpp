@@ -1501,7 +1501,7 @@ bool TeleportSelf(edict_t* ent) {
 
 	if (g_num_spawn_points == 0) {
 		if (developer->integer) {
-			gi.Com_PrintFmt("TeleportSelf WARNING: No valid spawn points found for teleport.\n");
+			//gi.Com_PrintFmt("TeleportSelf WARNING: No valid spawn points found for teleport.\n");
 		}
 		return false;
 	}

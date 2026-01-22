@@ -882,3 +882,10 @@ build_mingw/CMakeFiles/4.2.2-dirty/CMakeDetermineCompilerABI_CXX.bin
 build_mingw/CMakeFiles/4.2.2-dirty/CompilerIdCXX/CMakeCXXCompilerId.cpp
 build_mingw/CMakeFiles/Q2HordeModDLL.dir/horde/g_pvm.cpp.obj.d
 build_mingw/CMakeFiles/Q2HordeModDLL.dir/horde/g_fire.cpp.obj.d
+build_clang/CMakeFiles/4.2.2-dirty/CMakeRCCompiler.cmake
+build_clang/CMakeFiles/4.2.2-dirty/CMakeSystem.cmake
+build_clang/CMakeFiles/4.2.2-dirty/CompilerIdCXX/CMakeCXXCompilerId.cpp
+build_clang/CMakeFiles/4.2.2-dirty/CompilerIdCXX/CMakeCXXCompilerId.o
+build_mingw/CMakeFiles/4.1.2/CompilerIdCXX/CMakeCXXCompilerId.cpp
+build_mingw/CMakeFiles/Q2HordeModDLL.dir/horde/g_pvm.cpp.obj.d
+build_mingw/CMakeFiles/Q2HordeModDLL.dir/horde/g_fire.cpp.obj.d

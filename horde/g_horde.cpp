@@ -2997,14 +2997,14 @@ static EliteCandidateResult FindEliteCandidate(const MonsterSelectionContext& ct
 
 // Precache the selected elite monster and add family members to eligible list
 // Respects family limit - returns nullptr if the monster's family isn't allowed
-static const char* PrecacheEliteMonster(
+static AssetFamilyID PrecacheEliteMonster(
 	horde::MonsterTypeID type_id,
 	size_t array_index,
 	const MonsterSelectionContext& ctx)
 {
 	const char* classname = horde::MonsterTypeRegistry::GetClassname(type_id);
 	const char* model_path = GetMonsterModelPath(type_id);
-	if (!classname || !*classname || !model_path) return nullptr;
+	if (!classname || !*classname || !model_path) return AssetFamilyID::UNKNOWN_FAMILY;
 
 	// Check family limit - skip if family not allowed for this map
 	AssetFamilyID family = GetMonsterAssetFamily(type_id);
@@ -3015,7 +3015,7 @@ static const char* PrecacheEliteMonster(
 			gi.Com_PrintFmt("Dynamic Precache: BLOCKED '{}' - family {} not allowed on this map\n",
 				classname, static_cast<int>(family));
 		}
-		return nullptr; // Family not allowed, don't precache
+		return AssetFamilyID::UNKNOWN_FAMILY; // Family not allowed, don't precache
 	}
 
 	const bool already_precached = g_precached_monster_types_flags[array_index];
@@ -3055,8 +3055,8 @@ static const char* PrecacheEliteMonster(
 		const auto& family_monster = monsterTypes[j];
 		if (!g_precached_monster_types_flags[j]) continue;
 
-		const char* family_model_path = GetMonsterModelPath(family_monster.typeId);
-		if (!family_model_path || model_path != family_model_path) continue;
+		const AssetFamilyID family_monster_family = GetMonsterAssetFamily(family_monster.typeId);
+		if (family_monster_family != family) continue;
 
 		// Only add family members that are "elite" level (3+ waves higher)
 		if (family_monster.minWave < ctx.currentActualLevel + 3) continue;
@@ -3081,7 +3081,7 @@ static const char* PrecacheEliteMonster(
 	}
 
 	g_dynamic_precache_count_this_wave++;
-	return model_path;
+	return family;
 }
 
 // Apply weight modifiers to a monster based on context
@@ -3222,6 +3222,7 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 	cache_ref.clear();
 
 	// Track if we dynamically precached a monster for elite spawns
+	AssetFamilyID elite_spawn_family = AssetFamilyID::UNKNOWN_FAMILY;
 	const char* elite_spawn_model_path = nullptr;
 
 	// Create a mutable copy of context to potentially revert effectiveLevel
@@ -3246,8 +3247,11 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 					gi.Com_PrintFmt("Dynamic Precache: FINAL SELECTION '{}'\n",
 						horde::MonsterTypeRegistry::GetClassname(candidate.selected_type));
 
-				elite_spawn_model_path = PrecacheEliteMonster(
+				const char* candidate_model_path = GetMonsterModelPath(candidate.selected_type);
+				elite_spawn_family = PrecacheEliteMonster(
 					candidate.selected_type, candidate.selected_array_index, mutable_ctx);
+				if (elite_spawn_family != AssetFamilyID::UNKNOWN_FAMILY && candidate_model_path)
+					elite_spawn_model_path = candidate_model_path;
 			}
 			else
 			{
@@ -3278,9 +3282,9 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 
 		// Check if this is an elite family member
 		bool is_elite_family_member = false;
-		if (elite_spawn_model_path != nullptr) {
-			const char* this_monster_model = GetMonsterModelPath(monster_info->typeId);
-			if (this_monster_model && elite_spawn_model_path == this_monster_model)
+		if (elite_spawn_family != AssetFamilyID::UNKNOWN_FAMILY) {
+			const AssetFamilyID this_monster_family = GetMonsterAssetFamily(monster_info->typeId);
+			if (this_monster_family == elite_spawn_family)
 				is_elite_family_member = true;
 		}
 
@@ -3297,7 +3301,7 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 				continue;
 		} else {
 			// Normal horde mode: check minWave (skip in elite spawn mode)
-			if (elite_spawn_model_path == nullptr && g_monsterData.minWaves[i] > mutable_ctx.effectiveLevel)
+			if (elite_spawn_family == AssetFamilyID::UNKNOWN_FAMILY && g_monsterData.minWaves[i] > mutable_ctx.effectiveLevel)
 				continue;
 		}
 
@@ -3322,9 +3326,10 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 	{
 		gi.Com_PrintFmt("BuildMonsterCache: Final cache has {} monsters, total_weight={:.1f}\n",
 			cache_ref.count, cache_ref.total_weight);
-		if (elite_spawn_model_path != nullptr)
-			gi.Com_PrintFmt("BuildMonsterCache: Elite spawn boost active - '{}' family gets 2x weight\n",
-				elite_spawn_model_path);
+		if (elite_spawn_family != AssetFamilyID::UNKNOWN_FAMILY)
+			gi.Com_PrintFmt("BuildMonsterCache: Elite spawn boost active - family {} ({}) gets 2x weight\n",
+				static_cast<int>(elite_spawn_family),
+				elite_spawn_model_path ? elite_spawn_model_path : "unknown");
 	}
 }
 
@@ -5938,6 +5943,16 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 		needs_teleport = true;
 		reason_str = "Drowning";
 	}
+	// Critical: Flying monster blocked against walls for too long (counts as movement otherwise)
+	if (!needs_teleport && (self->flags & FL_FLY))
+	{
+		if (self->monsterinfo.fly_wall_stuck_time > 0_ms &&
+			level.time > self->monsterinfo.fly_wall_stuck_time + HordeConstants::FLY_WALL_STUCK_TELEPORT_TIME)
+		{
+			needs_teleport = true;
+			reason_str = "Flyer Wall-Stuck";
+		}
+	}
 	// Critical: Too close to sky (unreachable position) - check ALL monsters, not just flying
 	if (!needs_teleport)
 	{
@@ -6168,6 +6183,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 		HordeConstants::g_teleport_rate_count++;
 		self->monsterinfo.failsafe_teleport_count++; // Track per-monster teleport count
 		self->monsterinfo.was_stuck = false;
+		self->monsterinfo.fly_wall_stuck_time = 0_ms;
 		// Reset check interval for next stuck check
 		self->monsterinfo.stuck_check_time = level.time + random_time(4.0_sec, 6.0_sec);
 		self->monsterinfo.no_enemy_timeout_start_time = 0_sec;
