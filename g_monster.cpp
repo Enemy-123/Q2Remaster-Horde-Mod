@@ -15,14 +15,34 @@
 //================
 bool M_CanSpawnMore(edict_t* spawner)
 {
+	// Validate caller early to avoid null derefs from rogue uses
+	if (!spawner || !spawner->inuse)
+		return false;
+
 	// Check if spawner has slots available
 	if (M_SlotsLeft(spawner) <= 0)
 		return false;
 
 	// Check global limit in horde mode
-	if (g_horde->integer) {
+	if (g_horde && g_horde->integer) {
+		// 1) Reinforcement-specific global cap (prevents runaway commander waves)
 		if (level.global_spawned_count >= level.global_spawner_limit)
 			return false;
+
+		// 2) Respect overall horde hard cap so commanders can't bypass it
+		if (g_horde_local.max_monsters > 0) {
+			// Cheap active monster count; iterates only live monsters
+			int32_t active_monsters_count = 0;
+			for (edict_t* ent : active_monsters()) {
+				// Skip the commander itself so it can replace lost spawns
+				if (ent == spawner)
+					continue;
+				++active_monsters_count;
+			}
+
+			if (active_monsters_count >= g_horde_local.max_monsters)
+				return false;
+		}
 	}
 
 	return true;

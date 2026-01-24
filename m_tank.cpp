@@ -2546,6 +2546,7 @@ void Monster_MoveSpawn(edict_t* self) {
 			monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
 			monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_SPAWNED_COMMANDER;
 			monster->monsterinfo.commander = self;
+			monster->monsterinfo.slots_from_commander = reinf_def.strength; // ensure slots are freed on death
 			monster->monsterinfo.bonus_flags = self->monsterinfo.bonus_flags;
 			monster->owner = self;
 
