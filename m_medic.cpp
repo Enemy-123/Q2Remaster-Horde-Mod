@@ -623,11 +623,48 @@ bool canReach(edict_t *self, edict_t *other)
 	return trace.fraction == 1.0f || trace.ent == other;
 }
 
+// Helper for player armor regeneration: returns the slot we should heal, the current amount, and the cap for that slot.
+static void GetPlayerArmorState(edict_t *player, item_id_t &slot, int &current, int &max)
+{
+	slot = ArmorIndex(player);
+	if (slot == IT_NULL)
+		slot = IT_ARMOR_JACKET; // default slot when the player has no armor
+
+	current = player->client->pers.inventory[slot];
+
+	switch (slot)
+	{
+	case IT_ARMOR_BODY:
+		max = bodyarmor_info.max_count;
+		break;
+	case IT_ARMOR_COMBAT:
+		max = combatarmor_info.max_count;
+		break;
+	default:
+		max = jacketarmor_info.max_count;
+		break;
+	}
+}
+
+static bool PlayerNeedsArmor(edict_t *player)
+{
+	if (!player || !player->client)
+		return false;
+
+	item_id_t slot;
+	int current;
+	int max;
+	GetPlayerArmorState(player, slot, current, max);
+	return current < max;
+}
+
 edict_t *healFindMonster(edict_t *self, float radius)
 {
 	edict_t *ent = nullptr;
 	edict_t *best_dead = nullptr;
 	edict_t *best_injured_teammate = nullptr;
+	edict_t *best_player_needs_armor = nullptr;
+	int best_player_armor_value = 0;
 
 	while ((ent = findradius(ent, self->s.origin, radius)) != nullptr)
 	{
@@ -659,9 +696,25 @@ edict_t *healFindMonster(edict_t *self, float radius)
 		if (!strcmp(ent->classname, "player_noise"))
 			continue;
 
-		// Check for injured entities (alive but hurt)
-		if (ent->health > 0 && ent->health < ent->max_health)
+		// Figure out what this entity might need
+		bool needs_health = ent->health > 0 && ent->health < ent->max_health;
+		bool needs_player_armor = false;
+		int current_player_armor = 0;
+		int max_player_armor = 0;
+
+		if (ent->health > 0 && ent->client)
 		{
+			item_id_t armor_slot;
+			GetPlayerArmorState(ent, armor_slot, current_player_armor, max_player_armor);
+			needs_player_armor = current_player_armor < max_player_armor;
+		}
+
+		// Handle living allies (health injuries or armor topping for players)
+		if (ent->health > 0)
+		{
+			if (!needs_health && !needs_player_armor)
+				continue;
+
 			// Determine if this is a valid heal target
 			bool can_heal = false;
 
@@ -693,17 +746,27 @@ edict_t *healFindMonster(edict_t *self, float radius)
 
 			if (can_heal)
 			{
-				if (!best_injured_teammate || ent->health < best_injured_teammate->health)
+				if (needs_health)
 				{
-					best_injured_teammate = ent;
+					if (!best_injured_teammate || ent->health < best_injured_teammate->health)
+					{
+						best_injured_teammate = ent;
+					}
+				}
+				else if (needs_player_armor)
+				{
+					if (!best_player_needs_armor || current_player_armor < best_player_armor_value)
+					{
+						best_player_needs_armor = ent;
+						best_player_armor_value = current_player_armor;
+					}
 				}
 			}
+
 			continue; // Don't consider alive entities for revival
 		}
 
 		// Dead entity handling (for revival) - revive ANY dead corpse
-		if (ent->health > 0)
-			continue;
 		if ((ent->nextthink) && (ent->think != monster_dead_think))
 			continue;
 
@@ -724,7 +787,10 @@ edict_t *healFindMonster(edict_t *self, float radius)
 	if (best_dead)
 		return best_dead;
 
-	return best_injured_teammate;
+	if (best_injured_teammate)
+		return best_injured_teammate;
+
+	return best_player_needs_armor;
 }
 
 bool M_NeedRegen(edict_t *target);
@@ -1655,21 +1721,7 @@ bool M_NeedRegen(edict_t *target)
 	// Check if player needs armor.
 	else if (target->client)
 	{
-		int armor_index = ArmorIndex(target);
-		if (armor_index != IT_NULL)
-		{
-			// Player has armor, check if it's below healing cap
-			int current_armor = target->client->pers.inventory[armor_index];
-			// Use same max as healing code (150) for consistency
-			int max_armor = 150;
-			if (current_armor < max_armor)
-				return true;
-		}
-		else
-		{
-			// Player has no armor at all, so they need it.
-			return true;
-		}
+		return PlayerNeedsArmor(target);
 	}
 
 	return false;
@@ -1787,23 +1839,14 @@ void medic_cable_attack(edict_t *self)
 			}
 			else if (self->enemy->client)
 			{
-				// Heal player's armor - adapts to whichever armor type they currently have
-				int armor_index = ArmorIndex(self->enemy);
-				if (armor_index == IT_NULL)
+				item_id_t armor_slot;
+				int current_armor;
+				int max_armor;
+				GetPlayerArmorState(self->enemy, armor_slot, current_armor, max_armor);
+
+				if (current_armor < max_armor)
 				{
-					// Player has no armor - give them jacket armor to start
-					self->enemy->client->pers.inventory[IT_ARMOR_JACKET] = heal_amount / 2;
-				}
-				else
-				{
-					// Player has armor - heal whichever type they have (jacket/combat/body)
-					// Use consistent max like CTF regen, regardless of armor type
-					int current_armor = self->enemy->client->pers.inventory[armor_index];
-					int max_armor = 150; // Reasonable healing cap for all armor types
-					if (current_armor < max_armor)
-					{
-						self->enemy->client->pers.inventory[armor_index] = min(current_armor + heal_amount / 2, max_armor);
-					}
+					self->enemy->client->pers.inventory[armor_slot] = min(current_armor + heal_amount / 2, max_armor);
 				}
 			}
 		}

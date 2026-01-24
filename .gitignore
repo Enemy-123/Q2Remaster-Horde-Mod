@@ -894,3 +894,8 @@ build_mingw/CMakeFiles/4.2.2/CMakeDetermineCompilerABI_CXX.bin
 build_mingw/CMakeFiles/4.2.2/CMakeRCCompiler.cmake
 build_mingw/CMakeFiles/4.2.2/CMakeSystem.cmake
 build_mingw/CMakeFiles/4.2.2/CompilerIdCXX/CMakeCXXCompilerId.cpp
+build_clang/CMakeFiles/4.2.2/CMakeRCCompiler.cmake
+build_clang/CMakeFiles/4.2.2/CMakeSystem.cmake
+build_clang/CMakeFiles/4.2.2/CompilerIdCXX/CMakeCXXCompilerId.cpp
+build_clang/CMakeFiles/4.2.2/CompilerIdCXX/CMakeCXXCompilerId.o
+build_mingw/CMakeFiles/4.2.2/CompilerIdCXX/a.exe

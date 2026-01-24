@@ -2108,11 +2108,10 @@ bool ai_checkattack(edict_t* self, float dist)
 	}
 	else if (self->monsterinfo.aiflags & AI_MEDIC)
 	{
-		// If we are in MEDIC mode, a target with health <= 0 is our OBJECTIVE,
-		// not an invalid/dead enemy. It only becomes invalid if it's gibbed
-		// or has been fully healed.
-		if (self->enemy->health > 0 && self->enemy->health >= self->enemy->max_health)
-			hesDeadJim = true; // Target is fully healed, we are done.
+		// In MEDIC mode, we keep healing as long as the target still needs health/armor.
+		// Use the same helper the medic code uses so armor-only patients keep us in medic mode.
+		if (!M_NeedRegen(self->enemy))
+			hesDeadJim = true; // Target fully recovered (health and armor).
 		else if (self->enemy->gib_health && self->enemy->health < self->enemy->gib_health)
 			hesDeadJim = true; // Target is gibbed and cannot be revived.
 		// Otherwise, hesDeadJim remains false, and we proceed.

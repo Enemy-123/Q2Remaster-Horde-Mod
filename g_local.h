@@ -2506,6 +2506,8 @@ void monster_death_use(edict_t* self);
 void M_CatagorizePosition(edict_t* self, const vec3_t& in_point, water_level_t& waterlevel, contents_t& watertype);
 void M_WorldEffects(edict_t* ent);
 bool M_CheckAttack(edict_t* self);
+// Shared medic helper: returns true if target still needs health or armor.
+bool M_NeedRegen(edict_t* target);
 void M_CheckGround(edict_t* ent, contents_t mask);
 void monster_use(edict_t* self, edict_t* other, edict_t* activator);
 void M_ProcessPain(edict_t* e);
