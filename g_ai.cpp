@@ -396,8 +396,7 @@ void ai_stand(edict_t* self, float dist)
 					self->monsterinfo.aiflags &= ~AI_MEDIC;
 					self->enemy = nullptr;
 				}
-				// Don't call FindMTarget when medic is healing
-				return;
+				// Keep processing movement/animations; just skip FindMTarget below.
 			}
 
 		// Clean up dead/invalid entity references for summoned monsters
@@ -433,7 +432,8 @@ void ai_stand(edict_t* self, float dist)
 			     Q_strcasecmp(self->enemy->classname, "follow_point") == 0)))
 			{
 				// Find enemies while patrolling - spot1/spot2 preserved for resume
-				FindMTarget(self);
+				if (!(self->monsterinfo.aiflags & AI_MEDIC))
+					FindMTarget(self);
 			}
 			return;
 		}
@@ -442,7 +442,8 @@ void ai_stand(edict_t* self, float dist)
 				(self->enemy->client && !self->enemy->monsterinfo.isfriendlyspawn)) { // If current enemy is a player, forget it
 				self->enemy = nullptr;
 			}
-			FindMTarget(self);
+			if (!(self->monsterinfo.aiflags & AI_MEDIC))
+				FindMTarget(self);
 		}
 		else
 		{
@@ -1944,6 +1945,17 @@ void ai_run_missile(edict_t* self)
 		// ROGUE
 		M_ChangeYaw(self);
 
+	// Special-case medics resurrecting corpses: don't require facing when on top of target.
+	if ((self->monsterinfo.aiflags & AI_MEDIC) && self->enemy && self->enemy->health <= 0)
+	{
+		if (self->monsterinfo.attack)
+		{
+			self->monsterinfo.attack(self);
+			self->monsterinfo.attack_finished = level.time + random_time(1_sec, 2_sec);
+		}
+		return;
+	}
+
 	if (FacingIdeal(self))
 	{
 		if (self->monsterinfo.attack)
@@ -2108,12 +2120,14 @@ bool ai_checkattack(edict_t* self, float dist)
 	}
 	else if (self->monsterinfo.aiflags & AI_MEDIC)
 	{
-		// In MEDIC mode, we keep healing as long as the target still needs health/armor.
-		// Use the same helper the medic code uses so armor-only patients keep us in medic mode.
-		if (!M_NeedRegen(self->enemy))
+		// In MEDIC mode, allow corpses (health <= 0) unless gibbed; otherwise require need regen.
+		if (self->enemy->health <= 0)
+		{
+			if (self->enemy->gib_health && self->enemy->health < self->enemy->gib_health)
+				hesDeadJim = true; // Gibbed corpse; can't revive.
+		}
+		else if (!M_NeedRegen(self->enemy))
 			hesDeadJim = true; // Target fully recovered (health and armor).
-		else if (self->enemy->gib_health && self->enemy->health < self->enemy->gib_health)
-			hesDeadJim = true; // Target is gibbed and cannot be revived.
 		// Otherwise, hesDeadJim remains false, and we proceed.
 	}
 	else // Standard checks

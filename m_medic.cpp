@@ -782,13 +782,25 @@ edict_t *healFindMonster(edict_t *self, float radius)
 	}
 
 	// Priority order:
-	// 1. Dead corpses (always prioritize resurrection - they'll join our team)
-	// 2. Injured teammates (for healing)
-	if (best_dead)
-		return best_dead;
-
-	if (best_injured_teammate)
-		return best_injured_teammate;
+	// Friendly/summoned medics should heal living allies before resurrecting corpses,
+	// so they don't ignore hurt players standing near a body.
+	if (self->monsterinfo.isfriendlyspawn || (self->monsterinfo.bonus_flags & BF_FRIENDLY))
+	{
+		if (best_injured_teammate)
+			return best_injured_teammate;
+		if (best_player_needs_armor)
+			return best_player_needs_armor;
+		if (best_dead)
+			return best_dead;
+	}
+	else
+	{
+		// Default behavior for enemy medics: resurrect first, then heal.
+		if (best_dead)
+			return best_dead;
+		if (best_injured_teammate)
+			return best_injured_teammate;
+	}
 
 	return best_player_needs_armor;
 }
@@ -824,6 +836,7 @@ void medic_check_heal(edict_t *self)
 
 		// Check if it's a player that needs healing
 		bool is_player = (ent->client != nullptr);
+		bool needs_armor_only = is_player && !is_dead && !is_critical && !is_hurt && PlayerNeedsArmor(ent);
 
 		// Calculate distances
 		float heal_distance = realrange(self, ent);
@@ -842,6 +855,11 @@ void medic_check_heal(edict_t *self)
 			else if (is_player && (is_hurt || M_NeedRegen(ent)) && heal_distance < MEDIC_MAX_HEAL_DISTANCE)
 			{
 				// Always prioritize healing players
+				should_heal = true;
+			}
+			// Allow pure armor-topoff targets when no corpse/crit target pulled us
+			else if (needs_armor_only && heal_distance < MEDIC_MAX_HEAL_DISTANCE * 0.75f)
+			{
 				should_heal = true;
 			}
 			else if (is_critical && heal_distance < MEDIC_MAX_HEAL_DISTANCE * 0.75f)
@@ -1698,6 +1716,15 @@ bool M_NeedRegen(edict_t *target)
 {
 	if (!target || !target->inuse)
 		return false;
+
+	// If target is dead, medic may want to resurrect (unless gibbed)
+	if (target->health <= 0)
+	{
+		// Gibbed corpses can't be revived
+		if (target->gib_health && target->health < target->gib_health)
+			return false;
+		return true;
+	}
 
 	// Check if target needs health.
 	if (target->health > 0 && target->health < target->max_health)
