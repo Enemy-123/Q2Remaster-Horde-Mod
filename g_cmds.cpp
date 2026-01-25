@@ -832,8 +832,12 @@ void Cmd_Summon_f(edict_t* ent)
 	monster->s.angles = vectoangles(dir);
 	monster->s.angles[PITCH] = 0;
 
-	// Mark as summoned BEFORE calling spawn
+	// Mark as summoned BEFORE calling spawn so internal scaling/flags apply
 	monster->monsterinfo.isfriendlyspawn = true;
+	monster->monsterinfo.issummoned = true;
+	if (ent->client) {
+		monster->monsterinfo.pvm_level = ent->client->pers.skills.monster_summon; // match strogg summoner scaling
+	}
 
 	// Call spawn function
 	spawn_temp_t st = spawn_temp_t::empty;
@@ -849,6 +853,7 @@ void Cmd_Summon_f(edict_t* ent)
 	// Set up all the references and flags (like strogg summoner)
 	monster->teammaster = ent;  // Direct reference to the player
 	monster->chain = ent;        // Direct reference to the player (no base)
+	monster->monsterinfo.issummoned = true; // ensure all AI/filters treat it as summoned
 
 	// Team assignment
 	monster->ctf_team = ent->client->resp.ctf_team;
@@ -867,6 +872,25 @@ void Cmd_Summon_f(edict_t* ent)
 
 	// Set touch function for pushing
 	monster->touch = strogg_summoned_touch;
+
+	// Track in player's summon list (ignore limits for cheat summon)
+	if (ent->client) {
+		bool added = false;
+		for (int i = 0; i < SummonConstants::MAX_SUMMONS_ARRAY_SIZE; ++i) {
+			if (!ent->client->resp.deployed_summons[i] || !ent->client->resp.deployed_summons[i]->inuse) {
+				ent->client->resp.deployed_summons[i] = monster;
+				added = true;
+				break;
+			}
+		}
+		if (!added) {
+			// overwrite last slot to keep selection/commands working even when over cap
+			ent->client->resp.deployed_summons[SummonConstants::MAX_SUMMONS_ARRAY_SIZE - 1] = monster;
+		}
+		ent->client->resp.num_summons++; // allow exceeding MAX_SUMMONS_PER_PLAYER
+		// Start upkeep timer like normal Strogg summons (still costs cubes in vortex if enabled)
+		monster->monsterinfo.upkeep_time = level.time + 1_sec;
+	}
 
 	gi.linkentity(monster);
 

@@ -1420,16 +1420,17 @@ void turret2Fire(edict_t* self) {
 		sentry_state_t* state = self->monsterinfo.sentry_state;
 		if (!state) return;
 		
-		// Handle heatbeam continuous firing state
-		if (!(self->monsterinfo.aiflags & AI_HOLD_FRAME)) {
-			// Start continuous heatbeam mode
-			self->monsterinfo.aiflags |= AI_HOLD_FRAME;
-			self->monsterinfo.duck_wait_time = level.time +
-				(self->monsterinfo.quadfire_time > level.time ? 4_sec : 3_sec);
-			self->monsterinfo.next_duck_time = level.time + 0.05_sec; // Fast update for smooth beam
-			state->heatbeam_active = true;
-			state->heatbeam_start_time = level.time;
-		}
+        // Handle heatbeam continuous firing state
+        if (!(self->monsterinfo.aiflags & AI_HOLD_FRAME)) {
+            // Start continuous heatbeam mode
+            self->monsterinfo.aiflags |= AI_HOLD_FRAME;
+            self->monsterinfo.duck_wait_time = level.time +
+                (self->monsterinfo.quadfire_time > level.time ? 4_sec : 3_sec);
+            self->monsterinfo.next_duck_time = level.time + 0.05_sec; // Fast update for smooth beam
+            state->heatbeam_active = true;
+            state->heatbeam_start_time = level.time;
+            state->heatbeam_duration = self->monsterinfo.duck_wait_time - level.time; // Track beam duration explicitly
+        }
 
 		// Fire heatbeam continuously while holding frame
 		if (self->monsterinfo.next_duck_time <= level.time) {
@@ -2264,6 +2265,7 @@ void SP_monster_sentrygun(edict_t* self)
     // IMPORTANT: Initialize all the fields to their default values.
     // This is the answer to your question: "is it really needed?" -> YES!
     sentry_state_t* state = self->monsterinfo.sentry_state;
+	*state = {}; // zero-initialize to avoid garbage in newly added fields
     state->last_target_time = 0_sec;
     state->last_enemy_change_time = 0_sec;
     state->previous_enemy = nullptr;
