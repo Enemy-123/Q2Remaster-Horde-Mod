@@ -463,6 +463,7 @@ bool finishHeal(edict_t *self)
 			// Inherit summoned properties from the medic
 			healee->monsterinfo.isfriendlyspawn = true;
 			healee->monsterinfo.issummoned = true; // Part of Strogg summoner system
+			healee->monsterinfo.upkeep_enabled = self->monsterinfo.upkeep_enabled;
 			healee->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 			healee->monsterinfo.bonus_flags |= BF_FRIENDLY;
 
@@ -476,7 +477,9 @@ bool finishHeal(edict_t *self)
 			healee->monsterinfo.pvm_level = self->monsterinfo.pvm_level;
 
 			// Initialize upkeep timer for revived monster (1 cube per second asynchronously)
-			healee->monsterinfo.upkeep_time = level.time + 1_sec;
+			healee->monsterinfo.upkeep_time = healee->monsterinfo.upkeep_enabled
+				? level.time + 1_sec
+				: 0_ms;
 
 			// Ensure proper collision for summoned monsters
 			healee->svflags &= ~SVF_PLAYER;

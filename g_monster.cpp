@@ -1536,7 +1536,11 @@ THINK(monster_think) (edict_t* self) -> void
 
 	// Monster upkeep system - drain 1 cube per second per summoned monster (asynchronous)
 	// Each monster has its own timer, so they drain independently based on spawn time
-	if (g_vortex->integer && self->monsterinfo.issummoned && self->chain && self->chain->client)
+	// Note: upkeep is only armed when the monster was spawned while vortex mode was enabled
+	if (g_vortex->integer &&
+		self->monsterinfo.upkeep_enabled &&
+		self->monsterinfo.issummoned &&
+		self->chain && self->chain->client)
 	{
 		// Check if it's time to drain a cube (1 second interval)
 		if (level.time >= self->monsterinfo.upkeep_time)
@@ -1554,6 +1558,8 @@ THINK(monster_think) (edict_t* self) -> void
 				gi.LocClient_Print(owner, PRINT_HIGH, "Couldn't keep up the cost - Removing summon!\n");
 				T_Damage(self, world, world, vec3_origin, self->s.origin,
 					vec3_origin, 99999, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG);
+				// Disable further upkeep processing in case the entity survives via hooks
+				self->monsterinfo.upkeep_enabled = false;
 				return; // Monster is being removed, exit early
 			}
 

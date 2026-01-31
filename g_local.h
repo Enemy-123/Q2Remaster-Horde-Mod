@@ -1927,6 +1927,7 @@ struct monsterinfo_t
 	uint8_t failsafe_teleport_count = 0; // Track how many times this monster was teleported due to failsafe (kill after threshold)
 	bool isfriendlyspawn = false; // corpse cleaning management
 	bool issummoned = false; // Part of Strogg summoner system (for removal/limits)
+	bool upkeep_enabled = false; // Whether this monster should drain power cubes (vortex-only)
 	bool IS_BOSS = false; // Is monster a boss?
 	bool effects_applied = false; // prevention for applying more that 1 time effect
 	bool BOSS_DEATH_HANDLED = false; // is dead?

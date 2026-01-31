@@ -174,6 +174,7 @@ static edict_t* spawn_strogg_monster(edict_t* player, const vec3_t& origin, cons
 	// Mark as summoned BEFORE calling spawn functions
 	monster->monsterinfo.isfriendlyspawn = true;
 	monster->monsterinfo.issummoned = true; // Part of Strogg summoner system
+	monster->monsterinfo.upkeep_enabled = (g_vortex && g_vortex->integer != 0); // Only drain cubes in vortex mode
 
 	// Set AI flags
 	monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
@@ -312,7 +313,9 @@ static edict_t* spawn_strogg_monster(edict_t* player, const vec3_t& origin, cons
 
 	// Initialize upkeep timer - each monster drains 1 cube per second asynchronously
 	// Set initial time to 1 second from now (staggered based on spawn time)
-	monster->monsterinfo.upkeep_time = level.time + 1_sec;
+	monster->monsterinfo.upkeep_time = monster->monsterinfo.upkeep_enabled
+		? level.time + 1_sec
+		: 0_ms;
 
 	// Important: Do NOT set monster->owner = player
 	// We want the monster to remain independent with its own collision
@@ -568,6 +571,10 @@ void InheritSummonedProperties(edict_t* child, edict_t* parent, bool full_setup 
 	child->teammaster = parent->chain;  // chain IS the player now
 	child->monsterinfo.isfriendlyspawn = true;
 	child->monsterinfo.issummoned = true; // Part of Strogg summoner system
+	child->monsterinfo.upkeep_enabled = parent->monsterinfo.upkeep_enabled;
+	child->monsterinfo.upkeep_time = child->monsterinfo.upkeep_enabled
+		? level.time + 1_sec
+		: 0_ms;
 
 	// Full setup for spawned reinforcements (not needed for boss transformations)
 	if (full_setup) {

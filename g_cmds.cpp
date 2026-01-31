@@ -835,6 +835,7 @@ void Cmd_Summon_f(edict_t* ent)
 	// Mark as summoned BEFORE calling spawn so internal scaling/flags apply
 	monster->monsterinfo.isfriendlyspawn = true;
 	monster->monsterinfo.issummoned = true;
+	monster->monsterinfo.upkeep_enabled = (g_vortex && g_vortex->integer != 0);
 	if (ent->client) {
 		monster->monsterinfo.pvm_level = ent->client->pers.skills.monster_summon; // match strogg summoner scaling
 	}
@@ -889,7 +890,9 @@ void Cmd_Summon_f(edict_t* ent)
 		}
 		ent->client->resp.num_summons++; // allow exceeding MAX_SUMMONS_PER_PLAYER
 		// Start upkeep timer like normal Strogg summons (still costs cubes in vortex if enabled)
-		monster->monsterinfo.upkeep_time = level.time + 1_sec;
+		monster->monsterinfo.upkeep_time = monster->monsterinfo.upkeep_enabled
+			? level.time + 1_sec
+			: 0_ms;
 	}
 
 	gi.linkentity(monster);
