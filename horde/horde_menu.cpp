@@ -6414,6 +6414,20 @@ public:
 		return *this;
 	}
 
+	bool append_checked(std::string_view text, size_t reserve_margin = 0) {
+		if (text.empty())
+			return true;
+
+		const size_t limit = MAX_CTF_STAT_LENGTH;
+		const size_t safe_limit = (limit > (reserve_margin + 1)) ? (limit - reserve_margin - 1) : 0;
+
+		if (buffer.size() + text.size() > safe_limit)
+			return false;
+
+		buffer.append(text);
+		return true;
+	}
+
 	std::string str() const {
 		return buffer;
 	}
@@ -6494,22 +6508,27 @@ public:
 		{
 			// string2 is better than loc_string2 here it seems
 			// Element 1: Wave Number (aligned left)
-			layout_builder.append(fmt::format(
+			const std::string wave_line = fmt::format(
 				"xv -140 yv -5 string2 \"Wave: {}\" \n",
-				last_wave_number));
+				last_wave_number);
+			if (!layout_builder.append_checked(wave_line, LAYOUT_SAFETY_MARGIN))
+				return;
 
 			// Element 2: Stroggs Remaining (aligned further to the right)
-			layout_builder.append(fmt::format(
+			const std::string strogg_line = fmt::format(
 				"xv -40 yv -5 string2 \"Stroggs: {}\" \n",
-				GetStroggsNum()));
+				GetStroggsNum());
+			if (!layout_builder.append_checked(strogg_line, LAYOUT_SAFETY_MARGIN))
+				return;
 		}
 
 		// Time limit remains the same
 		if (timelimit->value)
 		{
-			layout_builder.append(fmt::format(
+			const std::string time_line = fmt::format(
 				"xv 340 yv -33 time_limit {} \n",
-				gi.ServerFrame() + ((gtime_t::from_min(timelimit->value) - level.time)).milliseconds() / gi.frame_time_ms));
+				gi.ServerFrame() + ((gtime_t::from_min(timelimit->value) - level.time)).milliseconds() / gi.frame_time_ms);
+			(void)layout_builder.append_checked(time_line, LAYOUT_SAFETY_MARGIN);
 		}
 	}
 
@@ -6518,8 +6537,10 @@ public:
 	{
 		const char *horde_dogtag_path = "/tags/etqw_strogg.png";
 		// Display Strogg team icon
-		layout_builder.append(fmt::format(
-			"xv -140 yv 3 picn {} \n", horde_dogtag_path));
+		const std::string icon_line = fmt::format(
+			"xv -140 yv 3 picn {} \n", horde_dogtag_path);
+		if (!layout_builder.append_checked(icon_line, LAYOUT_SAFETY_MARGIN))
+			return;
 
 		if (!level.intermissiontime)
 		{
@@ -6538,14 +6559,15 @@ public:
 						activeBonuses = "Error";
 					}
 				}
-				layout_builder.append(fmt::format(
-					"xv 208 yv 8 string \"{}\" \n", activeBonuses));
+				const std::string bonus_line = fmt::format(
+					"xv 208 yv 8 string \"{}\" \n", activeBonuses);
+				(void)layout_builder.append_checked(bonus_line, LAYOUT_SAFETY_MARGIN);
 			}
 		}
 		else
 		{
 			// Intermission screen - display Strogg team icon (uses stat 26 = STAT_CTF_TEAM2_HEADER, right side)
-			layout_builder.append("if 26 xv 208 yv 8 pic 25 endif \n");
+			(void)layout_builder.append_checked("if 26 xv 208 yv 8 pic 25 endif \n", LAYOUT_SAFETY_MARGIN);
 		}
 	}
 
@@ -6557,16 +6579,21 @@ public:
 		int header_y = PLAYER_Y_START - PLAYER_Y_SPACING;
 				if (g_vortex->integer)
 		{
-			layout_builder.append(fmt::format(
+			const std::string header_line = fmt::format(
 				"yv {} xv -140 string2 \"Name\" xv 70 string2 \"Score\" xv 120 string2 \"Lv\" xv 160 string2 \"Ping\" \n",
-				header_y));
+				header_y);
+			if (!layout_builder.append_checked(header_line, LAYOUT_SAFETY_MARGIN))
+				return;
 		}
 		else
 		{
-			layout_builder.append(fmt::format(
+			const std::string header_line = fmt::format(
 				"yv {} xv -140 string2 \"Name\" xv 70 string2 \"Score\" xv 120 string2 \"Ping\" \n",
-				header_y));
+				header_y);
+			if (!layout_builder.append_checked(header_line, LAYOUT_SAFETY_MARGIN))
+				return;
 		}
+		bool truncated = false;
 		for (size_t i = 0; i < std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY); ++i) {
 			const auto& player = team_players[i];
 		edict_t *player_ent = g_edicts + 1 + player.index;
@@ -6575,8 +6602,12 @@ public:
 
 			// Add death indicator if player is dead
 			if (player.is_dead) {
-				layout_builder.append(fmt::format(
-					"xv -185 yv {} string \"[Dead]\" ", y));
+				const std::string dead_line = fmt::format(
+					"xv -185 yv {} string \"[Dead]\" ", y);
+				if (!layout_builder.append_checked(dead_line, LAYOUT_SAFETY_MARGIN)) {
+					truncated = true;
+					break;
+				}
 			}
 
 			// Add player information (truncate name to prevent overflow)
@@ -6585,9 +6616,19 @@ public:
 					display_name.resize(17);
 					display_name += "...";
 				}
-				layout_builder.append(fmt::format(
+				const std::string player_line = fmt::format(
 					"yv {} xv -140 string \"{}\" xv 70 string \"{}\"  xv 120 string \"{}\" \n",
-					y, display_name, player.score, player.ping));
+					y, display_name, player.score, player.ping);
+				if (!layout_builder.append_checked(player_line, LAYOUT_SAFETY_MARGIN)) {
+					truncated = true;
+					break;
+				}
+		}
+		if (truncated) {
+			const int y = PLAYER_Y_START + static_cast<int>(std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY)) * PLAYER_Y_SPACING;
+			const std::string more_line = fmt::format(
+				"xv -90 yv {} string2 \"And more...\" \n", y);
+			(void)layout_builder.append_checked(more_line, LAYOUT_SAFETY_MARGIN);
 		}
 	}
 
@@ -6598,8 +6639,10 @@ public:
 			int y = PLAYER_Y_START + (std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY) + 2) * PLAYER_Y_SPACING;
 
 			// Add spectator header
-			layout_builder.append(fmt::format(
-				"xv -90 yv {} loc_string2 0 \"Spectators & AFK\" \n", y));
+			const std::string spec_header = fmt::format(
+				"xv -90 yv {} loc_string2 0 \"Spectators & AFK\" \n", y);
+			if (!layout_builder.append_checked(spec_header, LAYOUT_SAFETY_MARGIN))
+				return;
 			y += PLAYER_Y_SPACING;
 
 			// Add each spectator
@@ -6619,14 +6662,19 @@ public:
 				// Optimized format: Name, Score, Ping (spectators don't have levels)
 				if (!g_vortex->integer)
 				{
-					layout_builder.append(fmt::format(
+					const std::string spec_line = fmt::format(
 					"yv {} xv -140 string2 \"{}\" xv 70 string2 \"{}\" xv 120 string2 \"{}\" \n",
-					y, display_spec_name, spec.score, spec.ping));
+					y, display_spec_name, spec.score, spec.ping);
+					if (!layout_builder.append_checked(spec_line, LAYOUT_SAFETY_MARGIN))
+						break;
 				}
 				else	{
-				layout_builder.append(fmt::format(
+				const std::string spec_line = fmt::format(
 					"yv {} xv -140 string2 \"{}\" xv 70 string2 \"{}\" xv 160 string2 \"{}\" \n",
-					y, display_spec_name, spec.score, spec.ping));}
+					y, display_spec_name, spec.score, spec.ping);
+				if (!layout_builder.append_checked(spec_line, LAYOUT_SAFETY_MARGIN))
+					break;
+				}
 
 				y += PLAYER_Y_SPACING;
 			}
@@ -6643,8 +6691,9 @@ public:
 
 			// Check if we have enough space for the help text (reserve ~150 bytes)
 			if (layout_builder.size() < MAX_CTF_STAT_LENGTH - 150) {
-				layout_builder.append(fmt::format(
-					"xv 0 yb -55 cstring2 \"{}\" \n", help_text));
+				const std::string help_line = fmt::format(
+					"xv 0 yb -55 cstring2 \"{}\" \n", help_text);
+				(void)layout_builder.append_checked(help_line, LAYOUT_SAFETY_MARGIN);
 			}
 		}
 		else
@@ -6658,10 +6707,11 @@ public:
 			// The ifgef block needs ~100 chars, so reserve 150 to be safe
 			if (layout_builder.size() < MAX_CTF_STAT_LENGTH - 150) {
 				// It will display the message after a 5-second delay.
-				layout_builder.append(fmt::format(
+				const std::string intermission_line = fmt::format(
 					"ifgef {} yb -48 xv 0 loc_cstring2 0 \"{}\" endif \n",
 					level.intermission_server_frame + (5_sec).frames(),
-					message));
+					message);
+				(void)layout_builder.append_checked(intermission_line, LAYOUT_SAFETY_MARGIN);
 			}
 		}
 	}
@@ -6695,9 +6745,17 @@ void HordeScoreboardMessage(edict_t* ent, edict_t* killer) {
 
 	// Ensure we don't exceed layout size limits
 	if (final_layout.size() >= MAX_CTF_STAT_LENGTH) {
-		gi.Com_PrintFmt("WARNING: Scoreboard layout exceeded size limit ({} >= {}), truncating may cause issues\n",
-						final_layout.size(), MAX_CTF_STAT_LENGTH);
-		final_layout.resize(MAX_CTF_STAT_LENGTH - 1);
+		if (developer && developer->integer)
+			gi.Com_PrintFmt("ERROR: Scoreboard layout exceeded size limit ({} >= {}), not sending\n",
+							final_layout.size(), MAX_CTF_STAT_LENGTH);
+		return;
+	}
+
+	// Validate layout before sending to client
+	if (!final_layout.empty() && !ValidateLayoutString(final_layout, "HordeScoreboardMessage")) {
+		if (developer && developer->integer)
+			gi.Com_Print("ERROR: HordeScoreboardMessage layout failed validation, not sending\n");
+		return;
 	}
 
 	// Send to client
@@ -8108,4 +8166,3 @@ void OpenBonusManagementMenu(edict_t* ent, int cursor_position) {
 
 	PMenu_Open(ent, entries, cursor_position, count, nullptr, nullptr);
 }
-
