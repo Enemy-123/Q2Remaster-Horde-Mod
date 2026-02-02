@@ -1500,11 +1500,18 @@ void Cmd_Vortex_f(edict_t* ent)
 	// If no argument provided, display current status
 	if (gi.argc() < 2)
 	{
-		const char* mode_name = g_vortex->integer ? "RPG Mode" : "Classic Mode";
+		const char* mode_name = g_vortex->integer ? "Vortex RPG Mode" : "Classic Mode";
 		gi.LocClient_Print(ent, PRINT_HIGH, "Vortex is currently set to {} ({})\n", g_vortex->integer, mode_name);
+		if (g_vortex->latched_string)
+		{
+			int pending_value = atoi(g_vortex->latched_string);
+			const char* pending_mode = pending_value ? "RPG Mode" : "Classic Mode";
+			gi.LocClient_Print(ent, PRINT_HIGH, "Pending change to {} (takes effect on next map)\n", pending_mode);
+		}
 		gi.LocClient_Print(ent, PRINT_HIGH, "Usage: vortex <0|1>\n");
 		gi.LocClient_Print(ent, PRINT_HIGH, "  0 = Classic Mode (no RPG features)\n");
 		gi.LocClient_Print(ent, PRINT_HIGH, "  1 = RPG Mode (default)\n");
+		gi.LocClient_Print(ent, PRINT_HIGH, "  Changes take effect on next map change\n");
 		return;
 	}
 
@@ -1518,11 +1525,26 @@ void Cmd_Vortex_f(edict_t* ent)
 		return;
 	}
 
-	// Set the new value
+	int current_value = g_vortex->integer;
+
+	// Set the new value (latched, takes effect on map change)
 	gi.cvar_set("vortex", new_value ? "1" : "0");
 
 	const char* mode_name = new_value ? "RPG Mode" : "Classic Mode";
-	gi.LocBroadcast_Print(PRINT_HIGH, "Vortex mode changed to {} by {}\n", mode_name, ent->client->pers.netname);
+	if (current_value == new_value && !g_vortex->latched_string)
+	{
+		gi.LocClient_Print(ent, PRINT_HIGH, "Vortex is already set to {}.\n", mode_name);
+		return;
+	}
+
+	if (g_vortex->integer != new_value)
+	{
+		gi.LocBroadcast_Print(PRINT_HIGH, "Vortex mode will change to {} after the next map change (set by {})\n", mode_name, ent->client->pers.netname);
+	}
+	else
+	{
+		gi.LocBroadcast_Print(PRINT_HIGH, "Vortex mode changed to {} by {}\n", mode_name, ent->client->pers.netname);
+	}
 }
 
 /*
