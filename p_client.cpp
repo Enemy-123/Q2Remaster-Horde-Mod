@@ -5273,6 +5273,29 @@ inline RespawnTarget G_FindSquadRespawnTarget() {
 		for (auto player_ent : active_players()) { process_single_player(player_ent); }
 	}
 
+	// If combat will free a valid respawn target sooner than bad-area fallback,
+	// prioritize the combat gate in both state and UI to avoid misleading messages.
+	if (player_in_combat && player_in_bad_area && min_combat_time_left <= min_bad_area_time_left) {
+		auto demote_bad_area_to_waiting = [](edict_t* player) {
+			if (!player || !player->client || player->deadflag)
+				return;
+
+			if (player->client->coop_respawn_state == COOP_RESPAWN_BAD_AREA ||
+				player->client->coop_respawn_state == COOP_RESPAWN_BLOCKED)
+				player->client->coop_respawn_state = COOP_RESPAWN_WAITING;
+		};
+
+		if (is_horde_mode) {
+			for (auto player_ent : active_players_no_spect()) { demote_bad_area_to_waiting(player_ent); }
+		} else {
+			for (auto player_ent : active_players()) { demote_bad_area_to_waiting(player_ent); }
+		}
+
+		player_in_bad_area = false;
+		min_bad_area_time_left = BAD_AREA_TIMEOUT;
+		force_respawn_possible = false;
+	}
+
 	// --- Update UI Messages (Runs Every Frame) ---
 	bool update_combat_msg = false;
 	bool update_bad_area_msg = false;
