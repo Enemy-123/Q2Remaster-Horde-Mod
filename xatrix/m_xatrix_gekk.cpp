@@ -14,6 +14,11 @@
 constexpr spawnflags_t SPAWNFLAG_GEKK_CHANT = 8_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_GEKK_NOJUMPING = 16_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_GEKK_NOSWIM = 32_spawnflag;
+constexpr int32_t GEKK_JUMP_SUCCESS_LIMIT = 4;
+constexpr gtime_t GEKK_JUMP_COOLDOWN = 3_sec;
+constexpr gtime_t GEKK_WALL_BOUNCE_WINDOW = 2_sec;
+constexpr float GEKK_STRAFE_HEIGHT_WINDOW = 48.0f;
+constexpr float GEKK_FRONT_FACING_DOT = 0.5f;
 
 static cached_soundindex sound_hordespawn;
 static cached_soundindex sound_swing;
@@ -73,12 +78,62 @@ bool gekk_check_melee(edict_t* self)
 	return range_to(self, self->enemy) <= RANGE_MELEE;
 }
 
+static bool gekk_jump_cooldown_active(edict_t* self)
+{
+	return self->monsterinfo.jump_time > level.time;
+}
+
+static void gekk_record_jump_success(edict_t* self)
+{
+	if (++self->monsterinfo.jump_success_streak < GEKK_JUMP_SUCCESS_LIMIT)
+		return;
+
+	self->monsterinfo.jump_success_streak = 0;
+	self->monsterinfo.jump_time = level.time + GEKK_JUMP_COOLDOWN;
+}
+
+static void gekk_apply_jump_strafe(edict_t* self, vec3_t& velocity, float height_diff, float strafe_speed)
+{
+	if (!M_HasValidTarget(self))
+		return;
+
+	if (height_diff < -GEKK_STRAFE_HEIGHT_WINDOW || height_diff > GEKK_STRAFE_HEIGHT_WINDOW)
+		return;
+
+	vec3_t enemy_forward;
+	AngleVectors(self->enemy->s.angles, enemy_forward, nullptr, nullptr);
+	enemy_forward[2] = 0;
+
+	if (enemy_forward.lengthSquared() <= 0.001f)
+		return;
+
+	enemy_forward.normalize();
+
+	vec3_t enemy_to_self = self->s.origin - self->enemy->s.origin;
+	enemy_to_self[2] = 0;
+
+	if (enemy_to_self.lengthSquared() <= 0.001f)
+		return;
+
+	enemy_to_self.normalize();
+
+	if (enemy_forward.dot(enemy_to_self) < GEKK_FRONT_FACING_DOT)
+		return;
+
+	auto const vectors = AngleVectors(self->s.angles);
+	self->monsterinfo.lefty = !self->monsterinfo.lefty;
+	velocity += vectors.right * (self->monsterinfo.lefty ? -strafe_speed : strafe_speed);
+}
+
 bool gekk_check_jump(edict_t* self)
 {
 	if (!M_HasValidTarget(self))
 	{
 		return false; // Can't jump at a non-existent or dead target.
 	}
+
+	if (self->spawnflags.has(SPAWNFLAG_GEKK_NOJUMPING) || gekk_jump_cooldown_active(self))
+		return false;
 
 	vec3_t v{};
 	float  distance;
@@ -111,6 +166,9 @@ bool gekk_check_jump_close(edict_t* self)
 	{
 		return false; // Can't at a non-existent or dead target.
 	}
+
+	if (self->spawnflags.has(SPAWNFLAG_GEKK_NOJUMPING) || gekk_jump_cooldown_active(self))
+		return false;
 
 	vec3_t v{};
 	float  distance;
@@ -1118,10 +1176,12 @@ TOUCH(gekk_jump_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool o
 
 		// Re-launch toward enemy with smart height and speed
 		self->velocity = vectors.forward * forward_velocity + vectors.up * up_velocity;
+		gekk_apply_jump_strafe(self, self->velocity, height_diff, 260.0f);
 		self->groundentity = nullptr;
 		self->gravity = 1.0f;
 
 		gi.sound(self, CHAN_VOICE, sound_sight, 0.3f, ATTN_NORM, 0);
+		gekk_record_jump_success(self); // wall-climb/bounce counts toward jump cooldown
 		return;
 	}
 
@@ -1140,6 +1200,7 @@ TOUCH(gekk_jump_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool o
 			damage = irandom(10, 20);
 			T_Damage(other, self, self, self->velocity, point, normal, damage, damage, DAMAGE_NONE, MOD_GEKK);
 			self->style = 0;
+			gekk_record_jump_success(self);
 		}
 	}
 
@@ -1176,9 +1237,16 @@ void gekk_jump_takeoff(edict_t* self)
 		self->velocity[2] = 400;
 	}
 
+	if (M_HasValidTarget(self))
+	{
+		float const height_diff = (self->enemy->s.origin[2] + self->enemy->viewheight) - self->s.origin[2];
+		gekk_apply_jump_strafe(self, self->velocity, height_diff, 220.0f);
+	}
+
 	self->groundentity = nullptr;
 	self->monsterinfo.aiflags |= AI_DUCKED;
 	self->monsterinfo.attack_finished = level.time + 3_sec;
+	self->teleport_time = level.time + GEKK_WALL_BOUNCE_WINDOW;
 	self->touch = gekk_jump_touch;
 	self->style = 1;
 }
@@ -1207,9 +1275,13 @@ void gekk_jump_takeoff2(edict_t* self)
 		self->velocity[2] = 300;
 	}
 
+	float const height_diff = (self->enemy->s.origin[2] + self->enemy->viewheight) - self->s.origin[2];
+	gekk_apply_jump_strafe(self, self->velocity, height_diff, 180.0f);
+
 	self->groundentity = nullptr;
 	self->monsterinfo.aiflags |= AI_DUCKED;
 	self->monsterinfo.attack_finished = level.time + 3_sec;
+	self->teleport_time = level.time + GEKK_WALL_BOUNCE_WINDOW;
 	self->touch = gekk_jump_touch;
 	self->style = 1;
 }
@@ -1226,6 +1298,8 @@ void gekk_check_landing(edict_t* self)
 	{
 		gi.sound(self, CHAN_WEAPON, sound_thud, 1, ATTN_NORM, 0);
 		self->monsterinfo.attack_finished = 0_ms;
+		if (self->style == 1)
+			self->style = 0;
 
 		if (self->monsterinfo.unduck)
 			self->monsterinfo.unduck(self);
@@ -1930,6 +2004,8 @@ void SP_monster_gekk(edict_t* self)
 	self->monsterinfo.drop_height = 256;
 	// HORDE MOD: Increased jump height from 68 to 88 (30% increase) for better obstacle navigation
 	self->monsterinfo.jump_height = 88;
+	self->monsterinfo.jump_time = 0_ms;
+	self->monsterinfo.jump_success_streak = 0;
 	self->monsterinfo.blocked = gekk_blocked;
 
 	gekk_set_fly_parameters(self);

@@ -1895,6 +1895,7 @@ struct monsterinfo_t
 	std::array<uint8_t, MAX_REINFORCEMENTS>	chosen_reinforcements; // readied for spawn; 255 is value for none
 
 	gtime_t jump_time;
+	uint8_t jump_success_streak = 0; // leap success counter (used for jump cooldown logic)
 
 	// Anti-stacking system fields
 	vec3_t repulsion_vector;        // Current repulsion force from nearby monsters
