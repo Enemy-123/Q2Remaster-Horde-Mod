@@ -796,6 +796,11 @@ THINK(MegaHealth_think) (edict_t* self) -> void
 bool Pickup_Health(edict_t* ent, edict_t* other)
 {
 	int health_flags = (ent->style ? ent->style : ent->item->tag);
+	bool is_mega_health = (ent->item && ent->item->id == IT_HEALTH_MEGA);
+	constexpr int mega_health_cap = 150;
+
+	if (is_mega_health && other->health >= mega_health_cap)
+		return false;
 
 	if (!(health_flags & HEALTH_IGNORE_MAX))
 		if (other->health >= other->max_health)
@@ -803,10 +808,11 @@ bool Pickup_Health(edict_t* ent, edict_t* other)
 
 	int count = ent->count ? ent->count : ent->item->quantity;
 
-	// Apply H/A Pickup skill multiplier
+	// Apply H/A Pickup skill multiplier to regular health pickups only.
+	// Mega health is handled separately with a fixed cap.
 	if (other->client) {
 		float multiplier = GetHAPickupMultiplier(other);
-		if (multiplier > 1.0f) {
+		if (!is_mega_health && multiplier > 1.0f) {
 			count = (int)(count * multiplier);
 		}
 	}
@@ -822,6 +828,9 @@ bool Pickup_Health(edict_t* ent, edict_t* other)
 	if (ctf->integer && other->health > 250 && count > 25)
 		other->health = 250;
 	//ZOID
+
+	if (is_mega_health && other->health > mega_health_cap)
+		other->health = mega_health_cap;
 
 	if (!(health_flags & HEALTH_IGNORE_MAX))
 	{

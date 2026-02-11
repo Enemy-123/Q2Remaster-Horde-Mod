@@ -16,9 +16,11 @@ constexpr spawnflags_t SPAWNFLAG_GEKK_NOJUMPING = 16_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_GEKK_NOSWIM = 32_spawnflag;
 constexpr int32_t GEKK_JUMP_SUCCESS_LIMIT = 4;
 constexpr gtime_t GEKK_JUMP_COOLDOWN = 3_sec;
+constexpr gtime_t GEKK_JUMP_SPACING_COOLDOWN = 450_ms;
 constexpr gtime_t GEKK_WALL_BOUNCE_WINDOW = 2_sec;
 constexpr float GEKK_STRAFE_HEIGHT_WINDOW = 48.0f;
 constexpr float GEKK_FRONT_FACING_DOT = 0.5f;
+constexpr float GEKK_HEIGHT_ADVANTAGE_COOLDOWN = 24.0f;
 
 static cached_soundindex sound_hordespawn;
 static cached_soundindex sound_swing;
@@ -90,6 +92,23 @@ static void gekk_record_jump_success(edict_t* self)
 
 	self->monsterinfo.jump_success_streak = 0;
 	self->monsterinfo.jump_time = level.time + GEKK_JUMP_COOLDOWN;
+}
+
+static void gekk_apply_jump_spacing_cooldown(edict_t* self)
+{
+	if (!M_HasValidTarget(self))
+		return;
+
+	if (!visible(self, self->enemy, false))
+		return;
+
+	float const enemy_height = self->enemy->s.origin[2] + self->enemy->viewheight;
+	if (self->s.origin[2] <= (enemy_height + GEKK_HEIGHT_ADVANTAGE_COOLDOWN))
+		return;
+
+	gtime_t const spacing_end = level.time + GEKK_JUMP_SPACING_COOLDOWN;
+	if (self->monsterinfo.jump_time < spacing_end)
+		self->monsterinfo.jump_time = spacing_end;
 }
 
 static void gekk_apply_jump_strafe(edict_t* self, vec3_t& velocity, float height_diff, float strafe_speed)
@@ -1131,10 +1150,15 @@ TOUCH(gekk_jump_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool o
 
 		// BOUNCE RESTRICTIONS: Don't bounce if:
 		// 1. Bounce window expired (more than 2 seconds since jump started)
-		// 2. Gekk is already ABOVE enemy (would get stuck in wall)
+		// 2. Gekk is already ABOVE enemy while visible (risk of ceiling/corner loop)
 		if (level.time > self->teleport_time)//|| self_height > enemy_height)
 		{
 			return; // Don't bounce - let physics handle it naturally
+		}
+		if (visible(self, self->enemy, false) && self_height > (enemy_height + GEKK_HEIGHT_ADVANTAGE_COOLDOWN))
+		{
+			gekk_apply_jump_spacing_cooldown(self);
+			return;
 		}
 
 		// Aim directly at enemy
@@ -1247,6 +1271,7 @@ void gekk_jump_takeoff(edict_t* self)
 	self->monsterinfo.aiflags |= AI_DUCKED;
 	self->monsterinfo.attack_finished = level.time + 3_sec;
 	self->teleport_time = level.time + GEKK_WALL_BOUNCE_WINDOW;
+	gekk_apply_jump_spacing_cooldown(self);
 	self->touch = gekk_jump_touch;
 	self->style = 1;
 }
@@ -1282,6 +1307,7 @@ void gekk_jump_takeoff2(edict_t* self)
 	self->monsterinfo.aiflags |= AI_DUCKED;
 	self->monsterinfo.attack_finished = level.time + 3_sec;
 	self->teleport_time = level.time + GEKK_WALL_BOUNCE_WINDOW;
+	gekk_apply_jump_spacing_cooldown(self);
 	self->touch = gekk_jump_touch;
 	self->style = 1;
 }
