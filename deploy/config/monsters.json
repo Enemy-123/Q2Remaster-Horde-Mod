@@ -175,7 +175,7 @@
       }
     },
     "gunner_vanilla": {
-      "health": 95,
+      "health": 175,
       "power_armor": 85,
       "power_armor_type": "combat",
       "damage_scale": 0.5,
@@ -574,7 +574,7 @@
       }
     },
     "spider": {
-      "health": 180,
+      "health": 550,
       "power_armor_power": 0,
       "damage_scale": 1,
       "health_scale": 1
@@ -777,8 +777,8 @@
       }
     },
     "janitor": {
-      "health": 300,
-      "power_armor_power": 400,
+      "health": 1075,
+      "power_armor_power": 500,
       "power_armor_type": "screen",
       "damage_scale": 1.2,
       "health_scale": 1,
@@ -787,8 +787,8 @@
       }
     },
     "janitor2": {
-      "health": 280,
-      "power_armor_power": 150,
+      "health": 600,
+      "power_armor_power": 385,
       "power_armor_type": "shield",
       "damage_scale": 1.1,
       "health_scale": 1,
@@ -1031,7 +1031,7 @@
       "addon_power_armor": 35
     },
     "gunner_vanilla": {
-      "initial_health": 75,
+      "initial_health": 175,
       "addon_health": 20,
       "initial_armor": 85,
       "addon_armor": 20
@@ -1061,15 +1061,15 @@
       "addon_armor": 15
     },
     "janitor": {
-      "initial_health": 300,
+      "initial_health": 1075,
       "addon_health": 50,
-      "initial_armor": 400,
+      "initial_armor": 500,
       "addon_armor": 100
     },
     "janitor2": {
-      "initial_health": 280,
+      "initial_health": 600,
       "addon_health": 50,
-      "initial_armor": 150,
+      "initial_armor": 385,
       "addon_armor": 40
     },
     "jorg_small": {
@@ -1193,7 +1193,7 @@
       "addon_armor": 15
     },
     "spider": {
-      "initial_health": 180,
+      "initial_health": 550,
       "addon_health": 40,
       "initial_armor": 0,
       "addon_armor": 0
