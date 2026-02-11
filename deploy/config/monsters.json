@@ -165,7 +165,7 @@
       }
     },
     "gunner": {
-      "health": 135,
+      "health": 175,
       "power_armor_power": 85,
       "power_armor_type": "shield",
       "damage_scale": 1,
@@ -205,7 +205,7 @@
       }
     },
     "guncmdr": {
-      "health": 250,
+      "health": 325,
       "power_armor_power": 120,
       "power_armor_type": "shield",
       "damage_scale": 1,
@@ -269,7 +269,7 @@
       }
     },
     "tank": {
-      "health": 385,
+      "health": 630,
       "armor_power": 300,
       "armor_type": "combat",
       "damage_scale": 1,
@@ -281,7 +281,7 @@
       }
     },
     "tank_commander": {
-      "health": 440,
+      "health": 1000,
       "armor_power": 450,
       "armor_type": "combat",
       "damage_scale": 1.2,
@@ -326,7 +326,7 @@
       }
     },
     "chick": {
-      "health": 65,
+      "health": 145,
       "power_armor_power": 45,
       "power_armor_type": "shield",
       "damage_scale": 1,
@@ -377,13 +377,13 @@
       "damage_scale": 0.7
     },
     "redmutant": {
-      "health": 220,
+      "health": 520,
       "power_armor_power": 0,
       "damage_scale": 1,
       "health_scale": 1
     },
     "berserk": {
-      "health": 195,
+      "health": 295,
       "armor_power": 110,
       "armor_type": "combat",
       "damage_scale": 1.47,
@@ -621,7 +621,7 @@
       }
     },
     "shambler": {
-      "health": 375,
+      "health": 650,
       "power_armor_power": 0,
       "damage_scale": 1,
       "health_scale": 1,
@@ -849,7 +849,7 @@
       "addon_power_armor": 30
     },
     "berserk": {
-      "initial_health": 195,
+      "initial_health": 295,
       "addon_health": 70,
       "initial_armor": 110,
       "addon_armor": 30
@@ -899,7 +899,7 @@
       "addon_power_armor": 40
     },
     "chick": {
-      "initial_health": 50,
+      "initial_health": 145,
       "addon_health": 15,
       "initial_power_armor": 25,
       "addon_power_armor": 15
@@ -1007,7 +1007,7 @@
       "addon_power_armor": 40
     },
     "guncmdr": {
-      "initial_health": 250,
+      "initial_health": 325,
       "addon_health": 40,
       "initial_armor": 120,
       "addon_armor": 30
@@ -1025,7 +1025,7 @@
       "addon_armor": 40
     },
     "gunner": {
-      "initial_health": 90,
+      "initial_health": 175,
       "addon_health": 25,
       "initial_power_armor": 65,
       "addon_power_armor": 35
@@ -1127,7 +1127,7 @@
       "addon_power_armor": 100
     },
     "redmutant": {
-      "initial_health": 220,
+      "initial_health": 520,
       "addon_health": 90,
       "initial_armor": 0,
       "addon_armor": 0
@@ -1139,7 +1139,7 @@
       "addon_armor": 0
     },
     "shambler": {
-      "initial_health": 375,
+      "initial_health": 650,
       "addon_health": 60,
       "initial_armor": 0,
       "addon_armor": 0
@@ -1205,7 +1205,7 @@
       "addon_armor": 0
     },
     "tank": {
-      "initial_health": 385,
+      "initial_health": 630,
       "addon_health": 40,
       "initial_armor": 300,
       "addon_armor": 105
@@ -1217,7 +1217,7 @@
       "addon_armor": 120
     },
     "tank_commander": {
-      "initial_health": 440,
+      "initial_health": 1000,
       "addon_health": 60,
       "initial_armor": 450,
       "addon_armor": 110

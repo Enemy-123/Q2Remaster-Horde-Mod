@@ -556,6 +556,13 @@ static const BenefitID AUTO_UPGRADE_PRIORITY_WEAPONS[] = {
     BenefitID::CLUSTER_PROX
 };
 
+static inline int32_t GetBenefitCost(BenefitID benefit_id) {
+    if (benefit_id == BenefitID::BFG_GRAV_PULL || benefit_id == BenefitID::CLUSTER_PROX) {
+        return 3;
+    }
+    return 1;
+}
+
 // Helper function to auto-buy from a specific category using priority order
 static void AutoBuyCategory(edict_t* player, BenefitCategory category, bool ignore_wave_requirements = false) {
     if (!player || !player->client) return;
@@ -587,11 +594,7 @@ static void AutoBuyCategory(edict_t* player, BenefitCategory category, bool igno
         }
 
         // Set costs based on benefit type
-        int32_t cost = 1; // Default cost
-        if (category == BenefitCategory::WEAPON &&
-            (benefit_id == BenefitID::BFG_GRAV_PULL || benefit_id == BenefitID::CLUSTER_PROX)) {
-            cost = 3;
-        }
+        int32_t cost = GetBenefitCost(benefit_id);
 
         // Check if can afford
         if (*points < cost) {
@@ -619,12 +622,52 @@ static void AutoBuyCategory(edict_t* player, BenefitCategory category, bool igno
     }
 }
 
+// Enforce classic opening sequence for auto-buy: Vampire first, then Traced Bullets.
+// This preserves the expected "violent" feel early without changing the full priority trees.
+static void AutoBuyStarterSequence(edict_t* player, bool ignore_wave_requirements) {
+    if (!player || !player->client) return;
+
+    // 1) Vampire first (ability)
+    if (player->client->pers.auto_buy_benefit_bot &&
+        player->client->pers.ability_points > 0 &&
+        !ClassicPlayerHasBenefit(player, BenefitID::VAMPIRE))
+    {
+        const size_t vampire_idx = static_cast<size_t>(BenefitID::VAMPIRE);
+        const bool can_buy_vampire = ignore_wave_requirements ||
+                                     current_wave_level >= g_benefitsData.min_levels[vampire_idx];
+        if (can_buy_vampire && BotPurchaseBenefit(player, BenefitID::VAMPIRE, GetBenefitCost(BenefitID::VAMPIRE))) {
+            player->client->pers.auto_purchased_benefits_mask |= (1u << static_cast<uint8_t>(BenefitID::VAMPIRE));
+        }
+    }
+
+    // 2) Then Traced Bullets (weapon)
+    // Intentionally ignores wave requirement to preserve expected early progression ordering.
+    if (player->client->pers.auto_buy_benefit_weapons_bot &&
+        player->client->pers.weapon_points > 0 &&
+        ClassicPlayerHasBenefit(player, BenefitID::VAMPIRE) &&
+        !ClassicPlayerHasBenefit(player, BenefitID::TRACED_BULLETS))
+    {
+        if (BotPurchaseBenefit(player, BenefitID::TRACED_BULLETS, GetBenefitCost(BenefitID::TRACED_BULLETS))) {
+            player->client->pers.auto_purchased_benefits_mask |= (1u << static_cast<uint8_t>(BenefitID::TRACED_BULLETS));
+        }
+    }
+}
+
 // Auto-buy system implementation
 void CheckBotAutoBuy(edict_t* player, bool ignore_wave_requirements) {
     if (!player || !player->client) return;
 
+    // Do not auto-spend points while the player is actively navigating a protected menu.
+    // This prevents immediate repurchases right after "reset bonus" inside menu flows.
+    if (player->client->menu_protected && (player->client->menu || player->client->showinventory)) {
+        return;
+    }
+
     // Update last check time (for tracking purposes, no longer used for throttling)
     player->client->pers.last_auto_buy_check = level.time;
+
+    // Force opening sequence before normal category priorities.
+    AutoBuyStarterSequence(player, ignore_wave_requirements);
 
     // Auto-buy abilities if enabled and player has points
     if (player->client->pers.auto_buy_benefit_bot && player->client->pers.ability_points > 0) {
@@ -693,18 +736,47 @@ void BotShowBenefitMessage(edict_t* player, BenefitID benefit_id) {
 
 // Process wave rewards - replaces the old CheckBotAndApplyBenefit for point distribution
 void ProcessWaveRewards(int32_t wave) {
-    // Distribute points to all active players (both humans and bots)
+    // Calculate expected points by wave progression.
+    const int32_t expected_ability_points = (wave >= 4) ? (wave / 4) : 0;
+    const int32_t expected_weapon_points = (wave >= 8) ? (wave / 8) : 0;
+
+    // Distribute/synchronize points to all active players (both humans and bots)
     for (auto player : active_players()) {
         if (!player || !player->client) continue;
 
-        // Ability points every 4 waves starting from wave 4
-        if (wave >= 4 && (wave % 4) == 0) {
-            BotEarnAbilityPoints(player, 1);
+        // Keep auto-buy enabled by default in Classic unless player manually turned it off.
+        if (g_vortex->integer == 0 && !player->client->pers.bot_has_manually_disabled_auto_buy) {
+            player->client->pers.auto_buy_benefit_bot = true;
+            player->client->pers.auto_buy_benefit_weapons_bot = true;
         }
 
-        // Weapon points every 8 waves starting from wave 8
-        if (wave >= 8 && (wave % 8) == 0) {
-            BotEarnWeaponPoints(player, 1);
+        // Compute how many points have already been spent on purchased benefits.
+        int32_t spent_ability_points = 0;
+        int32_t spent_weapon_points = 0;
+        const uint32_t purchased_mask = player->client->pers.purchased_benefits_mask;
+        for (size_t i = 0; i < BenefitsDataSoA::NUM_BENEFITS; ++i) {
+            if ((purchased_mask & (1u << i)) == 0) {
+                continue;
+            }
+
+            const BenefitID benefit_id = static_cast<BenefitID>(i);
+            const int32_t cost = GetBenefitCost(benefit_id);
+            if (g_benefitsData.categories[i] == BenefitCategory::ABILITY) {
+                spent_ability_points += cost;
+            } else {
+                spent_weapon_points += cost;
+            }
+        }
+
+        // Reconcile deficits so players receive missed rewards immediately without requiring death/respawn.
+        const int32_t current_total_ability = player->client->pers.ability_points + spent_ability_points;
+        const int32_t current_total_weapon = player->client->pers.weapon_points + spent_weapon_points;
+
+        if (current_total_ability < expected_ability_points) {
+            BotEarnAbilityPoints(player, expected_ability_points - current_total_ability);
+        }
+        if (current_total_weapon < expected_weapon_points) {
+            BotEarnWeaponPoints(player, expected_weapon_points - current_total_weapon);
         }
 
         // Check for auto-buy after earning points
@@ -718,19 +790,23 @@ void ProcessWaveRewards(int32_t wave) {
 void BotRestoreAllBonusPoints(edict_t* player) {
     if (!player || !player->client) return;
 
-    // Calculate how many points should have been earned by current wave
-    int32_t waves_completed = current_wave_level;
-    int32_t expected_ability_points = 0;
-    int32_t expected_weapon_points = 0;
+    // Refund based on what the player currently purchased, preserving any existing unspent points.
+    int32_t refunded_ability_points = 0;
+    int32_t refunded_weapon_points = 0;
+    const uint32_t purchased_mask = player->client->pers.purchased_benefits_mask;
 
-    // Ability points awarded every 4 waves starting from wave 4
-    if (waves_completed >= 4) {
-        expected_ability_points = (waves_completed / 4);
-    }
+    for (size_t i = 0; i < BenefitsDataSoA::NUM_BENEFITS; ++i) {
+        if ((purchased_mask & (1u << i)) == 0) {
+            continue;
+        }
 
-    // Weapon points awarded every 8 waves starting from wave 8
-    if (waves_completed >= 8) {
-        expected_weapon_points = (waves_completed / 8);
+        const BenefitID benefit_id = static_cast<BenefitID>(i);
+        const int32_t cost = GetBenefitCost(benefit_id);
+        if (g_benefitsData.categories[i] == BenefitCategory::ABILITY) {
+            refunded_ability_points += cost;
+        } else {
+            refunded_weapon_points += cost;
+        }
     }
 
     // Clear all benefits
@@ -738,9 +814,9 @@ void BotRestoreAllBonusPoints(edict_t* player) {
     player->client->pers.active_weapons_mask = 0;
     player->client->pers.purchased_benefits_mask = 0;
 
-    // Restore full points based on current wave
-    player->client->pers.ability_points = expected_ability_points;
-    player->client->pers.weapon_points = expected_weapon_points;
+    // Refund spent points back into available pools
+    player->client->pers.ability_points += refunded_ability_points;
+    player->client->pers.weapon_points += refunded_weapon_points;
 
     // Reset BFG mode to default
     player->client->pers.bfg_mode = BFGMode::NORMAL;
@@ -750,7 +826,7 @@ void BotRestoreAllBonusPoints(edict_t* player) {
 
     gi.LocClient_Print(player, PRINT_HIGH,
         "All benefits cleared! Restored: {} ability points, {} weapon points\n",
-        expected_ability_points, expected_weapon_points);
+        refunded_ability_points, refunded_weapon_points);
     gi.LocCenter_Print(player, "All upgrades restored!\nChoose your path again!");
 }
 

@@ -1146,7 +1146,8 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 		
 	// Bots in PvM mode: Give them skill/weapon points based on current wave
 		// (Since bots can't use upgrade menus, they auto-buy with these points)
-		const bool is_late_joiner = !client->pers.received_late_join_ammo;
+		// IMPORTANT: Only treat as late-join on first spawn, never on respawn.
+		const bool is_late_joiner = !client->pers.received_late_join_ammo && !client->pers.spawned;
 		if ((ent->svflags & SVF_BOT) && is_late_joiner)
 		{
 			const int wave = current_wave_level;
@@ -1169,6 +1170,9 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 				//	"Bot late join bonus (PvM): {} skill points, {} weapon points\n",
 				//	client->pers.skill_points, client->pers.weapon_points);
 			}
+
+			// One-time catch-up grant only; do not repeat on every respawn.
+			client->pers.received_late_join_ammo = true;
 		}
 
 
@@ -1243,22 +1247,11 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 	const int wave = current_wave_level;
 
 	//
-	// AUTO-BUY SYSTEM
-	//
-	// In Classic Mode (vortex=0), everyone uses auto-buy for the benefits system
-	// In RPG Mode (vortex=1), only bots use auto-buy (humans use skills)
-	if (g_vortex->integer == 0 || (ent->svflags & SVF_BOT)) {
-		client->pers.auto_buy_benefit_bot = true;
-		client->pers.auto_buy_benefit_weapons_bot = true;
-		client->pers.bot_has_manually_disabled_auto_buy = false;
-	}
-
-	//
 	// LATE JOINER BENEFITS
 	// In RPG Mode (vortex=1), only bots get points (humans use upgrade menu)
 	// In Classic Mode (vortex=0), both humans and bots get points for auto-buy
 	//
-	if ((is_late_joiner && !g_vortex->integer) || (g_vortex->integer && (ent->svflags & SVF_BOT)))
+	if (is_late_joiner)
 	{
 		// Enable auto-buy by default for late joiners
 		client->pers.auto_buy_benefit_bot = true;
@@ -1288,6 +1281,9 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 				CheckBotAutoBuy(ent);
 			}
 		}
+
+		// One-time catch-up grant only; do not repeat on every respawn.
+		client->pers.received_late_join_ammo = true;
 	}
 
 	//

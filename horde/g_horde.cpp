@@ -52,6 +52,11 @@ boost::container::small_vector<edict_t*, 64> g_spawn_point_list;
 // The actual number of spawn points found on the map
 size_t g_num_spawn_points = 0;
 
+// Cached playable bounds for spawn validation (computed in BuildSpawnPointMap).
+static vec3_t g_spawn_world_mins{};
+static vec3_t g_spawn_world_maxs{};
+static bool g_spawn_world_bounds_valid = false;
+
 // spawn_map_needs_build now in g_spawn_system
 
 // *** NEW: Use boost::container::flat_map instead of a giant static array ***
@@ -901,12 +906,29 @@ void BuildSpawnPointMap()
 		world_maxs += vec3_t{512, 512, 512};
 	}
 
-	// This gives us pre-validated spawn positions across the entire map
-	gi.Com_Print("Generating spawn grid...\n");
-	if (HordePhys::g_spawn_grid.Generate(world_mins, world_maxs)) {
-		gi.Com_PrintFmt("Spawn grid ready with {} nodes.\n", HordePhys::g_spawn_grid.GetNodeCount());
-	} else {
-		gi.Com_Print("WARNING: Spawn grid generation failed, emergency spawning will use fallback method.\n");
+	// Cache bounds so all spawn paths can perform in-map validation.
+	g_spawn_world_mins = world_mins;
+	g_spawn_world_maxs = world_maxs;
+	g_spawn_world_bounds_valid = true;
+
+	// Generate grid only when enabled for this map, or when we have no classic spawn points.
+	const bool grid_enabled_for_map = (g_horde_grid_first && g_horde_grid_first->integer != 0);
+	if (grid_enabled_for_map || g_num_spawn_points == 0)
+	{
+		gi.Com_Print("Generating spawn grid...\n");
+		if (HordePhys::g_spawn_grid.Generate(world_mins, world_maxs))
+		{
+			gi.Com_PrintFmt("Spawn grid ready with {} nodes.\n", HordePhys::g_spawn_grid.GetNodeCount());
+		}
+		else
+		{
+			gi.Com_Print("WARNING: Spawn grid generation failed, emergency spawning will use fallback method.\n");
+		}
+	}
+	else
+	{
+		HordePhys::g_spawn_grid.Clear();
+		gi.Com_Print("Spawn grid disabled for this map, using classic spawn points.\n");
 	}
 
 	// FIX: If no traditional spawn points were found but the grid was generated successfully,
@@ -1332,6 +1354,11 @@ void HordeState::update_map_size(const char *mapname)
 
 	// Update grid spawning setting based on map config
 	bool enable_grid = GetGridEnabledForMap(mapId);
+	// Small maps tend to produce poor grid fallback positions; force classic spawn logic.
+	if (current_map_size.isSmallMap)
+	{
+		enable_grid = false;
+	}
 	gi.cvar_set("g_horde_grid_first", enable_grid ? "1" : "0");
 
 	// Update g_loadent setting based on map config
@@ -5462,12 +5489,33 @@ void SetNextMonsterSpawnTime(const horde::MapSize &mapSize);
 // =======================================================================
 // This version fixes the bug preventing alternative spawns
 // =======================================================================
+static inline bool IsPositionWithinSpawnBounds(const vec3_t& position, const vec3_t& monster_mins, const vec3_t& monster_maxs)
+{
+	if (!g_spawn_world_bounds_valid)
+	{
+		return true; // If bounds are not initialized yet, do not hard-block spawning.
+	}
+
+	// Small tolerance to avoid false negatives on edge cases near brush boundaries.
+	constexpr float EDGE_TOLERANCE = 96.0f;
+	const vec3_t min_bound = g_spawn_world_mins - vec3_t{EDGE_TOLERANCE, EDGE_TOLERANCE, EDGE_TOLERANCE};
+	const vec3_t max_bound = g_spawn_world_maxs + vec3_t{EDGE_TOLERANCE, EDGE_TOLERANCE, EDGE_TOLERANCE};
+
+	const vec3_t abs_min = position + monster_mins;
+	const vec3_t abs_max = position + monster_maxs;
+
+	return (abs_min.x >= min_bound.x && abs_max.x <= max_bound.x) &&
+	       (abs_min.y >= min_bound.y && abs_max.y <= max_bound.y) &&
+	       (abs_min.z >= min_bound.z && abs_max.z <= max_bound.z);
+}
+
 [[nodiscard]] // FIXED: Clean implementation without historical comments, clear return struct
 PositionValidationResult IsPositionPhysicallyValid(const vec3_t &position, const vec3_t &monster_mins, const vec3_t &monster_maxs, const bool is_flying)
 {
     PositionValidationResult result = {false, position};
 
     if (!is_valid_vector(position)) return result;
+    if (!IsPositionWithinSpawnBounds(position, monster_mins, monster_maxs)) return result;
 
     const contents_t point_contents = gi.pointcontents(position);
     if (point_contents & MASK_SOLID) return result;
@@ -7859,6 +7907,15 @@ void Horde_RunFrame()
 	const gtime_t currentTime = level.time;
 	const horde::MapSize& mapSize = g_horde_local.current_map_size;
 	const int32_t currentLevel = g_horde_local.level;
+
+	// Keep classic Horde rewards in sync while players are alive.
+	// This decouples reward delivery from InitClientPersistant/respawn timing.
+	static gtime_t last_wave_reward_sync = 0_sec;
+	if (!g_vortex->integer && currentLevel > 0 && currentTime >= last_wave_reward_sync + 1_sec)
+	{
+		last_wave_reward_sync = currentTime;
+		ProcessWaveRewards(currentLevel);
+	}
 
 	// Apply fog for special wave types (continuously to maintain fog and handle mid-wave joins)
 	if (HasWaveType(current_wave_type, MonsterWaveType::Gekk) ||
