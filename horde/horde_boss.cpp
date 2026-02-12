@@ -317,6 +317,19 @@ void RecentBosses::add(horde::MonsterTypeID boss_id)
 	if (boss_id == horde::MonsterTypeID::UNKNOWN)
 		return;
 
+	// Keep the list unique: if this boss already exists, move it to the most recent slot.
+	for (size_t i = 0; i < count; ++i)
+	{
+		if (items[i] != boss_id)
+			continue;
+
+		for (size_t j = i; j + 1 < count; ++j)
+			items[j] = items[j + 1];
+
+		items[count - 1] = boss_id;
+		return;
+	}
+
 	if (count < MAX_RECENT_BOSSES)
 	{
 		items[count++] = boss_id;
@@ -393,60 +406,56 @@ void BossEligibilityCache::initialize()
 	{
 		for (size_t map_size_idx = 0; map_size_idx < 3; ++map_size_idx)
 		{
-			for (size_t map_id_idx = 0; map_id_idx < MAP_ID_COUNT; ++map_id_idx)
+			const BossDataSoA* boss_list_soa = nullptr;
+
+			// Determine which boss list based on map size index
+			if (map_size_idx == 0)
+				boss_list_soa = &g_smallBossData;
+			else if (map_size_idx == 1)
+				boss_list_soa = &g_mediumBossData;
+			else if (map_size_idx == 2)
+				boss_list_soa = &g_largeBossData;
+
+			if (!boss_list_soa)
+				continue;
+
+			EligibilityData& eligibilityData = cache[wave][map_size_idx];
+			eligibilityData.count = 0;
+
+			// Filter bosses by iterating through the SoA data
+			for (size_t i = 0; i < boss_list_soa->count; ++i)
 			{
-				const BossDataSoA* boss_list_soa = nullptr;
+				const int32_t min_level = boss_list_soa->min_levels[i];
+				const int32_t max_level = boss_list_soa->max_levels[i];
 
-				// Determine which boss list based on map size index
-				if (map_size_idx == 0)
-					boss_list_soa = &g_smallBossData;
-				else if (map_size_idx == 1)
-					boss_list_soa = &g_mediumBossData;
-				else if (map_size_idx == 2)
-					boss_list_soa = &g_largeBossData;
+				bool eligible = (min_level == -1 || wave >= min_level) &&
+								(max_level == -1 || wave <= max_level);
 
-				if (!boss_list_soa)
-					continue;
 
-				EligibilityData& eligibilityData = cache[wave][map_size_idx][map_id_idx];
-				eligibilityData.count = 0;
-
-				// Filter bosses by iterating through the SoA data
-				for (size_t i = 0; i < boss_list_soa->count; ++i)
+				if (eligible)
 				{
-					const int32_t min_level = boss_list_soa->min_levels[i];
-					const int32_t max_level = boss_list_soa->max_levels[i];
-
-					bool eligible = (min_level == -1 || wave >= min_level) &&
-								   (max_level == -1 || wave <= max_level);
-
-
-					if (eligible)
-					{
-						eligibilityData.soa_indices[eligibilityData.count++] = i;
-					}
+					eligibilityData.soa_indices[eligibilityData.count++] = i;
 				}
-
 			}
 		}
 	}
 }
 
 const BossEligibilityCache::EligibilityData&
-BossEligibilityCache::get(int32_t wave, horde::MapSize size, horde::MapID mapId) const
+BossEligibilityCache::get(int32_t wave, horde::MapSize size) const
 {
-	const int32_t safe_wave = std::min(wave, MAX_PRECOMPUTED_WAVE);
+	const int32_t safe_wave = std::clamp(wave, 1, MAX_PRECOMPUTED_WAVE);
 	// Determine map size index based on MapSize struct
 	size_t map_size_idx = size.isSmallMap ? 0 : (size.isBigMap ? 2 : 1);
 
-	const auto& result = cache[safe_wave][map_size_idx][static_cast<size_t>(mapId)];
+	const auto& result = cache[safe_wave][map_size_idx];
 
 
 	return result;
 }
 
 // Helper function to get boss list based on map size
-const BossDataSoA *GetBossListSoA(const horde::MapSize &mapSize, horde::MapID mapId)
+const BossDataSoA *GetBossListSoA(const horde::MapSize &mapSize)
 {
 	if (mapSize.isSmallMap)
 		return &g_smallBossData;
@@ -466,9 +475,7 @@ BossPickResult G_HordePickBOSSType(const horde::MapSize& mapSize, std::string_vi
 		InitializeBossWaveTypes();
 
 	// Get the appropriate boss list
-	horde::MapID mapId = horde::MapOriginRegistry::GetMapID(mapname.data());
-
-	const BossDataSoA* boss_list_soa = GetBossListSoA(mapSize, mapId);
+	const BossDataSoA* boss_list_soa = GetBossListSoA(mapSize);
 	if (!boss_list_soa)
 	{
 		if (developer && developer->integer)
@@ -477,8 +484,7 @@ BossPickResult G_HordePickBOSSType(const horde::MapSize& mapSize, std::string_vi
 	}
 
 	// Get eligible bosses from cache
-	const int32_t safeWaveNumber = std::min(waveNumber, BossEligibilityCache::MAX_PRECOMPUTED_WAVE);
-	const BossEligibilityCache::EligibilityData& eligibilityData = g_bossEligibilityCache.get(safeWaveNumber, mapSize, mapId);
+	const BossEligibilityCache::EligibilityData& eligibilityData = g_bossEligibilityCache.get(waveNumber, mapSize);
 
 	if (eligibilityData.count == 0)
 	{
@@ -556,8 +562,8 @@ BossPickResult G_HordePickBOSSType(const horde::MapSize& mapSize, std::string_vi
 		return BossPickResult();
 	}
 
-	// Pick a random boss based on weights
-	float randomValue = brandom() * totalWeight;
+	// Pick a random boss based on weights.
+	float randomValue = frandom(totalWeight);
 	auto it = std::lower_bound(
 		weightedBosses.begin(),
 		weightedBosses.begin() + weightedCount,
@@ -573,8 +579,6 @@ BossPickResult G_HordePickBOSSType(const horde::MapSize& mapSize, std::string_vi
 	const size_t chosen_index = it->index_in_soa;
 	const horde::MonsterTypeID chosen_typeId = boss_list_soa->typeIds[chosen_index];
 	const BossSizeCategory chosen_sizeCategory = boss_list_soa->sizeCategories[chosen_index];
-
-	recent_bosses.add(chosen_typeId);
 
 	if (developer && developer->integer)
 	{
@@ -910,6 +914,8 @@ void SpawnBossAutomatically()
 
 	// Select boss type
 	const char *map_name = GetCurrentMapName();
+	if (!map_name)
+		map_name = "";
 	BossPickResult boss_pick_result = G_HordePickBOSSType(GetCurrentMapSize(), map_name, current_wave_level);
 
 	if (boss_pick_result.typeId == horde::MonsterTypeID::UNKNOWN) {
@@ -1028,6 +1034,7 @@ THINK(BossSpawnThink)(edict_t *self)->void
 		return;
 	}
 
+	recent_bosses.add(typeId);
 	boss_spawned_for_wave = true;
 
 	// Set SVF_MONSTER flag so bots can target this boss

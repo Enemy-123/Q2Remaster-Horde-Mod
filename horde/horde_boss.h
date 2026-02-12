@@ -52,7 +52,6 @@ struct BossEligibilityCache
 {
     static constexpr size_t MAX_ELIGIBLE_BOSSES = 20;
     static constexpr int32_t MAX_PRECOMPUTED_WAVE = 60;
-    static constexpr size_t MAP_ID_COUNT = 100; // Adjust based on actual count
 
     struct EligibilityData
     {
@@ -60,10 +59,10 @@ struct BossEligibilityCache
         size_t count;
     };
 
-    std::array<std::array<std::array<EligibilityData, MAP_ID_COUNT>, 3>, MAX_PRECOMPUTED_WAVE + 1> cache{};
+    std::array<std::array<EligibilityData, 3>, MAX_PRECOMPUTED_WAVE + 1> cache{};
 
     void initialize();
-    const EligibilityData& get(int32_t wave, horde::MapSize size, horde::MapID mapId) const;
+    const EligibilityData& get(int32_t wave, horde::MapSize size) const;
 };
 
 // Boss pick result
@@ -119,4 +118,4 @@ void HandleForcedBossRemoval(edict_t *boss);
 // Helper functions
 template<size_t N>
 constexpr BossDataSoA create_boss_soa(const std::array<boss_t, N> &boss_list);
-const BossDataSoA *GetBossListSoA(const horde::MapSize &mapSize, horde::MapID mapId);
+const BossDataSoA *GetBossListSoA(const horde::MapSize &mapSize);
