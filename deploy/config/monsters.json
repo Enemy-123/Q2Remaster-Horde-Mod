@@ -144,8 +144,8 @@
       "damage_scale": 0.25
     },
     "infantry": {
-      "health": 120,
-      "power_armor_power": 80,
+      "health": 150,
+      "power_armor_power": 100,
       "power_armor_type": "shield",
       "damage_scale": 0.7,
       "weapon_damage": {
@@ -155,7 +155,7 @@
       }
     },
     "infantry_vanilla": {
-      "health": 75,
+      "health": 120,
       "armor_power": 50,
       "armor_type": "combat",
       "damage_scale": 1,
@@ -270,7 +270,7 @@
     },
     "tank": {
       "health": 630,
-      "armor_power": 300,
+      "armor_power": 500,
       "armor_type": "combat",
       "damage_scale": 1,
       "health_scale": 1,
@@ -282,7 +282,7 @@
     },
     "tank_commander": {
       "health": 1000,
-      "armor_power": 450,
+      "armor_power": 650,
       "armor_type": "combat",
       "damage_scale": 1.2,
       "health_scale": 1,
@@ -300,11 +300,11 @@
       }
     },
     "tank_64": {
-      "health": 650,
-      "armor_power": 410,
+      "health": 1150,
+      "armor_power": 750,
       "armor_type": "combat",
       "damage_scale": 1,
-      "health_scale": 1.2,
+      "health_scale": 1,
       "weapon_damage": {
         "blaster2": 26,
         "heat": 45,
@@ -315,7 +315,7 @@
       }
     },
     "runnertank": {
-      "health": 650,
+      "health": 850,
       "power_armor_power": 0,
       "damage_scale": 1,
       "weapon_damage": {
@@ -358,12 +358,12 @@
       }
     },
     "parasite": {
-      "health": 105,
+      "health": 115,
       "power_armor_power": 0,
       "damage_scale": 1
     },
     "brain": {
-      "health": 120,
+      "health": 135,
       "power_armor_power": 250,
       "power_armor_type": "screen",
       "damage_scale": 1.1,
@@ -372,7 +372,7 @@
       }
     },
     "mutant": {
-      "health": 180,
+      "health": 200,
       "power_armor_power": 0,
       "damage_scale": 0.7
     },
@@ -405,7 +405,7 @@
       }
     },
     "flyer": {
-      "health": 50,
+      "health": 60,
       "power_armor_power": 0,
       "damage_scale": 0.3,
       "weapon_damage": {
@@ -425,7 +425,7 @@
       }
     },
     "hover_vanilla": {
-      "health": 70,
+      "health": 85,
       "armor_power": 210,
       "armor_type": "combat",
       "damage_scale": 1.2,
@@ -452,7 +452,7 @@
       }
     },
     "floater": {
-      "health": 60,
+      "health": 120,
       "armor_power": 180,
       "armor_type": "combat",
       "damage_scale": 0.4,
@@ -463,7 +463,7 @@
     },
     "floater_tracker": {
       "health": 200,
-      "power_armor_power": 70,
+      "power_armor_power": 120,
       "power_armor_type": "screen",
       "damage_scale": 0.5,
       "weapon_damage": {
@@ -525,7 +525,7 @@
       "damage_scale": 1
     },
     "carrier": {
-      "health": 750,
+      "health": 2750,
       "power_armor_power": 450,
       "power_armor_type": "shield",
       "damage_scale": 1,
@@ -557,8 +557,8 @@
       "health_scale": 1
     },
     "widow1": {
-      "health": 500,
-      "power_armor_power": 180,
+      "health": 900,
+      "power_armor_power": 380,
       "power_armor_type": "shield",
       "damage_scale": 1,
       "health_scale": 0.8
@@ -580,8 +580,8 @@
       "health_scale": 1
     },
     "arachnid": {
-      "health": 220,
-      "power_armor_power": 100,
+      "health": 320,
+      "power_armor_power": 200,
       "power_armor_type": "shield",
       "damage_scale": 1,
       "health_scale": 1,
@@ -591,7 +591,7 @@
     },
     "arachnid2": {
       "health": 350,
-      "power_armor_power": 120,
+      "power_armor_power": 220,
       "power_armor_type": "shield",
       "damage_scale": 1.2,
       "health_scale": 1,
@@ -600,8 +600,8 @@
       }
     },
     "gm_arachnid": {
-      "health": 280,
-      "power_armor_power": 180,
+      "health": 680,
+      "power_armor_power": 220,
       "power_armor_type": "shield",
       "damage_scale": 1.2,
       "health_scale": 1.1,
@@ -611,8 +611,8 @@
       }
     },
     "psxarachnid": {
-      "health": 400,
-      "power_armor_power": 400,
+      "health": 600,
+      "power_armor_power": 500,
       "power_armor_type": "combat",
       "damage_scale": 1.2,
       "health_scale": 1.5,
@@ -621,7 +621,7 @@
       }
     },
     "shambler": {
-      "health": 650,
+      "health": 950,
       "power_armor_power": 0,
       "damage_scale": 1,
       "health_scale": 1,
@@ -631,7 +631,7 @@
       }
     },
     "shambler_small": {
-      "health": 250,
+      "health": 350,
       "power_armor_power": 0,
       "damage_scale": 1,
       "health_scale": 0.5,
@@ -640,7 +640,7 @@
       }
     },
     "shamblerkl": {
-      "health": 800,
+      "health": 3800,
       "power_armor_power": 0,
       "damage_scale": 1.2,
       "health_scale": 1.4,
@@ -742,8 +742,8 @@
       }
     },
     "boss5": {
-      "health": 1200,
-      "power_armor_power": 400,
+      "health": 4200,
+      "power_armor_power": 2250,
       "power_armor_type": "shield",
       "damage_scale": 0.8,
       "health_scale": 1,
@@ -787,7 +787,7 @@
       }
     },
     "janitor2": {
-      "health": 600,
+      "health": 880,
       "power_armor_power": 385,
       "power_armor_type": "shield",
       "damage_scale": 1.1,
@@ -802,9 +802,9 @@
       }
     },
     "tank_spawner": {
-      "health": 275,
+      "health": 475,
       "armor_power": 305,
-      "armor_type": "combat",
+      "armor_type": "screen",
       "damage_scale": 1.1,
       "weapon_damage": {
         "blaster": 20,
@@ -837,15 +837,15 @@
   "// Default level is 0, so initial values are the baseline": "",
   "monster_level_scaling": {
     "arachnid": {
-      "initial_health": 220,
+      "initial_health": 320,
       "addon_health": 45,
-      "initial_power_armor": 100,
+      "initial_power_armor": 200,
       "addon_power_armor": 25
     },
     "arachnid2": {
       "initial_health": 350,
       "addon_health": 55,
-      "initial_power_armor": 120,
+      "initial_power_armor": 220,
       "addon_power_armor": 30
     },
     "berserk": {
@@ -879,13 +879,13 @@
       "addon_power_armor": 30
     },
     "boss5": {
-      "initial_health": 1200,
+      "initial_health": 4200,
       "addon_health": 200,
-      "initial_power_armor": 400,
+      "initial_power_armor": 2250,
       "addon_power_armor": 100
     },
     "brain": {
-      "initial_health": 100,
+      "initial_health": 135,
       "addon_health": 40,
       "initial_armor": 0,
       "addon_armor": 150,
@@ -953,7 +953,7 @@
       "addon_armor": 0
     },
     "floater": {
-      "initial_health": 55,
+      "initial_health": 120,
       "addon_health": 20,
       "initial_armor": 150,
       "addon_armor": 60
@@ -961,11 +961,11 @@
     "floater_tracker": {
       "initial_health": 200,
       "addon_health": 40,
-      "initial_power_armor": 70,
+      "initial_power_armor": 120,
       "addon_power_armor": 20
     },
     "flyer": {
-      "initial_health": 50,
+      "initial_health": 60,
       "addon_health": 20,
       "initial_armor": 50,
       "addon_armor": 20
@@ -1001,9 +1001,9 @@
       "addon_armor": 20
     },
     "gm_arachnid": {
-      "initial_health": 280,
+      "initial_health": 680,
       "addon_health": 50,
-      "initial_power_armor": 180,
+      "initial_power_armor": 220,
       "addon_power_armor": 40
     },
     "guncmdr": {
@@ -1043,19 +1043,19 @@
       "addon_armor": 20
     },
     "hover_vanilla": {
-      "initial_health": 70,
+      "initial_health": 85,
       "addon_health": 15,
       "initial_armor": 210,
       "addon_armor": 50
     },
     "infantry": {
-      "initial_health": 70,
+      "initial_health": 150,
       "addon_health": 45,
-      "initial_power_armor": 25,
+      "initial_power_armor": 100,
       "addon_power_armor": 13
     },
     "infantry_vanilla": {
-      "initial_health": 65,
+      "initial_health": 120,
       "addon_health": 20,
       "initial_armor": 50,
       "addon_armor": 15
@@ -1067,7 +1067,7 @@
       "addon_armor": 100
     },
     "janitor2": {
-      "initial_health": 600,
+      "initial_health": 880,
       "addon_health": 50,
       "initial_armor": 385,
       "addon_armor": 40
@@ -1103,13 +1103,13 @@
       "addon_armor": 0
     },
     "mutant": {
-      "initial_health": 150,
+      "initial_health": 200,
       "addon_health": 85,
       "initial_armor": 0,
       "addon_armor": 0
     },
     "parasite": {
-      "initial_health": 150,
+      "initial_health": 115,
       "addon_health": 25,
       "initial_armor": 0,
       "addon_armor": 0
@@ -1121,9 +1121,9 @@
       "addon_armor": 0
     },
     "psxarachnid": {
-      "initial_health": 400,
+      "initial_health": 600,
       "addon_health": 60,
-      "initial_power_armor": 400,
+      "initial_power_armor": 500,
       "addon_power_armor": 100
     },
     "redmutant": {
@@ -1133,25 +1133,25 @@
       "addon_armor": 0
     },
     "runnertank": {
-      "initial_health": 650,
+      "initial_health": 850,
       "addon_health": 80,
       "initial_armor": 0,
       "addon_armor": 0
     },
     "shambler": {
-      "initial_health": 650,
+      "initial_health": 950,
       "addon_health": 60,
       "initial_armor": 0,
       "addon_armor": 0
     },
     "shambler_small": {
-      "initial_health": 250,
+      "initial_health": 350,
       "addon_health": 50,
       "initial_armor": 0,
       "addon_armor": 0
     },
     "shamblerkl": {
-      "initial_health": 800,
+      "initial_health": 3800,
       "addon_health": 100,
       "initial_armor": 0,
       "addon_armor": 0
@@ -1207,23 +1207,23 @@
     "tank": {
       "initial_health": 630,
       "addon_health": 40,
-      "initial_armor": 300,
+      "initial_armor": 500,
       "addon_armor": 105
     },
     "tank_64": {
-      "initial_health": 650,
+      "initial_health": 1150,
       "addon_health": 80,
-      "initial_armor": 410,
+      "initial_armor": 750,
       "addon_armor": 120
     },
     "tank_commander": {
       "initial_health": 1000,
       "addon_health": 60,
-      "initial_armor": 450,
+      "initial_armor": 650,
       "addon_armor": 110
     },
     "tank_spawner": {
-      "initial_health": 275,
+      "initial_health": 475,
       "addon_health": 50,
       "initial_armor": 305,
       "addon_armor": 90
@@ -1241,9 +1241,9 @@
       "addon_power_armor": 100
     },
     "widow1": {
-      "initial_health": 500,
+      "initial_health": 900,
       "addon_health": 70,
-      "initial_power_armor": 180,
+      "initial_power_armor": 380,
       "addon_power_armor": 40
     }
   }

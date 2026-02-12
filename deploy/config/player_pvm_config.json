@@ -109,6 +109,8 @@
       "speed": 1000
     },
     "etfrifle": {
+      "damage_min": 9,
+      "damage_max": 13,
       "kick_normal": 3,
       "kick_homing": 75
     }

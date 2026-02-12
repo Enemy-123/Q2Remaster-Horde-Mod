@@ -13,9 +13,9 @@
     "// ==================== WEAPONS ====================": "Player weapon configurations",
     "weapons": {
         "blaster": {
-            "damage_min": 10,
-            "damage_max": 24,
-            "speed": 1300,
+            "damage_min": 12,
+            "damage_max": 18,
+            "speed": 1200,
             "bounces": 5
         },
         "hyperblaster": {
@@ -35,22 +35,22 @@
         },
         "supershotgun": {
             "damage_min": 7,
-            "damage_max": 10,
+            "damage_max": 9,
             "damage_energy_min": 14,
             "damage_energy_max": 16,
             "kick": 17,
             "pellet_count": 20
         },
         "machinegun": {
-            "damage_min": 6,
-            "damage_max": 9,
+            "damage_min": 4,
+            "damage_max": 8,
             "kick": 2,
             "tracer_damage": 12,
             "tracer_cooldown_ms": 500
         },
         "chaingun": {
             "damage_min": 6,
-            "damage_max": 10,
+            "damage_max": 9,
             "kick": 3,
             "tracer_damage": 10,
             "tracer_cooldown_ms": 300
@@ -60,7 +60,7 @@
             "radius_offset": 40.0
         },
         "grenadelauncher": {
-            "damage_normal": 108,
+            "damage_normal": 100,
             "damage_napalm": 95,
             "radius_normal": 135.0,
             "radius_napalm": 115.0,
@@ -68,7 +68,7 @@
         },
         "rocket": {
             "damage_min": 100,
-            "damage_max": 120,
+            "damage_max": 125,
             "speed": 1230,
             "radius": 115
         },
@@ -78,7 +78,7 @@
             "kick": 285
         },
         "cannon20mm": {
-            "damage": 35,
+            "damage": 22,
             "kick": 35,
             "range": 650,
             "recoil_force": 250
@@ -100,7 +100,7 @@
             "damage_radius": 120
         },
         "plasmabeam": {
-            "damage": 16,
+            "damage": 15,
             "damage_singleplayer": 15,
             "kick": 3
         },
@@ -109,6 +109,8 @@
             "speed": 1000
         },
         "etfrifle": {
+            "damage_min": 9,
+            "damage_max": 13,
             "kick_normal": 3,
             "kick_homing": 75
         }

@@ -184,6 +184,8 @@ struct TrackerConfig
 
 struct ETFRifleConfig
 {
+	int damage_min = 9;   // Base per-shot damage roll minimum
+	int damage_max = 13;  // Base per-shot damage roll maximum
 	int kick_normal = 3;
 	int kick_homing = 75;
 	int damage_addon = 1;  // Damage added per upgrade level (was 1.0 hardcoded, comment said 1.25)

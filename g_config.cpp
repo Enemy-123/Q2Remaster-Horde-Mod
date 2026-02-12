@@ -699,6 +699,8 @@ void Config_Load(const char* basedir)
 		if (weapons.isMember("etfrifle") && weapons["etfrifle"].isObject())
 		{
 			const Json::Value& w = weapons["etfrifle"];
+			g_config.etfrifle.damage_min = GetJsonInt(w, "damage_min", 9);
+			g_config.etfrifle.damage_max = GetJsonInt(w, "damage_max", 13);
 			g_config.etfrifle.kick_normal = GetJsonInt(w, "kick_normal", 3);
 			g_config.etfrifle.kick_homing = GetJsonInt(w, "kick_homing", 75);
 			g_config.etfrifle.damage_addon = GetJsonInt(w, "damage_addon", 1);

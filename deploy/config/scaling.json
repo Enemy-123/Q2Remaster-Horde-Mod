@@ -7,11 +7,11 @@
 
   "monster_scaling": {
     "health": {
-      "comment": "Monster health scaling over waves - moderate scaling prevents high-HP monsters from becoming absurd",
-      "midpoint": 15,
-      "growth_rate": 0.12,
+      "comment": "Monster health scaling over waves - gentle curve for +20% at late waves",
+      "midpoint": 20,
+      "growth_rate": 0.2,
       "min_value": 1.0,
-      "max_value": 2.5
+      "max_value": 1.2
     },
     "_armor_NOT_IMPLEMENTED": {
       "comment": "Monster armor scaling over waves - NOT YET IMPLEMENTED",

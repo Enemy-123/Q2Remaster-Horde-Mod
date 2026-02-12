@@ -288,10 +288,15 @@ void weapon_etf_rifle_fire(edict_t* ent)
 	int	   i;
 	vec3_t offset;
 
-	if (G_IsDeathmatch())
-		damage = irandom(9, 13);
-	else
-		damage = irandom(9, 13);
+	int damage_min = g_config.etfrifle.damage_min;
+	int damage_max = g_config.etfrifle.damage_max;
+	if (damage_min > damage_max)
+	{
+		int tmp = damage_min;
+		damage_min = damage_max;
+		damage_max = tmp;
+	}
+	damage = irandom(damage_min, damage_max);
 
 	// Apply ETF Rifle damage upgrade
 	if (ent && ent->client)
