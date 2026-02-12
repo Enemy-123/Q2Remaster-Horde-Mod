@@ -486,9 +486,33 @@ static inline vec3_t heat_guardianpsx_get_dist_vec(const edict_t* heat, const ed
 
 THINK(heat_guardianpsx_think) (edict_t* self) -> void
 {
+	// Phase 1: climb first, no homing yet.
+	if (level.time.seconds() < self->delay)
+	{
+		vec3_t climb_dir = self->pos1;
+		if (climb_dir.lengthSquared() == 0)
+			climb_dir = self->movedir;
+		climb_dir = safe_normalized(climb_dir);
+
+		float const t = clamp(self->accel * 0.35f, 0.f, 0.22f);
+		if (self->movedir.lengthSquared() > 0)
+			self->movedir = slerp(self->movedir, climb_dir, t).normalized();
+		else
+			self->movedir = climb_dir;
+
+		self->s.angles = vectoangles(self->movedir);
+
+		if (self->speed < self->yaw_speed)
+			self->speed += self->yaw_speed * gi.frame_time_s;
+
+		self->velocity = self->movedir * self->speed;
+		self->nextthink = level.time + FRAME_TIME_MS;
+		return;
+	}
+
 	edict_t* acquire = self->enemy; // Start with our current target
 	float	 oldlen = FLT_MAX;
-	float	 olddot = 1.0f;
+	float	 olddot = -1.0f;
 
 	// --- PERFORMANCE MODIFICATION ---
 	// Only search for a new target if the current one is invalid OR the search timer has expired.
@@ -513,10 +537,10 @@ THINK(heat_guardianpsx_think) (edict_t* self) -> void
 			vec3_t vec = heat_guardianpsx_get_dist_vec(self, target, dist_to_target);
 			float const dot = vec.dot(fwd);
 
-			if (dot >= olddot)
+			if (dot <= olddot)
 				continue;
 
-			if (acquire == nullptr || dot < olddot || dist_to_target < oldlen)
+			if (acquire == nullptr || dot > olddot || dist_to_target < oldlen)
 			{
 				acquire = target;
 				oldlen = dist_to_target;
@@ -544,7 +568,7 @@ THINK(heat_guardianpsx_think) (edict_t* self) -> void
 	float t = self->accel;
 
 	if (self->enemy)
-		t *= 0.85f;
+		t = clamp(t * 1.2f, 0.f, 1.f);
 
 	if (self->movedir.lengthSquared() > 0)
 		self->movedir = slerp(self->movedir, preferred_dir, t).normalized();
@@ -560,11 +584,6 @@ THINK(heat_guardianpsx_think) (edict_t* self) -> void
 
 	self->velocity = self->movedir * self->speed;
 	self->nextthink = level.time + FRAME_TIME_MS;
-}
-
-DIE(guardianpsx_heat_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
-{
-	BecomeExplosion1(self);
 }
 
 // RAFAEL
@@ -589,9 +608,10 @@ void fire_guardianpsx_heat(edict_t* self, const vec3_t& start, const vec3_t& dir
 	heat->movedir = dir;
 	heat->s.angles = vectoangles(dir);
 	heat->velocity = dir * speed;
+	heat->flags |= FL_DODGE;
 	heat->movetype = MOVETYPE_FLYMISSILE;
+	heat->svflags |= SVF_PROJECTILE;
 	heat->clipmask = MASK_PROJECTILE;
-	heat->flags |= FL_DAMAGEABLE;
 	heat->solid = SOLID_BBOX;
 	heat->s.effects |= EF_ROCKET;
 	heat->s.modelindex = gi.modelindex("models/objects/rocket/tris.md2");
@@ -599,29 +619,20 @@ void fire_guardianpsx_heat(edict_t* self, const vec3_t& start, const vec3_t& dir
 	heat->owner = self;
 
 	// Store attacker info in case owner dies before projectile hits
-	if (self) {
-		if (self->client) {
-			heat->projectile_was_player_attacker = true;
-			heat->projectile_attacker_type_id = 0;
-		} else if (self->svflags & SVF_MONSTER) {
-			heat->projectile_was_player_attacker = false;
-			heat->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
-		}
-	}
+	SetProjectileAttackerInfo(heat, self);
 
 	heat->touch = rocket_touch;
-	heat->speed = speed / 1.45;
-	heat->yaw_speed = speed * 2.4;
+	heat->speed = speed * 0.75f;
+	heat->yaw_speed = speed * 1.35f;
 	heat->accel = turn_fraction;
 	heat->pos1 = rest_dir;
 	heat->mins = { -5, -5, -5 };
 	heat->maxs = { 5, 5, 5 };
-	heat->health = 50;
-	heat->takedamage = true;
-	heat->die = guardianpsx_heat_die;
+	heat->takedamage = false;
 
-	heat->nextthink = level.time + 0.20_sec;
+	heat->nextthink = level.time + FRAME_TIME_MS;
 	heat->think = heat_guardianpsx_think;
+	heat->delay = (level.time + 600_ms).seconds();
 
 	heat->dmg = damage;
 	heat->radius_dmg = radius_damage;
@@ -630,7 +641,7 @@ void fire_guardianpsx_heat(edict_t* self, const vec3_t& start, const vec3_t& dir
 
 	if (self->enemy && visible(heat, self->enemy))
 	{
-		heat->oldenemy = self->enemy;
+		heat->enemy = self->enemy;
 		heat->timestamp = level.time + 0.6_sec;
 		gi.sound(heat, CHAN_WEAPON, gi.soundindex("weapons/railgr1a.wav"), 1.f, 0.25f, 0);
 	}
@@ -656,19 +667,20 @@ static void guardianpsx_fire_rocket(edict_t* self, float offset)
 	start += right * offset;
 	start += up * 50.f;
 
-	// Crear un vector de dirección inicial que apunte en un ángulo de 45 grados hacia arriba
-	vec3_t dir;
-	dir = forward + (up * 0.5f); // Mezcla el vector forward y up para un ángulo de ~45 grados
-	dir.normalize();
+	int speed = M_HEAT_SPEED(self);
+	if (speed <= 0)
+		speed = 650;
+	speed = static_cast<int>(lroundf(speed * 0.9f));
+	if (speed < 200)
+		speed = 200;
 
-	// Reducir la velocidad inicial para dar más tiempo de maniobra
-	const float speed = 200;
+	// Force an initial upward arc; homing activates shortly after launch.
+	vec3_t dir = safe_normalized((forward * 0.35f) + (up * 0.95f));
 
-	// Aumentar el turn_fraction para mejor maniobrabilidad
-	const float turn_fraction = 0.12f;
+	const float turn_fraction = 0.18f;
 
 	int heat_damage = M_HEAT_DMG(self);
-	fire_guardianpsx_heat(self, start, dir, forward, heat_damage > 0 ? heat_damage : 20, speed, 150, 35, turn_fraction);
+	fire_guardianpsx_heat(self, start, dir, dir, heat_damage > 0 ? heat_damage : 20, speed, 150, 35, turn_fraction);
 	gi.sound(self, CHAN_WEAPON, sound_pew, 1.f, 0.5f, 0.0f);
 }
 
