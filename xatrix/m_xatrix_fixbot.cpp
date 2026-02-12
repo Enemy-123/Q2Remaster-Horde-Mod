@@ -1410,6 +1410,22 @@ THINK(plasma_fixbot_think) (edict_t* self) -> void
 	float oldlen = 0;
 	float olddot = 1;
 
+	// Always enforce a hard lifetime so missed projectiles don't persist forever.
+	if (self->monsterinfo.attack_finished <= 0_ms)
+	{
+		// Fallback for legacy/projectiles without an initialized timeout.
+		float lifetime_sec = 8000.f / (self->speed > 1.f ? self->speed : 1.f);
+		if (lifetime_sec > 8.f)
+			lifetime_sec = 8.f;
+		self->monsterinfo.attack_finished = level.time + gtime_t::from_sec(lifetime_sec);
+	}
+
+	if (level.time >= self->monsterinfo.attack_finished)
+	{
+		G_FreeEdict(self);
+		return;
+	}
+
 	// Check if we're still in the initial upward flight phase
 	if (self->timestamp > level.time)
 	{
@@ -1555,6 +1571,20 @@ void fire_fixbot_plasma(edict_t* self, const vec3_t& start, const vec3_t& dir, i
 	plasma->velocity = dir * speed;
 	plasma->movetype = MOVETYPE_FLYMISSILE;
 	plasma->clipmask = MASK_PROJECTILE;
+
+	// Emulate fire_plasma() clipmask behavior for summoned fixbots:
+	// if the effective shooter is a player, honor player collision toggle.
+	edict_t* effective_owner = self;
+	if (self && self->monsterinfo.isfriendlyspawn)
+	{
+		if (self->chain && self->chain->client)
+			effective_owner = self->chain;
+		else if (self->teammaster && self->teammaster->client)
+			effective_owner = self->teammaster;
+	}
+	if (effective_owner && effective_owner->client && !G_ShouldPlayersCollide(true))
+		plasma->clipmask &= ~CONTENTS_PLAYER;
+
 	plasma->svflags |= SVF_PROJECTILE;
 	plasma->solid = SOLID_BBOX;
 	plasma->s.effects |= EF_PLASMA | EF_ANIM_ALLFAST;
@@ -1589,6 +1619,11 @@ void fire_fixbot_plasma(edict_t* self, const vec3_t& start, const vec3_t& dir, i
 
 	// Set timestamp for initial upward flight phase
 	plasma->timestamp = level.time + (IsBoss(self) ? 0.7_sec : 1.0_sec);
+	float lifetime_sec = 8000.f / (speed > 1 ? speed : 1);
+	// Fixbot plasma is much slower than sentry plasma; cap lifetime so it visibly expires.
+	if (lifetime_sec > 8.f)
+		lifetime_sec = 8.f;
+	plasma->monsterinfo.attack_finished = level.time + gtime_t::from_sec(lifetime_sec);
 
 	if (self->enemy && visible(plasma, self->enemy))
 	{
