@@ -137,6 +137,9 @@ const MonsterTypeInfo monsterTypes[] = {
 	{horde::MonsterTypeID::JORG, MonsterWaveType::Ground | MonsterWaveType::Boss | MonsterWaveType::Heavy, 999, 0.0f, {-80, -80, 0}, {80, 80, 140}, 1.0f},
 	{horde::MonsterTypeID::PSX_GUARDIAN, MonsterWaveType::Ground | MonsterWaveType::Boss | MonsterWaveType::Heavy, 999, 0.0f, {-78, -78, -66}, {78, 78, 62}, 0.0f}};
 
+static_assert(std::size(monsterTypes) == MONSTER_DATA_COUNT,
+	"MONSTER_DATA_COUNT must match monsterTypes[]");
+
 // Compile-time conversion from AoS to SoA
 constexpr MonsterDataSoA create_monster_data_soa()
 {
@@ -313,10 +316,12 @@ bool IsValidMonsterForWave(horde::MonsterTypeID typeId, MonsterWaveType waveRequ
 int32_t GetAdjustedMinWave(horde::MonsterTypeID typeId, int32_t map_seed)
 {
 	const size_t index = static_cast<size_t>(typeId);
-	if (index >= MONSTER_DATA_COUNT)
+	if (index >= g_monsterData.MONSTER_ARRAY_SIZE)
 		return 999;
 
 	const int32_t base_wave = g_monsterData.minWaves[index];
+	if (base_wave <= 0)
+		return 999;
 
 	// Don't apply variance to very early monsters (wave 1-3) or special monsters (999)
 	if (base_wave < MonsterUnlockVariance::MIN_WAVE_FOR_VARIANCE || base_wave >= 999)

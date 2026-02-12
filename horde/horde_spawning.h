@@ -297,8 +297,8 @@ extern horde::MonsterTypeID G_HordePickMonsterType(
     edict_t* spawn_point,
     int32_t currentLevel,
     MonsterWaveType current_wave_type,
-    bool is_recovery_mode_active,
     bool is_retaliation_active,
+    bool is_recovery_mode_active,
     MonsterWaveType original_wave_type_before_recovery);
 
 // Hard cap and queue management

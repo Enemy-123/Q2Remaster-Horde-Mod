@@ -63,4 +63,4 @@ extern const MonsterDataSoA g_monsterData;
 extern const MonsterTypeInfo monsterTypes[];
 
 // Const expression for number of monsters - can be used at compile time
-constexpr size_t MONSTER_DATA_COUNT = 70;  // Update this if monsters are added/removed
+constexpr size_t MONSTER_DATA_COUNT = 69;  // Must match monsterTypes[] entry count

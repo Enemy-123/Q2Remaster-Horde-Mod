@@ -2589,7 +2589,7 @@ struct MonsterCache
 		float cumulative_weight;
 	};
 
-	static constexpr size_t MONSTER_CACHE_SIZE = 70; // Must match MONSTER_DATA_COUNT
+	static constexpr size_t MONSTER_CACHE_SIZE = MONSTER_DATA_COUNT;
 	std::array<Entry, MONSTER_CACHE_SIZE> entries{};
 	size_t count = 0;
 	float total_weight = 0.0f;
