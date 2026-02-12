@@ -31,6 +31,8 @@ extern void SP_target_orb(edict_t *ent);
 // This represents the maximum possible level boost for the "elite spawn" mechanic.
 // It ensures we precache and consider all potential elite monsters for a given wave.
 constexpr int32_t MAX_EFFECTIVE_LEVEL_BOOST = 20;
+// Style 1 spawn points are dedicated to flying lanes; keep a long reuse cooldown.
+static constexpr gtime_t FLYING_ONLY_SPAWN_LONG_COOLDOWN = 12.0_sec;
 
 // Maps an edict_t* to a compact index [0...N-1]
 // g_spawn_point_map now in g_spawn_system
@@ -569,6 +571,26 @@ static void ApplyAlternativePositionCooldown(edict_t *spawn_point)
 // 						final_alt_duration.seconds(), alt_attempts);
 }
 
+static void ApplyLongFlyingLaneCooldown(edict_t* spawn_point)
+{
+	if (!spawn_point || !spawn_point->inuse || spawn_point->style != 1)
+		return;
+
+	const uint16_t index = GetSpawnPointIndexSafe(spawn_point);
+	if (index == 0xFFFF) [[unlikely]]
+		return;
+
+	const gtime_t cooldown_end = level.time + FLYING_ONLY_SPAWN_LONG_COOLDOWN;
+	g_spawn_system.spawn_points_data.teleport_cooldown[index] =
+		std::max(g_spawn_system.spawn_points_data.teleport_cooldown[index], cooldown_end);
+	g_spawn_system.spawn_points_data.alternative_cooldown[index] =
+		std::max(g_spawn_system.spawn_points_data.alternative_cooldown[index], cooldown_end);
+	g_spawn_system.spawn_points_data.cooldownEndsAt[index] =
+		std::max(g_spawn_system.spawn_points_data.cooldownEndsAt[index], cooldown_end);
+	g_spawn_system.spawn_points_data.isTemporarilyDisabled[index] = true;
+	g_spawn_system.spawn_points_data.lastSpawnTime[index] = level.time;
+}
+
 void IncreaseSpawnAttempts(edict_t *spawn_point)
 {
 	if (!spawn_point || !spawn_point->inuse)
@@ -632,6 +654,7 @@ void OnSuccessfulSpawn(edict_t *spawn_point)
 	g_spawn_system.spawn_points_data.attempts[index] = 0;
 	g_spawn_system.spawn_points_data.isTemporarilyDisabled[index] = false;
 	g_spawn_system.spawn_points_data.cooldownEndsAt[index] = level.time + HordeConstants::MIN_INDIVIDUAL_SUCCESS_COOLDOWN;
+	ApplyLongFlyingLaneCooldown(spawn_point);
 
 	horde::g_spawnPointTimeTracker.SetLastSpawnTime(spawn_point, level.time);
 }
@@ -788,6 +811,8 @@ void BuildSpawnPointMap()
 			// Then add the pointer to the list
 			if (!safe_push_back(g_spawn_point_list, sp, MAX_SPAWN_POINTS)) {
 				gi.Com_Print("WARNING: Failed to add spawn point\n");
+				g_spawn_system.spawn_point_map.erase(sp->s.number);
+				g_spawn_system.spawn_point_index_lookup[sp->s.number] = 0xFFFF;
 				break;
 			}
 			// Add to spatial index for fast spatial queries
@@ -834,28 +859,104 @@ void BuildSpawnPointMap()
 
 	if (LoadEntityFile(level.mapname, ent_buffer, ent_filename)) {
 		const char* data = ent_buffer.data();
-		const char* com_token;
+		constexpr float STYLE1_MATCH_DIST_SQ = 64.0f * 64.0f;
+		boost::container::small_vector<vec3_t, 32> style1_spawn_hints;
 
+		// Parse entities and collect:
+		// 1) all origins for world-bounds building, and
+		// 2) info_player_deathmatch positions with style 1
 		while (data && *data) {
-			// Look for "origin" keys
-			com_token = COM_Parse(&data);
-			if (!com_token || !*com_token) break;
+			const char* token = COM_Parse(&data);
+			if (!token || !*token)
+				break;
+			if (token[0] != '{')
+				continue;
 
-			if (strcmp(com_token, "origin") == 0) {
-				// Parse the origin value "x y z"
-				com_token = COM_Parse(&data);
-				if (com_token && *com_token) {
-					vec3_t origin{};
-					if (sscanf(com_token, "%f %f %f", &origin.x, &origin.y, &origin.z) == 3) {
+			bool is_dm_spawn = false;
+			bool has_origin = false;
+			int32_t style = 0;
+			vec3_t origin{};
+
+			while (data && *data) {
+				const char* key = COM_Parse(&data);
+				if (!key || !*key)
+					break;
+				if (key[0] == '}')
+					break;
+
+				const char* value = COM_Parse(&data);
+				if (!value || !*value)
+					break;
+
+				if (Q_strcasecmp(key, "classname") == 0) {
+					is_dm_spawn = (Q_strcasecmp(value, "info_player_deathmatch") == 0);
+				}
+				else if (Q_strcasecmp(key, "origin") == 0) {
+					if (sscanf(value, "%f %f %f", &origin.x, &origin.y, &origin.z) == 3) {
+						has_origin = true;
 						AddPointToBounds(origin, world_mins, world_maxs);
 						bounds_source_count++;
 					}
+				}
+				else if (Q_strcasecmp(key, "style") == 0) {
+					style = atoi(value);
+				}
+			}
+
+			if (is_dm_spawn && has_origin && style == 1) {
+				style1_spawn_hints.push_back(origin);
+			}
+		}
+
+		// Apply style 1 hints only when runtime entities have no style-1 points.
+		// This avoids remapping style lanes away from mapper-authored runtime spawns.
+		size_t runtime_style1_count = 0;
+		for (const edict_t* sp : g_spawn_point_list)
+		{
+			if (sp && sp->inuse && sp->style == 1)
+				runtime_style1_count++;
+		}
+
+		size_t style1_applied = 0;
+		if (runtime_style1_count == 0)
+		{
+			for (const vec3_t& hint_origin : style1_spawn_hints)
+			{
+				edict_t* best_match = nullptr;
+				float best_dist_sq = STYLE1_MATCH_DIST_SQ;
+
+				for (edict_t* sp : g_spawn_point_list)
+				{
+					if (!sp || !sp->inuse || !is_valid_vector(sp->s.origin))
+						continue;
+
+					const float dist_sq = (sp->s.origin - hint_origin).lengthSquared();
+					if (dist_sq <= best_dist_sq)
+					{
+						best_dist_sq = dist_sq;
+						best_match = sp;
+					}
+				}
+
+				if (best_match && best_match->style != 1)
+				{
+					best_match->style = 1;
+					style1_applied++;
 				}
 			}
 		}
 
 		if (bounds_source_count > 0) {
 			gi.Com_PrintFmt("Calculated world bounds from .ent file ({} entities)\n", bounds_source_count);
+		}
+		if (developer->integer && !style1_spawn_hints.empty()) {
+			gi.Com_PrintFmt("Applied {} style-1 DM spawn hints from .ent ({} hints found)\n",
+				style1_applied, style1_spawn_hints.size());
+			if (runtime_style1_count > 0)
+			{
+				gi.Com_PrintFmt("Skipped style-1 hint remap because runtime style-1 points already exist ({}).\n",
+					runtime_style1_count);
+			}
 		}
 	}
 
@@ -931,98 +1032,125 @@ void BuildSpawnPointMap()
 		gi.Com_Print("Spawn grid disabled for this map, using classic spawn points.\n");
 	}
 
-	// FIX: If no traditional spawn points were found but the grid was generated successfully,
-	// create virtual spawn point entities from grid nodes so the spawn system can function
-	if (g_num_spawn_points == 0 && HordePhys::g_spawn_grid.IsGenerated() && HordePhys::g_spawn_grid.GetNodeCount() > 0)
+	// Virtual spawn generation:
+	// Only generate virtual grid spawn points when there are NO classic DM spawns.
+	// This keeps style-1 behavior anchored to real info_player_deathmatch entities.
+	const bool grid_available = HordePhys::g_spawn_grid.IsGenerated() && HordePhys::g_spawn_grid.GetNodeCount() > 0;
+	const bool no_classic_spawns = (g_num_spawn_points == 0);
+	if (grid_available && no_classic_spawns)
 	{
-		gi.Com_PrintFmt("No traditional spawn points found, creating virtual spawn points from grid ({} nodes available)...\n",
-			HordePhys::g_spawn_grid.GetNodeCount());
-
-		// Create a reasonable number of virtual spawn points from grid nodes
-		// Use 10-20% of grid nodes as spawn points (capped at 64)
 		const int grid_node_count = HordePhys::g_spawn_grid.GetNodeCount();
-		const int target_spawn_count = std::min(std::max(grid_node_count / 10, 16), 64);
+		const int available_slots = std::max(0, static_cast<int>(MAX_SPAWN_POINTS) - static_cast<int>(g_spawn_point_list.size()));
 
-		int virtual_spawns_created = 0;
-		int attempts = 0;
-		const int max_attempts = grid_node_count * 2; // Prevent infinite loops
+		int target_spawn_count = std::min(std::max(grid_node_count / 10, 16), available_slots);
+		gi.Com_PrintFmt("No traditional spawn points found, creating virtual spawn points from grid ({} nodes available)...\n",
+			grid_node_count);
 
-		while (virtual_spawns_created < target_spawn_count && attempts < max_attempts) {
-			attempts++;
+		if (target_spawn_count > 0)
+		{
+			int virtual_spawns_created = 0;
+			int attempts = 0;
+			const int max_attempts = std::max(grid_node_count * 2, target_spawn_count * 8); // Prevent infinite loops
 
-			vec3_t grid_pos;
-			if (!HordePhys::g_spawn_grid.GetRandomPosition(grid_pos)) {
-				continue;
-			}
+			while (virtual_spawns_created < target_spawn_count && attempts < max_attempts)
+			{
+				attempts++;
 
-			// Check if this position is far enough from existing virtual spawn points
-			bool too_close = false;
-			constexpr float MIN_VIRTUAL_SPAWN_SPACING = 256.0f;
-			for (edict_t* existing_sp : g_spawn_point_list) {
-				if (existing_sp && existing_sp->inuse && is_valid_vector(existing_sp->s.origin)) {
-					if ((grid_pos - existing_sp->s.origin).lengthSquared() < MIN_VIRTUAL_SPAWN_SPACING * MIN_VIRTUAL_SPAWN_SPACING) {
-						too_close = true;
-						break;
+				vec3_t grid_pos;
+				const bool got_position = HordePhys::g_spawn_grid.GetRandomPosition(grid_pos);
+
+				if (!got_position)
+					continue;
+
+				// Keep spacing between spawn points to avoid clustering.
+				bool too_close = false;
+				constexpr float MIN_VIRTUAL_SPAWN_SPACING = 224.0f;
+				for (edict_t* existing_sp : g_spawn_point_list)
+				{
+					if (existing_sp && existing_sp->inuse && is_valid_vector(existing_sp->s.origin))
+					{
+						if ((grid_pos - existing_sp->s.origin).lengthSquared() < MIN_VIRTUAL_SPAWN_SPACING * MIN_VIRTUAL_SPAWN_SPACING)
+						{
+							too_close = true;
+							break;
+						}
 					}
 				}
+				if (too_close)
+					continue;
+
+				// Create a virtual DM spawn point entity.
+				edict_t* virtual_spawn = G_Spawn();
+				if (!virtual_spawn)
+				{
+					gi.Com_Print("ERROR: Failed to spawn virtual spawn point entity\n");
+					break;
+				}
+
+				virtual_spawn->classname = "info_player_deathmatch";
+				virtual_spawn->s.origin = grid_pos;
+				virtual_spawn->s.angles = vec3_t{0, frandom() * 360.0f, 0}; // Random yaw
+				virtual_spawn->style = 0;
+				virtual_spawn->inuse = true;
+				virtual_spawn->solid = SOLID_NOT;
+				virtual_spawn->movetype = MOVETYPE_NONE;
+				gi.linkentity(virtual_spawn);
+
+				if (g_spawn_point_list.size() >= MAX_SPAWN_POINTS)
+				{
+					gi.Com_PrintFmt("WARNING: Hit max spawn points limit while creating virtual spawns\n");
+					G_FreeEdict(virtual_spawn);
+					break;
+				}
+
+				const uint16_t compact_index = static_cast<uint16_t>(g_spawn_point_list.size());
+				g_spawn_system.spawn_point_map[virtual_spawn->s.number] = compact_index;
+				if (virtual_spawn->s.number < g_spawn_system.spawn_point_index_lookup.size())
+				{
+					g_spawn_system.spawn_point_index_lookup[virtual_spawn->s.number] = compact_index;
+				}
+				else
+				{
+					gi.Com_PrintFmt("ERROR: Virtual spawn entity number {} exceeds lookup table size {}! Skipping.\n",
+						virtual_spawn->s.number, g_spawn_system.spawn_point_index_lookup.size());
+					G_FreeEdict(virtual_spawn);
+					continue;
+				}
+
+				if (!safe_push_back(g_spawn_point_list, virtual_spawn, MAX_SPAWN_POINTS))
+				{
+					gi.Com_Print("WARNING: Failed to add virtual spawn point to list\n");
+					g_spawn_system.spawn_point_map.erase(virtual_spawn->s.number);
+					g_spawn_system.spawn_point_index_lookup[virtual_spawn->s.number] = 0xFFFF;
+					G_FreeEdict(virtual_spawn);
+					break;
+				}
+
+				HordePerf::g_spawn_spatial_index.AddSpawnPoint(virtual_spawn);
+
+				virtual_spawns_created++;
 			}
 
-			if (too_close) {
-				continue;
+			// Update counts and resize structures.
+			g_num_spawn_points = g_spawn_point_list.size();
+			g_spawn_point_list.shrink_to_fit();
+
+			if (g_num_spawn_points > MAX_SAFE_CONTAINER_SIZE)
+			{
+				gi.Com_PrintFmt("ERROR: Too many spawn points ({}) exceeds maximum ({})\n",
+					g_num_spawn_points, MAX_SAFE_CONTAINER_SIZE);
+				g_num_spawn_points = MAX_SAFE_CONTAINER_SIZE;
 			}
 
-			// Create a virtual spawn point entity
-			edict_t* virtual_spawn = G_Spawn();
-			if (!virtual_spawn) {
-				gi.Com_Print("ERROR: Failed to spawn virtual spawn point entity\n");
-				break;
+			g_spawn_system.spawn_points_data.resize(g_num_spawn_points);
+			spawn_point_cache.resize(g_num_spawn_points);
+			if (!safe_resize(g_spawn_system.spawn_validation_cache, g_num_spawn_points))
+			{
+				gi.Com_Print("ERROR: Failed to resize spawn validation cache for virtual spawns\n");
 			}
 
-			virtual_spawn->classname = "info_player_deathmatch";
-			virtual_spawn->s.origin = grid_pos;
-			virtual_spawn->s.angles = vec3_t{0, frandom() * 360.0f, 0}; // Random yaw
-			virtual_spawn->style = 0; // Ground spawn by default
-			virtual_spawn->inuse = true;
-			virtual_spawn->solid = SOLID_NOT;
-			virtual_spawn->movetype = MOVETYPE_NONE;
-			gi.linkentity(virtual_spawn);
-
-			// Add to spawn point list and map
-			if (g_spawn_point_list.size() >= MAX_SPAWN_POINTS) {
-				gi.Com_PrintFmt("WARNING: Hit max spawn points limit while creating virtual spawns\n");
-				break;
-			}
-
-			g_spawn_system.spawn_point_map[virtual_spawn->s.number] = static_cast<uint16_t>(g_spawn_point_list.size());
-			if (!safe_push_back(g_spawn_point_list, virtual_spawn, MAX_SPAWN_POINTS)) {
-				gi.Com_Print("WARNING: Failed to add virtual spawn point to list\n");
-				G_FreeEdict(virtual_spawn);
-				break;
-			}
-
-			// Add to spatial index
-			HordePerf::g_spawn_spatial_index.AddSpawnPoint(virtual_spawn);
-
-			virtual_spawns_created++;
+			gi.Com_PrintFmt("Created {} virtual spawn points from grid nodes.\n", virtual_spawns_created);
 		}
-
-		// Update counts and resize structures
-		g_num_spawn_points = g_spawn_point_list.size();
-		g_spawn_point_list.shrink_to_fit();
-
-		if (g_num_spawn_points > MAX_SAFE_CONTAINER_SIZE) {
-			gi.Com_PrintFmt("ERROR: Too many spawn points ({}) exceeds maximum ({})\n",
-				g_num_spawn_points, MAX_SAFE_CONTAINER_SIZE);
-			g_num_spawn_points = MAX_SAFE_CONTAINER_SIZE;
-		}
-
-		g_spawn_system.spawn_points_data.resize(g_num_spawn_points);
-		spawn_point_cache.resize(g_num_spawn_points);
-		if (!safe_resize(g_spawn_system.spawn_validation_cache, g_num_spawn_points)) {
-			gi.Com_Print("ERROR: Failed to resize spawn validation cache for virtual spawns\n");
-		}
-
-		gi.Com_PrintFmt("Created {} virtual spawn points from grid nodes.\n", virtual_spawns_created);
 	}
 }
 
@@ -1128,24 +1256,40 @@ edict_t* SelectNextShuffledSpawnPoint(TFilter filter)
 
 [[nodiscard]] std::optional<edict_t*> FindRandomHordeSpawnPoint(bool for_flying_monster)
 {
-	const bool allow_ground_for_flying = (for_flying_monster && g_spawn_system.cached_flying_spawn_count == 0);
-	edict_t* spawnPoint = SelectNextShuffledSpawnPoint([&](const edict_t* sp) {
-		if (allow_ground_for_flying)
-			return true;
-		return (for_flying_monster == (sp->style == 1));
-	});
+	auto try_pick = [&](bool strict_style_filter) -> edict_t*
+	{
+		return SelectNextShuffledSpawnPoint([&](const edict_t* sp) {
+			if (!strict_style_filter)
+				return true;
 
-	if (spawnPoint) {
-		// Check if the point is usable for alternative spawns if the main spot is blocked
-		const SpawnPointCache& cache = spawn_point_cache[spawnPoint];
-		if (cache.has_obstacle) {
-			// This point is blocked by a monster/defense, but we can try an alternative position nearby.
-			// The caller will handle this logic.
-		}
-		return spawnPoint;
+			const bool spawn_is_flying = (sp->style == 1);
+			if (for_flying_monster)
+				return spawn_is_flying;   // style 1 is dedicated to flying monsters
+			return !spawn_is_flying;      // ground monsters must never use style 1
+		});
+	};
+
+	// First pass: preserve dedicated spawn lanes (style 1 for flying, non-style-1 for ground).
+	edict_t* spawnPoint = try_pick(true);
+
+	// Fallback pass: if strict filtering leaves no options, allow any spawn point
+	// only for flying monsters. Ground monsters must never use style 1 points.
+	if (!spawnPoint && for_flying_monster)
+	{
+		spawnPoint = try_pick(false);
 	}
 
-	return std::nullopt;
+	if (!spawnPoint)
+		return std::nullopt;
+
+	// Check if the point is usable for alternative spawns if the main spot is blocked.
+	const SpawnPointCache& cache = spawn_point_cache[spawnPoint];
+	if (cache.has_obstacle)
+	{
+		// This point is blocked by a monster/defense, but we can try an alternative position nearby.
+		// The caller will handle this logic.
+	}
+	return spawnPoint;
 }
 // FIX: Time-sliced spawn point cache cleanup to avoid iterating all points every frame
 static void CleanupSpawnPointCache() {
@@ -3475,6 +3619,11 @@ horde::MonsterTypeID G_HordePickMonsterType(
 	ctx.isBossWaveMinionPhase = (ctx.currentActualLevel >= 10 && ctx.currentActualLevel % 5 == 0 && boss_spawned_for_wave);
 	ctx.flyingAdjustmentFactor = adjustFlyingSpawnProbability(g_spawn_system.cached_flying_spawn_count);
 	ctx.waveTypeForFiltering = isRecoveryModeActive_param ? (HasWaveType(originalWaveTypeBeforeRecovery_param, MonsterWaveType::Flying) ? MonsterWaveType::Flying : MonsterWaveType::Ground) : currentActualWaveType_param;
+	if (ctx.isSpawnPointFlying)
+	{
+		// Dedicated style-1 lanes should always select from flying-eligible monsters.
+		ctx.waveTypeForFiltering |= MonsterWaveType::Flying;
+	}
 
 	// --- 2. Calculate Effective Level ---
 	// PREVENT MULTIPLE ELITES: Check flag BEFORE attempting elite spawn
@@ -5682,7 +5831,7 @@ static edict_t* FindSafeTeleportDestination(edict_t* self)
 
 	// --- 2. Get Monster Properties ---
 	const bool can_monster_fly = IsFlying(static_cast<horde::MonsterTypeID>(self->monsterinfo.monster_type_id));
-	const bool allow_ground_for_flying = (can_monster_fly && g_spawn_system.cached_flying_spawn_count == 0);
+	const bool has_flying_only_points = (g_spawn_system.cached_flying_spawn_count > 0);
 
 	// 25% chance to require out-of-visibility position for this teleport
 	const bool require_out_of_visibility = frandom() < HordeConstants::OUT_OF_VISIBILITY_CHANCE;
@@ -5700,89 +5849,122 @@ static edict_t* FindSafeTeleportDestination(edict_t* self)
 	boost::container::small_vector<edict_t*, 32> nearby_spawn_points;
 	HordePerf::g_spawn_spatial_index.GetNearbySpawnPoints(target_player->s.origin, SEARCH_RADIUS, nearby_spawn_points);
 
-	for (edict_t* spawn_point : nearby_spawn_points)
+	auto consider_candidates = [&](auto& candidates, bool strict_flying_style_filter) -> bool
 	{
-		// Spawn points from spatial index are already validated as info_player_deathmatch
-		if (!spawn_point->inuse) {
-			continue;
-		}
-		// --- END PERFORMANCE FIX ---
+		edict_t* local_best_spot = nullptr;
+		float local_best_score = -1.0f;
 
-		// --- A. Filter for Valid Spawn Points ---
-		const uint16_t index = GetSpawnPointIndexSafe(spawn_point);
-		if (index == 0xFFFF) [[unlikely]]
-			continue;
-
-		if (level.time < g_spawn_system.spawn_points_data.teleport_cooldown[index] || IsSpawnPointOccupied(spawn_point))
+		for (edict_t* spawn_point : candidates)
 		{
-			continue;
-		}
-
-		const bool spawn_is_flying = (spawn_point->style == 1);
-		if (can_monster_fly)
-		{
-			if (!allow_ground_for_flying && !spawn_is_flying)
+			// Spawn points from spatial index are already validated as info_player_deathmatch
+			if (!spawn_point || !spawn_point->inuse)
 				continue;
-		}
-		else if (spawn_is_flying)
-		{
-			continue;
-		}
+			if (!is_valid_vector(spawn_point->s.origin))
+				continue;
 
-		// For flying monsters, ensure there's ground within 2000 units below
-		if (can_monster_fly)
-		{
-			vec3_t ground_check_start = spawn_point->s.origin;
-			vec3_t ground_check_end = ground_check_start;
-			ground_check_end.z -= 2000.0f;
+			// --- A. Filter for Valid Spawn Points ---
+			const uint16_t index = GetSpawnPointIndexSafe(spawn_point);
+			if (index == 0xFFFF) [[unlikely]]
+				continue;
 
-			trace_t ground_trace = gi.traceline(ground_check_start, ground_check_end, spawn_point, MASK_SOLID);
-			// If no ground found or hit sky, skip this spawn point
-			if (ground_trace.fraction >= 1.0f || (ground_trace.surface && (ground_trace.surface->flags & SURF_SKY)))
+			if (level.time < g_spawn_system.spawn_points_data.teleport_cooldown[index] || IsSpawnPointOccupied(spawn_point))
 			{
 				continue;
 			}
+
+			const bool spawn_is_flying = (spawn_point->style == 1);
+			if (can_monster_fly)
+			{
+				if (strict_flying_style_filter && !spawn_is_flying)
+					continue; // style 1 dedicated to flying monsters
+			}
+			else if (spawn_is_flying)
+			{
+				continue; // Ground monsters must never use style 1 points.
+			}
+
+			// For flying monsters using non-style-1 fallback points, ensure nearby ground.
+			// Dedicated style 1 lanes are intentionally exempt.
+			if (can_monster_fly && !spawn_is_flying)
+			{
+				vec3_t ground_check_start = spawn_point->s.origin;
+				vec3_t ground_check_end = ground_check_start;
+				ground_check_end.z -= 2000.0f;
+
+				trace_t ground_trace = gi.traceline(ground_check_start, ground_check_end, spawn_point, MASK_SOLID);
+				// If no ground found or hit sky, skip this spawn point
+				if (ground_trace.fraction >= 1.0f || (ground_trace.surface && (ground_trace.surface->flags & SURF_SKY)))
+				{
+					continue;
+				}
+			}
+
+			// --- B. Score the Validated Spawn Point ---
+			float score = 100.0f;
+			float dist_sq = (spawn_point->s.origin - target_player->s.origin).lengthSquared();
+
+			// Use PVS check - catches positions visible from any angle, not just direct line-of-sight
+			// The 'false' parameter means don't check through portals (stricter visibility)
+			const bool is_in_player_pvs = gi.inPVS(spawn_point->s.origin, target_player->s.origin, false);
+
+			// If we require out-of-visibility and position is in PVS, skip it
+			if (require_out_of_visibility && is_in_player_pvs)
+			{
+				continue;
+			}
+
+			// Bonus for being in optimal distance range (400-1200 units)
+			if (dist_sq > min_dist_sq && dist_sq < MAX_DIST_SQ)
+			{
+				score += 100.0f;
+			}
+
+			// Bonus for positions not in player's PVS
+			if (!is_in_player_pvs)
+			{
+				score += 150.0f;
+			}
+
+			// Penalty for being too close to player (use constant for consistency)
+			if (dist_sq < min_dist_sq)
+			{
+				score -= 200.0f;
+			}
+
+			score += frandom() * 25.0f;
+
+			// --- C. Update Best Candidate ---
+			if (score > local_best_score)
+			{
+				local_best_score = score;
+				local_best_spot = spawn_point;
+			}
 		}
 
-		// --- B. Score the Validated Spawn Point ---
-		float score = 100.0f;
-		float dist_sq = (spawn_point->s.origin - target_player->s.origin).lengthSquared();
-
-		// Use PVS check - catches positions visible from any angle, not just direct line-of-sight
-		// The 'false' parameter means don't check through portals (stricter visibility)
-		const bool is_in_player_pvs = gi.inPVS(spawn_point->s.origin, target_player->s.origin, false);
-
-		// If we require out-of-visibility and position is in PVS, skip it
-		if (require_out_of_visibility && is_in_player_pvs)
+		if (local_best_spot)
 		{
-			continue;
+			best_spot = local_best_spot;
+			best_score = local_best_score;
+			return true;
 		}
 
-		// Bonus for being in optimal distance range (400-1200 units)
-		if (dist_sq > min_dist_sq && dist_sq < MAX_DIST_SQ)
-		{
-			score += 100.0f;
-		}
+		return false;
+	};
 
-		// Bonus for positions not in player's PVS
-		if (!is_in_player_pvs)
-		{
-			score += 150.0f;
-		}
+	// First pass: enforce dedicated flying style when possible.
+	const bool should_strict_flying_style = can_monster_fly && has_flying_only_points;
+	if (!consider_candidates(nearby_spawn_points, should_strict_flying_style))
+	{
+		// Second pass (flying only): search globally but still require style 1 points.
+		if (should_strict_flying_style && consider_candidates(g_spawn_point_list, true))
+			return best_spot;
 
-		// Penalty for being too close to player (use constant for consistency)
-		if (dist_sq < min_dist_sq)
+		// Second pass: for flying monsters, relax style filter in nearby points.
+		if (!consider_candidates(nearby_spawn_points, false))
 		{
-			score -= 200.0f;
-		}
-
-		score += frandom() * 25.0f;
-
-		// --- C. Update Best Candidate ---
-		if (score > best_score)
-		{
-			best_score = score;
-			best_spot = spawn_point;
+			// Third pass: broaden search across all known DM spawn points.
+			// Ground monsters still keep style 1 excluded via the filter above.
+			consider_candidates(g_spawn_point_list, false);
 		}
 	}
 
@@ -6226,6 +6408,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 				const uint16_t index = g_spawn_system.spawn_point_map.at(used_spawn_point->s.number);
 				g_spawn_system.spawn_points_data.teleport_cooldown[index] = level.time + HordeConstants::SPAWN_POINT_TELEPORT_COOLDOWN;
 			}
+			ApplyLongFlyingLaneCooldown(used_spawn_point);
 			
 		}
 		HordeConstants::g_teleport_rate_count++;
@@ -6397,6 +6580,7 @@ bool Horde_AttemptToUnstickMonster(edict_t* self)
 		// Use Horde_TeleportMonster. Force it despite visibility since the monster is just spawning.
 		if (Horde_TeleportMonster(self, dest_spot->s.origin, dest_spot->s.angles, true, true))
 		{
+			ApplyLongFlyingLaneCooldown(dest_spot);
 			if (developer->integer)
 			{
 				gi.Com_PrintFmt("FIXED STUCK (Safe): Relocated '{}' to spawn point at {}.\n", self->classname, dest_spot->s.origin);
@@ -6779,11 +6963,14 @@ static bool FindValidSpawnLocation(
 	const vec3_t base_origin = spawn_point->s.origin;
 	const vec3_t base_angles = spawn_point->s.angles;
 	const bool is_flying = IsFlying(monster_type);
+	const bool is_flying_only_lane = (spawn_point->style == 1);
 	vec3_t predicted_mins, predicted_maxs;
 	GetPredictedScaledBounds(monster_type, predicted_mins, predicted_maxs);
 
-	// TEST MODE: If g_horde_grid_first is enabled, try grid spawning first
-	if (g_horde_grid_first && g_horde_grid_first->integer && HordePhys::g_spawn_grid.IsGenerated())
+	// TEST MODE: If g_horde_grid_first is enabled, try grid spawning first.
+	// Exception: for flying monsters on dedicated style-1 lanes, preserve lane spawn and don't override with grid first.
+	if (g_horde_grid_first && g_horde_grid_first->integer && HordePhys::g_spawn_grid.IsGenerated() &&
+		!(is_flying && is_flying_only_lane))
 	{
 		constexpr int GRID_ATTEMPTS = 32;
 		constexpr float GRID_MIN_DIST = 64.0f;
@@ -6820,7 +7007,15 @@ static bool FindValidSpawnLocation(
 		out_origin = validation.adjusted_position;
 		out_angles = base_angles;
 		out_used_alternative = false;
+		if (developer->integer > 1 && is_flying && is_flying_only_lane)
+		{
+			gi.Com_PrintFmt("STYLE1 DIRECT: Spawned flying monster at dedicated lane {}.\n", out_origin);
+		}
 		return true;
+	}
+	if (developer->integer > 1 && is_flying && is_flying_only_lane)
+	{
+		gi.Com_PrintFmt("STYLE1 DIRECT FAIL: Rejected dedicated lane {} for flying spawn.\n", base_origin);
 	}
 
 	// Attempt Alternative Spawn
@@ -6828,6 +7023,10 @@ static bool FindValidSpawnLocation(
 	{
 		out_used_alternative = true;
 		return true;
+	}
+	if (developer->integer > 1 && is_flying && is_flying_only_lane)
+	{
+		gi.Com_PrintFmt("STYLE1 ALT FAIL: No valid alternative near dedicated lane {}.\n", base_origin);
 	}
 
 	return false;
@@ -6847,6 +7046,7 @@ static void ApplySuccessfulAlternativeCooldown(edict_t *spawn_point)
 	g_spawn_system.spawn_points_data.alternative_attempts[static_cast<size_t>(index)] = 0;
 	g_spawn_system.spawn_points_data.needs_long_alternative_cooldown[static_cast<size_t>(index)] = false;
 	g_spawn_system.spawn_points_data.alternative_cooldown[static_cast<size_t>(index)] = level.time + std::max(3.0_sec, HordeConstants::MIN_ALT_SUCCESS_COOLDOWN);
+	ApplyLongFlyingLaneCooldown(spawn_point);
 
 	if (developer->integer > 1)
 		gi.Com_PrintFmt("Success cooldown applied to spawn at {}: {:.1f}s\n", spawn_point->s.origin, std::max(3.0_sec, HordeConstants::MIN_ALT_SUCCESS_COOLDOWN).seconds());

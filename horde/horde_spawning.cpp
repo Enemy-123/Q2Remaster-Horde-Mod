@@ -549,6 +549,7 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID type
     const vec3_t base_origin = spawn_point->s.origin;
     const vec3_t base_angles = spawn_point->s.angles;
     const bool is_flying = IsFlying(typeId);
+    const bool is_flying_only_lane = (spawn_point->style == 1);
 
     vec3_t predicted_mins, predicted_maxs;
     GetPredictedScaledBounds(typeId, predicted_mins, predicted_maxs);
@@ -574,8 +575,10 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID type
         }
     }
 
-    // Phase 2: NEW - If radial search failed, try spawn grid positions near this spawn point
-    if (HordePhys::g_spawn_grid.IsGenerated())
+    // Phase 2: If radial search failed, try spawn grid positions near this spawn point.
+    // Exception: for flying monsters on dedicated style-1 lanes, keep them on-lane and
+    // do not fall back to generic grid points.
+    if (HordePhys::g_spawn_grid.IsGenerated() && !(is_flying && is_flying_only_lane))
     {
         constexpr int GRID_ATTEMPTS = 32;
         constexpr float GRID_MIN_DIST = 64.0f;
@@ -666,20 +669,14 @@ void PlanMonsterSpawnBatch(
     int planned_count = 0;
     int failed_validation = 0;
     int failed_monster_pick = 0;
+    bool plan_capacity_exhausted = false;
 
-    while (planned_count < num_to_plan && points_checked < total_potential_points * 2)
+    auto try_plan_at_spawn_point = [&](edict_t* spawn_point) -> bool
     {
-        if (g_spawn_system.spawn_point_shuffle_index >= total_potential_points)
-        {
-            g_spawn_system.spawn_point_shuffle_index = 0;
-        }
-        edict_t* spawn_point = g_spawn_system.potential_spawn_points[g_spawn_system.spawn_point_shuffle_index++];
-        points_checked++;
-
         if (!ValidateSpawnPointForMonster(spawn_point, level.time))
         {
             failed_validation++;
-            continue;
+            return false;
         }
 
         horde::MonsterTypeID monster_type_id = G_HordePickMonsterType(
@@ -687,19 +684,49 @@ void PlanMonsterSpawnBatch(
             is_retaliation_active_param, is_recovery_mode_active_param,
             original_wave_type_before_recovery_param);
 
-        if (monster_type_id != horde::MonsterTypeID::UNKNOWN)
-        {
-            // Use safe emplace_back with overflow protection
-            if (!safe_emplace_back_limit(g_spawn_system.spawn_plan, MAX_ENTITIES_PER_FRAME, monster_type_id, spawn_point)) {
-                gi.Com_Print("WARNING: Spawn plan full, stopping planning\n");
-                break;
-            }
-            planned_count++;
-        }
-        else
+        if (monster_type_id == horde::MonsterTypeID::UNKNOWN)
         {
             failed_monster_pick++;
+            return false;
         }
+
+        // Use safe emplace_back with overflow protection
+        if (!safe_emplace_back_limit(g_spawn_system.spawn_plan, MAX_ENTITIES_PER_FRAME, monster_type_id, spawn_point)) {
+            gi.Com_Print("WARNING: Spawn plan full, stopping planning\n");
+            plan_capacity_exhausted = true;
+            return false;
+        }
+
+        planned_count++;
+        return true;
+    };
+
+    // Force at least one style-1 flying lane spawn attempt per batch when available.
+    if (g_spawn_system.cached_flying_spawn_count > 0 && planned_count < num_to_plan)
+    {
+        const size_t start_index = static_cast<size_t>(irandom(static_cast<int>(total_potential_points)));
+        for (size_t i = 0; i < total_potential_points; ++i)
+        {
+            edict_t* candidate = g_spawn_system.potential_spawn_points[(start_index + i) % total_potential_points];
+            points_checked++;
+
+            if (!candidate || candidate->style != 1)
+                continue;
+
+            if (try_plan_at_spawn_point(candidate) || plan_capacity_exhausted)
+                break;
+        }
+    }
+
+    while (!plan_capacity_exhausted && planned_count < num_to_plan && points_checked < total_potential_points * 2)
+    {
+        if (g_spawn_system.spawn_point_shuffle_index >= total_potential_points)
+        {
+            g_spawn_system.spawn_point_shuffle_index = 0;
+        }
+        edict_t* spawn_point = g_spawn_system.potential_spawn_points[g_spawn_system.spawn_point_shuffle_index++];
+        points_checked++;
+        try_plan_at_spawn_point(spawn_point);
     }
 
     if (developer->integer && (planned_count < num_to_plan || developer->integer >= 2))
@@ -831,6 +858,7 @@ bool ValidateSpawnPointForMonster(edict_t* spawn_point, gtime_t current_time)
 {
     if (!spawn_point || !spawn_point->inuse)
         return false;
+    const bool is_flying_only_lane = (spawn_point->style == 1);
 
     // OPTIMIZATION: O(1) vector lookup instead of O(log N) map lookup
     // SAFETY: Use bounds-checked helper to prevent overflow
@@ -862,7 +890,7 @@ bool ValidateSpawnPointForMonster(edict_t* spawn_point, gtime_t current_time)
     // Perform validation checks
     bool is_valid = CheckSpawnPointCooldowns(index, current_time, emergency_mode);
 
-    if (is_valid)
+    if (is_valid && !is_flying_only_lane)
         is_valid = CheckSpawnPointPlayerProximity(spawn_point->s.origin, emergency_mode, recovery_mode);
 
     // Check occupation (skip in emergency mode)
