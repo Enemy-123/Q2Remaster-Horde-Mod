@@ -597,6 +597,10 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	ent->monsterinfo.aiflags |= AI_DO_NOT_COUNT | AI_SPAWNED_COMMANDER | AI_IGNORE_SHOTS;
 	ent->monsterinfo.slots_from_commander = 1; // Turrets take 1 slot
 
+	// If this fixbot is a summoned unit, force full summon inheritance on its turret.
+	// This guarantees the turret gets the player owner/team chain like tank_spawner children.
+	InheritSummonedProperties(ent, self, true);
+
 	// Update spawner's used slots
 	if (self->monsterinfo.monster_slots) {
 		self->monsterinfo.monster_used += 1;

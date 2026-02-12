@@ -525,8 +525,8 @@
       "damage_scale": 1
     },
     "carrier": {
-      "health": 1500,
-      "power_armor_power": 150,
+      "health": 750,
+      "power_armor_power": 450,
       "power_armor_type": "shield",
       "damage_scale": 1,
       "health_scale": 1,
@@ -540,7 +540,7 @@
       "power_armor_power": 150,
       "power_armor_type": "shield",
       "damage_scale": 0.9,
-      "health_scale": 0.3,
+      "health_scale": 1,
       "weapon_damage": {
         "heat": 25,
         "rocket": 25,
@@ -650,8 +650,8 @@
       }
     },
     "boss2": {
-      "health": 1800,
-      "power_armor_power": 400,
+      "health": 750,
+      "power_armor_power": 450,
       "power_armor_type": "shield",
       "damage_scale": 0.5,
       "health_scale": 1,

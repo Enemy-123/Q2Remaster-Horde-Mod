@@ -74,6 +74,74 @@ void carrier_prep_spawn(edict_t *self);
 void CarrierMachineGunHold(edict_t *self);
 void CarrierRocket(edict_t *self);
 
+static bool CarrierFindSpawnPosition(edict_t* self, const vec3_t& mins, const vec3_t& maxs, vec3_t& spawnpoint)
+{
+	vec3_t forward, right;
+	AngleVectors(self->s.angles, forward, right, nullptr);
+
+	// First pass: deterministic offsets around/forward of the carrier body.
+	constexpr std::array<vec3_t, 8> local_offsets = {{
+		{105, 0, -58},
+		{150, 0, -58},
+		{200, 0, -58},
+		{140, 72, -58},
+		{140, -72, -58},
+		{190, 96, -48},
+		{190, -96, -48},
+		{220, 0, -32}
+	}};
+
+	for (const vec3_t& offset : local_offsets)
+	{
+		const vec3_t startpoint = M_ProjectFlashSource(self, offset, forward, right);
+		vec3_t candidate;
+		if (!FindSpawnPoint(startpoint, mins, maxs, candidate, 64, false))
+			continue;
+		if (!CheckSpawnPoint(candidate, mins, maxs))
+			continue;
+
+		spawnpoint = candidate;
+		return true;
+	}
+
+	// Second pass: radial fallback similar in spirit to tank spawner retries.
+	constexpr std::array<vec3_t, 8> ring_dirs = {{
+		{ 1.0f,  0.0f, 0.0f},
+		{ 0.707f,  0.707f, 0.0f},
+		{ 0.0f,  1.0f, 0.0f},
+		{-0.707f,  0.707f, 0.0f},
+		{-1.0f,  0.0f, 0.0f},
+		{-0.707f, -0.707f, 0.0f},
+		{ 0.0f, -1.0f, 0.0f},
+		{ 0.707f, -0.707f, 0.0f}
+	}};
+	constexpr std::array<float, 3> radii = {{160.0f, 240.0f, 320.0f}};
+	constexpr std::array<float, 3> z_offsets = {{-58.0f, -32.0f, 8.0f}};
+
+	for (float radius : radii)
+	{
+		for (float z : z_offsets)
+		{
+			for (const vec3_t& dir : ring_dirs)
+			{
+				vec3_t startpoint = self->s.origin + (forward * (dir.x * radius)) + (right * (dir.y * radius));
+				startpoint.z += z;
+
+				vec3_t candidate;
+				if (!FindSpawnPoint(startpoint, mins, maxs, candidate, 64, false))
+					continue;
+				if (!CheckSpawnPoint(candidate, mins, maxs))
+					continue;
+
+				spawnpoint = candidate;
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 MONSTERINFO_SIGHT(carrier_sight) (edict_t *self, edict_t *other) -> void
 {
 
@@ -87,11 +155,8 @@ MONSTERINFO_SIGHT(carrier_sight) (edict_t *self, edict_t *other) -> void
 // pick one of the group, and let it rip
 void CarrierCoopCheck(edict_t *self)
 {
-	// no more than 8 players in coop, so..
-	std::array<edict_t *, MAX_SPLIT_PLAYERS> targets;
 	uint32_t num_targets = 0;
-	int32_t  target;
-	edict_t *ent;
+	edict_t *original_enemy, *candidate, *chosen_target = nullptr;
 	trace_t	 tr;
 
 	// if we're not in coop, this is a noop
@@ -103,42 +168,73 @@ void CarrierCoopCheck(edict_t *self)
 	if (self->monsterinfo.fire_wait > level.time)
 		return;
 
-	targets = {};
-
-	// cycle through players
-	for (uint32_t player = 1; player <= game.maxclients; player++)
+	// Summoned carriers should only pick hostile targets, not coop players.
+	if (self->monsterinfo.issummoned)
 	{
-		ent = &g_edicts[player];
-		if (!ent->inuse)
-			continue;
-		if (!ent->client)
-			continue;
-		if (ent->movetype == MOVETYPE_NOCLIP)
-			continue;
-		if (inback(self, ent) || below(self, ent))
+		// Use findradius to avoid scanning every entity each frame.
+		constexpr float SEARCH_RADIUS = 2048.0f;
+		candidate = nullptr;
+		while ((candidate = findradius(candidate, self->s.origin, SEARCH_RADIUS)) != nullptr)
 		{
-			tr = gi.traceline(self->s.origin, ent->s.origin, self, MASK_SOLID);
-			if (tr.fraction == 1.0f)
-				targets[num_targets++] = ent;
+			if (!candidate->inuse || !candidate->takedamage || candidate->health <= 0)
+				continue;
+			if (!(candidate->client || (candidate->svflags & SVF_MONSTER)))
+				continue;
+			if (candidate->movetype == MOVETYPE_NOCLIP)
+				continue;
+			if (candidate == self || candidate == self->chain || candidate == self->teammaster)
+				continue;
+			if (OnSameTeam(self, candidate))
+				continue;
+			if (!(inback(self, candidate) || below(self, candidate)))
+				continue;
+
+			tr = gi.traceline(self->s.origin, candidate->s.origin, self, MASK_SOLID);
+			if (tr.fraction != 1.0f)
+				continue;
+
+			// Reservoir sampling gives a uniform random pick without storing all candidates.
+			if (irandom(++num_targets) == 0)
+				chosen_target = candidate;
+		}
+	}
+	else
+	{
+		// Legacy behavior for non-summoned carriers: prefer players in coop/SP behind/below.
+		for (uint32_t player = 1; player <= game.maxclients; player++)
+		{
+			candidate = &g_edicts[player];
+			if (!candidate->inuse)
+				continue;
+			if (!candidate->client)
+				continue;
+			if (candidate->movetype == MOVETYPE_NOCLIP)
+				continue;
+			if (!(inback(self, candidate) || below(self, candidate)))
+				continue;
+
+			tr = gi.traceline(self->s.origin, candidate->s.origin, self, MASK_SOLID);
+			if (tr.fraction != 1.0f)
+				continue;
+
+			if (irandom(++num_targets) == 0)
+				chosen_target = candidate;
 		}
 	}
 
-	if (!num_targets)
+	if (!chosen_target)
 		return;
-
-	// get a number from 0 to (num_targets-1)
-	target = irandom(num_targets);
 
 	// make sure to prevent rapid fire rockets
 	self->monsterinfo.fire_wait = level.time + CARRIER_ROCKET_TIME;
 
 	// save off the real enemy
-	ent = self->enemy;
+	original_enemy = self->enemy;
 	// set the new guy as temporary enemy
-	self->enemy = targets[target];
+	self->enemy = chosen_target;
 	CarrierRocket(self);
 	// put the real enemy back
-	self->enemy = ent;
+	self->enemy = original_enemy;
 
 	// we're done
 	return;
@@ -403,12 +499,8 @@ void CarrierSpawn(edict_t* self)
 		}
 	}
 
-	vec3_t   f, r, offset, startpoint, spawnpoint;
+	vec3_t   spawnpoint;
 	edict_t* ent;
-
-	offset = { 105, 0, -58 };
-	AngleVectors(self->s.angles, f, r, nullptr);
-	startpoint = M_ProjectFlashSource(self, offset, f, r);
 
 	if (self->monsterinfo.chosen_reinforcements[0] == 255)
 		return;
@@ -426,59 +518,65 @@ void CarrierSpawn(edict_t* self)
 	GetPredictedScaledBounds(typeId, mins, maxs);
 	// --- END MODIFIED LOGIC ---
 
-	if (FindSpawnPoint(startpoint, mins, maxs, spawnpoint, 32, false))
+	if (!CarrierFindSpawnPosition(self, mins, maxs, spawnpoint))
+		return;
+
+	ent = CreateFlyMonster(spawnpoint, self->s.angles, mins, maxs, typeId);
+	if (!ent)
+		return;
+
+	gi.sound(self, CHAN_BODY, sound_spawn, 1, self->monsterinfo.IS_BOSS ? ATTN_NONE : ATTN_NORM, 0);
+	ent->nextthink = level.time;
+	ent->think(ent);
+
+	ent->monsterinfo.aiflags |= AI_SPAWNED_COMMANDER | AI_DO_NOT_COUNT | AI_IGNORE_SHOTS;
+	ent->monsterinfo.commander = self;
+	ent->monsterinfo.slots_from_commander = reinforcement_def.strength;
+	self->monsterinfo.monster_used += reinforcement_def.strength;
+
+	// Show spawn effect only when entity was actually created.
+	float const radius = (maxs - mins).length() * 0.5f;
+	SpawnGrow_Spawn(ent->s.origin, radius, radius * 2.f);
+
+	// Increment global spawn counter
+	if (g_horde->integer) {
+		level.global_spawned_count++;
+		ent->item = brandom() ? G_HordePickItem() : nullptr;
+	}
+
+	ApplyMonsterBonusFlags(ent);
+	InheritSummonedProperties(ent, self, true);
+
+	if ((self->enemy->inuse) && (self->enemy->health > 0))
 	{
-		ent = CreateFlyMonster(spawnpoint, self->s.angles, mins, maxs, typeId);
-		if (!ent) return;
+		ent->enemy = self->enemy;
+		FoundTarget(ent);
 
-		gi.sound(self, CHAN_BODY, sound_spawn, 1, self->monsterinfo.IS_BOSS ? ATTN_NONE : ATTN_NORM, 0);
-		ent->nextthink = level.time;
-		ent->think(ent);
-
-		ent->monsterinfo.aiflags |= AI_SPAWNED_COMMANDER | AI_DO_NOT_COUNT | AI_IGNORE_SHOTS;
-		ent->monsterinfo.commander = self;
-		ent->monsterinfo.slots_from_commander = reinforcement_def.strength;
-		self->monsterinfo.monster_used += reinforcement_def.strength;
-
-		// Increment global spawn counter
-		if (g_horde->integer) {
-			level.global_spawned_count++;
-			ent->item = brandom() ? G_HordePickItem() : nullptr;
-		}
-
-		ApplyMonsterBonusFlags(ent);
-
-		if ((self->enemy->inuse) && (self->enemy->health > 0))
+		if (horde::IsMonsterType(ent, horde::MonsterTypeID::KAMIKAZE))
 		{
-			ent->enemy = self->enemy;
-			FoundTarget(ent);
-
-			if (horde::IsMonsterType(ent, horde::MonsterTypeID::KAMIKAZE))
+			ent->monsterinfo.lefty = false;
+			ent->monsterinfo.attack_state = AS_STRAIGHT;
+			M_SetAnimation(ent, &flyer_move_kamikaze);
+			ent->monsterinfo.aiflags |= AI_CHARGING;
+			ent->owner = self;
+		}
+		else if (horde::IsMonsterType(ent, horde::MonsterTypeID::FLYER))
+		{
+			if (brandom())
 			{
 				ent->monsterinfo.lefty = false;
-				ent->monsterinfo.attack_state = AS_STRAIGHT;
-				M_SetAnimation(ent, &flyer_move_kamikaze);
-				ent->monsterinfo.aiflags |= AI_CHARGING;
-				ent->owner = self;
+				ent->monsterinfo.attack_state = AS_SLIDING;
+				IsFirstThreeWaves(current_wave_level) ?
+					M_SetAnimation(ent, &flyer_move_attack3normal) :
+					M_SetAnimation(ent, &flyer_move_attack3);
 			}
-			else if (horde::IsMonsterType(ent, horde::MonsterTypeID::FLYER))
+			else
 			{
-				if (brandom())
-				{
-					ent->monsterinfo.lefty = false;
-					ent->monsterinfo.attack_state = AS_SLIDING;
-					IsFirstThreeWaves(current_wave_level) ?
-						M_SetAnimation(ent, &flyer_move_attack3normal) :
-						M_SetAnimation(ent, &flyer_move_attack3);
-				}
-				else
-				{
-					ent->monsterinfo.lefty = true;
-					ent->monsterinfo.attack_state = AS_SLIDING;
-					IsFirstThreeWaves(current_wave_level) ?
-						M_SetAnimation(ent, &flyer_move_attack3normal) :
-						M_SetAnimation(ent, &flyer_move_attack3);
-				}
+				ent->monsterinfo.lefty = true;
+				ent->monsterinfo.attack_state = AS_SLIDING;
+				IsFirstThreeWaves(current_wave_level) ?
+					M_SetAnimation(ent, &flyer_move_attack3normal) :
+					M_SetAnimation(ent, &flyer_move_attack3);
 			}
 		}
 	}
@@ -509,7 +607,7 @@ void carrier_spawn_check(edict_t *self)
 void carrier_ready_spawn(edict_t* self)
 {
 	float  current_yaw;
-	vec3_t offset, f, r, startpoint, spawnpoint;
+	vec3_t spawnpoint;
 
 	CarrierCoopCheck(self);
 
@@ -535,24 +633,19 @@ void carrier_ready_spawn(edict_t* self)
 	if (def_index >= self->monsterinfo.reinforcements.defs.size())
 		return;
 
-	// 1. Get the definition using the index.
-	const auto& reinforcement_def = self->monsterinfo.reinforcements.defs[def_index];
-	horde::MonsterTypeID typeId = reinforcement_def.typeId;
+	// 1. Get the type using the chosen reinforcement index.
+	horde::MonsterTypeID typeId = self->monsterinfo.reinforcements.defs[def_index].typeId;
 
 	// 2. Get bounds instantly from the global SoA data. No temporary spawning needed.
 	vec3_t mins, maxs;
 	GetPredictedScaledBounds(typeId, mins, maxs);
 	
 
-	offset = { 105, 0, -58 };
-	AngleVectors(self->s.angles, f, r, nullptr);
-	startpoint = M_ProjectFlashSource(self, offset, f, r);
-
 	// 3. Use the retrieved bounds for checks and effects.
-	if (FindSpawnPoint(startpoint, mins, maxs, spawnpoint, 32, false))
+	if (CarrierFindSpawnPosition(self, mins, maxs, spawnpoint))
 	{
 		float radius = (maxs - mins).length() * 0.5f;
-		SpawnGrow_Spawn(spawnpoint + (mins + maxs), radius, radius * 2.f);
+		SpawnGrow_Spawn(spawnpoint, radius, radius * 2.f);
 	}
 }
 
@@ -1374,6 +1467,3 @@ void SP_monster_carrier_mini(edict_t* self)
 
 	ApplyMonsterBonusFlags(self);
 }
-
-
-
