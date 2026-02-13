@@ -844,12 +844,13 @@ void ApplyPvMLevelScaling(edict_t* monster)
 	// This ensures level-gap scaling works correctly (monsters assigned higher levels get scaled properly)
 	int scaling_level = monster->monsterinfo.pvm_level;
 
-	// Apply level-based health scaling
-	int scaled_health = level_scaling->initial_health + (scaling_level * level_scaling->addon_health);
+	// Unified source of truth:
+	// Base health comes from monsters.<name>.health and level scaling contributes only addon_health.
+	int scaled_health = config->health + (scaling_level * level_scaling->addon_health);
 	
-	// Cap health to initial_health + 25% to prevent bullet-sponge monsters
+	// Cap health to base + 25% to prevent bullet-sponge monsters
 	// Bonus flags (BF_CHAMPION, etc.) are applied AFTER this function, so they can exceed this cap
-	int health_cap = static_cast<int>(level_scaling->initial_health * 1.25f);
+	int health_cap = static_cast<int>(config->health * 1.25f);
 	if (scaled_health > health_cap)
 		scaled_health = health_cap;
 	
@@ -860,9 +861,9 @@ void ApplyPvMLevelScaling(edict_t* monster)
 	// Apply level-based armor scaling (if monster has regular armor configured)
 	if (config->armor_power > 0 && monster->monsterinfo.armor_power > 0)
 	{
-		int scaled_armor = level_scaling->initial_armor + (scaling_level * level_scaling->addon_armor);
-		// Cap armor to initial_armor + 25%
-		int armor_cap = static_cast<int>(level_scaling->initial_armor * 1.25f);
+		int scaled_armor = config->armor_power + (scaling_level * level_scaling->addon_armor);
+		// Cap armor to base + 25%
+		int armor_cap = static_cast<int>(config->armor_power * 1.25f);
 		if (scaled_armor > armor_cap)
 			scaled_armor = armor_cap;
 		scaled_armor = static_cast<int>(scaled_armor * config->armor_scale);
@@ -872,9 +873,9 @@ void ApplyPvMLevelScaling(edict_t* monster)
 	// Apply level-based armor scaling to power armor (if monster has power armor configured)
 	if (config->power_armor_power > 0 && monster->monsterinfo.power_armor_power > 0)
 	{
-		int scaled_armor = level_scaling->initial_power_armor + (scaling_level * level_scaling->addon_power_armor);
-		// Cap power armor to initial_power_armor + 25%
-		int power_armor_cap = static_cast<int>(level_scaling->initial_power_armor * 1.25f);
+		int scaled_armor = config->power_armor_power + (scaling_level * level_scaling->addon_power_armor);
+		// Cap power armor to base + 25%
+		int power_armor_cap = static_cast<int>(config->power_armor_power * 1.25f);
 		if (scaled_armor > power_armor_cap)
 			scaled_armor = power_armor_cap;
 		scaled_armor = static_cast<int>(scaled_armor * config->power_armor_scale);

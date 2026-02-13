@@ -510,6 +510,8 @@ struct MonsterStatsConfig
 };;
 
 // Monster level scaling configuration (level-based progression)
+// Base stats come from MonsterStatsConfig; addon_* values are the active progression knobs.
+// initial_* fields are kept for backward compatibility and data migration support.
 struct MonsterLevelScaling
 {
 	int initial_health = 100;

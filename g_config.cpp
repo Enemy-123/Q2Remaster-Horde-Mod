@@ -1293,8 +1293,9 @@ int GetMonsterScaledHealth(uint8_t monster_type_id, int wave_level, bool is_boss
 	const MonsterLevelScaling* level_scaling = GetMonsterLevelScaling(monster_name);
 	if (level_scaling)
 	{
-		// Use level-based scaling with g_lowest_player_level
-		int scaled_health = level_scaling->initial_health + (g_lowest_player_level * level_scaling->addon_health);
+		// Unified source of truth:
+		// Base health comes from monsters.<name>.health and level scaling contributes only addon_health.
+		int scaled_health = config->health + (g_lowest_player_level * level_scaling->addon_health);
 		// Apply monster-specific health scale multiplier
 		scaled_health = static_cast<int>(scaled_health * config->health_scale);
 		return scaled_health;
@@ -1337,8 +1338,9 @@ int GetMonsterScaledArmor(uint8_t monster_type_id, int wave_level, bool is_boss)
 	const MonsterLevelScaling* level_scaling = GetMonsterLevelScaling(monster_name);
 	if (level_scaling)
 	{
-		// Use level-based scaling with g_lowest_player_level
-		int scaled_armor = level_scaling->initial_armor + (g_lowest_player_level * level_scaling->addon_armor);
+		// Unified source of truth:
+		// Base armor comes from monsters.<name>.armor_power and level scaling contributes only addon_armor.
+		int scaled_armor = config->armor_power + (g_lowest_player_level * level_scaling->addon_armor);
 		// Apply monster-specific armor scale multiplier
 		scaled_armor = static_cast<int>(scaled_armor * config->armor_scale);
 		return scaled_armor;
@@ -1364,35 +1366,35 @@ int GetMonsterScaledPowerArmor(uint8_t monster_type_id, int wave_level, bool is_
 	if (!config || config->power_armor_power == 0)
 		return 0;
 
-	// Obtener el nombre de la clase para buscar en el escalado por nivel
+	// Get classname to look up level scaling data
 	const char* classname = horde::MonsterTypeRegistry::GetClassname(static_cast<horde::MonsterTypeID>(monster_type_id));
 	if (!classname || strncmp(classname, "monster_", 8) != 0)
 	{
-		// Fallback si el nombre de la clase es inválido
+		// Fallback if classname is invalid
 		int base_power_armor = config->power_armor_power;
 		float power_armor_scale = config->power_armor_scale;
-		return GetScaledPowerArmor(base_power_armor, power_armor_scale, wave_level, is_boss); // Llama a la función de escalado global
+		return GetScaledPowerArmor(base_power_armor, power_armor_scale, wave_level, is_boss);
 	}
 
-	// Extraer el nombre corto (ej: "brain")
+	// Extract short name (e.g. "brain")
 	const char* monster_name = classname + 8;
 
-	// Intentar obtener la configuración de escalado por nivel
+	// Try to get level-scaling config
 	const MonsterLevelScaling* level_scaling = GetMonsterLevelScaling(monster_name);
-	if (level_scaling && level_scaling->initial_power_armor > 0)
+	if (level_scaling)
 	{
-		// ¡ÉXITO! Usar el escalado por nivel para power_armor
-		int scaled_power_armor = level_scaling->initial_power_armor + (g_lowest_player_level * level_scaling->addon_power_armor);
-		// Aplicar el multiplicador de escala del monstruo si existe
+		// Unified source of truth:
+		// Base power armor comes from monsters.<name>.power_armor_power and level scaling contributes only addon_power_armor.
+		int scaled_power_armor = config->power_armor_power + (g_lowest_player_level * level_scaling->addon_power_armor);
+		// Apply monster-specific scale multiplier
 		scaled_power_armor = static_cast<int>(scaled_power_armor * config->power_armor_scale);
 		return scaled_power_armor;
 	}
 	else
 	{
-		// Fallback al escalado antiguo (por oleada de Horde) si no hay config de nivel
+		// Fallback to old (wave-based Horde) scaling if there is no level-scaling config
 		int base_power_armor = config->power_armor_power;
 		float power_armor_scale = config->power_armor_scale;
-		// La función GetScaledPowerArmor se encarga del escalado por oleada
 		return GetScaledPowerArmor(base_power_armor, power_armor_scale, wave_level, is_boss);
 	}
 }
@@ -1425,8 +1427,27 @@ void GetMonsterLevelScaledStats(const char* monster_name, int32_t pvm_level, int
 	const MonsterLevelScaling* scaling = GetMonsterLevelScaling(monster_name);
 	if (scaling)
 	{
-		out_health = scaling->initial_health + (pvm_level * scaling->addon_health);
-		out_armor = scaling->initial_armor + (pvm_level * scaling->addon_armor);
+		int base_health = 100;
+		int base_armor = 0;
+
+		if (monster_name && monster_name[0])
+		{
+			std::string full_classname = "monster_";
+			full_classname += monster_name;
+
+			horde::MonsterTypeID type_id = horde::MonsterTypeRegistry::GetTypeID(full_classname.c_str());
+			if (type_id != horde::MonsterTypeID::UNKNOWN)
+			{
+				if (const MonsterStatsConfig* config = GetMonsterConfig(static_cast<uint8_t>(type_id)))
+				{
+					base_health = config->health;
+					base_armor = config->armor_power;
+				}
+			}
+		}
+
+		out_health = base_health + (pvm_level * scaling->addon_health);
+		out_armor = base_armor + (pvm_level * scaling->addon_armor);
 	}
 	else
 	{

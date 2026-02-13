@@ -379,88 +379,66 @@ void gunner_opengun(edict_t* self)
 
 void GunnerFire(edict_t* self)
 {
-	// Use M_HasEnemy for basic check - blindfire logic needs to execute
-	if (!M_HasEnemy(self))
-	{
+	if (!M_HasEnemy(self)) {
 		return;
 	}
+
+	const bool bullet_mode = (g_hardcoop->integer > 3 && current_wave_level <= 12);
+
+	// Bullet mode does not support blindfire; clear stale flag so clear-shot checks use enemy target.
+	if (bullet_mode)
+		self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
 
 	vec3_t start;
 	vec3_t forward, right;
 	vec3_t aim;
-	vec3_t offset = { 30.1f * 1.15f, 3.9f * 1.15f, 19.6f * 1.15f + 4.0f };
-	monster_muzzleflash_id_t flash_number;
+	const vec3_t offset = { 30.1f * 1.15f, 3.9f * 1.15f, 19.6f * 1.15f + 4.0f };
 
-	// Check if we can get a clear shot first
 	if (!M_CheckClearShot(self, offset))
 		return;
 
-	flash_number = static_cast<monster_muzzleflash_id_t>(MZ2_SOLDIER_RIPPER_1 + (self->s.frame - FRAME_attak216));
 	AngleVectors(self->s.angles, forward, right, nullptr);
-	// Calculate proper muzzle position with scale support
 	vec3_t scaled_offset = self->s.scale ? (offset * self->s.scale) : offset;
 	start = M_ProjectFlashSource(self, scaled_offset, forward, right);
 
+	const monster_muzzleflash_id_t machinegun_flash =
+		static_cast<monster_muzzleflash_id_t>(MZ2_GUNNER_MACHINEGUN_1 + (self->s.frame - FRAME_attak216));
+	const monster_muzzleflash_id_t ionripper_flash =
+		static_cast<monster_muzzleflash_id_t>(MZ2_SOLDIER_RIPPER_1 + (self->s.frame - FRAME_attak216));
+
 	int machinegun_damage = M_MACHINEGUN_DMG(self);
 	int ionripper_damage = M_IONRIPPER_DMG(self);
-
-	// Determine if we're blindfiring (like chick with rockets)
-	bool blindfire = (self->monsterinfo.aiflags & AI_MANUAL_STEERING);
-	vec3_t target;
-
-	if (blindfire)
-	{
-		// Blindfire mode: use blind_fire_target
-		if (!self->monsterinfo.blind_fire_target)
-			return;
-		target = self->monsterinfo.blind_fire_target;
-	}
-	else
-	{
-		// Normal mode: require visibility for all weapons
-		if (!visible(self, self->enemy))
-		{
-			extern void gunner_stand(edict_t* self);
-		return gunner_stand(self);;
-
-		}
-		target = self->enemy->s.origin;
-	}
-
 	int ionripper_speed_cfg = M_IONRIPPER_SPEED(self);
 	int ionripper_speed = ionripper_speed_cfg > 0 ? ionripper_speed_cfg : 800;
 
-	if (g_hardcoop->integer <= 3) {
-		// Modo hardcoop bajo: solo ionripper (can blindfire)
-		if (blindfire)
-		{
-			aim = (target - start).normalized();
-		}
-		else
-		{
-			PredictAim(self, self->enemy, start, ionripper_speed, true, 0.1f, &aim, nullptr);
-		}
-		monster_fire_ionripper(self, start, aim, ionripper_damage > 0 ? ionripper_damage : 4, ionripper_speed, flash_number, EF_IONRIPPER);
-	}
-	else if (current_wave_level <= 12) {
-		// Waves bajos: bullet (no blindfire for bullets)
-		if (blindfire)
+	if (bullet_mode) {
+		if (!M_HasValidTarget(self) || !visible(self, self->enemy)) {
+			gunner_stand(self);
 			return;
+		}
+
 		PredictAim(self, self->enemy, start, 0, true, -0.1f, &aim, nullptr);
-		monster_fire_bullet(self, start, aim, machinegun_damage > 0 ? machinegun_damage : 6, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
+		monster_fire_bullet(self, start, aim, machinegun_damage > 0 ? machinegun_damage : 6, 4,
+			DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, machinegun_flash);
+		return;
 	}
-	else {
-		// Waves altos: ionripper (can blindfire)
-		if (blindfire)
-		{
-			aim = (target - start).normalized();
+
+	const bool blindfire = (self->monsterinfo.aiflags & AI_MANUAL_STEERING);
+	if (blindfire) {
+		if (!self->monsterinfo.blind_fire_target) {
+			return;
 		}
-		else
-		{
-			PredictAim(self, self->enemy, start, ionripper_speed, true, 0.1f, &aim, nullptr);
+		aim = (self->monsterinfo.blind_fire_target - start).normalized();
+	} else {
+		if (!M_HasValidTarget(self) || !visible(self, self->enemy)) {
+			gunner_stand(self);
+			return;
 		}
-		monster_fire_ionripper(self, start, aim, ionripper_damage > 0 ? ionripper_damage : 4, ionripper_speed, flash_number, EF_IONRIPPER);
+		PredictAim(self, self->enemy, start, ionripper_speed, true, 0.1f, &aim, nullptr);
 	}
+
+	monster_fire_ionripper(self, start, aim, ionripper_damage > 0 ? ionripper_damage : 4, ionripper_speed,
+		ionripper_flash, EF_IONRIPPER);
 }
 
 bool gunner_grenade_check(edict_t* self)

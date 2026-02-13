@@ -833,8 +833,9 @@
   "//  MONSTER LEVEL SCALING SYSTEM": "",
   "// ============================================================================ MONSTER LEVEL SCALING": "",
   "// Level-based progression for monsters based on lowest player level": "",
-  "// Formula: stat = initial + (player_level * addon)": "",
-  "// Default level is 0, so initial values are the baseline": "",
+  "// Formula: stat = base_from_monsters + (player_level * addon)": "",
+  "// Base health/armor/power armor comes from the monsters section above": "",
+  "// initial_* fields are legacy and no longer required": "",
   "monster_level_scaling": {
     "arachnid": {
       "initial_health": 320,
