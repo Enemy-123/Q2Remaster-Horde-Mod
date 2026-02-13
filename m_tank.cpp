@@ -1455,18 +1455,17 @@ DIE(tank_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
 
 		edict_t* arm_gib = ThrowGib(self, "models/monsters/tank/gibs/barm.md2", damage, GIB_SKINNED | GIB_UPRIGHT, self->s.scale);
 
-		if (!arm_gib) {
-			return;
+		// If gib spawn fails (e.g. entity limit), still continue with normal death.
+		if (arm_gib) {
+			arm_gib->s.origin = self->s.origin + (rgt * -16.f) + (up * 23.f);
+			arm_gib->s.old_origin = arm_gib->s.origin;
+			arm_gib->avelocity = { crandom() * 15.f, crandom() * 15.f, 180.f };
+			arm_gib->velocity = (up * 100.f) + (rgt * -120.f);
+			arm_gib->s.angles = self->s.angles;
+			arm_gib->s.angles[2] = -90.f;
+			arm_gib->s.skinnum /= 2;
+			gi.linkentity(arm_gib);
 		}
-
-		arm_gib->s.origin = self->s.origin + (rgt * -16.f) + (up * 23.f);
-		arm_gib->s.old_origin = arm_gib->s.origin;
-		arm_gib->avelocity = { crandom() * 15.f, crandom() * 15.f, 180.f };
-		arm_gib->velocity = (up * 100.f) + (rgt * -120.f);
-		arm_gib->s.angles = self->s.angles;
-		arm_gib->s.angles[2] = -90.f;
-		arm_gib->s.skinnum /= 2;
-		gi.linkentity(arm_gib);
 	}
 
 	// regular death
@@ -2899,17 +2898,16 @@ DIE(tank_vanilla_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int
 
 		edict_t* arm_gib = ThrowGib(self, "models/monsters/tank/gibs/barm.md2", damage, GIB_SKINNED | GIB_UPRIGHT, self->s.scale);
 
-		if (!arm_gib) {
-			return;
+		// If gib spawn fails (e.g. entity limit), still continue with normal death.
+		if (arm_gib) {
+			arm_gib->s.old_origin = arm_gib->s.origin;
+			arm_gib->avelocity = { crandom() * 15.f, crandom() * 15.f, 180.f };
+			arm_gib->velocity = (up * 100.f) + (rgt * -120.f);
+			arm_gib->s.angles = self->s.angles;
+			arm_gib->s.angles[2] = -90.f;
+			arm_gib->s.skinnum /= 2;
+			gi.linkentity(arm_gib);
 		}
-
-		arm_gib->s.old_origin = arm_gib->s.origin;
-		arm_gib->avelocity = { crandom() * 15.f, crandom() * 15.f, 180.f };
-		arm_gib->velocity = (up * 100.f) + (rgt * -120.f);
-		arm_gib->s.angles = self->s.angles;
-		arm_gib->s.angles[2] = -90.f;
-		arm_gib->s.skinnum /= 2;
-		gi.linkentity(arm_gib);
 	}
 
 	// regular death
