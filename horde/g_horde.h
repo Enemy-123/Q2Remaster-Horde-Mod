@@ -110,6 +110,8 @@ struct HordeState
 	int32_t num_to_spawn = 0;
 	int32_t level = 0;
 	int32_t queued_monsters = 0;
+	int32_t cached_live_monsters = 0;
+	gtime_t cached_live_monsters_time = 0_sec;
 	gtime_t lastPrintTime = 0_sec;
 
 	bool conditionTriggered = false;

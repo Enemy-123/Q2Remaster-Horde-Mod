@@ -1377,14 +1377,14 @@ gtime_t horde_message_end_time = 0_sec;
 gtime_t SPAWN_POINT_COOLDOWN = 2.8_sec; // spawns Cooldown
 
 // FIX: Time-sliced cooldown checking to reduce per-frame overhead on large maps
-static void CheckAndReduceSpawnCooldowns()
+static void CheckAndReduceSpawnCooldowns(int32_t live_monsters)
 {
 	// Safety check: ensure spawn system is initialized
 	if (g_num_spawn_points == 0 || 
 		g_spawn_system.spawn_points_data.isTemporarilyDisabled.size() < g_num_spawn_points)
 		return;
 
-	if (GetStroggsNum() > 6 || IsBossWave()) {
+	if (live_monsters > 6 || IsBossWave()) {
 		return;
 	}
 
@@ -4269,132 +4269,110 @@ static void PrecacheAllMonsters()
 // Initialize the monster-to-family mapping for spawn variety tracking
 static void InitializeMonsterFamilyMapping()
 {
-	// Initialize all to UNKNOWN_FAMILY first
 	g_monster_to_family.fill(AssetFamilyID::UNKNOWN_FAMILY);
 
 	using namespace horde;
+	struct MonsterFamilyMappingEntry
+	{
+		MonsterTypeID monster;
+		AssetFamilyID family;
+	};
 
-	// Soldier family
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::SOLDIER_LIGHT)] = AssetFamilyID::SOLDIER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::SOLDIER)] = AssetFamilyID::SOLDIER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::SOLDIER_SS)] = AssetFamilyID::SOLDIER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::SOLDIER_HYPERGUN)] = AssetFamilyID::SOLDIER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::SOLDIER_RIPPER)] = AssetFamilyID::SOLDIER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::SOLDIER_LASERGUN)] = AssetFamilyID::SOLDIER_FAMILY;
+	static constexpr MonsterFamilyMappingEntry MONSTER_FAMILY_MAPPINGS[] = {
+		{MonsterTypeID::SOLDIER_LIGHT, AssetFamilyID::SOLDIER_FAMILY},
+		{MonsterTypeID::SOLDIER, AssetFamilyID::SOLDIER_FAMILY},
+		{MonsterTypeID::SOLDIER_SS, AssetFamilyID::SOLDIER_FAMILY},
+		{MonsterTypeID::SOLDIER_HYPERGUN, AssetFamilyID::SOLDIER_FAMILY},
+		{MonsterTypeID::SOLDIER_RIPPER, AssetFamilyID::SOLDIER_FAMILY},
+		{MonsterTypeID::SOLDIER_LASERGUN, AssetFamilyID::SOLDIER_FAMILY},
+		{MonsterTypeID::TANK, AssetFamilyID::TANK_FAMILY},
+		{MonsterTypeID::TANK_COMMANDER, AssetFamilyID::TANK_FAMILY},
+		{MonsterTypeID::TANK_64, AssetFamilyID::TANK_FAMILY},
+		{MonsterTypeID::RUNNERTANK, AssetFamilyID::TANK_FAMILY},
+		{MonsterTypeID::TANK_SPAWNER, AssetFamilyID::TANK_FAMILY},
+		{MonsterTypeID::EASTERTANK, AssetFamilyID::TANK_FAMILY},
+		{MonsterTypeID::GLADIATOR, AssetFamilyID::GLADIATOR_FAMILY},
+		{MonsterTypeID::GLADIATOR_B, AssetFamilyID::GLADIATOR_FAMILY},
+		{MonsterTypeID::GLADIATOR_C, AssetFamilyID::GLADIATOR_FAMILY},
+		{MonsterTypeID::GUNNER, AssetFamilyID::GUNNER_FAMILY},
+		{MonsterTypeID::GUNNER_VANILLA, AssetFamilyID::GUNNER_FAMILY},
+		{MonsterTypeID::GUNCMDR, AssetFamilyID::GUNNER_FAMILY},
+		{MonsterTypeID::GUNCMDR_VANILLA, AssetFamilyID::GUNNER_FAMILY},
+		{MonsterTypeID::GUNCMDR_KL, AssetFamilyID::GUNNER_FAMILY},
+		{MonsterTypeID::INFANTRY, AssetFamilyID::INFANTRY_FAMILY},
+		{MonsterTypeID::INFANTRY_VANILLA, AssetFamilyID::INFANTRY_FAMILY},
+		{MonsterTypeID::SPIDER, AssetFamilyID::ARACHNID_FAMILY},
+		{MonsterTypeID::ARACHNID, AssetFamilyID::ARACHNID_FAMILY},
+		{MonsterTypeID::ARACHNID2, AssetFamilyID::ARACHNID_FAMILY},
+		{MonsterTypeID::GM_ARACHNID, AssetFamilyID::ARACHNID_FAMILY},
+		{MonsterTypeID::PSX_ARACHNID, AssetFamilyID::ARACHNID_FAMILY},
+		{MonsterTypeID::GUARDIAN, AssetFamilyID::GUARDIAN_FAMILY},
+		{MonsterTypeID::PSX_GUARDIAN, AssetFamilyID::GUARDIAN_FAMILY},
+		{MonsterTypeID::JANITOR2, AssetFamilyID::GUARDIAN_FAMILY},
+		{MonsterTypeID::JANITOR, AssetFamilyID::SUPERTANK_FAMILY},
+		{MonsterTypeID::SUPERTANK, AssetFamilyID::SUPERTANK_FAMILY},
+		{MonsterTypeID::SUPERTANKKL, AssetFamilyID::SUPERTANK_FAMILY},
+		{MonsterTypeID::BOSS5, AssetFamilyID::SUPERTANK_FAMILY},
+		{MonsterTypeID::FIXBOT, AssetFamilyID::FIXBOT_FAMILY},
+		{MonsterTypeID::FIXBOT_KL, AssetFamilyID::FIXBOT_FAMILY},
+		{MonsterTypeID::TURRET, AssetFamilyID::TURRET_FAMILY},
+		{MonsterTypeID::SENTRYGUN, AssetFamilyID::TURRET_FAMILY},
+		{MonsterTypeID::DAEDALUS, AssetFamilyID::DAEDALUS_FAMILY},
+		{MonsterTypeID::DAEDALUS_BOMBER, AssetFamilyID::DAEDALUS_FAMILY},
+		{MonsterTypeID::PARASITE, AssetFamilyID::PARASITE_FAMILY},
+		{MonsterTypeID::PERRO_KL, AssetFamilyID::PARASITE_FAMILY},
+		{MonsterTypeID::BOSS2, AssetFamilyID::BOSS2_FAMILY},
+		{MonsterTypeID::BOSS2_64, AssetFamilyID::BOSS2_FAMILY},
+		{MonsterTypeID::BOSS2_MINI, AssetFamilyID::BOSS2_FAMILY},
+		{MonsterTypeID::BOSS2_KL, AssetFamilyID::BOSS2_FAMILY},
+		{MonsterTypeID::BOSS3_STAND, AssetFamilyID::BOSS2_FAMILY},
+		{MonsterTypeID::CARRIER, AssetFamilyID::CARRIER_FAMILY},
+		{MonsterTypeID::CARRIER_MINI, AssetFamilyID::CARRIER_FAMILY},
+		{MonsterTypeID::WIDOW, AssetFamilyID::WIDOW_FAMILY},
+		{MonsterTypeID::WIDOW1, AssetFamilyID::WIDOW_FAMILY},
+		{MonsterTypeID::WIDOW2, AssetFamilyID::WIDOW_FAMILY},
+		{MonsterTypeID::SHAMBLER, AssetFamilyID::SHAMBLER_FAMILY},
+		{MonsterTypeID::SHAMBLER_SMALL, AssetFamilyID::SHAMBLER_FAMILY},
+		{MonsterTypeID::SHAMBLER_KL, AssetFamilyID::SHAMBLER_FAMILY},
+		{MonsterTypeID::MAKRON, AssetFamilyID::MAKRON_FAMILY},
+		{MonsterTypeID::MAKRON_KL, AssetFamilyID::MAKRON_FAMILY},
+		{MonsterTypeID::JORG, AssetFamilyID::MAKRON_FAMILY},
+		{MonsterTypeID::JORG_SMALL, AssetFamilyID::MAKRON_FAMILY},
+		{MonsterTypeID::BERSERK, AssetFamilyID::BERSERK_FAMILY},
+		{MonsterTypeID::BERSERKERKL, AssetFamilyID::BERSERK_FAMILY},
+		{MonsterTypeID::BRAIN, AssetFamilyID::BRAIN_FAMILY},
+		{MonsterTypeID::CHICK, AssetFamilyID::CHICK_FAMILY},
+		{MonsterTypeID::CHICK_HEAT, AssetFamilyID::CHICK_FAMILY},
+		{MonsterTypeID::CHICKKL, AssetFamilyID::CHICK_FAMILY},
+		{MonsterTypeID::EASTERCHICK, AssetFamilyID::CHICK_FAMILY},
+		{MonsterTypeID::EASTERCHICK2, AssetFamilyID::CHICK_FAMILY},
+		{MonsterTypeID::FLYER, AssetFamilyID::FLYER_FAMILY},
+		{MonsterTypeID::HOVER, AssetFamilyID::HOVER_FAMILY},
+		{MonsterTypeID::HOVER_VANILLA, AssetFamilyID::HOVER_FAMILY},
+		{MonsterTypeID::FLIPPER, AssetFamilyID::HOVER_FAMILY},
+		{MonsterTypeID::MEDIC, AssetFamilyID::MEDIC_FAMILY},
+		{MonsterTypeID::MEDIC_COMMANDER, AssetFamilyID::MEDIC_FAMILY},
+		{MonsterTypeID::MUTANT, AssetFamilyID::MUTANT_FAMILY},
+		{MonsterTypeID::REDMUTANT, AssetFamilyID::MUTANT_FAMILY},
+		{MonsterTypeID::FLOATER, AssetFamilyID::FLOATER_FAMILY},
+		{MonsterTypeID::FLOATER_TRACKER, AssetFamilyID::FLOATER_FAMILY},
+		{MonsterTypeID::STALKER, AssetFamilyID::STALKER_FAMILY},
+		{MonsterTypeID::GEKK, AssetFamilyID::GEKK_FAMILY},
+		{MonsterTypeID::GEKKKL, AssetFamilyID::GEKK_FAMILY},
+		{MonsterTypeID::MISC_INSANE, AssetFamilyID::INSANE_FAMILY},
+		{MonsterTypeID::COMMANDER_BODY, AssetFamilyID::MISC_FAMILY},
+		{MonsterTypeID::BIGVIPER, AssetFamilyID::MISC_FAMILY},
+		{MonsterTypeID::KAMIKAZE, AssetFamilyID::MISC_FAMILY},
+	};
 
-	// Tank family
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::TANK)] = AssetFamilyID::TANK_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::TANK_COMMANDER)] = AssetFamilyID::TANK_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::TANK_64)] = AssetFamilyID::TANK_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::RUNNERTANK)] = AssetFamilyID::TANK_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::TANK_SPAWNER)] = AssetFamilyID::TANK_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::EASTERTANK)] = AssetFamilyID::TANK_FAMILY;
-
-	// Gladiator family
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::GLADIATOR)] = AssetFamilyID::GLADIATOR_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::GLADIATOR_B)] = AssetFamilyID::GLADIATOR_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::GLADIATOR_C)] = AssetFamilyID::GLADIATOR_FAMILY;
-
-	// Gunner family
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::GUNNER)] = AssetFamilyID::GUNNER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::GUNNER_VANILLA)] = AssetFamilyID::GUNNER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::GUNCMDR)] = AssetFamilyID::GUNNER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::GUNCMDR_VANILLA)] = AssetFamilyID::GUNNER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::GUNCMDR_KL)] = AssetFamilyID::GUNNER_FAMILY;
-
-	// Infantry family
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::INFANTRY)] = AssetFamilyID::INFANTRY_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::INFANTRY_VANILLA)] = AssetFamilyID::INFANTRY_FAMILY;
-
-	// Arachnid family
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::SPIDER)] = AssetFamilyID::ARACHNID_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::ARACHNID)] = AssetFamilyID::ARACHNID_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::ARACHNID2)] = AssetFamilyID::ARACHNID_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::GM_ARACHNID)] = AssetFamilyID::ARACHNID_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::PSX_ARACHNID)] = AssetFamilyID::ARACHNID_FAMILY;
-
-	// Guardian family
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::GUARDIAN)] = AssetFamilyID::GUARDIAN_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::PSX_GUARDIAN)] = AssetFamilyID::GUARDIAN_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::JANITOR2)] = AssetFamilyID::GUARDIAN_FAMILY;
-
-	// Supertank family
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::JANITOR)] = AssetFamilyID::SUPERTANK_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::SUPERTANK)] = AssetFamilyID::SUPERTANK_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::SUPERTANKKL)] = AssetFamilyID::SUPERTANK_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::BOSS5)] = AssetFamilyID::SUPERTANK_FAMILY;
-
-	// Fixbot family
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::FIXBOT)] = AssetFamilyID::FIXBOT_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::FIXBOT_KL)] = AssetFamilyID::FIXBOT_FAMILY;
-
-	// Turret family
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::TURRET)] = AssetFamilyID::TURRET_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::SENTRYGUN)] = AssetFamilyID::TURRET_FAMILY;
-
-	// Daedalus family
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::DAEDALUS)] = AssetFamilyID::DAEDALUS_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::DAEDALUS_BOMBER)] = AssetFamilyID::DAEDALUS_FAMILY;
-
-	// Parasite family
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::PARASITE)] = AssetFamilyID::PARASITE_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::PERRO_KL)] = AssetFamilyID::PARASITE_FAMILY;
-
-	// Boss2 family
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::BOSS2)] = AssetFamilyID::BOSS2_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::BOSS2_64)] = AssetFamilyID::BOSS2_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::BOSS2_MINI)] = AssetFamilyID::BOSS2_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::BOSS2_KL)] = AssetFamilyID::BOSS2_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::BOSS3_STAND)] = AssetFamilyID::BOSS2_FAMILY;
-
-	// Carrier family
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::CARRIER)] = AssetFamilyID::CARRIER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::CARRIER_MINI)] = AssetFamilyID::CARRIER_FAMILY;
-
-	// Widow family
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::WIDOW)] = AssetFamilyID::WIDOW_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::WIDOW1)] = AssetFamilyID::WIDOW_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::WIDOW2)] = AssetFamilyID::WIDOW_FAMILY;
-
-	// Shambler family
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::SHAMBLER)] = AssetFamilyID::SHAMBLER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::SHAMBLER_SMALL)] = AssetFamilyID::SHAMBLER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::SHAMBLER_KL)] = AssetFamilyID::SHAMBLER_FAMILY;
-
-	// Makron family
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::MAKRON)] = AssetFamilyID::MAKRON_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::MAKRON_KL)] = AssetFamilyID::MAKRON_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::JORG)] = AssetFamilyID::MAKRON_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::JORG_SMALL)] = AssetFamilyID::MAKRON_FAMILY;
-
-	// Individual families
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::BERSERK)] = AssetFamilyID::BERSERK_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::BERSERKERKL)] = AssetFamilyID::BERSERK_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::BRAIN)] = AssetFamilyID::BRAIN_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::CHICK)] = AssetFamilyID::CHICK_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::CHICK_HEAT)] = AssetFamilyID::CHICK_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::CHICKKL)] = AssetFamilyID::CHICK_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::EASTERCHICK)] = AssetFamilyID::CHICK_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::EASTERCHICK2)] = AssetFamilyID::CHICK_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::FLYER)] = AssetFamilyID::FLYER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::HOVER)] = AssetFamilyID::HOVER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::HOVER_VANILLA)] = AssetFamilyID::HOVER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::FLIPPER)] = AssetFamilyID::HOVER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::MEDIC)] = AssetFamilyID::MEDIC_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::MEDIC_COMMANDER)] = AssetFamilyID::MEDIC_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::MUTANT)] = AssetFamilyID::MUTANT_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::REDMUTANT)] = AssetFamilyID::MUTANT_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::FLOATER)] = AssetFamilyID::FLOATER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::FLOATER_TRACKER)] = AssetFamilyID::FLOATER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::STALKER)] = AssetFamilyID::STALKER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::GEKK)] = AssetFamilyID::GEKK_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::GEKKKL)] = AssetFamilyID::GEKK_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::MISC_INSANE)] = AssetFamilyID::INSANE_FAMILY;
-
-	// Misc/unknown
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::COMMANDER_BODY)] = AssetFamilyID::MISC_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::BIGVIPER)] = AssetFamilyID::MISC_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::KAMIKAZE)] = AssetFamilyID::MISC_FAMILY;
+	for (const auto& mapping : MONSTER_FAMILY_MAPPINGS)
+	{
+		const size_t index = static_cast<size_t>(mapping.monster);
+		if (index < g_monster_to_family.size())
+		{
+			g_monster_to_family[index] = mapping.family;
+		}
+	}
 }
 
 void Horde_Init()
@@ -4947,9 +4925,15 @@ void ResetGame()
 
 int32_t CalculateRemainingMonsters() noexcept
 {
-	// Simple counter approach - more reliable from old version
-	const int32_t remaining = GetStroggsNum();
-	return std::max(0, remaining); // Ensure non-negative
+	if (g_horde_local.cached_live_monsters_time == level.time)
+	{
+		return std::max(0, g_horde_local.cached_live_monsters);
+	}
+
+	const int32_t remaining = std::max(0, GetStroggsNum());
+	g_horde_local.cached_live_monsters = remaining;
+	g_horde_local.cached_live_monsters_time = level.time;
+	return remaining;
 }
 
 // --- Helper Struct to pass context around ---
@@ -4981,24 +4965,25 @@ static void UpdateTimeAcceleration(const WaveConditionContext &ctx);
 static void IssueTimeWarnings();
 
 // This is the new main function that orchestrates the wave end checks.
-static bool CheckRemainingMonstersCondition(const horde::MapSize &mapSize, WaveEndReason &reason)
+static bool CheckRemainingMonstersCondition(const horde::MapSize &mapSize, WaveEndReason &reason, int32_t live_monsters)
 {
 	// --- 1. Setup Context ---
 	// Cache all frequently used values once at the start.
+	const int32_t sanitized_live_monsters = std::max(0, live_monsters);
 	const WaveConditionContext ctx = {
 		.currentTime = level.time,
-		.liveMonsters = CalculateRemainingMonsters(),
+		.liveMonsters = sanitized_live_monsters,
 		.currentLevel = current_wave_level,
-		.remainingPercentage = static_cast<float>(CalculateRemainingMonsters()) / ((g_totalMonstersInWave > 0) ? g_totalMonstersInWave : 1),
+		.remainingPercentage = static_cast<float>(sanitized_live_monsters) / ((g_totalMonstersInWave > 0) ? g_totalMonstersInWave : 1),
 		.isBossWaveActive = IsBossWave(),
 		.mapSize = mapSize,
 		.params = g_lastParams};
 
 	// --- 2. Immediate Win Condition (100% Elimination Required) ---
 	// Wave ends ONLY when all monsters are dead (no early advancement)
-	if (allowWaveAdvance || GetStroggsNum() == 0)
+	if (allowWaveAdvance || ctx.liveMonsters == 0)
 	{
-		if (GetStroggsNum() == 0)
+		if (ctx.liveMonsters == 0)
 		{
 			reason = WaveEndReason::AllMonstersDead;
 			ResetWaveAdvanceState();
@@ -8088,250 +8073,284 @@ edict_t* Horde_SpawnMonster(
     int32_t currentLevel,
     float champion_chance); // Already shown above
 
+static void UpdatePlayerLevelRange(const gtime_t current_time)
+{
+	static gtime_t last_player_level_check = 0_sec;
+	if (current_time < last_player_level_check + 2_sec)
+	{
+		return;
+	}
+
+	last_player_level_check = current_time;
+
+	int32_t lowest_level = INT32_MAX;
+	int32_t highest_level = INT32_MIN;
+	bool found_player = false;
+
+	for (const auto* player : active_players_no_spect())
+	{
+		if (!player || !player->client)
+			continue;
+
+		found_player = true;
+		const int32_t player_level = player->client->pers.pvm_level;
+		lowest_level = std::min(lowest_level, player_level);
+		highest_level = std::max(highest_level, player_level);
+	}
+
+	g_lowest_player_level = found_player ? lowest_level : 0;
+	g_highest_player_level = found_player ? highest_level : 0;
+}
+
+static void CheckRetaliationTimeout(const gtime_t current_time)
+{
+	if (g_spawn_system.special_spawn_state.type != SpecialSpawnType::Retaliation || current_time < g_horde_retaliation_end_time)
+	{
+		return;
+	}
+
+	g_spawn_system.special_spawn_state.clear();
+	g_horde_retaliation_end_time = 0_sec;
+	if (developer->integer)
+	{
+		gi.Com_PrintFmt("HORDE: Retaliation Mode Ended.\n");
+	}
+}
+
+static void CheckWaveStuckTimeout(const gtime_t current_time, int32_t current_level, int32_t live_monsters)
+{
+	if (g_horde_local.wave_at_last_check != current_level)
+	{
+		g_horde_local.last_wave_change_time = current_time;
+		g_horde_local.wave_at_last_check = current_level;
+		return;
+	}
+
+	if (g_horde_local.state == horde_state_t::warmup ||
+		current_time <= g_horde_local.last_wave_change_time + HordeConstants::WAVE_STUCK_TIMEOUT)
+	{
+		return;
+	}
+
+	if (live_monsters == 0)
+	{
+		if (developer->integer)
+		{
+			gi.Com_PrintFmt("CRITICAL: Wave {} stuck for over ({:.1f}s with 0 monsters. Forcing progression.\n",
+				current_level, HordeConstants::WAVE_STUCK_TIMEOUT.seconds());
+		}
+		g_horde_local.state = horde_state_t::cleanup;
+		g_horde_local.monster_spawn_time = current_time;
+		return;
+	}
+
+	g_horde_local.last_wave_change_time = current_time;
+}
+
+static void HandleWarmupState(const gtime_t current_time)
+{
+	if (g_horde_local.warm_time >= current_time)
+	{
+		return;
+	}
+
+	g_horde_local.state = horde_state_t::spawning;
+	Horde_InitLevel(1);
+	PlayWaveStartSound();
+	DisplayWaveMessage();
+}
+
+static void HandleSpawningState(const gtime_t current_time, int32_t current_level)
+{
+	if (current_level != g_horde_local.prev_wave_level_for_spawning_timers)
+	{
+		g_horde_local.spawning_phase_timeout_start = current_time;
+		g_horde_local.prev_wave_level_for_spawning_timers = current_level;
+		initial_total_monsters_for_spawning_phase_timeout = g_horde_local.num_to_spawn + g_horde_local.queued_monsters;
+		monsters_spawned_in_current_phase = 0;
+		g_horde_local.timeAcceleration = 1.0f;
+		g_horde_local.targetTimeAcceleration = 1.0f;
+	}
+
+	const gtime_t elapsed = current_time - g_horde_local.spawning_phase_timeout_start;
+	const gtime_t timeout_limit = 90_sec;
+
+	if (elapsed > timeout_limit * 0.6f && (g_horde_local.num_to_spawn > 0 || g_horde_local.queued_monsters > 0))
+	{
+		const float danger_progress = std::clamp((elapsed - timeout_limit * 0.6f).seconds() / (timeout_limit * 0.4f).seconds(), 0.0f, 1.0f);
+		const float target_accel = 1.0f + (danger_progress * 2.0f);
+
+		if (std::abs(g_horde_local.targetTimeAcceleration - target_accel) > 0.1f)
+		{
+			g_horde_local.targetTimeAcceleration = target_accel;
+			g_horde_local.accelerationStartTime = current_time;
+			g_horde_local.accelerationDuration = 2_sec;
+		}
+	}
+
+	if (std::abs(g_horde_local.timeAcceleration - g_horde_local.targetTimeAcceleration) > 0.01f)
+	{
+		const float smooth_rate = 5.0f;
+		const float delta = (g_horde_local.targetTimeAcceleration - g_horde_local.timeAcceleration) * smooth_rate * gi.frame_time_s;
+		g_horde_local.timeAcceleration += delta;
+
+		if (std::abs(g_horde_local.timeAcceleration - g_horde_local.targetTimeAcceleration) < 0.01f)
+		{
+			g_horde_local.timeAcceleration = g_horde_local.targetTimeAcceleration;
+		}
+	}
+
+	if (current_time > g_horde_local.spawning_phase_timeout_start + timeout_limit)
+	{
+		if (!next_wave_message_sent)
+		{
+			gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Deployment Finalized (Timeout).\nWave Level: {}\n", current_level);
+			next_wave_message_sent = true;
+		}
+		g_horde_local.state = horde_state_t::active_wave;
+		g_horde_local.timeAcceleration = 1.0f;
+		g_horde_local.targetTimeAcceleration = 1.0f;
+		return;
+	}
+
+	if (g_horde_local.monster_spawn_time > current_time)
+	{
+		return;
+	}
+
+	if (IsBossWave() && !boss_spawned_for_wave)
+	{
+		SpawnBossAutomatically();
+	}
+	else
+	{
+		PlanNextSpawnBatch();
+	}
+
+	if (g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters <= 0 && (!IsBossWave() || boss_spawned_for_wave))
+	{
+		if (!next_wave_message_sent)
+		{
+			VerifyAndAdjustBots();
+			gi.LocBroadcast_Print(PRINT_HIGH, "Wave fully deployed! Current Wave Level is: {}\n", current_level);
+			next_wave_message_sent = true;
+		}
+		g_horde_local.state = horde_state_t::active_wave;
+		g_horde_local.timeAcceleration = 1.0f;
+		g_horde_local.targetTimeAcceleration = 1.0f;
+	}
+}
+
+static bool HandleActiveWaveState(const gtime_t current_time, const horde::MapSize& map_size, WaveEndReason& reason, int32_t live_monsters)
+{
+	if (CheckRemainingMonstersCondition(map_size, reason, live_monsters))
+	{
+		return true;
+	}
+
+	if (g_horde_local.monster_spawn_time <= current_time)
+	{
+		PlanNextSpawnBatch();
+	}
+	return false;
+}
+
+static void HandleCleanupState(const gtime_t current_time, const horde::MapSize& map_size)
+{
+	if (g_horde_local.monster_spawn_time >= current_time)
+	{
+		return;
+	}
+
+	HandleWaveCleanupMessage(map_size);
+	g_horde_local.warm_time = current_time + random_time(0.5_sec, 1.0_sec);
+	g_horde_local.state = horde_state_t::rest;
+	CheckAndResetDisabledSpawnPoints();
+}
+
+static void HandleRestState(const gtime_t current_time)
+{
+	if (g_horde_local.warm_time >= current_time)
+	{
+		return;
+	}
+
+	AnnounceIncomingWave(3_sec);
+	g_horde_local.state = horde_state_t::spawning;
+	Horde_InitLevel(g_horde_local.level + 1);
+}
+
 void Horde_RunFrame()
 {
-	// Safety check: don't run during intermission or before spawn system is initialized
 	if (level.intermissiontime || !level.mapname[0])
 		return;
 
-	// Safety check: ensure spawn system vectors are initialized before any spawn point access
 	if (g_num_spawn_points > 0 &&
 		g_spawn_system.spawn_points_data.isTemporarilyDisabled.size() < g_num_spawn_points)
 		return;
 
-	// --- TIME-SLICED EXECUTION PHASE ---
 	ExecuteSpawnPlan();
 	ExecuteNextSpecialSpawn();
-	// --- END EXECUTION PHASE ---
 
-	const gtime_t currentTime = level.time;
-	const horde::MapSize& mapSize = g_horde_local.current_map_size;
-	const int32_t currentLevel = g_horde_local.level;
+	const gtime_t current_time = level.time;
+	const horde::MapSize& map_size = g_horde_local.current_map_size;
+	const int32_t current_level = g_horde_local.level;
+	const int32_t live_monsters = GetStroggsNum();
+	g_horde_local.cached_live_monsters = live_monsters;
+	g_horde_local.cached_live_monsters_time = current_time;
 
-	// Keep classic Horde rewards in sync while players are alive.
-	// This decouples reward delivery from InitClientPersistant/respawn timing.
 	static gtime_t last_wave_reward_sync = 0_sec;
-	if (!g_vortex->integer && currentLevel > 0 && currentTime >= last_wave_reward_sync + 1_sec)
+	if (!g_vortex->integer && current_level > 0 && current_time >= last_wave_reward_sync + 1_sec)
 	{
-		last_wave_reward_sync = currentTime;
-		ProcessWaveRewards(currentLevel);
+		last_wave_reward_sync = current_time;
+		ProcessWaveRewards(current_level);
 	}
 
-	// Apply fog for special wave types (continuously to maintain fog and handle mid-wave joins)
 	if (HasWaveType(current_wave_type, MonsterWaveType::Gekk) ||
-	    HasWaveType(current_wave_type, MonsterWaveType::Berserk))
+		HasWaveType(current_wave_type, MonsterWaveType::Berserk))
 	{
 		ApplyFogEffect();
 	}
 
 	CleanupSpawnPointCache();
-	CheckAndReduceSpawnCooldowns();
+	CheckAndReduceSpawnCooldowns(live_monsters);
+	UpdatePlayerLevelRange(current_time);
+	CheckRetaliationTimeout(current_time);
+	CheckWaveStuckTimeout(current_time, current_level, live_monsters);
 
-// Update lowest and highest player level periodically (every 2 seconds)
-	static gtime_t last_player_level_check = 0_sec;
-	if (currentTime >= last_player_level_check + 2_sec)
-	{
-		last_player_level_check = currentTime;
-
-		// Find the lowest and highest pvm_level among all active players
-		int32_t lowest_level = INT32_MAX;
-		int32_t highest_level = INT32_MIN;
-		bool found_player = false;
-
-		for (const auto* player : active_players_no_spect())
-		{
-			if (!player || !player->client)
-				continue;
-
-			found_player = true;
-			int32_t player_level = player->client->pers.pvm_level;
-
-			if (player_level < lowest_level)
-			{
-				lowest_level = player_level;
-			}
-			if (player_level > highest_level)
-			{
-				highest_level = player_level;
-			}
-		}
-
-		// Update global variables
-		g_lowest_player_level = found_player ? lowest_level : 0;
-		g_highest_player_level = found_player ? highest_level : 0;
-	}
-	// Check if retaliation mode has timed out
-	if (g_spawn_system.special_spawn_state.type == SpecialSpawnType::Retaliation && currentTime >= g_horde_retaliation_end_time) {
-		g_spawn_system.special_spawn_state.clear();
-		g_horde_retaliation_end_time = 0_sec;
-		if (developer->integer) {
-			gi.Com_PrintFmt("HORDE: Retaliation Mode Ended.\n");
-		}
-	}
-
-	// FIXED: Use struct members instead of static variables
-	if (g_horde_local.wave_at_last_check != currentLevel) {
-		g_horde_local.last_wave_change_time = currentTime;
-		g_horde_local.wave_at_last_check = currentLevel;
-	}
-	else if (g_horde_local.state != horde_state_t::warmup && currentTime > g_horde_local.last_wave_change_time + HordeConstants::WAVE_STUCK_TIMEOUT) {
-		if (GetStroggsNum() == 0) {
-			if (developer->integer) {
-				gi.Com_PrintFmt("CRITICAL: Wave {} stuck for over ({:.1f}s with 0 monsters. Forcing progression.\n",
-								currentLevel, HordeConstants::WAVE_STUCK_TIMEOUT.seconds());
-			}
-			g_horde_local.state = horde_state_t::cleanup;
-			g_horde_local.monster_spawn_time = currentTime;
-		} else {
-			g_horde_local.last_wave_change_time = currentTime;
-		}
-	}
-
-	bool waveEnded = false;
-	WaveEndReason currentWaveEndReason = WaveEndReason::AllMonstersDead;
+	bool wave_ended = false;
+	WaveEndReason wave_end_reason = WaveEndReason::AllMonstersDead;
 
 	switch (g_horde_local.state)
 	{
 	case horde_state_t::warmup:
-		if (g_horde_local.warm_time < currentTime) {
-			g_horde_local.state = horde_state_t::spawning;
-			Horde_InitLevel(1);
-			PlayWaveStartSound();
-			DisplayWaveMessage();
-		}
+		HandleWarmupState(current_time);
 		break;
-
 	case horde_state_t::spawning:
-	{
-		// FIXED: Use struct members instead of static variables
-		if (currentLevel != g_horde_local.prev_wave_level_for_spawning_timers)
-		{
-			g_horde_local.spawning_phase_timeout_start = currentTime;
-			g_horde_local.prev_wave_level_for_spawning_timers = currentLevel;
-			initial_total_monsters_for_spawning_phase_timeout = g_horde_local.num_to_spawn + g_horde_local.queued_monsters;
-			monsters_spawned_in_current_phase = 0;
-			// Reset acceleration for new spawning phase
-			g_horde_local.timeAcceleration = 1.0f;
-			g_horde_local.targetTimeAcceleration = 1.0f;
-		}
-
-		// Calculate time remaining and apply smooth acceleration as timeout approaches
-		const gtime_t elapsed = currentTime - g_horde_local.spawning_phase_timeout_start;
-		const gtime_t timeout_limit = 90_sec;
-
-		// Start accelerating when past 60% of timeout (54 seconds)
-		if (elapsed > timeout_limit * 0.6f && (g_horde_local.num_to_spawn > 0 || g_horde_local.queued_monsters > 0))
-		{
-			// Calculate how far through the danger zone we are (60% to 100%)
-			const float danger_progress = std::clamp((elapsed - timeout_limit * 0.6f).seconds() / (timeout_limit * 0.4f).seconds(), 0.0f, 1.0f);
-
-			// Gradually increase target acceleration from 1.0x to 3.0x
-			const float target_accel = 1.0f + (danger_progress * 2.0f);
-
-			if (std::abs(g_horde_local.targetTimeAcceleration - target_accel) > 0.1f)
-			{
-				g_horde_local.targetTimeAcceleration = target_accel;
-				g_horde_local.accelerationStartTime = currentTime;
-				g_horde_local.accelerationDuration = 2_sec;
-
-				// if (developer->integer)
-				// {
-				// 	gi.Com_PrintFmt("Spawning phase acceleration: {:.1f}x ({}s elapsed, {} remaining to spawn)\n",
-				// 					target_accel, elapsed.seconds(), g_horde_local.num_to_spawn + g_horde_local.queued_monsters);
-				// }
-			}
-		}
-
-		// Update smooth acceleration interpolation
-		if (std::abs(g_horde_local.timeAcceleration - g_horde_local.targetTimeAcceleration) > 0.01f)
-		{
-			const float smooth_rate = 5.0f;
-			const float delta = (g_horde_local.targetTimeAcceleration - g_horde_local.timeAcceleration) * smooth_rate * gi.frame_time_s;
-			g_horde_local.timeAcceleration += delta;
-
-			if (std::abs(g_horde_local.timeAcceleration - g_horde_local.targetTimeAcceleration) < 0.01f)
-			{
-				g_horde_local.timeAcceleration = g_horde_local.targetTimeAcceleration;
-			}
-		}
-
-		if (currentTime > g_horde_local.spawning_phase_timeout_start + timeout_limit)
-		{
-			if (!next_wave_message_sent)
-			{
-				gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Deployment Finalized (Timeout).\nWave Level: {}\n", currentLevel);
-				next_wave_message_sent = true;
-			}
-			g_horde_local.state = horde_state_t::active_wave;
-			// Reset acceleration when entering active wave
-			g_horde_local.timeAcceleration = 1.0f;
-			g_horde_local.targetTimeAcceleration = 1.0f;
-			break;
-		}
-
-
-		if (g_horde_local.monster_spawn_time <= currentTime) {
-			if (IsBossWave() && !boss_spawned_for_wave) {
-				SpawnBossAutomatically();
-			}
-			else if (!IsBossWave() || boss_spawned_for_wave) {
-				PlanNextSpawnBatch();
-			}
-
-			if (g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters <= 0) {
-				if (!IsBossWave() || boss_spawned_for_wave) {
-					if (!next_wave_message_sent) {
-						VerifyAndAdjustBots();
-						gi.LocBroadcast_Print(PRINT_HIGH, "Wave fully deployed! Current Wave Level is: {}\n", currentLevel);
-						next_wave_message_sent = true;
-					}
-					g_horde_local.state = horde_state_t::active_wave;
-					// Reset acceleration when entering active wave
-					g_horde_local.timeAcceleration = 1.0f;
-					g_horde_local.targetTimeAcceleration = 1.0f;
-				}
-			}
-		}
+		HandleSpawningState(current_time, current_level);
 		break;
-	}
-
 	case horde_state_t::active_wave:
-		if (CheckRemainingMonstersCondition(mapSize, currentWaveEndReason)) {
-			waveEnded = true;
-			break;
-		}
-		if (g_horde_local.monster_spawn_time <= currentTime) {
-			PlanNextSpawnBatch();
-		}
+		wave_ended = HandleActiveWaveState(current_time, map_size, wave_end_reason, live_monsters);
 		break;
-
 	case horde_state_t::cleanup:
-		if (g_horde_local.monster_spawn_time < currentTime) {
-			HandleWaveCleanupMessage(mapSize);
-			g_horde_local.warm_time = currentTime + random_time(0.5_sec, 1.0_sec);  // REDUCED: 1.4-1.9s -> 0.5-1.0s for faster pacing
-			g_horde_local.state = horde_state_t::rest;
-			CheckAndResetDisabledSpawnPoints();
-		}
+		HandleCleanupState(current_time, map_size);
 		break;
-
 	case horde_state_t::rest:
-		if (g_horde_local.warm_time < currentTime) {
-			AnnounceIncomingWave(3_sec);  // Message display duration (doesn't affect wave timing)
-			g_horde_local.state = horde_state_t::spawning;
-			Horde_InitLevel(g_horde_local.level + 1);
-		}
+		HandleRestState(current_time);
 		break;
 	}
 
-	if (waveEnded) {
-		SendCleanupMessage(currentWaveEndReason);
-		g_horde_local.monster_spawn_time = currentTime + 0.5_sec;  // REDUCED: 1.5s -> 0.5s for faster pacing
+	if (wave_ended)
+	{
+		SendCleanupMessage(wave_end_reason);
+		g_horde_local.monster_spawn_time = current_time + 0.5_sec;
 		g_horde_local.state = horde_state_t::cleanup;
 		ResetWaveAdvanceState();
 		ResetStroggCleanup();
 	}
 
-	if (horde_message_end_time != 0_sec && currentTime >= horde_message_end_time) {
+	if (horde_message_end_time != 0_sec && current_time >= horde_message_end_time)
+	{
 		ClearHordeMessage();
 	}
 }
