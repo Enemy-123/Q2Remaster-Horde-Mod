@@ -479,9 +479,61 @@ MMOVE_T(guardianpsx_move_kick) = { FRAME_kick_in1, FRAME_kick_in13, guardianpsx_
 fire_heat
 */
 
+TOUCH(guardianpsx_heat_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
+{
+	if (!ent)
+		return;
+
+	if (other == ent->owner)
+		return;
+
+	// Keep PSX Guardian heat rockets alive when touching sky brushes,
+	// matching the "continue flight" behavior used by fixbot plasma.
+	if (tr.surface && (tr.surface->flags & SURF_SKY))
+	{
+		// Prefer steering toward the last known valid target position.
+		vec3_t new_dir = vec3_origin;
+		const vec3_t to_last_known_pos = ent->pos2 - ent->s.origin;
+		if (to_last_known_pos.lengthSquared() > 4.0f)
+		{
+			new_dir = safe_normalized(to_last_known_pos);
+		}
+
+		// Fallback: keep current flight direction with slight variance.
+		if (new_dir.lengthSquared() <= 0.0001f)
+		{
+			new_dir = ent->velocity;
+			if (new_dir.lengthSquared() <= 0.0001f)
+				new_dir = ent->movedir;
+			if (new_dir.lengthSquared() <= 0.0001f)
+				new_dir = { 0.f, 0.f, 1.f };
+
+			new_dir = safe_normalized(new_dir);
+			new_dir.x += crandom() * 0.04f;
+			new_dir.y += crandom() * 0.04f;
+			new_dir.z += crandom() * 0.04f;
+			new_dir = safe_normalized(new_dir);
+		}
+
+		const float projectile_speed = (ent->speed > 0.f) ? ent->speed : ent->velocity.length();
+		ent->velocity = new_dir * projectile_speed;
+		ent->movedir = new_dir;
+		ent->s.angles = vectoangles(new_dir);
+		return;
+	}
+
+	rocket_touch(ent, other, tr, other_touching_self);
+}
+
+static inline vec3_t heat_guardianpsx_get_target_pos(const edict_t* heat, const edict_t* target, float dist_to_target)
+{
+	return ((target->s.origin + vec3_t{ 0.f, 0.f, target->mins.z }) +
+		(target->velocity * (clamp(dist_to_target / 500.f, 0.f, 1.f)) * 0.5f));
+}
+
 static inline vec3_t heat_guardianpsx_get_dist_vec(const edict_t* heat, const edict_t* target, float dist_to_target)
 {
-	return (((target->s.origin + vec3_t{ 0.f, 0.f, target->mins.z }) + (target->velocity * (clamp(dist_to_target / 500.f, 0.f, 1.f)) * 0.5f)) - heat->s.origin).normalized();
+	return safe_normalized(heat_guardianpsx_get_target_pos(heat, target, dist_to_target) - heat->s.origin);
 }
 
 THINK(heat_guardianpsx_think) (edict_t* self) -> void
@@ -561,7 +613,23 @@ THINK(heat_guardianpsx_think) (edict_t* self) -> void
 	if (M_HasValidTarget(self) && self->enemy) // Only update aim direction if we have a valid target
 	{
 		float const dist_to_target = (self->s.origin - self->enemy->s.origin).length();
-		self->pos1 = heat_guardianpsx_get_dist_vec(self, self->enemy, dist_to_target);
+		self->pos2 = heat_guardianpsx_get_target_pos(self, self->enemy, dist_to_target); // last known valid position
+		self->pos1 = safe_normalized(self->pos2 - self->s.origin);
+	}
+	else
+	{
+		// No valid target: keep flying toward last known position instead of idling.
+		const vec3_t to_last_known_pos = self->pos2 - self->s.origin;
+		const float to_last_known_pos_sq = to_last_known_pos.lengthSquared();
+		if (to_last_known_pos_sq > 4.0f)
+		{
+			self->pos1 = safe_normalized(to_last_known_pos);
+			//if (to_last_known_pos_sq <= (96.0f * 96.0f))
+			//{
+			//	G_FreeEdict(self);
+			//	return;
+			//}
+		}
 	}
 
 	vec3_t const preferred_dir = self->pos1;
@@ -621,11 +689,13 @@ void fire_guardianpsx_heat(edict_t* self, const vec3_t& start, const vec3_t& dir
 	// Store attacker info in case owner dies before projectile hits
 	SetProjectileAttackerInfo(heat, self);
 
-	heat->touch = rocket_touch;
+	heat->touch = guardianpsx_heat_touch;
 	heat->speed = speed * 0.75f;
 	heat->yaw_speed = speed * 1.35f;
 	heat->accel = turn_fraction;
-	heat->pos1 = rest_dir;
+	const vec3_t initial_dir = (rest_dir.lengthSquared() > 0.0f) ? safe_normalized(rest_dir) : safe_normalized(dir);
+	heat->pos1 = initial_dir;
+	heat->pos2 = start + (initial_dir * 1024.0f); // Last known destination fallback.
 	heat->mins = { -5, -5, -5 };
 	heat->maxs = { 5, 5, 5 };
 	heat->takedamage = false;
@@ -638,6 +708,12 @@ void fire_guardianpsx_heat(edict_t* self, const vec3_t& start, const vec3_t& dir
 	heat->radius_dmg = radius_damage;
 	heat->dmg_radius = damage_radius;
 	heat->s.sound = gi.soundindex("weapons/rockfly.wav");
+
+	if (self->enemy && self->enemy->inuse && self->enemy->client && self->enemy->health > 0)
+	{
+		const float dist_to_target = (heat->s.origin - self->enemy->s.origin).length();
+		heat->pos2 = heat_guardianpsx_get_target_pos(heat, self->enemy, dist_to_target);
+	}
 
 	if (self->enemy && visible(heat, self->enemy))
 	{
@@ -742,9 +818,9 @@ MONSTERINFO_ATTACK(guardianpsx_attack) (edict_t* self) -> void
 		if (self->count == 0)
 			chance = 1.0;
 		else if (self->count <= 2)
-			chance = 0.4f;
+			chance = 0.6f;
 		else
-			chance = 0.1f;
+			chance = 0.3f;
 
 		float const r = frandom();
 
