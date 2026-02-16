@@ -4925,15 +4925,9 @@ void ResetGame()
 
 int32_t CalculateRemainingMonsters() noexcept
 {
-	if (g_horde_local.cached_live_monsters_time == level.time)
-	{
-		return std::max(0, g_horde_local.cached_live_monsters);
-	}
-
-	const int32_t remaining = std::max(0, GetStroggsNum());
-	g_horde_local.cached_live_monsters = remaining;
-	g_horde_local.cached_live_monsters_time = level.time;
-	return remaining;
+	// Simple counter approach - more reliable from old version
+	const int32_t remaining = GetStroggsNum();
+	return std::max(0, remaining); // Ensure non-negative
 }
 
 // --- Helper Struct to pass context around ---
