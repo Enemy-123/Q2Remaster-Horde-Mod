@@ -1389,6 +1389,7 @@ FIELD_AUTO(monsterinfo.fly_recovery_dir),
 FIELD_AUTO(monsterinfo.fly_wall_stuck_time),
 
 FIELD_AUTO(monsterinfo.checkattack_time),
+FIELD_AUTO(monsterinfo.no_los_attack_time),
 FIELD_AUTO(monsterinfo.start_frame),
 FIELD_AUTO(monsterinfo.dodge_time),
 FIELD_AUTO(monsterinfo.move_block_counter),

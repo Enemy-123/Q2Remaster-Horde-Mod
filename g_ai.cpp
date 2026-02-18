@@ -7,6 +7,7 @@
 #include "horde/horde_performance.h"
 #include "shared.h"
 bool FindTarget(edict_t* self);
+bool FindEnhancedTarget(edict_t* self);
 bool ai_checkattack(edict_t* self, float dist);
 trap_state_t* GetTrapState(const edict_t* ent);  // Forward declaration for trap cooldown check
 
@@ -582,10 +583,112 @@ Use this call with a distance of 0 to replace ai_face
 ==============
 */
 
+static bool M_HandleStalledAttackRetarget(edict_t* self, float dist)
+{
+	static constexpr gtime_t LOS_STALL_RETARGET_TIME = 500_ms;
+	static constexpr float MELEE_GRACE_RANGE = RANGE_MELEE * 2.5f;
+
+	if (!self || !self->enemy || !self->enemy->inuse)
+	{
+		if (self)
+			self->monsterinfo.no_los_attack_time = 0_ms;
+		return false;
+	}
+
+	// Only monitor in-place ranged attack flow; moving charge frames should continue normally.
+	if (dist != 0.f || !self->monsterinfo.attack)
+	{
+		self->monsterinfo.no_los_attack_time = 0_ms;
+		return false;
+	}
+
+	// Keep intentional blindfire behavior intact.
+	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
+	{
+		self->monsterinfo.no_los_attack_time = 0_ms;
+		return false;
+	}
+
+	// Don't interfere with medic corpse resurrection logic.
+	if ((self->monsterinfo.aiflags & AI_MEDIC) && self->enemy->health <= 0)
+	{
+		self->monsterinfo.no_los_attack_time = 0_ms;
+		return false;
+	}
+
+	// If we're in melee range, let close-combat behavior proceed.
+	if (range_to(self, self->enemy) <= MELEE_GRACE_RANGE)
+	{
+		self->monsterinfo.no_los_attack_time = 0_ms;
+		return false;
+	}
+
+	if (visible(self, self->enemy, false))
+	{
+		self->monsterinfo.no_los_attack_time = 0_ms;
+		return false;
+	}
+
+	if (self->monsterinfo.no_los_attack_time == 0_ms)
+	{
+		self->monsterinfo.no_los_attack_time = level.time;
+		return false;
+	}
+
+	if (level.time < self->monsterinfo.no_los_attack_time + LOS_STALL_RETARGET_TIME)
+		return false;
+
+	edict_t* const previous_enemy = self->enemy;
+	const bool found_target = g_horde->integer ? FindEnhancedTarget(self) : FindTarget(self);
+
+	// Throttle retries while still stuck without LOS.
+	self->monsterinfo.no_los_attack_time = level.time;
+
+	// We found a better target; break out of stale attack animation immediately.
+	if (found_target && self->enemy && self->enemy != previous_enemy)
+	{
+		self->monsterinfo.attack_state = AS_STRAIGHT;
+		self->monsterinfo.aiflags &= ~AI_HOLD_FRAME;
+		self->monsterinfo.nextframe = 0;
+		self->monsterinfo.next_move_time = level.time;
+		if (self->monsterinfo.run)
+			self->monsterinfo.run(self);
+		return true;
+	}
+
+	// No better target available: still stop dry-firing and return to movement/stand logic.
+	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
+	{
+		self->monsterinfo.attack_state = AS_STRAIGHT;
+		self->monsterinfo.aiflags &= ~AI_HOLD_FRAME;
+		self->monsterinfo.nextframe = 0;
+		self->monsterinfo.next_move_time = level.time;
+		if (self->monsterinfo.stand)
+			self->monsterinfo.stand(self);
+	}
+	else if (self->monsterinfo.run)
+	{
+		self->monsterinfo.attack_state = AS_STRAIGHT;
+		self->monsterinfo.aiflags &= ~AI_HOLD_FRAME;
+		self->monsterinfo.nextframe = 0;
+		self->monsterinfo.next_move_time = level.time;
+		self->monsterinfo.run(self);
+	}
+
+	return true;
+}
+
 void ai_charge(edict_t* self, float dist)
 {
 
 	if (!self || !self->inuse || !self->enemy || !self->enemy->inuse)
+	{
+		if (self)
+			self->monsterinfo.no_los_attack_time = 0_ms;
+		return;
+	}
+
+	if (M_HandleStalledAttackRetarget(self, dist))
 		return;
 
 	vec3_t v;

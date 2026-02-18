@@ -496,8 +496,10 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 	}
 
 	// --- 3. Handle Projectiles from Dead Monsters ---
-	if (inflictor && (inflictor->svflags & SVF_PROJECTILE) &&
-		!inflictor->projectile_was_player_attacker && 
+	// NOTE: SVF_PROJECTILE can be temporarily cleared during projectile touch handling.
+	// We rely on stored projectile attacker metadata instead of that transient flag.
+	if (inflictor &&
+		!inflictor->projectile_was_player_attacker &&
 		inflictor->projectile_attacker_type_id &&
 		(!attacker || attacker == world || attacker == inflictor ||
 		 (attacker && !(attacker->svflags & SVF_MONSTER) && !attacker->client)))

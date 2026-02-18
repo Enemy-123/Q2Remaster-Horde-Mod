@@ -1884,6 +1884,7 @@ struct monsterinfo_t
 	gtime_t fly_wall_stuck_time; // time when flying monster started being blocked by walls
 
 	gtime_t checkattack_time;
+	gtime_t no_los_attack_time; // how long we've been in attack flow without LOS
 	int32_t start_frame;
 	gtime_t dodge_time;
 	int32_t move_block_counter;
@@ -2501,6 +2502,7 @@ bool M_droptofloor(edict_t* ent);
 void monster_think(edict_t* self);
 void monster_dead_think(edict_t* self);
 void monster_dead(edict_t* self);
+void G_MonsterKilled(edict_t* self);
 void walkmonster_start(edict_t* self);
 void swimmonster_start(edict_t* self);
 void flymonster_start(edict_t* self);
@@ -4425,7 +4427,9 @@ struct active_monsters_filter_t
 	{
 		// Branch hints: most monster slots are in use during horde gameplay
 		if (ent->inuse) [[likely]] {
-			return (ent->svflags & SVF_MONSTER) && ent->health > 0;
+			// deadflag monsters can transiently keep health > 0 during edge-case death paths.
+			// Treat them as non-active so wave progression/debug counters don't stall.
+			return (ent->svflags & SVF_MONSTER) && !ent->deadflag && ent->health > 0;
 		}
 		return false;
 	}

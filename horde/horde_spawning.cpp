@@ -452,6 +452,10 @@ edict_t* Horde_SpawnMonster(
             gi.Com_PrintFmt("SPAWN FAILURE: Monster '{}' at ({}) became stuck immediately after linking. Freeing.\n",
                 monster->classname, monster->s.origin);
         }
+        // Keep level monster stats coherent if a counted monster is removed during spawn failure.
+        if (!monster->deadflag && !monster->spawnflags.has(SPAWNFLAG_MONSTER_DEAD)) {
+            G_MonsterKilled(monster);
+        }
         G_FreeEdict(monster);
         return nullptr;
     }
