@@ -23,6 +23,7 @@
 #include "g_pvm.h"  // For PvM mode checks
 #include "p_flyer_morph.h"  // For ResetAllMorphData()
 #include "../m_tank.h"  // For ResetTankTeleportCache()
+#include <string_view>
 
 // External function declarations
 extern void ED_CallSpawnMonsterByID(edict_t* ent, horde::MonsterTypeID typeId);
@@ -81,7 +82,7 @@ boost::container::small_vector<size_t, 32> g_eligible_item_indices_for_wave;
 // Progressive monster unlocking system for memory management
 static boost::container::flat_set<horde::MonsterTypeID> g_excluded_monsters_this_map;  // Excluded monsters cache
 boost::container::flat_set<horde::MonsterTypeID> g_precached_monsters_this_map; // Non-static for external access
-boost::unordered::unordered_flat_set<std::string> g_precached_models_this_map; // Cache-friendly hash set for model tracking
+boost::unordered::unordered_flat_set<std::string_view> g_precached_models_this_map; // Cache-friendly hash set for model tracking
 static int g_map_rotation_seed = 0;
 static int g_last_precache_wave = 0;
 
@@ -707,6 +708,7 @@ struct SpawnPointCacheArray
 
 			// Robust fallback: return reference to static default cache
 			static SpawnPointCache default_cache{};
+			default_cache = {};
 			return default_cache;
 		}
 
@@ -716,6 +718,7 @@ struct SpawnPointCacheArray
 			gi.Com_PrintFmt("DEBUG: Map built? {} Spawn points: {}\n", !g_spawn_system.spawn_map_needs_build, g_num_spawn_points);
 			assert(false && "invalid spawn point index!");
 			static SpawnPointCache default_cache{};
+			default_cache = {};
 			return default_cache;
 		}
 
@@ -3993,65 +3996,53 @@ static void PrecacheWaveSounds()
 	sounds_precached = true;
 }
 
-// Agregar un nuevo array para tracking
-static std::array<bool, NUM_WAVE_SOUNDS> used_wave_sounds = {};
-static size_t remaining_wave_sounds = NUM_WAVE_SOUNDS;
+template <size_t N>
+static void ResetShuffledSoundOrder(std::array<size_t, N>& order, size_t& cursor)
+{
+	for (size_t i = 0; i < N; ++i)
+	{
+		order[i] = i;
+	}
+
+	if constexpr (N > 1)
+	{
+		for (size_t i = N - 1; i > 0; --i)
+		{
+			const size_t j = static_cast<size_t>(irandom(static_cast<int32_t>(i + 1)));
+			std::swap(order[i], order[j]);
+		}
+	}
+
+	cursor = 0;
+}
+
+template <size_t N>
+static size_t NextShuffledSoundIndex(std::array<size_t, N>& order, size_t& cursor)
+{
+	if (cursor >= N)
+	{
+		ResetShuffledSoundOrder(order, cursor);
+	}
+
+	return order[cursor++];
+}
+
+static std::array<size_t, NUM_WAVE_SOUNDS> g_wave_sound_order = {};
+static size_t g_wave_sound_cursor = NUM_WAVE_SOUNDS;
 
 static int GetRandomWaveSound()
 {
-	// Si todos los sonidos han sido usados, resetear
-	if (remaining_wave_sounds == 0)
-	{
-		std::fill(used_wave_sounds.begin(), used_wave_sounds.end(), false);
-		remaining_wave_sounds = NUM_WAVE_SOUNDS;
-	}
-
-	// Seleccionar un sonido no usado
-	constexpr int MAX_ATTEMPTS = 100; // Safety guard against infinite loop
-	for (int attempts = 0; attempts < MAX_ATTEMPTS; ++attempts)
-	{
-		// FIX: Cast the signed result of irandom to the unsigned size_t.
-		size_t const index = static_cast<size_t>(irandom(NUM_WAVE_SOUNDS));
-		if (!used_wave_sounds[index])
-		{
-			used_wave_sounds[index] = true;
-			remaining_wave_sounds--;
-			return wave_sounds[index];
-		}
-	}
-	// Fallback if we somehow fail to find an unused sound
-	gi.Com_Print("WARNING: Failed to find unused wave sound, using first available\n");
-	return wave_sounds[0];
+	const size_t index = NextShuffledSoundIndex(g_wave_sound_order, g_wave_sound_cursor);
+	return wave_sounds[index];
 }
-static std::array<bool, NUM_START_SOUNDS> used_start_sounds = {};
-static size_t remaining_start_sounds = NUM_START_SOUNDS;
+
+static std::array<size_t, NUM_START_SOUNDS> g_start_sound_order = {};
+static size_t g_start_sound_cursor = NUM_START_SOUNDS;
 
 static void PlayWaveStartSound()
 {
-	// Si todos los sonidos han sido usados, resetear
-	if (remaining_start_sounds == 0)
-	{
-		std::fill(used_start_sounds.begin(), used_start_sounds.end(), false);
-		remaining_start_sounds = NUM_START_SOUNDS;
-	}
-
-	// Seleccionar un sonido no usado
-	constexpr int MAX_ATTEMPTS = 100; // Safety guard against infinite loop
-	for (int attempts = 0; attempts < MAX_ATTEMPTS; ++attempts)
-	{
-		// FIX: Cast the signed result of irandom to the unsigned size_t.
-		size_t const index = static_cast<size_t>(irandom(NUM_START_SOUNDS));
-		if (!used_start_sounds[index])
-		{
-			used_start_sounds[index] = true;
-			remaining_start_sounds--;
-			gi.sound(world, CHAN_VOICE, start_sounds[index], 1, ATTN_NONE, 0);
-			return;
-		}
-	}
-	// Fallback if we somehow fail to find an unused sound
-	gi.Com_Print("WARNING: Failed to find unused start sound, using first available\n");
-	gi.sound(world, CHAN_VOICE, start_sounds[0], 1, ATTN_NONE, 0);
+	const size_t index = NextShuffledSoundIndex(g_start_sound_order, g_start_sound_cursor);
+	gi.sound(world, CHAN_VOICE, start_sounds[index], 1, ATTN_NONE, 0);
 }
 // Capping resets on map end
 
@@ -4557,8 +4548,7 @@ void AppendHordeMessage_impl(std::string_view message, gtime_t duration)
 	if (new_len >= MAX_STRING_CHARS) {
 		// If the new message alone would overflow, truncate it
 		if (message.length() >= MAX_STRING_CHARS) {
-			// Use a static buffer to avoid allocation
-			static char truncated_msg[MAX_STRING_CHARS];
+			char truncated_msg[MAX_STRING_CHARS];
 			size_t copy_len = std::min(message.length(), MAX_STRING_CHARS - 1);
 			memcpy(truncated_msg, message.data(), copy_len);
 			truncated_msg[copy_len] = '\0';
@@ -4584,8 +4574,7 @@ void AppendHordeMessage_impl(std::string_view message, gtime_t duration)
 		}
 	}
 	else {
-		// Optimized path: build message in static buffer to avoid allocation
-		static char msg_buffer[MAX_STRING_CHARS];
+		char msg_buffer[MAX_STRING_CHARS];
 		char* write_ptr = msg_buffer;
 
 		if (current_len > 0) {
@@ -4799,7 +4788,7 @@ void ResetGame()
 	//   - All boost::flat_map/flat_set tracking entity state (traps, emitters, bosses, morphs, teleport cache)
 	//   - Progressive precaching state (excluded/precached monsters, models)
 	//   - Spawn system state (spawn_plan, special_spawn_state, spawn_point_map, spawn_history)
-	//   - Wave state arrays (previous_wave_types via ResetWaveMemory(), used_wave_sounds, used_start_sounds)
+	//   - Wave state arrays (previous_wave_types via ResetWaveMemory(), g_wave_sound_order, g_start_sound_order)
 	//   - Recent spawns, teleport tracking, benefits
 	//   - LaserPool: BFG laser entity pool (prevents dangling pointers)
 	//   - Profiler data: Accumulated profiling statistics (prevents unbounded growth)
@@ -4952,10 +4941,8 @@ void ResetGame()
 		// (they persist in engine memory across resets)
 	g_full_precache_done = false;
 
-	std::fill(used_wave_sounds.begin(), used_wave_sounds.end(), false);
-	remaining_wave_sounds = NUM_WAVE_SOUNDS;
-	std::fill(used_start_sounds.begin(), used_start_sounds.end(), false);
-	remaining_start_sounds = NUM_START_SOUNDS;
+	g_wave_sound_cursor = NUM_WAVE_SOUNDS;
+	g_start_sound_cursor = NUM_START_SOUNDS;
 
 	ClearHordeMessage();
 	g_horde_local.reset_hud_state();

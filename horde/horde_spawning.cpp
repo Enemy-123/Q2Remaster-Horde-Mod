@@ -89,21 +89,15 @@ void SpawnPointsSoA::resize(size_t new_size) {
         new_size = MAX_SPAWN_POINTS_CAPACITY;
     }
 
-    // static_vector doesn't throw std::bad_alloc (stack/static storage), but we keep try-catch for safety
-    try {
-        isTemporarilyDisabled.assign(new_size, false);
-        cooldownEndsAt.assign(new_size, 0_sec);
-        alternative_cooldown.assign(new_size, 0_sec);
-        teleport_cooldown.assign(new_size, 0_sec);
-        lastSpawnTime.assign(new_size, 0_sec);
-        attempts.assign(new_size, 0);
-        successfulSpawns.assign(new_size, 0);
-        alternative_attempts.assign(new_size, 0);
-        needs_long_alternative_cooldown.assign(new_size, false);
-    } catch (const std::exception& e) {
-        gi.Com_PrintFmt("ERROR: Failed to resize spawn points data: {}\n", e.what());
-        clear(); // Clear all on failure
-    }
+    isTemporarilyDisabled.assign(new_size, false);
+    cooldownEndsAt.assign(new_size, 0_sec);
+    alternative_cooldown.assign(new_size, 0_sec);
+    teleport_cooldown.assign(new_size, 0_sec);
+    lastSpawnTime.assign(new_size, 0_sec);
+    attempts.assign(new_size, 0);
+    successfulSpawns.assign(new_size, 0);
+    alternative_attempts.assign(new_size, 0);
+    needs_long_alternative_cooldown.assign(new_size, false);
 }
 
 // ============================================================================
@@ -279,19 +273,30 @@ static bool CheckSpawnPointPlayerProximity(const vec3_t& spawn_pos, bool emergen
     // 25% chance to require out-of-visibility position (only in normal mode, not recovery/emergency)
     if (!emergency_mode && !recovery_mode)
     {
-        // Use a deterministic check based on position to avoid flickering validation results
-        // This ensures the same spawn point gives consistent results within a short time window
-        static thread_local gtime_t last_visibility_roll_time = 0_sec;
-        static thread_local bool last_visibility_required = false;
+        // Deterministic per spawn position and short time window (500ms).
+        // This avoids flickering while preventing one global roll from affecting all points.
+        constexpr int64_t VISIBILITY_TIME_BUCKET_MS = 500;
+        constexpr float POSITION_QUANTIZE_FACTOR = 0.125f; // 8-unit buckets
 
-        // Re-roll visibility requirement every 0.5 seconds
-        if (level.time - last_visibility_roll_time > 500_ms)
-        {
-            last_visibility_roll_time = level.time;
-            last_visibility_required = (frandom() < HordeConstants::OUT_OF_VISIBILITY_CHANCE);
-        }
+        const auto quantize = [](float value) -> int32_t {
+            return static_cast<int32_t>(value * POSITION_QUANTIZE_FACTOR);
+        };
+        const auto hash_combine = [](uint32_t hash, uint32_t value) -> uint32_t {
+            hash ^= value + 0x9e3779b9u + (hash << 6) + (hash >> 2);
+            return hash;
+        };
 
-        if (last_visibility_required)
+        uint32_t hash = 0x811C9DC5u;
+        hash = hash_combine(hash, static_cast<uint32_t>(quantize(spawn_pos.x)));
+        hash = hash_combine(hash, static_cast<uint32_t>(quantize(spawn_pos.y)));
+        hash = hash_combine(hash, static_cast<uint32_t>(quantize(spawn_pos.z)));
+        hash = hash_combine(hash, static_cast<uint32_t>(level.time.milliseconds() / VISIBILITY_TIME_BUCKET_MS));
+
+        const float clamped_visibility_chance = std::clamp(HordeConstants::OUT_OF_VISIBILITY_CHANCE, 0.0f, 1.0f);
+        const uint32_t threshold = static_cast<uint32_t>(clamped_visibility_chance * 100.0f + 0.5f);
+        const bool visibility_required = (hash % 100u) < threshold;
+
+        if (visibility_required)
         {
             if (IsSpawnPositionInPlayerPVS(spawn_pos))
                 return false;  // Position is in player's PVS but we required out-of-visibility
@@ -408,7 +413,8 @@ edict_t* Horde_SpawnMonster(
     int32_t currentLevel,
     float champion_chance)
 {
-    // Phase 1: Create and initialize the monster. It is NOT counted yet.
+    // Phase 1: Create and initialize the monster.
+    // NOTE: ED_CallSpawnMonsterByID may already register counted monsters before link.
     edict_t* monster = SpawnMonsterByTypeID(monster_type, origin, angles, false); // false = don't link yet
     if (!monster) {
         return nullptr;
@@ -452,7 +458,7 @@ edict_t* Horde_SpawnMonster(
             gi.Com_PrintFmt("SPAWN FAILURE: Monster '{}' at ({}) became stuck immediately after linking. Freeing.\n",
                 monster->classname, monster->s.origin);
         }
-        // Keep level monster stats coherent if a counted monster is removed during spawn failure.
+        // Keep level monster stats coherent when a pre-registered monster is removed during spawn failure.
         if (!monster->deadflag && !monster->spawnflags.has(SPAWNFLAG_MONSTER_DEAD)) {
             G_MonsterKilled(monster);
         }
@@ -483,9 +489,8 @@ bool EmergencySpawnMonster(const int32_t levelNum,
         {
             // Count active players for debugging
             int active_player_count = 0;
-            for (uint32_t p = 0; p < game.maxclients; p++) {
-                edict_t* player = g_edicts + 1 + p;
-                if (player->inuse && player->client && player->health > 0) {
+            for (const auto* player : active_players_no_spect()) {
+                if (player->health > 0) {
                     active_player_count++;
                 }
             }
@@ -555,7 +560,8 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID type
     const bool is_flying = IsFlying(typeId);
     const bool is_flying_only_lane = (spawn_point->style == 1);
 
-    vec3_t predicted_mins, predicted_maxs;
+    vec3_t predicted_mins = {-16.0f, -16.0f, -24.0f};
+    vec3_t predicted_maxs = {16.0f, 16.0f, 32.0f};
     GetPredictedScaledBounds(typeId, predicted_mins, predicted_maxs);
 
     // Phase 1: Use radial attempts to find alternative spawn positions
