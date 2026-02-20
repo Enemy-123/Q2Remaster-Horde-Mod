@@ -1571,8 +1571,11 @@ void SpawnItem(edict_t* ent, gitem_t* item, const spawn_temp_t& st)
 		if (g_instagib->value)
 		{
 			if (/*item->pickup == Pickup_Armor ||*/ item->pickup == Pickup_PowerArmor ||
-				item->pickup == Pickup_Powerup /*|| item->pickup == Pickup_Sphere*/ || /*item->pickup == Pickup_SentryGun ||*/
-				/*(item->flags & IF_HEALTH) || */(item->flags & IF_AMMO) || item->pickup == Pickup_Weapon || item->pickup == Pickup_Pack ||
+				item->pickup == Pickup_Powerup 
+				/*|| item->pickup == Pickup_Sphere*/ || /*item->pickup == Pickup_SentryGun ||*/
+				/*(item->flags & IF_HEALTH) || 
+				(item->flags & IF_AMMO) || */   //test
+				item->pickup == Pickup_Weapon || item->pickup == Pickup_Pack ||
 				/*item->id == IT_ITEM_BANDOLIER ||*/ item->id == IT_ITEM_PACK) /*||
 				item->id == IT_AMMO_NUKE)*/
 			{

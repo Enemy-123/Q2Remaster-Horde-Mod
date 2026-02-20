@@ -269,6 +269,7 @@ struct TargetSearchResult {
 struct TargetCandidate {
 	edict_t* entity{ nullptr };
 	float score{ -1.0f };
+	float distance{ IDViewConfig::MAX_DISTANCE };
 };
 
 static inline void CheckEntityForTargeting(edict_t* viewer, const vec3_t& viewer_pos,
@@ -285,7 +286,7 @@ static inline void CheckEntityForTargeting(edict_t* viewer, const vec3_t& viewer
 		return;
 	}
 
-	dir.normalize();
+	float const dist = dir.normalize();
 	float const dot = forward.dot(dir);
 
 	static constexpr float CLOSE_DISTANCE_SQ = IDViewConfig::CLOSE_DISTANCE * IDViewConfig::CLOSE_DISTANCE;
@@ -297,12 +298,17 @@ static inline void CheckEntityForTargeting(edict_t* viewer, const vec3_t& viewer
 		return;
 	}
 
-	// Score without sqrt for performance (we only need relative ordering)
-	// Higher dot product = better alignment, lower dist_sq = closer
+	// Higher dot product = better alignment, lower dist_sq = closer.
 	float score = (dot * IDViewConfig::SCORING_DOT_WEIGHT) - dist_sq;
 	if (score > best.score) {
+		// Do line-of-sight validation only when this candidate can beat the current best score.
+		if (!CanSeeTarget(viewer, viewer_pos, who, who->s.origin)) {
+			return;
+		}
+
 		best.score = score;
 		best.entity = who;
+		best.distance = dist;
 	}
 }
 
@@ -329,17 +335,17 @@ static inline void CheckEntityForTargeting(edict_t* viewer, const vec3_t& viewer
         CheckEntityForTargeting(ent, viewer_pos, forward, who, best);
     }
 
-    // --- Final visibility check remains the same ---
     if (best.entity) {
-        trace_t const tr = gi.traceline(viewer_pos, best.entity->s.origin, ent, MASK_SOLID);
-        if (tr.fraction == 1.0f || tr.ent == best.entity) {
-            // It's visible! This is our target.
-            result.target = best.entity;
-            result.distance = (best.entity->s.origin - viewer_pos).length();
-        }
+        result.target = best.entity;
+        result.distance = best.distance;
     }
     
     return result;
+}
+
+[[nodiscard]] static bool IsValidStickyTarget(edict_t* viewer, edict_t* target) noexcept {
+	// Preserve sticky target regardless of FOV; only lose it if it becomes invalid or not visible.
+	return IsValidTarget(viewer, target, true);
 }
 
 void SetIDView(edict_t* ent) {
@@ -366,7 +372,7 @@ void SetIDView(edict_t* ent) {
 
 	// "Sticky Target" logic: If no new target is found, but the previous target is still
 	// valid and visible, keep it selected. This improves user experience by reducing flicker.
-	if (!current_target && ent->client->idtarget && IsValidTarget(ent, ent->client->idtarget, true)) {
+	if (!current_target && ent->client->idtarget && IsValidStickyTarget(ent, ent->client->idtarget)) {
 		current_target = ent->client->idtarget;
 	}
 
