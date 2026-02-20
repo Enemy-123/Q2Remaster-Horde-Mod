@@ -14,7 +14,7 @@
     "weapons": {
         "blaster": {
             "damage_min": 12,
-            "damage_max": 18,
+            "damage_max": 16,
             "speed": 1200,
             "bounces": 5
         },
@@ -31,10 +31,10 @@
             "damage_energy_max": 11,
             "kick": 8,
             "pellet_count_deathmatch": 12,
-            "pellet_count_normal": 20
+            "pellet_count_normal": 18
         },
         "supershotgun": {
-            "damage_min": 7,
+            "damage_min": 5,
             "damage_max": 9,
             "damage_energy_min": 14,
             "damage_energy_max": 16,
@@ -109,8 +109,6 @@
             "speed": 1000
         },
         "etfrifle": {
-            "damage_min": 9,
-            "damage_max": 13,
             "kick_normal": 3,
             "kick_homing": 75
         }
@@ -240,8 +238,8 @@
             "explosion_radius": 100
         },
         "laser": {
-            "health_base": 150,
-            "health_addon_per_wave": 120,
+            "health_base": 175,
+            "health_addon_per_wave": 125,
             "damage_initial": 1,
             "damage_addon_per_wave": 4,
             "comment": "Wave-based laser configuration"
