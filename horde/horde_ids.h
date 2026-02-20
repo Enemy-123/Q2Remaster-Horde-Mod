@@ -1,8 +1,7 @@
 #pragma once
 
 #include <array>
-#include <string_view>
-#include <unordered_map>
+#include <vector>
 
 // Forward declarations to break circular dependencies
 struct edict_t;
@@ -152,7 +151,7 @@ enum class SpecialEntityTypeID : uint8_t {
     BARREL,          // 11 - Explosive barrels
     COUNT,           // 12 - The total number of special entity types
     UNKNOWN = 255
-};;
+};
 
 // Class for efficient special entity type lookups
 class SpecialTypeRegistry {
@@ -350,7 +349,6 @@ public:
     void InitializeHordeIDs();
 
     // Fast type checking functions - defined in cpp to avoid incomplete type issues
-    bool IsMonsterType(const edict_t* ent, MonsterTypeID type_to_check);
-    bool IsSpecialType(const edict_t* ent, SpecialEntityTypeID type_to_check);
+    bool IsMonsterType(const edict_t* ent, MonsterTypeID type_to_check) noexcept;
+    bool IsSpecialType(const edict_t* ent, SpecialEntityTypeID type_to_check) noexcept;
 } // namespace horde
-

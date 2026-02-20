@@ -56,29 +56,21 @@ bool CanDamage(edict_t* targ, edict_t* inflictor)
 	if (trace.fraction == 1.0f)
 		return true;
 
-	// Check 4 other points without repeatedly copying targ_center
-	vec3_t check_point = targ_center;
+	// Check 4 additional points around the center.
+	static constexpr std::array<vec3_t, 4> trace_offsets = {
+		vec3_t{ 15.0f, 15.0f, 0.0f },
+		vec3_t{ 15.0f, -15.0f, 0.0f },
+		vec3_t{ -15.0f, -15.0f, 0.0f },
+		vec3_t{ -15.0f, 15.0f, 0.0f }
+	};
 
-	check_point[0] += 15.0f;
-	check_point[1] += 15.0f;
-	trace = gi.traceline(inflictor_center, check_point, inflictor, MASK_SOLID | CONTENTS_PROJECTILECLIP);
-	if (trace.fraction == 1.0f)
-		return true;
-
-	check_point[1] -= 30.0f; // From +15 to -15
-	trace = gi.traceline(inflictor_center, check_point, inflictor, MASK_SOLID | CONTENTS_PROJECTILECLIP);
-	if (trace.fraction == 1.0f)
-		return true;
-
-	check_point[0] -= 30.0f; // From +15 to -15
-	trace = gi.traceline(inflictor_center, check_point, inflictor, MASK_SOLID | CONTENTS_PROJECTILECLIP);
-	if (trace.fraction == 1.0f)
-		return true;
-
-	check_point[1] += 30.0f; // From -15 to +15
-	trace = gi.traceline(inflictor_center, check_point, inflictor, MASK_SOLID | CONTENTS_PROJECTILECLIP);
-	if (trace.fraction == 1.0f)
-		return true;
+	for (const vec3_t& offset : trace_offsets)
+	{
+		const vec3_t check_point = targ_center + offset;
+		trace = gi.traceline(inflictor_center, check_point, inflictor, MASK_SOLID | CONTENTS_PROJECTILECLIP);
+		if (trace.fraction == 1.0f)
+			return true;
+	}
 
 
 	return false;
@@ -263,7 +255,7 @@ static int CheckPowerArmor(edict_t* ent, const vec3_t& point, const vec3_t& norm
 
 	// Paril: fix small amounts of damage not
 	// being absorbed
-	damage = max(1, damage);
+	damage = std::max(1, damage);
 
 	// Calculate how much damage the power armor can absorb based on available power
 	save = *power * damagePerCell;
@@ -274,7 +266,7 @@ static int CheckPowerArmor(edict_t* ent, const vec3_t& point, const vec3_t& norm
 	// [Paril-KEX] energy damage should do more to power armor, not ETF Rifle shots.
 	// This makes power armor drain faster against energy weapons
 	if (dflags & DAMAGE_ENERGY)
-		save = max(1, save / 2);
+		save = std::max(1, save / 2);
 
 	// Power armor absorbs up to the calculated damage amount
 	if (save > damage)
@@ -286,7 +278,7 @@ static int CheckPowerArmor(edict_t* ent, const vec3_t& point, const vec3_t& norm
 	else
 		power_used = save / damagePerCell;
 
-	power_used = max(1, power_used);
+	power_used = std::max(1, power_used);
 
 	SpawnDamage(pa_te_type, point, normal, save);
 	ent->powerarmor_time = level.time + 200_ms;
@@ -294,7 +286,7 @@ static int CheckPowerArmor(edict_t* ent, const vec3_t& point, const vec3_t& norm
 	// Paril: adjustment so that power armor
 	// always uses damagePerCell even if it does
 	// only a single point of damage
-	*power = max(0, *power - max(damagePerCell, power_used));
+	*power = std::max(0, *power - std::max(damagePerCell, power_used));
 
 	// check power armor turn-off states
 	if (ent->client)
@@ -979,34 +971,19 @@ void HandleVampireEffect(edict_t* attacker, edict_t* targ, int damage)
         return;
     }
 
-    // Check for vampire - support both skill system (humans) and benefit system (bots)
+    // Determine vampire level by ruleset:
+    // - Classic mode or bots in RPG mode: benefit system
+    // - Human players in RPG mode: skill system
     int8_t vampire_level = 0;
-    bool has_vampire = false;
-
-    // In Classic Mode (vortex=0), everyone uses benefit system
-    if (g_vortex->integer == 0) {
-        has_vampire = ClassicPlayerHasBenefitVampire(attacker);
-        if (has_vampire) {
+    if (g_vortex->integer == 0 || (attacker->svflags & SVF_BOT)) {
+        if (ClassicPlayerHasBenefitVampire(attacker)) {
             vampire_level = ClassicPlayerHasBenefit(attacker, BenefitID::VAMPIRE_UPGRADED) ? 6 : 1;
         }
-    }
-    // In RPG Mode (vortex=1), bots use benefits, humans use skills
-    else {
-        if (attacker->svflags & SVF_BOT) {
-            // Bots use the benefit system
-            has_vampire = ClassicPlayerHasBenefitVampire(attacker);
-            // For bots, treat base vampire as level 1, upgraded as level 6 for armor stealing
-            if (has_vampire) {
-                vampire_level = ClassicPlayerHasBenefit(attacker, BenefitID::VAMPIRE_UPGRADED) ? 6 : 1;
-            }
-        } else {
-            // Human players use the skill system
-            vampire_level = GetSkillLevel(attacker, "vampire");
-            has_vampire = (vampire_level > 0);
-        }
+    } else {
+        vampire_level = GetSkillLevel(attacker, "vampire");
     }
 
-    if (!has_vampire) {
+    if (vampire_level <= 0) {
         return;
     }
 
@@ -1245,7 +1222,11 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		if ((knockback) && (targ->movetype != MOVETYPE_NONE) && (targ->movetype != MOVETYPE_BOUNCE) &&
 			(targ->movetype != MOVETYPE_PUSH) && (targ->movetype != MOVETYPE_STOP))
 		{
-			vec3_t normalized_dir = dir.normalized();
+			vec3_t normalized_dir = dir;
+			const float dir_len_sq = dir.lengthSquared();
+			if (dir_len_sq > 0.001f && std::abs(dir_len_sq - 1.0f) > 0.01f)
+				normalized_dir *= (1.0f / std::sqrt(dir_len_sq));
+
 			vec3_t kvel;
 
 			// Skip mass calculation for BFG pull
@@ -1381,17 +1362,13 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 
 		if (targ->health <= 0)
 		{
-			if (!targ) {
-				return;
-			}
-
 			if ((targ->svflags & SVF_MONSTER) || (client))
 			{
 				targ->flags |= FL_ALIVE_KNOCKBACK_ONLY;
 				targ->dead_time = level.time;
 			}
 
-			if (!targ || !inflictor || !attacker) {
+			if (!inflictor || !attacker) {
 				return;
 			}
 
@@ -1460,7 +1437,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 			size_t i;
 			for (i = 0; i < client->num_damage_indicators; i++)
 			{
-				if (sqrtf((client->damage_indicators[i].from - point).lengthSquared()) < 32.f)
+				if ((client->damage_indicators[i].from - point).lengthSquared() < (32.0f * 32.0f))
 				{
 					indicator = &client->damage_indicators[i];
 					break;
@@ -1505,6 +1482,7 @@ void T_RadiusDamage(edict_t* inflictor, edict_t* attacker, float damage, edict_t
 
 	// PERFORMANCE OPTIMIZATION: Use spatial grid for massive speedup over findradius
 	auto nearby_entities = HordePhys::g_entity_grid.QueryRadiusFiltered(inflictor_center, radius, HordePhys::EntityGrid::TYPE_ALL);
+	const float radius_sq = radius * radius;
 
 	for (edict_t* ent : nearby_entities)
 	{
@@ -1527,11 +1505,13 @@ void T_RadiusDamage(edict_t* inflictor, edict_t* attacker, float damage, edict_t
 
 		// Vector from explosion center to the entity's impact point
 		vec3_t force_vec = damage_point - inflictor_center;
-		float dist = sqrtf(force_vec.lengthSquared());
+		const float dist_sq = force_vec.lengthSquared();
 
 		// Reject entities whose actual impact point is outside the explosion radius
-		if (dist > radius)
+		if (dist_sq > radius_sq)
 			continue;
+
+		const float dist = std::sqrt(dist_sq);
 
 		float points = damage - 0.5f * dist;
 

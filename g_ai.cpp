@@ -32,6 +32,28 @@ constexpr float HORDE_BONUS_SPEED_MULTIPLIER = 1.6f;  // 60% faster movement for
 	return ent && ent->classname && ent->classname[0] == 'p' && strcmp(ent->classname, "point_combat") == 0;
 }
 
+[[nodiscard]] inline bool IsFollowPoint(const edict_t* ent) {
+	return ent && ent->classname && ent->classname[0] == 'f' && strcmp(ent->classname, "follow_point") == 0;
+}
+
+[[nodiscard]] inline bool IsCommandEntity(const edict_t* ent) {
+	return IsPointCombat(ent) || IsFollowPoint(ent);
+}
+
+// Clear dead/invalid command references while preserving point/follow command entities.
+static inline void ValidateCommandEntity(edict_t*& ent) {
+	if (!ent)
+		return;
+
+	if (!ent->inuse) {
+		ent = nullptr;
+		return;
+	}
+
+	if (ent->health <= 0 && ent->classname && !IsCommandEntity(ent))
+		ent = nullptr;
+}
+
 //============================================================================
 
 /*
@@ -402,35 +424,16 @@ void ai_stand(edict_t* self, float dist)
 
 		// Clean up dead/invalid entity references for summoned monsters
 		// BUT preserve command entities (combat points, follow points)
-		if (self->enemy && !self->enemy->inuse)
-			self->enemy = nullptr;
-		else if (self->enemy && self->enemy->health <= 0 && self->enemy->classname &&
-		         Q_strcasecmp(self->enemy->classname, "point_combat") != 0 &&
-		         Q_strcasecmp(self->enemy->classname, "follow_point") != 0)
-			self->enemy = nullptr;
-
-		if (self->goalentity && !self->goalentity->inuse)
-			self->goalentity = nullptr;
-		else if (self->goalentity && self->goalentity->health <= 0 && self->goalentity->classname &&
-		         Q_strcasecmp(self->goalentity->classname, "point_combat") != 0 &&
-		         Q_strcasecmp(self->goalentity->classname, "follow_point") != 0)
-			self->goalentity = nullptr;
-
-		if (self->movetarget && !self->movetarget->inuse)
-			self->movetarget = nullptr;
-		else if (self->movetarget && self->movetarget->health <= 0 && self->movetarget->classname &&
-		         Q_strcasecmp(self->movetarget->classname, "point_combat") != 0 &&
-		         Q_strcasecmp(self->movetarget->classname, "follow_point") != 0)
-			self->movetarget = nullptr;
+		ValidateCommandEntity(self->enemy);
+		ValidateCommandEntity(self->goalentity);
+		ValidateCommandEntity(self->movetarget);
 
 
 		// Allow monsters on patrol/orders to scan for enemies, but preserve their orders
 		if (self->monsterinfo.aiflags & AI_COMBAT_POINT)
 		{
 			// Only scan for enemies if we don't have a real enemy yet
-			if (!self->enemy || (self->enemy->classname &&
-			    (Q_strcasecmp(self->enemy->classname, "point_combat") == 0 ||
-			     Q_strcasecmp(self->enemy->classname, "follow_point") == 0)))
+			if (!self->enemy || IsCommandEntity(self->enemy))
 			{
 				// Find enemies while patrolling - spot1/spot2 preserved for resume
 				if (!(self->monsterinfo.aiflags & AI_MEDIC))
@@ -519,35 +522,16 @@ void ai_walk(edict_t* self, float dist)
 		if (self->monsterinfo.isfriendlyspawn) {
 		// Clean up dead/invalid entity references for summoned monsters
 		// BUT preserve command entities (combat points, follow points)
-		if (self->enemy && !self->enemy->inuse)
-			self->enemy = nullptr;
-		else if (self->enemy && self->enemy->health <= 0 && self->enemy->classname &&
-		         Q_strcasecmp(self->enemy->classname, "point_combat") != 0 &&
-		         Q_strcasecmp(self->enemy->classname, "follow_point") != 0)
-			self->enemy = nullptr;
-
-		if (self->goalentity && !self->goalentity->inuse)
-			self->goalentity = nullptr;
-		else if (self->goalentity && self->goalentity->health <= 0 && self->goalentity->classname &&
-		         Q_strcasecmp(self->goalentity->classname, "point_combat") != 0 &&
-		         Q_strcasecmp(self->goalentity->classname, "follow_point") != 0)
-			self->goalentity = nullptr;
-
-		if (self->movetarget && !self->movetarget->inuse)
-			self->movetarget = nullptr;
-		else if (self->movetarget && self->movetarget->health <= 0 && self->movetarget->classname &&
-		         Q_strcasecmp(self->movetarget->classname, "point_combat") != 0 &&
-		         Q_strcasecmp(self->movetarget->classname, "follow_point") != 0)
-			self->movetarget = nullptr;
+		ValidateCommandEntity(self->enemy);
+		ValidateCommandEntity(self->goalentity);
+		ValidateCommandEntity(self->movetarget);
 
 
 		// Allow monsters on patrol/orders to scan for enemies, but preserve their orders
 		if (self->monsterinfo.aiflags & AI_COMBAT_POINT)
 		{
 			// Only scan for enemies if we don't have a real enemy yet
-			if (!self->enemy || (self->enemy->classname &&
-			    (Q_strcasecmp(self->enemy->classname, "point_combat") == 0 ||
-			     Q_strcasecmp(self->enemy->classname, "follow_point") == 0)))
+			if (!self->enemy || IsCommandEntity(self->enemy))
 			{
 				// Find enemies while patrolling - spot1/spot2 preserved for resume
 				FindMTarget(self);
@@ -1409,9 +1393,7 @@ bool FindEnhancedTarget(edict_t* self) {
         // Allow monsters on patrol/orders to scan for enemies
         if (self->monsterinfo.aiflags & AI_COMBAT_POINT)
         {
-            if (!self->enemy || (self->enemy->classname &&
-                (Q_strcasecmp(self->enemy->classname, "point_combat") == 0 ||
-                 Q_strcasecmp(self->enemy->classname, "follow_point") == 0)))
+            if (!self->enemy || IsCommandEntity(self->enemy))
             {
                 return FindMTarget(self);
             }
@@ -2109,7 +2091,7 @@ void ai_run_slide(edict_t* self, float distance)
 	// PMM - clamp maximum sideways move for non flyers to make them look less jerky
 	if (!(self->flags & FL_FLY)) {
 		static const float max_sidestep_per_frame = MAX_SIDESTEP * 10.0f / (float)gi.frame_time_ms;
-		distance = min(distance, max_sidestep_per_frame);
+		distance = std::min(distance, max_sidestep_per_frame);
 	}
 	if (M_walkmove(self, self->ideal_yaw + ofs, distance))
 		return;
@@ -2907,7 +2889,7 @@ void ai_run(edict_t* self, float dist)
 		boxes_intersect(self->monsterinfo.last_sighting, self->monsterinfo.last_sighting, self->s.origin + self->mins, self->s.origin + self->maxs))
 	{
 		self->monsterinfo.aiflags |= AI_PURSUE_NEXT;
-		dist = min(dist, sqrtf((self->monsterinfo.last_sighting - self->s.origin).lengthSquared()));
+		dist = std::min(dist, std::sqrt((self->monsterinfo.last_sighting - self->s.origin).lengthSquared()));
 		// [Paril-KEX] this helps them navigate corners when two next pursuits
 		// are really close together
 		self->monsterinfo.random_change_time = level.time + 10_hz;
@@ -2922,7 +2904,7 @@ void ai_run(edict_t* self, float dist)
 		if (tr.fraction < 1)
 		{
 			v = self->goalentity->s.origin - self->s.origin;
-			d1 = sqrtf((self->goalentity->s.origin - self->s.origin).lengthSquared());
+			d1 = std::sqrt(v.lengthSquared());
 			center = tr.fraction;
 			d2 = d1 * ((center + 1) / 2);
 			float backup_yaw = self->s.angles.y;

@@ -2,6 +2,9 @@
 #include "weapon_id.h"
 #include "g_horde.h"
 #include <algorithm>
+#include <cctype>
+#include <string>
+#include <string_view>
 #include <boost/container/flat_map.hpp>
 
 namespace horde {
@@ -588,14 +591,14 @@ namespace horde {
     // Fast type checking functions - optimized with branch hints
     //
 
-    bool IsMonsterType(const edict_t* ent, MonsterTypeID type_to_check) {
+    bool IsMonsterType(const edict_t* ent, MonsterTypeID type_to_check) noexcept {
         if (!ent) [[unlikely]] {
             return false;
         }
         return ent->monsterinfo.monster_type_id == static_cast<uint8_t>(type_to_check);
     }
 
-    bool IsSpecialType(const edict_t* ent, SpecialEntityTypeID type_to_check) {
+    bool IsSpecialType(const edict_t* ent, SpecialEntityTypeID type_to_check) noexcept {
         if (!ent) [[unlikely]] {
             return false;
         }
