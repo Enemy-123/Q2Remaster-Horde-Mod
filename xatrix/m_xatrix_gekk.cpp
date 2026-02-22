@@ -14,8 +14,10 @@
 constexpr spawnflags_t SPAWNFLAG_GEKK_CHANT = 8_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_GEKK_NOJUMPING = 16_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_GEKK_NOSWIM = 32_spawnflag;
-constexpr int32_t GEKK_JUMP_SUCCESS_LIMIT = 4;
-constexpr gtime_t GEKK_JUMP_COOLDOWN = 3_sec;
+constexpr int32_t GEKK_JUMP_STREAK_MIN = 2;
+constexpr int32_t GEKK_JUMP_STREAK_MAX = 4;
+constexpr gtime_t GEKK_JUMP_COOLDOWN_MIN = 2.4_sec;
+constexpr gtime_t GEKK_JUMP_COOLDOWN_MAX = 3.8_sec;
 constexpr gtime_t GEKK_JUMP_SPACING_COOLDOWN = 450_ms;
 constexpr gtime_t GEKK_WALL_BOUNCE_WINDOW = 2_sec;
 constexpr float GEKK_STRAFE_HEIGHT_WINDOW = 48.0f;
@@ -87,11 +89,12 @@ static bool gekk_jump_cooldown_active(edict_t* self)
 
 static void gekk_record_jump_success(edict_t* self)
 {
-	if (++self->monsterinfo.jump_success_streak < GEKK_JUMP_SUCCESS_LIMIT)
+	int const jump_streak_limit = irandom(GEKK_JUMP_STREAK_MIN, GEKK_JUMP_STREAK_MAX);
+	if (++self->monsterinfo.jump_success_streak < jump_streak_limit)
 		return;
 
 	self->monsterinfo.jump_success_streak = 0;
-	self->monsterinfo.jump_time = level.time + GEKK_JUMP_COOLDOWN;
+	self->monsterinfo.jump_time = level.time + random_time(GEKK_JUMP_COOLDOWN_MIN, GEKK_JUMP_COOLDOWN_MAX);
 }
 
 static void gekk_apply_jump_spacing_cooldown(edict_t* self)
@@ -1224,7 +1227,6 @@ TOUCH(gekk_jump_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool o
 			damage = irandom(10, 20);
 			T_Damage(other, self, self, self->velocity, point, normal, damage, damage, DAMAGE_NONE, MOD_GEKK);
 			self->style = 0;
-			gekk_record_jump_success(self);
 		}
 	}
 
@@ -1274,6 +1276,7 @@ void gekk_jump_takeoff(edict_t* self)
 	gekk_apply_jump_spacing_cooldown(self);
 	self->touch = gekk_jump_touch;
 	self->style = 1;
+	gekk_record_jump_success(self);
 }
 
 void gekk_jump_takeoff2(edict_t* self)
@@ -1310,6 +1313,7 @@ void gekk_jump_takeoff2(edict_t* self)
 	gekk_apply_jump_spacing_cooldown(self);
 	self->touch = gekk_jump_touch;
 	self->style = 1;
+	gekk_record_jump_success(self);
 }
 
 void gekk_stop_skid(edict_t* self)

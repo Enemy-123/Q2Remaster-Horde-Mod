@@ -372,6 +372,10 @@ void flyer_rocket(edict_t* self)
 	if (!M_HasEnemy(self))
 		return;
 
+	// Per-shot cooldown gate to prevent rocket chain spam in refire loops.
+	if (self->monsterinfo.fire_wait > level.time)
+		return;
+
 	int damage = M_GET_DMG_OR(self, ROCKET, 35);
 
 	vec3_t	forward;
@@ -433,27 +437,29 @@ void flyer_rocket(edict_t* self)
 		if (trace.ent == self->enemy || trace.ent == world)
 		{
 			if (dist * trace.fraction > 72)
+			{
 				monster_fire_rocket(self, start, dir, damage, rocketSpeed, MZ2_TURRET_ROCKET);
+				self->monsterinfo.fire_wait = level.time + random_time(850_ms, 1.4_sec);
+			}
 		}
 	}
 }
 
 void flyer_reattack_rocket(edict_t* self)
 {
-	//if (g_horde->integer && current_wave_level >= 10)
 	// if our enemy is still valid, then continue firing
-	if (self->enemy && frandom() < 0.8f && !level.intermissiontime)
+	if (self->enemy && !level.intermissiontime)
 	{
-		if (frandom() < 0.3f) {
+		if (frandom() < 0.6f && self->monsterinfo.fire_wait <= level.time && frandom() < 0.2f)
+		{
 			flyer_rocket(self);
-
 			self->monsterinfo.nextframe = FRAME_rollr03;
+			return;
 		}
-		return;
 	}
 
 	// end attack
-	self->monsterinfo.attack_finished = level.time + 1.0_sec;
+	self->monsterinfo.attack_finished = level.time + random_time(1.1_sec, 1.9_sec);
 }
 
 mframe_t flyer_frames_rollright[] = {
@@ -1123,7 +1129,7 @@ MONSTERINFO_ATTACK(flyer_attack)(edict_t* self) -> void
 	// --- Attack Priority 2: Special Laser Attack ---
 	// If not doing melee, consider the special laser attack under specific conditions.
 	// We check if the enemy is wounded and at a good medium range.
-	if (range > 150 && range < 400 && frandom() < 0.65f)
+	if (range > 150 && range < 400 && frandom() < 0.28f)
 	{
 		self->monsterinfo.attack_state = AS_STRAIGHT;
 		M_SetAnimation(self, &flyer_move_laser_right);
@@ -1150,13 +1156,14 @@ MONSTERINFO_ATTACK(flyer_attack)(edict_t* self) -> void
 	}
 
 	// Set the animation based on the decision
-	if (use_rocket_attack)
+	const bool rocket_ready = (self->monsterinfo.fire_wait <= level.time);
+	if (use_rocket_attack && rocket_ready)
 	{
 		M_SetAnimation(self, &flyer_move_rollright);
 	}
 	else
 	{
-		// Use the blaster attack with re-attack logic.
+		// Use the blaster attack with re-attack logic (or fallback while rockets are cooling down).
 		M_SetAnimation(self, &flyer_move_attack2normal);
 	}
 

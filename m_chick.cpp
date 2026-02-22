@@ -278,6 +278,9 @@ PAIN(chick_pain) (edict_t* self, edict_t* other, float kick, int damage, const m
 	else
 		M_SetAnimation(self, &chick_move_pain3);
 
+	// Add a small randomized recovery delay to avoid instant attack re-chains after pain.
+	self->monsterinfo.attack_finished = max(self->monsterinfo.attack_finished, level.time + random_time(700_ms, 1.3_sec));
+
 	// PMM - clear duck flag
 	if (self->monsterinfo.aiflags & AI_DUCKED)
 		monster_duck_up(self);
