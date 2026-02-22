@@ -4,7 +4,8 @@
 #include "horde_constants.h"
 #include <algorithm>
 
-// Complete monster type definitions sorted by minWave
+// Complete monster type definitions.
+// Note: order is not strictly by minWave; SoA lookups use typeId as the index.
 const MonsterTypeInfo monsterTypes[] = {
 	// --- WAVE 1 ---
 	{horde::MonsterTypeID::SOLDIER_LIGHT, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 1, 1.0f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
@@ -139,8 +140,10 @@ const MonsterTypeInfo monsterTypes[] = {
 
 static_assert(std::size(monsterTypes) == MONSTER_DATA_COUNT,
 	"MONSTER_DATA_COUNT must match monsterTypes[]");
+static_assert(static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES) == MonsterDataSoA::MONSTER_ARRAY_SIZE,
+	"MonsterDataSoA::MONSTER_ARRAY_SIZE must match MonsterTypeID::MAX_TYPES");
 
-// Compile-time conversion from AoS to SoA
+// Convert monster data from AoS to SoA for fast indexed lookups.
 constexpr MonsterDataSoA create_monster_data_soa()
 {
 	MonsterDataSoA soa_data{};
@@ -247,10 +250,10 @@ bool IsValidMonsterForWave(horde::MonsterTypeID typeId, MonsterWaveType waveRequ
 
 	for (const auto &theme : special_themes)
 	{
-		if (HasWaveType(waveRequirements, theme))
+		if (HasWaveType(waveRequirements, theme) && !HasWaveType(monster_flags, theme))
 		{
 			// If the wave has this theme, the monster must also have it
-			return HasWaveType(monster_flags, theme);
+			return false;
 		}
 	}
 
@@ -313,6 +316,20 @@ bool IsValidMonsterForWave(horde::MonsterTypeID typeId, MonsterWaveType waveRequ
 // Get wave unlock with per-map variance for dynamic monster variety
 // Returns the adjusted minWave with ±2 wave variance based on map seed
 // This creates deterministic but per-map variation in when monsters unlock
+namespace
+{
+constexpr uint32_t GcdU32(uint32_t a, uint32_t b) noexcept
+{
+	while (b != 0)
+	{
+		const uint32_t t = a % b;
+		a = b;
+		b = t;
+	}
+	return a;
+}
+} // namespace
+
 int32_t GetAdjustedMinWave(horde::MonsterTypeID typeId, int32_t map_seed)
 {
 	const size_t index = static_cast<size_t>(typeId);
@@ -331,13 +348,18 @@ int32_t GetAdjustedMinWave(horde::MonsterTypeID typeId, int32_t map_seed)
 
 	// Deterministic variance based on monster ID and map seed
 	// This ensures the same map always has the same variance pattern
+	constexpr uint32_t variance_bucket_count =
+		static_cast<uint32_t>(2 * MonsterUnlockVariance::BASE_VARIANCE + 1);
+	static_assert(GcdU32(MonsterUnlockVariance::VARIANCE_SEED_MULTIPLIER, variance_bucket_count) == 1,
+		"VARIANCE_SEED_MULTIPLIER should be coprime with variance bucket count to avoid clustering");
+
 	uint32_t hash = static_cast<uint32_t>(typeId) * MonsterUnlockVariance::VARIANCE_SEED_MULTIPLIER 
 	              + static_cast<uint32_t>(map_seed);
 
 	// Generate variance in range [-BASE_VARIANCE, +BASE_VARIANCE]
-	int32_t variance = static_cast<int32_t>(hash % (2 * MonsterUnlockVariance::BASE_VARIANCE + 1))
+	int32_t variance = static_cast<int32_t>(hash % variance_bucket_count)
 	                  - MonsterUnlockVariance::BASE_VARIANCE;
 
 	// Clamp to ensure minimum wave is at least 3
-	return std::max(3, base_wave + variance);
+	return std::max<int32_t>(3, base_wave + variance);
 }
