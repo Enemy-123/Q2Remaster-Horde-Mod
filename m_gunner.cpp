@@ -23,6 +23,12 @@ static cached_soundindex sound_open;
 static cached_soundindex sound_search;
 static cached_soundindex sound_sight;
 
+static constexpr vec3_t GUNNER_CHAIN_FIRE_OFFSET = {
+	30.1f * 1.15f,
+	3.9f * 1.15f,
+	19.6f * 1.15f + 4.0f
+};
+
 void gunner_idlesound(edict_t* self)
 {
 	gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_IDLE, 0);
@@ -44,6 +50,20 @@ void gunner_fire_chain(edict_t* self);
 void gunner_refire_chain(edict_t* self);
 
 void gunner_stand(edict_t* self);
+
+static bool gunner_try_swap_to_visible_player(edict_t* self)
+{
+	edict_t* const replacement = AI_GetSightClient(self);
+	if (!replacement || replacement == self->enemy || !replacement->inuse || replacement->health <= 0)
+		return false;
+
+	self->oldenemy = self->enemy;
+	self->enemy = replacement;
+	self->goalentity = replacement;
+	self->monsterinfo.last_player_enemy = replacement;
+	self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
+	return true;
+}
 
 mframe_t gunner_frames_fidget[] = {
 	{ ai_stand },
@@ -384,21 +404,17 @@ void GunnerFire(edict_t* self)
 	}
 
 	const bool bullet_mode = (g_hardcoop->integer > 3 && current_wave_level <= 12);
-
-	// Bullet mode does not support blindfire; clear stale flag so clear-shot checks use enemy target.
-	if (bullet_mode)
-		self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
+	const bool blindfire = (self->monsterinfo.aiflags & AI_MANUAL_STEERING);
 
 	vec3_t start;
 	vec3_t forward, right;
 	vec3_t aim;
-	const vec3_t offset = { 30.1f * 1.15f, 3.9f * 1.15f, 19.6f * 1.15f + 4.0f };
 
-	if (!M_CheckClearShot(self, offset))
+	if (!M_CheckClearShot(self, GUNNER_CHAIN_FIRE_OFFSET))
 		return;
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
-	vec3_t scaled_offset = self->s.scale ? (offset * self->s.scale) : offset;
+	vec3_t scaled_offset = self->s.scale ? (GUNNER_CHAIN_FIRE_OFFSET * self->s.scale) : GUNNER_CHAIN_FIRE_OFFSET;
 	start = M_ProjectFlashSource(self, scaled_offset, forward, right);
 
 	const monster_muzzleflash_id_t machinegun_flash =
@@ -412,18 +428,24 @@ void GunnerFire(edict_t* self)
 	int ionripper_speed = ionripper_speed_cfg > 0 ? ionripper_speed_cfg : 800;
 
 	if (bullet_mode) {
-		if (!M_HasValidTarget(self) || !visible(self, self->enemy)) {
-			gunner_stand(self);
-			return;
+		if (blindfire)
+		{
+			if (!self->monsterinfo.blind_fire_target)
+				return;
+			aim = (self->monsterinfo.blind_fire_target - start).normalized();
+		}
+		else
+		{
+			if (!M_HasValidTarget(self) || !visible(self, self->enemy))
+				return;
+			PredictAim(self, self->enemy, start, 0, true, -0.1f, &aim, nullptr);
 		}
 
-		PredictAim(self, self->enemy, start, 0, true, -0.1f, &aim, nullptr);
 		monster_fire_bullet(self, start, aim, machinegun_damage > 0 ? machinegun_damage : 6, 4,
 			DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, machinegun_flash);
 		return;
 	}
 
-	const bool blindfire = (self->monsterinfo.aiflags & AI_MANUAL_STEERING);
 	if (blindfire) {
 		if (!self->monsterinfo.blind_fire_target) {
 			return;
@@ -431,7 +453,6 @@ void GunnerFire(edict_t* self)
 		aim = (self->monsterinfo.blind_fire_target - start).normalized();
 	} else {
 		if (!M_HasValidTarget(self) || !visible(self, self->enemy)) {
-			gunner_stand(self);
 			return;
 		}
 		PredictAim(self, self->enemy, start, ionripper_speed, true, 0.1f, &aim, nullptr);
@@ -764,14 +785,67 @@ void gunner_fire_chain(edict_t* self)
 
 void gunner_refire_chain(edict_t* self)
 {
-	// Stop firing if no valid target or lost visibility
-	if (!M_HasValidTarget(self) || !visible(self, self->enemy))
+	if (!M_HasEnemy(self))
+	{
+		self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
+		M_SetAnimation(self, &gunner_move_endfire_chain, false);
+		return;
+	}
+
+	bool enemy_visible = M_HasValidTarget(self) && visible(self, self->enemy);
+
+	if (!enemy_visible)
+	{
+		// 30% chance to look for another visible player and switch target immediately.
+		if (frandom() < 0.3f && gunner_try_swap_to_visible_player(self))
+			enemy_visible = M_HasValidTarget(self) && visible(self, self->enemy);
+
+		if (!enemy_visible)
+		{
+			// Keep chaining by blindfiring at last known point, like tank refire behavior.
+			if (!self->monsterinfo.blind_fire_target)
+				self->monsterinfo.blind_fire_target = self->monsterinfo.last_sighting;
+
+			if (!self->monsterinfo.blind_fire_target)
+			{
+				self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
+				M_SetAnimation(self, &gunner_move_endfire_chain, false);
+				return;
+			}
+
+			self->monsterinfo.aiflags |= AI_MANUAL_STEERING;
+
+			// Don't stay in fire animation if muzzle can't actually fire.
+			if (!M_CheckClearShot(self, GUNNER_CHAIN_FIRE_OFFSET))
+			{
+				self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
+				M_SetAnimation(self, &gunner_move_endfire_chain, false);
+				return;
+			}
+
+			if (frandom() <= 0.65f)
+			{
+				M_SetAnimation(self, &gunner_move_fire_chain, false);
+				return;
+			}
+
+			self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
+			M_SetAnimation(self, &gunner_move_endfire_chain, false);
+			return;
+		}
+	}
+
+	// We can see a valid target again, so stop manual blind steering.
+	self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
+
+	// If we can't get a clear muzzle line now, leave fire loop cleanly.
+	if (!M_CheckClearShot(self, GUNNER_CHAIN_FIRE_OFFSET))
 	{
 		M_SetAnimation(self, &gunner_move_endfire_chain, false);
 		return;
 	}
 
-	// 50% chance to continue firing if still visible
+	// 50% chance to continue direct chain fire.
 	if (frandom() <= 0.5f)
 	{
 		M_SetAnimation(self, &gunner_move_fire_chain, false);

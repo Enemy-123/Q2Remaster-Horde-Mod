@@ -14,6 +14,7 @@ INFANTRY BLASTER2
 #include "shared.h"
 #include "horde/g_horde_scaling.h"
 #include "monster_constants.h"
+#include <algorithm>
 
 void InfantryMachineGun(edict_t* self);
 void infantry_run(edict_t* self);
@@ -487,6 +488,17 @@ extern const mmove_t infantry_move_grenade_throw;
 extern const mmove_t infantry_move_grenade_prep;
 static void infantry_grenade(edict_t* self);
 
+static bool infantry_prethrow_grenade_active(const edict_t* self)
+{
+	if (!self || !self->monsterinfo.active_move)
+		return false;
+
+	if (self->monsterinfo.active_move == &infantry_move_grenade_prep)
+		return true;
+
+	return (self->monsterinfo.active_move == &infantry_move_grenade_throw && self->s.frame < FRAME_attak206);
+}
+
 // Simplified grenade throw for when infantry dies mid-throw
 static void infantry_death_grenade(edict_t* self)
 {
@@ -497,15 +509,68 @@ static void infantry_death_grenade(edict_t* self)
 	AngleVectors(self->s.angles, forward, right, up);
 	vec3_t start_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
 
-	// Random drop direction - can fall to any side
-	vec3_t aim_dir = forward * crandom() * 0.5f + right * crandom() * 0.5f + up * -1.0f;
+	// Weak, downward-biased throw with randomized lateral angles.
+	vec3_t aim_dir = (forward * frandom(0.1f, 0.35f)) +
+		(right * crandom() * 0.9f) +
+		(up * -frandom(0.85f, 1.25f));
 	aim_dir.normalize();
 
-	// Fire the grenade (low speed for drop)
+	// Fire a weaker grenade for a "dropped while dying" feel.
 	int damage = M_GRENADE_DMG(self);
-	int speed = M_GRENADE_SPEED(self);
-	fire_grenade2(self, start_pos, aim_dir, damage > 0 ? damage : 40, speed > 0 ? speed : 200, 2.5_sec, damage > 0 ? (damage * 2) : 80, false);
+	float radius = damage > 0 ? (damage * 2.f) : 80.f;
+	fire_grenade(self, start_pos, aim_dir, damage > 0 ? damage : 40, 140, 2.5_sec, radius, crandom() * 6.f, -75.f, true);
 	gi.sound(self, CHAN_VOICE, sound_handgrenade, 1, ATTN_NORM, 0);
+}
+
+THINK(infantry_delayed_grenade_explode) (edict_t* timer) -> void
+{
+	edict_t* corpse = timer->owner;
+	if (!corpse || !corpse->inuse)
+	{
+		G_FreeEdict(timer);
+		return;
+	}
+
+	int damage = M_GRENADE_DMG(corpse);
+	if (damage <= 0)
+		damage = 40;
+	float radius = damage * 2.f;
+
+	T_RadiusDamage(corpse, corpse, static_cast<float>(damage), corpse, radius, DAMAGE_NONE, MOD_HG_SPLASH);
+
+	corpse->s.skinnum /= 2;
+	ThrowGibs(corpse, damage, {
+		{ "models/objects/gibs/bone/tris.md2" },
+		{ 3, "models/objects/gibs/sm_meat/tris.md2" },
+		{ "models/monsters/infantry/gibs/chest.md2", GIB_SKINNED },
+		{ "models/monsters/infantry/gibs/gun.md2", GIB_SKINNED | GIB_UPRIGHT },
+		{ 2, "models/monsters/infantry/gibs/foot.md2", GIB_SKINNED },
+		{ 2, "models/monsters/infantry/gibs/arm.md2", GIB_SKINNED },
+		{ "models/monsters/infantry/gibs/head.md2", GIB_HEAD | GIB_SKINNED }
+		});
+
+	BecomeExplosion1(corpse);
+	G_FreeEdict(timer);
+}
+
+static void infantry_schedule_delayed_grenade_explode(edict_t* self)
+{
+	edict_t* timer = G_Spawn();
+	if (!timer)
+	{
+		infantry_death_grenade(self);
+		return;
+	}
+
+	timer->classname = "infantry_delayed_grenade";
+	timer->owner = self;
+	timer->movetype = MOVETYPE_NONE;
+	timer->solid = SOLID_NOT;
+	timer->svflags |= SVF_NOCLIENT;
+	timer->s.origin = self->s.origin;
+	timer->nextthink = level.time + random_time(500_ms, 2200_ms);
+	timer->think = infantry_delayed_grenade_explode;
+	gi.linkentity(timer);
 }
 
 DIE(infantry_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
@@ -542,11 +607,17 @@ DIE(infantry_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dam
 	self->deadflag = true;
 	self->takedamage = true;
 
-	// Check if we're in the middle of throwing a grenade and throw it before dying
-	if ((self->monsterinfo.active_move == &infantry_move_grenade_prep) ||
-		(self->monsterinfo.active_move == &infantry_move_grenade_throw && self->s.frame < FRAME_attak206))
+	// If pin has been pulled and we die before releasing, arm a delayed corpse explosion.
+	const bool grenade_in_hand = infantry_prethrow_grenade_active(self);
+	const bool grenade_pin_pulled = (self->timestamp > 0_ms);
+	if (grenade_in_hand && grenade_pin_pulled)
 	{
-		infantry_death_grenade(self);  // Throw the grenade before dying
+		infantry_schedule_delayed_grenade_explode(self);
+	}
+	// Fallback: if somehow in pre-throw without armed timestamp, drop a weak grenade.
+	else if (grenade_in_hand)
+	{
+		infantry_death_grenade(self);
 	}
 
 	n = irandom(3);
@@ -623,6 +694,7 @@ constexpr float INFANTRY_ATTACK_YAW_SPEED = 60.f;  // Faster tracking during att
 void infantry_prep_grenade(edict_t* self)
 {
 	gi.sound(self, CHAN_WEAPON, sound_grenade_pin, 1, ATTN_NORM, 0);
+	self->timestamp = level.time; // Pin pulled: marks grenade as armed while in pre-throw states.
 
 	// Boost yaw_speed for faster tracking during grenade attack
 	self->yaw_speed = INFANTRY_ATTACK_YAW_SPEED;
@@ -636,6 +708,7 @@ void infantry_grenade_cleanup(edict_t* self)
 {
 	// Restore normal yaw_speed
 	self->yaw_speed = INFANTRY_DEFAULT_YAW_SPEED;
+	self->timestamp = 0_ms;
 
 	// clear the blindfire flag
 	self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
@@ -827,87 +900,88 @@ static void infantry_grenade(edict_t* self)
 	if (!M_HasEnemy(self))
 		return;
 
-    // Constants for easy tweaking of grenade behavior
-    constexpr float LOB_GRENADE_SPEED = 700.f;   // A good speed for arcing throws.
-    constexpr float FAST_GRENADE_SPEED = 950.f;  // For aggressive, direct throws.
-    constexpr float DIRECT_THROW_RANGE = 450.f;  // Max distance for a fast, direct throw.
+	constexpr float LOB_GRENADE_SPEED = 700.f;
+	constexpr float FAST_GRENADE_SPEED = 950.f;
+	constexpr float DIRECT_THROW_RANGE = 450.f;
+	constexpr float PREDICT_SPEED_SCALE = 0.70f;
+	constexpr float BLINDFIRE_LOB_MIN = 110.f;
+	constexpr float BLINDFIRE_LOB_MAX = 260.f;
 
-    vec3_t start_pos;
-    vec3_t aim_dir;
-    float  effective_speed;
-    const vec3_t offset = { 24, 10, 10 }; // Offset from model origin to hand
+	vec3_t start_pos;
+	vec3_t aim_dir;
+	float  effective_speed;
+	const vec3_t offset = { 24, 10, 10 };
+	bool const is_blindfire = (self->monsterinfo.aiflags & AI_MANUAL_STEERING);
 
-    // --- Step 1: Turn to Face the Target ---
-    // PredictAim requires an entity, so we must have a valid enemy.
-    // The blind-fire case needs a different approach.
-    bool const is_blindfire = (self->monsterinfo.aiflags & AI_MANUAL_STEERING);
+	if (is_blindfire)
+	{
+		if (!self->monsterinfo.blind_fire_target)
+		{
+			infantry_grenade_cleanup(self);
+			return;
+		}
 
-    if (is_blindfire)
-    {
-        // Blind-fire case: PredictAim cannot be used as it requires an entity target.
-        // We fall back to the robust manual lob calculation.
-        if (!self->monsterinfo.blind_fire_target) {
-            infantry_grenade_cleanup(self);
-            return;
-        }
-        vec3_t target_pos = self->monsterinfo.blind_fire_target;
+		const vec3_t target_pos = self->monsterinfo.blind_fire_target;
+		self->ideal_yaw = vectoyaw(target_pos - self->s.origin);
+		M_ChangeYaw(self);
 
-        // Set ideal yaw and immediately face the target
-        vec3_t dir_to_target = target_pos - self->s.origin;
-        self->ideal_yaw = vectoyaw(dir_to_target);
-        M_ChangeYaw(self);
+		vec3_t forward, right, up;
+		AngleVectors(self->s.angles, forward, right, up);
+		start_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
 
-        // Calculate start position using current facing (now updated)
-        vec3_t forward, right, up;
-        AngleVectors(self->s.angles, forward, right, up);
-        start_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
+		const float dist_to_target = (target_pos - start_pos).length();
+		vec3_t noisy_target = target_pos;
+		noisy_target += right * (crandom_open() * std::clamp(dist_to_target * 0.04f, 10.f, 32.f));
+		noisy_target[2] += crandom_open() * std::clamp(dist_to_target * 0.012f, 3.f, 12.f);
 
-        // Use the simple and reliable upward lob calculation
-        float dist_to_target = (target_pos - start_pos).length();
-        aim_dir = target_pos - start_pos;
-        aim_dir.z += dist_to_target * 0.4f; // Add upward velocity proportional to distance
-        aim_dir.normalize();
-        effective_speed = LOB_GRENADE_SPEED;
-    }
-    else
-    {
-        // Normal combat case: Use PredictAim for high accuracy.
-        // Not blindfiring - need fully valid target
-		if (!M_HasValidTarget(self)) {
-            infantry_grenade_cleanup(self);
-            return;
-        }
+		aim_dir = noisy_target - start_pos;
+		aim_dir[2] += std::clamp(dist_to_target * 0.26f, BLINDFIRE_LOB_MIN, BLINDFIRE_LOB_MAX);
+		aim_dir.normalize();
+		effective_speed = LOB_GRENADE_SPEED;
+	}
+	else
+	{
+		if (!M_HasValidTarget(self))
+		{
+			infantry_grenade_cleanup(self);
+			return;
+		}
 
-        // Set ideal yaw and immediately face the enemy
-        self->ideal_yaw = vectoyaw(self->enemy->s.origin - self->s.origin);
-        M_ChangeYaw(self);
+		self->ideal_yaw = vectoyaw(self->enemy->s.origin - self->s.origin);
+		M_ChangeYaw(self);
 
-        // Calculate start position using current facing (now updated)
-        vec3_t forward, right, up;
-        AngleVectors(self->s.angles, forward, right, up);
-        start_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
-        float const dist_to_target = range_to(self, self->enemy);
+		vec3_t forward, right, up;
+		AngleVectors(self->s.angles, forward, right, up);
+		start_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
+		const float dist_to_target = range_to(self, self->enemy);
 
-        // Decide on throw speed based on distance and line-of-sight
-        trace_t tr = gi.traceline(start_pos, self->enemy->s.origin + vec3_t{0, 0, 16.f}, self, MASK_SOLID);
-        if (dist_to_target < DIRECT_THROW_RANGE && tr.ent == self->enemy)
-        {
-            effective_speed = FAST_GRENADE_SPEED; // Fast, direct throw
-        }
-        else
-        {
-            effective_speed = LOB_GRENADE_SPEED; // Slower, higher-arcing lob
-        }
-        
-        // This is the key: Use PredictAim with gravity compensation enabled.
-        // It calculates the perfect arcing shot to the enemy's future position.
-        PredictAim(self, self->enemy, start_pos, effective_speed, true, 0.0f, &aim_dir, nullptr);
-    }
+		const trace_t tr = gi.traceline(start_pos, self->enemy->s.origin + vec3_t{ 0, 0, 16.f }, self, MASK_SOLID);
+		if (dist_to_target < DIRECT_THROW_RANGE && tr.ent == self->enemy)
+			effective_speed = FAST_GRENADE_SPEED;
+		else
+			effective_speed = LOB_GRENADE_SPEED;
 
-    // --- Step 2: Fire the Grenade ---
-    int damage = M_GRENADE_DMG(self);
-    fire_grenade2(self, start_pos, aim_dir, damage > 0 ? damage : 40, effective_speed, 2.5_sec, damage > 0 ? (damage * 2) : 80, false);
-    gi.sound(self, CHAN_VOICE, sound_handgrenade, 1, ATTN_NORM, 0);
+		const float predict_speed = std::max(1.f, effective_speed * PREDICT_SPEED_SCALE);
+		vec3_t aim_point;
+		PredictAim(self, self->enemy, start_pos, predict_speed, true, 0.0f, &aim_dir, &aim_point);
+
+		// Randomized aimpoint like guncmdr-style spread to avoid repeated deterministic misses.
+		const float horizontal_jitter = std::clamp(dist_to_target * 0.03f, 6.f, 24.f);
+		const float vertical_jitter = std::clamp(dist_to_target * 0.01f, 2.f, 10.f);
+		aim_point += right * (crandom_open() * horizontal_jitter);
+		aim_point[2] += crandom_open() * vertical_jitter;
+		aim_dir = aim_point - start_pos;
+	}
+
+	// fire_grenade2 adds upward velocity internally; this keeps medium-range throws from sailing high.
+	const float dist_to_aim = (aim_dir.length() > 0.1f) ? aim_dir.length() : 0.f;
+	aim_dir[2] -= std::clamp(dist_to_aim * 0.00045f, 0.02f, 0.09f);
+	aim_dir.normalize();
+
+	int damage = M_GRENADE_DMG(self);
+	fire_grenade2(self, start_pos, aim_dir, damage > 0 ? damage : 40, effective_speed, 2.5_sec, damage > 0 ? (damage * 2) : 80, false);
+	self->timestamp = 0_ms; // Grenade has been released.
+	gi.sound(self, CHAN_VOICE, sound_handgrenade, 1, ATTN_NORM, 0);
 }
 
 // [Paril-KEX] run-attack, inspired by q2test
@@ -968,12 +1042,12 @@ MONSTERINFO_ATTACK(infantry_attack) (edict_t* self) -> void
 		if (self->monsterinfo.blind_fire_delay < 1.0_sec)
 			chance = 1.0;
 		else if (self->monsterinfo.blind_fire_delay < 7.5_sec)
-			chance = 0.4f;
+			chance = 0.35f;
 		else
 			chance = 0.1f;
 
-		// minimum of 2 seconds, plus 0-3, after the shots are done
-		self->monsterinfo.blind_fire_delay += random_time(2.0_sec, 5.0_sec);
+		// minimum of 2.5 seconds, plus up to 3 more, after the shot attempt.
+		self->monsterinfo.blind_fire_delay += random_time(2.5_sec, 5.5_sec);
 
 		// don't shoot if the dice say not to
 		if (frandom() > chance)
@@ -996,9 +1070,9 @@ MONSTERINFO_ATTACK(infantry_attack) (edict_t* self) -> void
 	{
 		M_SetAnimation(self, &infantry_move_attack2);
 	}
-	else if (r > RANGE_MELEE && frandom() <= 0.25f)
+	else if (r > RANGE_MELEE && frandom() <= 0.2f)
 	{
-		// 35% chance to throw a grenade when enemy is beyond melee range
+		// 20% chance to throw a grenade when enemy is beyond melee range.
 		M_SetAnimation(self, &infantry_move_grenade_prep);
 	}
 	else if (M_CheckClearShot(self, monster_flash_offset[MZ2_INFANTRY_MACHINEGUN_1]))

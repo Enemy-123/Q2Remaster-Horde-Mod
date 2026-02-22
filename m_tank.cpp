@@ -631,20 +631,49 @@ MONSTERINFO_SETSKIN(tank_setskin) (edict_t* self) -> void
 // attacks
 //
 
+static bool TankGrenadeArcLooksNatural(const vec3_t& direct_aim, const vec3_t& pitched_aim, bool is_mortar)
+{
+	// Mortar shots are expected to arc higher; front grenades should stay visually believable.
+	if (is_mortar)
+		return pitched_aim[2] <= 0.9f;
+
+	return pitched_aim[2] <= 0.55f && (pitched_aim[2] - direct_aim[2]) <= 0.30f;
+}
+
 void TankGrenades(edict_t* self)
 {
-	if (!M_HasValidTarget(self))
+	// Basic enemy check - blindfire logic needs to execute.
+	if (!M_HasEnemy(self))
+		return;
+
+	const bool blindfire = self->monsterinfo.aiflags & AI_MANUAL_STEERING;
+	const bool can_track_enemy = !blindfire || visible(self, self->enemy);
+	const bool is_commander = horde::IsMonsterType(self, horde::MonsterTypeID::TANK_COMMANDER);
+
+	vec3_t target;
+	if (can_track_enemy)
 	{
-		return; // Stop immediately if the target is invalid.
+		if (!M_HasValidTarget(self))
+			return;
+
+		target = self->enemy->s.origin;
+		target[2] += self->enemy->viewheight;
+	}
+	else
+	{
+		if (!self->monsterinfo.blind_fire_target)
+			return;
+
+		target = self->monsterinfo.blind_fire_target;
 	}
 
 	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, horde::WeaponID::GRENADE);
-	if (damage <= 0) damage = 50;
+	if (damage <= 0)
+		damage = 50;
 
 	vec3_t forward, right;
 	AngleVectors(self->s.angles, forward, right, nullptr);
 
-	// Definir el offset según el frame
 	vec3_t offset;
 	if (self->s.frame == FRAME_attak110)
 		offset = { 28.7f, -18.5f, 28.7f };
@@ -653,43 +682,73 @@ void TankGrenades(edict_t* self)
 	else // FRAME_attak116
 		offset = { 19.8f, -23.9f, 32.1f };
 
-	vec3_t const start = M_ProjectFlashSource(self, offset, forward, right);
+	const vec3_t start = M_ProjectFlashSource(self, offset, forward, right);
 	const bool is_mortar = (self->s.frame == FRAME_attak110);
+	const float dist = (target - start).length();
 
-	// Get configured grenade speed or use defaults
 	int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, horde::WeaponID::GRENADE);
 	const float speed = config_speed > 0 ? static_cast<float>(config_speed) : (is_mortar ? MORTAR_SPEED : GRENADE_SPEED);
-	vec3_t aim, aimpoint;
+	const float predict_scale = is_commander ? 0.78f : 0.70f;
+	const float predict_speed = std::max(1.f, speed * predict_scale);
 
-	const float dist = range_to(self, self->enemy);
-
-	// Para distancias cortas, usar solo PredictAim
-	if (dist < 400 && !is_mortar)  // No aplicar a disparos de mortero
+	vec3_t aim;
+	vec3_t aimpoint = target;
+	if (can_track_enemy)
 	{
-		PredictAim(self, self->enemy, start, speed, true, 0, &aim, &aimpoint);
-		aim += right * (crandom() * 0.02f);  // Pequeño ajuste aleatorio
-		aim.normalize();
-		// FIX: Round all float arguments to integers
-		monster_fire_grenade(self, start, aim, damage, lroundf(speed), MZ2_UNUSED_0,
-			lroundf(crandom_open() * 10.0f), lroundf(200.f + (crandom_open() * 10.0f)));
+		PredictAim(self, self->enemy, start, predict_speed, true, 0.f, &aim, &aimpoint);
+
+		// Add per-shot randomized target spread to avoid consistent offset patterns.
+		const float horizontal_jitter = std::clamp(dist * 0.035f, 8.f, 44.f);
+		const float vertical_jitter = std::clamp(dist * 0.015f, 4.f, 18.f);
+		aimpoint += right * (crandom_open() * horizontal_jitter);
+		aimpoint[2] += crandom_open() * vertical_jitter;
+		aim = (aimpoint - start).normalized();
 	}
-	// Para distancias largas o mortero, mantener la lógica original
 	else
-	{
-		PredictAim(self, self->enemy, start, speed, true, 0, &aim, &aimpoint);
-		aim += right * 0.05f;
-		aim.normalize();
+		aim = target - start;
 
-		if (M_CalculatePitchToFire(self, aimpoint, start, aim, speed, 2.5f, is_mortar))
-			// FIX: Round all float arguments to integers
-			monster_fire_grenade(self, start, aim, damage, lroundf(speed), MZ2_UNUSED_0,
-				lroundf(crandom_open() * 10.0f), lroundf(frandom() * 10.f));
-		else
-			// FIX: Round all float arguments to integers
-			monster_fire_grenade(self, start, aim, damage, lroundf(speed), MZ2_UNUSED_0,
-				lroundf(crandom_open() * 10.0f), lroundf(200.f + (crandom_open() * 10.0f)));
+	aim += right * (crandom_open() * 0.015f);
+	aim.normalize();
+
+	const float pitch_solver_dist = is_commander ? 320.f : 425.f;
+	const bool use_pitch_solver = is_mortar || dist > pitch_solver_dist;
+	bool used_pitch_solver = false;
+
+	if (use_pitch_solver)
+	{
+		vec3_t pitched_aim = aim;
+		const float sim_time = std::clamp(dist / speed, 1.1f, 2.5f);
+
+		if (M_CalculatePitchToFire(self, aimpoint, start, pitched_aim, speed, sim_time, is_mortar) &&
+			TankGrenadeArcLooksNatural(aim, pitched_aim, is_mortar))
+		{
+			aim = pitched_aim;
+			used_pitch_solver = true;
+		}
 	}
 
+	if (!used_pitch_solver)
+	{
+		// Compensate for fallback launch arc so mid-range shots don't consistently land high.
+		const float down_bias = std::clamp((dist - 220.f) * 0.00075f, 0.f, 0.11f);
+		aim[2] -= down_bias;
+		aim.normalize();
+	}
+
+	aim.normalize();
+
+	const float right_adjust = crandom_open() * 10.0f;
+	float up_adjust;
+	if (used_pitch_solver)
+		up_adjust = frandom() * 10.f;
+	else if (dist < 300.f)
+		up_adjust = 110.f + (crandom_open() * 8.0f);
+	else if (dist < 575.f)
+		up_adjust = 155.f + (crandom_open() * 8.0f);
+	else
+		up_adjust = 200.f + (crandom_open() * 10.0f);
+
+	monster_fire_grenade(self, start, aim, damage, lroundf(speed), MZ2_UNUSED_0, right_adjust, up_adjust);
 	gi.sound(self, CHAN_WEAPON, sound_grenade, 1, ATTN_NORM, 0);
 }
 
