@@ -1152,8 +1152,13 @@ void Drop_PowerArmor(edict_t* ent, gitem_t* item)
 
 bool Entity_IsVisibleToPlayer(edict_t* ent, edict_t* player)
 {
-	// Si el jugador está usando eyecam y la entidad es su objetivo, hacerlo invisible
-	if (player->client->use_eyecam && ent == player->client->chase_target)
+	// Hide chase target only for the spectator currently in first-person eyecam.
+	// auto_eyecam can force temporary first-person view in tight spaces; in that case
+	// chase code sets non-zero delta_angles while third-person keeps delta_angles at zero.
+	if (ent == player->client->chase_target &&
+		sv_eyecam->integer &&
+		(player->client->use_eyecam ||
+			(player->client->auto_eyecam && player->client->ps.pmove.delta_angles != vec3_origin)))
 		return false;
 	// Si la entidad es un cliente, siempre visible
 	else if (ent->client)

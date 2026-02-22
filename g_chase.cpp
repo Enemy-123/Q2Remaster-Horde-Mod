@@ -79,6 +79,8 @@ void UpdateChaseCam(edict_t* ent)
 	{
 		// Never mutate chased player visibility from spectator camera code.
 		// SVF_NOCLIENT is global and would hide this player for everyone.
+		// Use instanced visibility path instead so only this spectator POV hides target.
+		targ->svflags |= SVF_INSTANCED;
 
 		// copy everything from ps but pmove, pov, stats, and team_id
 		ent->client->ps.viewangles = targ->client->ps.viewangles;
