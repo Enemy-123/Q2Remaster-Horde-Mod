@@ -9,6 +9,8 @@
 #include <algorithm>
 #include <random>
 #include <chrono>
+#include <new>
+#include <type_traits>
 #include "../g_local.h"
 #include "../q_vec3.h"
 
@@ -20,6 +22,7 @@ namespace HordePerf {
 class SpawnPointSpatialIndex {
     static constexpr int CELL_SIZE = 512;
     static constexpr int CELL_SHIFT = 9; // log2(512)
+    static constexpr int COORD_BIAS = 32768; // Keep shifted coordinates non-negative in normal map bounds
 
     struct Cell {
         static constexpr size_t MAX_SPAWNS_PER_CELL = 16;
@@ -47,12 +50,20 @@ class SpawnPointSpatialIndex {
     // Using small_vector to avoid heap allocation (max 64 spawn points per map)
     boost::container::small_vector<edict_t*, 64> all_spawn_points;
 
+    static uint16_t ToCellCoord(float coord) {
+        const int shifted = static_cast<int>(coord) + COORD_BIAS;
+        const uint32_t cell = static_cast<uint32_t>(shifted) >> CELL_SHIFT;
+        return static_cast<uint16_t>(cell & 0xFFFFu);
+    }
+
+    static uint32_t PackCellKey(uint16_t x, uint16_t y) {
+        return (static_cast<uint32_t>(x) << 16) | static_cast<uint32_t>(y);
+    }
+
     static uint32_t GetCellKey(const vec3_t& pos) {
-        // Offset by 8192 (standard Q2 map max size) to ensure positive numbers
-        // before shifting. This prevents negative bit-shift undefined behavior.
-        int x = (static_cast<int>(pos.x) + 8192) >> CELL_SHIFT;
-        int y = (static_cast<int>(pos.y) + 8192) >> CELL_SHIFT;
-        return (static_cast<uint32_t>(x) << 16) | (static_cast<uint32_t>(y) & 0xFFFF);
+        const uint16_t x = ToCellCoord(pos.x);
+        const uint16_t y = ToCellCoord(pos.y);
+        return PackCellKey(x, y);
     }
 
 public:
@@ -75,15 +86,15 @@ public:
         out_result.clear();
 
         int cell_radius = static_cast<int>(radius / CELL_SIZE) + 1;
-        // Apply same +8192 offset as GetCellKey for consistency
-        int center_x = (static_cast<int>(pos.x) + 8192) >> CELL_SHIFT;
-        int center_y = (static_cast<int>(pos.y) + 8192) >> CELL_SHIFT;
+        int center_x = static_cast<int>(ToCellCoord(pos.x));
+        int center_y = static_cast<int>(ToCellCoord(pos.y));
         float radius_sq = radius * radius;
 
         for (int dx = -cell_radius; dx <= cell_radius; ++dx) {
             for (int dy = -cell_radius; dy <= cell_radius; ++dy) {
-                uint32_t key = (static_cast<uint32_t>(center_x + dx) << 16) |
-                              (static_cast<uint32_t>(center_y + dy) & 0xFFFF);
+                const uint16_t x = static_cast<uint16_t>(center_x + dx);
+                const uint16_t y = static_cast<uint16_t>(center_y + dy);
+                uint32_t key = PackCellKey(x, y);
 
                 auto it = grid_cells.find(key);
                 if (it != grid_cells.end()) {
@@ -123,24 +134,29 @@ struct MonsterTypeProperties {
 };
 
 class MonsterTypeCache {
-    // Use flat_map instead of array - saves memory and supports arbitrary IDs
-    boost::container::flat_map<int, MonsterTypeProperties> cache;
+    // MonsterTypeID is uint8_t in this codebase, so direct indexing is O(1)
+    static constexpr size_t MAX_TYPE_ID = 256;
+    std::array<MonsterTypeProperties, MAX_TYPE_ID> cache{};
 
 public:
     const MonsterTypeProperties* GetProperties(int type_id) {
-        auto it = cache.find(type_id);
-        if (it == cache.end())
+        if (type_id < 0 || type_id >= static_cast<int>(cache.size()))
             return nullptr;
-
-        return &it->second;
+        const MonsterTypeProperties& props = cache[static_cast<size_t>(type_id)];
+        return props.valid ? &props : nullptr;
     }
 
     void CacheProperties(int type_id, const MonsterTypeProperties& props) {
-        cache[type_id] = props;
+        if (type_id < 0 || type_id >= static_cast<int>(cache.size()))
+            return;
+        cache[static_cast<size_t>(type_id)] = props;
+        cache[static_cast<size_t>(type_id)].valid = true;
     }
 
     void Clear() {
-        cache.clear();
+        for (auto& props : cache) {
+            props = {};
+        }
     }
 };
 
@@ -150,48 +166,59 @@ public:
 template<typename T, size_t N>
 class FixedPool {
     std::array<T, N> pool;
+    std::array<size_t, N> next_free{};
     std::bitset<N> used;
-    size_t search_hint = 0;
+    size_t free_head = 0;
+    size_t free_count = N;
+
+    static constexpr size_t INVALID_INDEX = N;
 
 public:
+    FixedPool() {
+        clear();
+    }
+
     T* allocate() {
-        // Start search from hint position
-        for (size_t i = search_hint; i < N; ++i) {
-            if (!used[i]) {
-                used[i] = true;
-                search_hint = (i + 1) % N;
-                return &pool[i];
-            }
-        }
-        // Wrap around
-        for (size_t i = 0; i < search_hint; ++i) {
-            if (!used[i]) {
-                used[i] = true;
-                search_hint = (i + 1) % N;
-                return &pool[i];
-            }
-        }
-        return nullptr;
+        if (free_head == INVALID_INDEX)
+            return nullptr;
+
+        const size_t idx = free_head;
+        free_head = next_free[idx];
+        used[idx] = true;
+        free_count--;
+
+        return &pool[idx];
     }
 
     void deallocate(T* ptr) {
         if (!ptr) return;
         size_t idx = ptr - pool.data();
-        if (idx < N) {
+        if (idx < N && used[idx]) {
             used[idx] = false;
-            // CRITICAL: Call destructor before placement new to prevent memory leaks
-            ptr->~T();
-            new (ptr) T(); // Reset to default state
+            if constexpr (std::is_trivially_destructible_v<T> && std::is_trivially_default_constructible_v<T> && std::is_trivially_copy_assignable_v<T>) {
+                pool[idx] = T{};
+            } else {
+                ptr->~T();
+                new (ptr) T();
+            }
+            next_free[idx] = free_head;
+            free_head = idx;
+            free_count++;
         }
     }
 
     void clear() {
         used.reset();
-        search_hint = 0;
+        for (size_t i = 0; i + 1 < N; ++i)
+            next_free[i] = i + 1;
+        if constexpr (N > 0)
+            next_free[N - 1] = INVALID_INDEX;
+        free_head = N > 0 ? 0 : INVALID_INDEX;
+        free_count = N;
     }
 
     size_t available() const {
-        return N - used.count();
+        return free_count;
     }
 };
 
@@ -211,15 +238,13 @@ class BatchedGridUpdater {
 
 public:
     void QueueUpdate(edict_t* ent, const vec3_t& new_pos) {
-        if (update_count < MAX_BATCH) {
-            pending_updates[update_count].ent = ent;
-            pending_updates[update_count].new_pos = new_pos;
-            update_count++;
-        } else {
-            // Force flush if full
+        if (update_count >= MAX_BATCH) {
             FlushUpdates();
-            QueueUpdate(ent, new_pos);
         }
+
+        pending_updates[update_count].ent = ent;
+        pending_updates[update_count].new_pos = new_pos;
+        update_count++;
     }
 
     void FlushUpdates() {
@@ -260,12 +285,6 @@ inline gtime_t GetTeslaThinkTimeWithJitter() {
 // Visibility Cache - Reduces expensive line-of-sight checks
 // ============================================================================
 class VisibilityCache {
-	// Union for fast entity pair packing - avoids expensive FNV hash
-	union EntityPair {
-		struct { uint16_t a, b; };
-		uint32_t key;
-	};
-
 	struct CacheEntry {
 		int entity_id1 = 0;
 		int entity_id2 = 0;
@@ -275,6 +294,7 @@ class VisibilityCache {
 
 	static constexpr size_t CACHE_SIZE = 256;
 	static constexpr gtime_t CACHE_LIFETIME = 200_ms;
+	static_assert((CACHE_SIZE & (CACHE_SIZE - 1)) == 0, "CACHE_SIZE must be a power of two");
 
 	std::array<CacheEntry, CACHE_SIZE> cache;
 
@@ -297,16 +317,8 @@ public:
 		uint16_t id1 = static_cast<uint16_t>(ent1 - g_edicts);
 		uint16_t id2 = static_cast<uint16_t>(ent2 - g_edicts);
 
-		// Normalize order for consistent cache lookups
-		if (id1 > id2) std::swap(id1, id2);
-
-		// Pack two uint16_t IDs into one uint32_t - much faster than FNV hash
-		EntityPair pair;
-		pair.a = id1;
-		pair.b = id2;
-
-		// Use packed key directly (modulo CACHE_SIZE) - no expensive multiplications
-		size_t idx = pair.key % CACHE_SIZE;
+		// Keep directionality: (A,B) and (B,A) are distinct visibility queries.
+		const size_t idx = ((static_cast<size_t>(id1) * 31u) ^ static_cast<size_t>(id2)) & (CACHE_SIZE - 1);
 
 		// Check if cached
 		if (cache[idx].timestamp + CACHE_LIFETIME > level.time &&

@@ -19,13 +19,13 @@ struct vec3_t
     [[nodiscard]] constexpr const float& operator[](size_t i) const
     {
         assert(i < 3 && "vec3_t index out of bounds");
-        return (&x)[i];
+        return i == 0 ? x : (i == 1 ? y : z);
     }
 
     [[nodiscard]] constexpr float& operator[](size_t i)
     {
         assert(i < 3 && "vec3_t index out of bounds");
-        return (&x)[i];
+        return i == 0 ? x : (i == 1 ? y : z);
     }
 
     // ========================================================================
@@ -103,21 +103,23 @@ struct vec3_t
     [[nodiscard]] inline vec3_t normalized() const
     {
         float len = length();
-        return len > 1e-6f ? (*this * (1.f / len)) : *this;
+        return (len > 1e-6f && !std::isnan(len)) ? (*this * (1.f / len)) : vec3_t{};
     }
 
     // Overload that returns the length via reference parameter
     [[nodiscard]] inline vec3_t normalized(float& len) const
     {
         len = length();
-        return len > 1e-6f ? (*this * (1.f / len)) : *this;
+        return (len > 1e-6f && !std::isnan(len)) ? (*this * (1.f / len)) : vec3_t{};
     }
 
     inline float normalize()
     {
         float len = length();
-        if (len > 1e-6f)
+        if (len > 1e-6f && !std::isnan(len))
             *this *= (1.f / len);
+        else
+            *this = {};
         return len;
     }
 
@@ -348,9 +350,16 @@ using mat3_t = std::array<std::array<float, 3>, 3>;
         return lerp(from, to, t);
     }
     else if (dot <= -0.9995f) {
-        vec3_t const c = vec3_t{ 1.0f, 0.0f, 0.0f }.cross(to);
+        vec3_t c = vec3_t{ 1.0f, 0.0f, 0.0f }.cross(to);
+        if (c.lengthSquared() < 1e-6f) {
+            c = vec3_t{ 0.0f, 1.0f, 0.0f }.cross(to);
+        }
+        c = safe_normalized(c);
+        if (!c) {
+            return lerp(from, to, t);
+        }
         if (t <= 0.5f) return lerp(from, c, t * 2);
-        else return lerp(c, to, (t - 0.5f) * 2);
+        return lerp(c, to, (t - 0.5f) * 2);
     }
 
     float const ang = std::acos(dot);
@@ -454,17 +463,17 @@ constexpr float STOP_EPSILON = 0.1f;
 [[nodiscard]] inline float vectoyaw(const vec3_t& vec)
 {
     // PMM - fixed to correct for pitch of 0
-    if (vec[PITCH] == 0)
+    if (vec.x == 0)
     {
-        if (vec[YAW] == 0)
+        if (vec.y == 0)
             return 0.f;
-        else if (vec[YAW] > 0)
+        else if (vec.y > 0)
             return 90.f;
         else
             return 270.f;
     }
 
-    float yaw = (std::atan2(vec[YAW], vec[PITCH]) * (180.f / PIf));
+    float yaw = (std::atan2(vec.y, vec.x) * (180.f / PIf));
 
     if (yaw < 0)
         yaw += 360;
