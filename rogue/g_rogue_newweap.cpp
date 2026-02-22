@@ -43,7 +43,7 @@ TOUCH(flechette_touch)(edict_t *self, edict_t *other, const trace_t &tr, bool ot
 		return;
 	}
 
-	if (self->client)
+	if (self->owner && self->owner->client)
 		PlayerNoise(self->owner, self->s.origin, PNOISE_IMPACT);
 
 	if (other->takedamage)
@@ -1560,7 +1560,7 @@ TOUCH(tracker_touch)(edict_t *self, edict_t *other, const trace_t &tr, bool othe
 		return;
 	}
 
-	if (self->client)
+	if (self->owner && self->owner->client)
 		PlayerNoise(self->owner, self->s.origin, PNOISE_IMPACT);
 
 	if (other->takedamage)

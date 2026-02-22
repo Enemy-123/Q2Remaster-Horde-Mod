@@ -862,7 +862,7 @@ void InitHintPaths()
 		current = hint_path_start[i];
 		current->hint_chain_id = i;
 		e = G_FindByString<&edict_t::targetname>(nullptr, current->target);
-		if (G_FindByString<&edict_t::targetname>(e, current->target))
+		if (e && G_FindByString<&edict_t::targetname>(e, current->target))
 		{
 			gi.Com_PrintFmt("PRINT: {}: Forked path detected for chain {}, target {}\n",
 				*current, num_hint_paths, current->target);
@@ -884,7 +884,7 @@ void InitHintPaths()
 			if (!current->target)
 				break;
 			e = G_FindByString<&edict_t::targetname>(nullptr, current->target);
-			if (G_FindByString<&edict_t::targetname>(e, current->target))
+			if (e && G_FindByString<&edict_t::targetname>(e, current->target))
 			{
 				gi.Com_PrintFmt("PRINT: {}: Forked path detected for chain {}, target {}\n",
 					*current, num_hint_paths, current->target);
@@ -938,9 +938,7 @@ bool face_wall(edict_t *self)
 	if (tr.fraction < 1 && !tr.allsolid && !tr.startsolid)
 	{
 		ang = vectoangles(tr.plane.normal);
-		self->ideal_yaw = ang[YAW] + 180;
-		if (self->ideal_yaw > 360)
-			self->ideal_yaw -= 360;
+		self->ideal_yaw = anglemod(ang[YAW] + 180.0f);
 
 		M_ChangeYaw(self);
 		return true;
@@ -1162,7 +1160,7 @@ bool M_CalculatePitchToFire(edict_t* self, const vec3_t& target, const vec3_t& s
 	float best_dist = std::numeric_limits<float>::infinity();
 
 	// Adaptive simulation timestep based on projectile speed
-	const float sim_time = std::min(0.1f, 5.0f / speed); // Smaller timestep for faster projectiles
+	const float sim_time = speed > 0.f ? std::min(0.1f, 5.0f / speed) : 0.1f; // Smaller timestep for faster projectiles
 
 	vec3_t pitched_aim = vectoangles(aim);
 	//const float target_dist_sq = (target - start).lengthSquared();
@@ -1566,38 +1564,24 @@ void TargetTesla(edict_t* self, edict_t* inflictor)
 
 edict_t* PickCoopTarget(edict_t* self)
 {
-	edict_t** targets;
-	int       num_targets = 0, targetID;
-	edict_t* ent;
+	int      num_targets = 0;
 	edict_t* result = nullptr;
 
 	// if we're not in coop, this is a noop
 	if ((G_IsDeathmatch() && !g_horde->integer) || !G_IsCooperative())
 		return nullptr;
 
-	targets = new(std::nothrow) edict_t * [game.maxclients];
-	if (!targets)
-		return nullptr;
-
-	for (uint32_t player = 1; player <= game.maxclients; player++)
+	for (auto player : active_players())
 	{
-		ent = &g_edicts[player];
-		if (!ent->inuse)
+		if (!visible(self, player))
 			continue;
-		if (!ent->client)
-			continue;
-		if (visible(self, ent))
-			targets[num_targets++] = ent;
+
+		// Reservoir sample a visible target without temporary allocations.
+		num_targets++;
+		if (irandom(num_targets) == 0)
+			result = player;
 	}
 
-	if (num_targets > 0)
-	{
-		// get a number from 0 to (num_targets-1)
-		targetID = irandom(num_targets);
-		result = targets[targetID];
-	}
-
-	delete[] targets;
 	return result;
 }
 
@@ -1608,7 +1592,7 @@ int CountPlayers()
 	int		 count = 0;
 
 	// if we're not in coop, this is a noop
-	if (!G_IsDeathmatch())
+	if (!G_IsCooperative())
 		return 1;
 
 	for (uint32_t player = 1; player <= game.maxclients; player++)
@@ -1639,7 +1623,10 @@ int CountPlayers()
 THINK(BossExplode_think) (edict_t* self) -> void
 {
 	// owner gone or changed
-if (!self->owner || !self->owner->inuse || self->owner->s.modelindex != self->style || self->count != self->owner->spawn_count)
+	if (level.time > self->timestamp ||
+		!self->owner || !self->owner->inuse ||
+		self->owner->s.modelindex != self->style ||
+		self->count != self->owner->spawn_count)
 	{
 		G_FreeEdict(self);
 		return;
@@ -1686,5 +1673,6 @@ void BossExplode(edict_t* self)
 	exploder->style = self->s.modelindex;
 	exploder->think = BossExplode_think;
 	exploder->nextthink = level.time + random_time(75_ms, 250_ms);
+	exploder->timestamp = level.time + 5_sec;
 	exploder->viewheight = 0;
 }

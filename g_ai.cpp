@@ -2090,7 +2090,9 @@ void ai_run_slide(edict_t* self, float distance)
 
 	// PMM - clamp maximum sideways move for non flyers to make them look less jerky
 	if (!(self->flags & FL_FLY)) {
-		static const float max_sidestep_per_frame = MAX_SIDESTEP * 10.0f / (float)gi.frame_time_ms;
+		const float max_sidestep_per_frame = gi.frame_time_ms > 0
+			? (MAX_SIDESTEP * 10.0f / (float)gi.frame_time_ms)
+			: MAX_SIDESTEP;
 		distance = std::min(distance, max_sidestep_per_frame);
 	}
 	if (M_walkmove(self, self->ideal_yaw + ofs, distance))
