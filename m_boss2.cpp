@@ -873,7 +873,7 @@ void SP_monster_boss2_64(edict_t *self)
 void SP_monster_boss2_mini(edict_t *self)
 {
 	const spawn_temp_t &st = ED_GetSpawnTemp();
-	self->spawnflags &= ~SPAWNFLAG_BOSS2_N64;
+	self->spawnflags |= SPAWNFLAG_BOSS2_N64;
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BOSS2_MINI);
 
 	SP_monster_boss2(self);
