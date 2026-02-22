@@ -439,7 +439,7 @@ void flyer_rocket(edict_t* self)
 			if (dist * trace.fraction > 72)
 			{
 				monster_fire_rocket(self, start, dir, damage, rocketSpeed, MZ2_TURRET_ROCKET);
-				self->monsterinfo.fire_wait = level.time + random_time(350_ms, 0.8_sec);
+				self->monsterinfo.fire_wait = level.time + random_time(220_ms, 450_ms);
 			}
 		}
 	}
@@ -458,8 +458,8 @@ void flyer_reattack_rocket(edict_t* self)
 		}
 	}
 
-	// end attack
-	self->monsterinfo.attack_finished = level.time + random_time(1.1_sec, 1.9_sec);
+	// End attack: keep a short reset so rockets feel responsive between bursts.
+	self->monsterinfo.attack_finished = level.time + random_time(650_ms, 1.1_sec);
 }
 
 mframe_t flyer_frames_rollright[] = {

@@ -1722,20 +1722,10 @@ void Fire_TracerBullet(edict_t* ent, int damage, gtime_t cooldown_duration)
 	if (!using_machinegun && !using_chaingun)
 		return;
 
-    // Check if player has tracer bullets from benefits or weapon upgrades.
+    // Tracers are gated by benefit/skills only.
     bool has_traced = ClassicPlayerHasBenefitTracedBullets(ent) ||
 		(using_machinegun && ent->client->pers.skills.mg_tracers > 0) ||
 		(using_chaingun && ent->client->pers.skills.cg_tracers > 0);
-
-	// Fallback: if weapon tracer config is enabled, allow tracers even without explicit upgrades.
-	// This matches "tracers enabled in config" behavior.
-	if (!has_traced)
-	{
-		if (using_machinegun)
-			has_traced = g_config.machinegun.tracer_damage > 0 && g_config.machinegun.tracer_cooldown_ms > 0;
-		else
-			has_traced = g_config.chaingun.tracer_damage > 0 && g_config.chaingun.tracer_cooldown_ms > 0;
-	}
 
 	// If cooldown from caller/config is invalid, use sane defaults.
 	if (cooldown_duration <= 0_ms)
