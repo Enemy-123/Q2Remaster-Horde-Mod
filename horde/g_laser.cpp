@@ -195,9 +195,17 @@ void G_UpdateAdrenalineBasedDeployables(int current_wave_level)
         return;
 
     // Cache tracking for performance optimization
-    static int last_adrenaline_count[MAX_CLIENTS] = {-1}; // Initialize to -1 to force first update
+    static int last_adrenaline_count[MAX_CLIENTS];
+    static bool initialized = false;
     static int last_wave_level = -1; // Cache wave level to detect changes
     static int frame_counter = 0;
+
+    if (!initialized) {
+        for (int i = 0; i < static_cast<int>(MAX_CLIENTS); ++i) {
+            last_adrenaline_count[i] = -1;
+        }
+        initialized = true;
+    }
 
     // Periodic refresh every 30 frames (~0.5s) as failsafe
     bool force_refresh = (++frame_counter % 30 == 0);
@@ -587,6 +595,9 @@ THINK(emitter_think)(edict_t * self)->void
 
 PAIN(laser_emitter_pain)(edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
+    // Keep emitter health pinned so it acts as a damage relay for the beam.
+    self->health = 10000;
+
     // This is the emitter. Its 'chain' is the beam.
     edict_t* beam = self->chain;
 

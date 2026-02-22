@@ -671,12 +671,42 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
             return;
         }
 
-        // --- "REPLACE OLDEST" LOGIC ---
-        if (self->client && self->client->resp.num_traps >= TrapConstants::MAX_TRAPS_PER_PLAYER()) {
-            edict_t* oldest = self->client->resp.deployed_traps[self->client->resp.oldest_trap_idx];
+        const int max_traps = (TrapConstants::MAX_TRAPS_PER_PLAYER() < TrapConstants::MAX_TRAPS_ARRAY_SIZE) ?
+            TrapConstants::MAX_TRAPS_PER_PLAYER() : TrapConstants::MAX_TRAPS_ARRAY_SIZE;
+        constexpr int tracking_slots = TrapConstants::MAX_TRAPS_ARRAY_SIZE;
 
-            if (oldest && oldest->inuse && horde::IsSpecialType(oldest, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP)) {
-                // Call the die function to ensure full cleanup, including decrementing the count.
+        if (self->client && max_traps <= 0) {
+            gi.LocClient_Print(self, PRINT_HIGH, "Trap deploy limit is disabled.\n");
+            return;
+        }
+
+        // If player is at limit, remove the oldest valid tracked trap.
+        if (self->client) {
+            edict_t* oldest = nullptr;
+            gtime_t oldest_time = level.time + 9999_sec;
+            int valid_traps = 0;
+
+            for (int i = 0; i < tracking_slots; ++i) {
+                edict_t* candidate = self->client->resp.deployed_traps[i];
+                if (!candidate)
+                    continue;
+
+                if (!candidate->inuse || !horde::IsSpecialType(candidate, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP)) {
+                    self->client->resp.deployed_traps[i] = nullptr;
+                    continue;
+                }
+
+                valid_traps++;
+                if (candidate->timestamp < oldest_time) {
+                    oldest_time = candidate->timestamp;
+                    oldest = candidate;
+                }
+            }
+
+            // Self-heal stale counters from previous tracking issues.
+            self->client->resp.num_traps = valid_traps;
+
+            if (valid_traps >= max_traps && oldest) {
                 // Use quiet removal effect for oldest trap auto-replacement
                 g_use_quiet_deployable_removal = true;
                 trap_die(oldest, self, self, 0, oldest->s.origin, MOD_UNKNOWN);
@@ -759,10 +789,29 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 
     // --- TRACK ENTITY ---
     if (self->client) {
-        // Add the new trap to our tracking array.
-        self->client->resp.deployed_traps[self->client->resp.oldest_trap_idx] = trap;
-        // Advance the index for the next "oldest".
-        self->client->resp.oldest_trap_idx = (self->client->resp.oldest_trap_idx + 1) % TrapConstants::MAX_TRAPS_ARRAY_SIZE;
-        self->client->resp.num_traps++;
+        bool inserted = false;
+        for (int i = 0; i < tracking_slots; ++i) {
+            edict_t* slot = self->client->resp.deployed_traps[i];
+            if (slot && !slot->inuse) {
+                self->client->resp.deployed_traps[i] = nullptr;
+                slot = nullptr;
+            }
+
+            if (!slot) {
+                self->client->resp.deployed_traps[i] = trap;
+                inserted = true;
+                break;
+            }
+        }
+
+        if (inserted) {
+            self->client->resp.num_traps++;
+        } else {
+            // Tracking array is unexpectedly full: remove the new trap immediately.
+            trap->owner = nullptr; // Prevent counter decrement for an untracked spawn.
+            g_use_quiet_deployable_removal = true;
+            trap_die(trap, self, self, 0, trap->s.origin, MOD_UNKNOWN);
+            g_use_quiet_deployable_removal = false;
+        }
     }
 }

@@ -49,7 +49,19 @@ void tesla_remove(edict_t *self)
 
 	if (self->owner && self->owner->client)
 	{
-		self->owner->client->resp.num_teslas--; // Decrementar el contador de teslas del jugador
+		gclient_t *client = self->owner->client;
+		if (client->resp.num_teslas > 0)
+			client->resp.num_teslas--;
+
+		// Clear tracking slot to avoid stale pointers and ghost-untracked teslas.
+		for (int i = 0; i < TeslaConstants::MAX_TESLAS_ARRAY_SIZE; ++i)
+		{
+			if (client->resp.deployed_teslas[i] == self)
+			{
+				client->resp.deployed_teslas[i] = nullptr;
+				break;
+			}
+		}
 	}
 
 	self->owner = self->teammaster; // Going away, set the owner correctly.
@@ -289,10 +301,8 @@ bool try_send_chain_lightning_effect(edict_t *tesla_source, edict_t *chain_targe
 	return true;
 }
 
-// Main chain lightning function - spreads lightning from tesla victims to nearby enemies
-// nearby_entities: cached entity list from tesla's grid query (avoids duplicate queries)
-template<typename EntityContainer>
-void tesla_chain_lightning(edict_t *self, const tesla_target *tesla_victims, int num_victims, const vec3_t &cached_ray_origin, const EntityContainer &nearby_entities)
+// Main chain lightning function - spreads lightning from tesla victims to nearby enemies.
+void tesla_chain_lightning(edict_t *self, const tesla_target *tesla_victims, int num_victims)
 {
 	if (!self || num_victims <= 0)
 		return;
@@ -309,15 +319,15 @@ void tesla_chain_lightning(edict_t *self, const tesla_target *tesla_victims, int
 	for (int victim_idx = 0; victim_idx < num_victims; victim_idx++)
 	{
 		edict_t *victim = tesla_victims[victim_idx].ent;
-		if (!victim || !victim->inuse || victim->health <= 0)
+		if (!victim || !victim->inuse)
 			continue;
 
-		// Reuse the nearby entities from the main tesla query instead of re-querying
-		// Only filter for entities near THIS victim
+		// Query around each victim so chain lightning can extend beyond tesla base radius.
+		const auto chain_targets = HordePhys::g_monster_grid.QueryRadius(victim->s.origin, CHAIN_LIGHTNING_RANGE);
 		int chains_from_this_victim = 0;
 		const float max_chain_range_squared = CHAIN_LIGHTNING_RANGE * CHAIN_LIGHTNING_RANGE;
 
-		for (auto* potential_chain_target : nearby_entities)
+		for (auto* potential_chain_target : chain_targets)
 		{
 			if (chains_from_this_victim >= MAX_CHAIN_TARGETS_PER_VICTIM)
 				break;
@@ -501,10 +511,9 @@ THINK(tesla_think_active)(edict_t* self)->void
 	}
 
 	// Chain Lightning Phase - spread lightning from victims to nearby enemies
-	// Pass the cached nearby_entities list to avoid duplicate grid queries
 	if (victims_count > 0)
 	{
-		tesla_chain_lightning(self, attacked_victims, victims_count, ray_origin, nearby_entities);
+		tesla_chain_lightning(self, attacked_victims, victims_count);
 	}
 
 	// Stagger think times to distribute processing load
@@ -641,7 +650,7 @@ TOUCH(tesla_lava)(edict_t *ent, edict_t *other, const trace_t &tr, bool other_to
 				(frandom() * 2.0f - 1.0f) * 240,
 				(frandom() * 2.0f - 1.0f) * 240,
 				(frandom() * 2.0f - 1.0f) * 240};
-			if (ent->velocity.length() > 0 && strcmp(other->classname, "func_train"))
+			if (ent->velocity.length() > 0 && other->classname && strcmp(other->classname, "func_train") != 0)
 			{
 				gi.sound(ent, CHAN_VOICE, gi.soundindex(frandom() > 0.5f ? "weapons/hgrenb1a.wav" : "weapons/hgrenb2a.wav"), 1, ATTN_NORM, 0);
 			}
@@ -730,19 +739,49 @@ void fire_tesla(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int te
 		return;
 	}
 
-	// O(1) PERFORMANCE: If player is at their tesla limit, remove the oldest one.
-	if (self && self->client && self->client->resp.num_teslas >= TeslaConstants::MAX_TESLAS_PER_PLAYER())
-	{
-		// Get the oldest tesla from our circular buffer.
-		edict_t *oldest = self->client->resp.deployed_teslas[self->client->resp.oldest_tesla_idx];
+	const int max_teslas = (TeslaConstants::MAX_TESLAS_PER_PLAYER() < TeslaConstants::MAX_TESLAS_ARRAY_SIZE) ?
+		TeslaConstants::MAX_TESLAS_PER_PLAYER() : TeslaConstants::MAX_TESLAS_ARRAY_SIZE;
+	constexpr int tracking_slots = TeslaConstants::MAX_TESLAS_ARRAY_SIZE;
 
-		// Ensure it's a valid, in-use tesla before removing it.
-		if (oldest && oldest->inuse && horde::IsSpecialType(oldest, horde::SpecialEntityTypeID::TESLA_MINE))
+	if (self && self->client && max_teslas <= 0)
+	{
+		gi.LocClient_Print(self, PRINT_HIGH, "Tesla deploy limit is disabled.\n");
+		return;
+	}
+
+	// If player is at limit, remove the oldest valid tracked tesla.
+	if (self && self->client)
+	{
+		edict_t *oldest = nullptr;
+		gtime_t oldest_time = level.time + 9999_sec;
+		int valid_teslas = 0;
+
+		for (int i = 0; i < tracking_slots; ++i)
 		{
-            // --- ROBUST METHOD: Directly call the die function ---
-            // This explicitly triggers the tesla's full cleanup sequence, which calls
-            // tesla_remove() to handle the explosion and player count.
-            // Use quiet removal effect for oldest tesla auto-replacement
+			edict_t *candidate = self->client->resp.deployed_teslas[i];
+			if (!candidate)
+				continue;
+
+			if (!candidate->inuse || !horde::IsSpecialType(candidate, horde::SpecialEntityTypeID::TESLA_MINE))
+			{
+				self->client->resp.deployed_teslas[i] = nullptr;
+				continue;
+			}
+
+			valid_teslas++;
+			if (candidate->timestamp < oldest_time)
+			{
+				oldest = candidate;
+				oldest_time = candidate->timestamp;
+			}
+		}
+
+		// Self-heal stale counters from previous tracking issues.
+		self->client->resp.num_teslas = valid_teslas;
+
+		if (valid_teslas >= max_teslas && oldest)
+		{
+			// Use quiet removal effect for oldest tesla auto-replacement.
 			g_use_quiet_deployable_removal = true;
 			tesla_die(oldest, self, self, 0, oldest->s.origin, MOD_UNKNOWN);
 			g_use_quiet_deployable_removal = false;
@@ -834,13 +873,35 @@ void fire_tesla(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int te
 
 	if (self->client)
 	{
-		// Track the newly deployed tesla.
-		self->client->resp.deployed_teslas[self->client->resp.oldest_tesla_idx] = tesla;
-		
-        // Advance the index for the next "oldest".
-		self->client->resp.oldest_tesla_idx = (self->client->resp.oldest_tesla_idx + 1) % TeslaConstants::MAX_TESLAS_PER_PLAYER();
+		bool inserted = false;
+		for (int i = 0; i < tracking_slots; ++i)
+		{
+			edict_t *slot = self->client->resp.deployed_teslas[i];
+			if (slot && !slot->inuse)
+			{
+				self->client->resp.deployed_teslas[i] = nullptr;
+				slot = nullptr;
+			}
 
-		// Increment the counter.
-		self->client->resp.num_teslas++;
+			if (!slot)
+			{
+				self->client->resp.deployed_teslas[i] = tesla;
+				inserted = true;
+				break;
+			}
+		}
+
+		if (inserted)
+		{
+			self->client->resp.num_teslas++;
+		}
+		else
+		{
+			// Tracking array is unexpectedly full: remove the new tesla immediately.
+			tesla->owner = nullptr; // Prevent counter decrement for an untracked spawn.
+			g_use_quiet_deployable_removal = true;
+			tesla_die(tesla, self, self, 0, tesla->s.origin, MOD_UNKNOWN);
+			g_use_quiet_deployable_removal = false;
+		}
 	}
 }

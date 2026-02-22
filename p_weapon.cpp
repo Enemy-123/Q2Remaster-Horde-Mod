@@ -1692,33 +1692,75 @@ constexpr vec3_t GUN_OFFSET = { 0.0f, 8.0f, -8.0f }; // -8 relative to viewheigh
 constexpr vec3_t TRACER_OFFSET_STANDING = { 0.0f, 10.5f, -11.0f };
 constexpr vec3_t TRACER_OFFSET_DUCKED = { 0.0f, 8.0f, -6.0f };
 
+static gtime_t AdjustTracerCooldownForWeaponRate(edict_t* ent, gtime_t base_cooldown)
+{
+	if (!ent || !ent->client || base_cooldown <= 0_ms)
+		return base_cooldown;
+
+	float rate_scale = 1.0f;
+	if (CTFApplyHaste(ent))
+		rate_scale *= 2.0f;
+	if (ent->client->quadfire_time > level.time)
+		rate_scale *= 2.0f;
+
+	gtime_t adjusted_cooldown = base_cooldown * (1.0f / rate_scale);
+
+	// Keep tracers frame-based: never emit more than one per server frame.
+	if (adjusted_cooldown < FRAME_TIME_MS)
+		adjusted_cooldown = FRAME_TIME_MS;
+
+	return adjusted_cooldown;
+}
+
 void Fire_TracerBullet(edict_t* ent, int damage, gtime_t cooldown_duration)
 {
     if (!ent || !ent->client)
         return;
 
-    // Check if player has tracer bullets from benefits or weapon upgrades
-    bool has_traced = ClassicPlayerHasBenefitTracedBullets(ent);
+	const bool using_machinegun = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_MACHINEGUN;
+	const bool using_chaingun = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_CHAINGUN;
+	if (!using_machinegun && !using_chaingun)
+		return;
 
-    // Check weapon-specific tracer upgrades
-    if (ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_MACHINEGUN)
-        has_traced = has_traced || ent->client->pers.skills.mg_tracers > 0;
-    else if (ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_CHAINGUN)
-        has_traced = has_traced || ent->client->pers.skills.cg_tracers > 0;
+    // Check if player has tracer bullets from benefits or weapon upgrades.
+    bool has_traced = ClassicPlayerHasBenefitTracedBullets(ent) ||
+		(using_machinegun && ent->client->pers.skills.mg_tracers > 0) ||
+		(using_chaingun && ent->client->pers.skills.cg_tracers > 0);
+
+	// Fallback: if weapon tracer config is enabled, allow tracers even without explicit upgrades.
+	// This matches "tracers enabled in config" behavior.
+	if (!has_traced)
+	{
+		if (using_machinegun)
+			has_traced = g_config.machinegun.tracer_damage > 0 && g_config.machinegun.tracer_cooldown_ms > 0;
+		else
+			has_traced = g_config.chaingun.tracer_damage > 0 && g_config.chaingun.tracer_cooldown_ms > 0;
+	}
+
+	// If cooldown from caller/config is invalid, use sane defaults.
+	if (cooldown_duration <= 0_ms)
+		cooldown_duration = using_machinegun ? 500_ms : 300_ms;
+
+	const gtime_t tracer_cooldown = AdjustTracerCooldownForWeaponRate(ent, cooldown_duration);
+
+	// Safety: prevent stale/invalid future timestamps from suppressing tracers forever.
+	if (ent->client->resp.lasthbshot > (level.time + 60_sec))
+		ent->client->resp.lasthbshot = 0_ms;
 
     if (!has_traced || ent->client->resp.lasthbshot > level.time)
         return;
 
     // Scale tracer damage based on weapon upgrades
     int final_damage = damage;
-    if (ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_MACHINEGUN && ent->client->pers.skills.mg_tracers > 0)
+    if (using_machinegun && ent->client->pers.skills.mg_tracers > 0)
     {
         final_damage = ent->client->pers.skills.mg_tracers * g_config.machinegun.tracer_damage_per_level;
     }
-    else if (ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_CHAINGUN && ent->client->pers.skills.cg_tracers > 0)
+    else if (using_chaingun && ent->client->pers.skills.cg_tracers > 0)
     {
         final_damage = ent->client->pers.skills.cg_tracers * g_config.chaingun.tracer_damage_per_level;
     }
+	final_damage = max(final_damage, 1);
 
     const vec3_t& tracer_offset = (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
         ? TRACER_OFFSET_DUCKED
@@ -1730,7 +1772,7 @@ void Fire_TracerBullet(edict_t* ent, int damage, gtime_t cooldown_duration)
 
     fire_blaster2(ent, tracer_start, dir, final_damage, 3150, EF_NONE, false);
 
-    ent->client->resp.lasthbshot = level.time + cooldown_duration;
+    ent->client->resp.lasthbshot = level.time + tracer_cooldown;
 }
 
 
