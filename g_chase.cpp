@@ -77,8 +77,8 @@ void UpdateChaseCam(edict_t* ent)
 	// Q2Eaks eyecam handling
 	if (sv_eyecam->integer && (ent->client->use_eyecam || force_eyecam))
 	{
-		// Hide the chased player's model completely in first-person
-		targ->svflags |= SVF_NOCLIENT;
+		// Never mutate chased player visibility from spectator camera code.
+		// SVF_NOCLIENT is global and would hide this player for everyone.
 
 		// copy everything from ps but pmove, pov, stats, and team_id
 		ent->client->ps.viewangles = targ->client->ps.viewangles;
@@ -221,8 +221,6 @@ void UpdateChaseCam(edict_t* ent)
 		ent->client->ps.gunindex = 0;
 		ent->client->ps.gunskin = 0;
 
-		// Always show player model when in third-person
-		targ->svflags &= ~SVF_NOCLIENT;
 	}
 
 	if (targ->deadflag)
