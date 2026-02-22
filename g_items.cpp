@@ -139,6 +139,10 @@ static bool IsHordeWaveManagedMapItem(const edict_t* ent)
 	if (!(ent->item->flags & (IF_WEAPON | IF_AMMO)))
 		return false;
 
+	// Keep antimatter bomb out of map wave-spawning.
+	if (ent->item->id == IT_AMMO_NUKE)
+		return false;
+
 	return Horde_GetItemMinWave(ent->item->id) > 0;
 }
 
@@ -148,19 +152,51 @@ static bool IsHordeWaveManagedItemLocked(const edict_t* ent)
 		return false;
 
 	const int min_wave = Horde_GetItemMinWave(ent->item->id);
-	return min_wave > 1 && current_wave_level < min_wave;
+	return current_wave_level < min_wave;
 }
 
 //======================================================================
 
 THINK(DoRespawn) (edict_t* ent) -> void
 {
+	constexpr gtime_t HORDE_WAVE_ITEM_UNLOCK_DELAY = 20_sec;
+
 	if (!ent) {
 		return;
 	}
 
+	if (IsHordeWaveManagedMapItem(ent))
+	{
+		const int min_wave = Horde_GetItemMinWave(ent->item->id);
+
+		if (current_wave_level < min_wave)
+		{
+			ent->timestamp = 0_sec;
+		}
+		else if (ent->timestamp >= 0_sec)
+		{
+			if (ent->timestamp == 0_sec)
+				ent->timestamp = level.time + HORDE_WAVE_ITEM_UNLOCK_DELAY;
+
+			if (level.time < ent->timestamp)
+			{
+				ent->flags |= FL_RESPAWN;
+				ent->svflags |= (SVF_NOCLIENT | SVF_RESPAWNING);
+				ent->solid = SOLID_NOT;
+				gi.linkentity(ent);
+				ent->nextthink = level.time + 1_sec;
+				ent->think = DoRespawn;
+				return;
+			}
+
+			// Mark as unlocked so future respawns use only normal respawn delay.
+			ent->timestamp = -1_sec;
+		}
+	}
+
 	if (IsHordeWaveManagedItemLocked(ent))
 	{
+		ent->timestamp = 0_sec;
 		ent->flags |= FL_RESPAWN;
 		ent->svflags |= (SVF_NOCLIENT | SVF_RESPAWNING);
 		ent->solid = SOLID_NOT;
@@ -1500,8 +1536,9 @@ THINK(droptofloor) (edict_t* ent) -> void
 		ent->use = Use_Item;
 	}
 
-	if (!ent->team && IsHordeWaveManagedItemLocked(ent))
+	if (!ent->team && IsHordeWaveManagedMapItem(ent))
 	{
+		ent->timestamp = 0_sec;
 		ent->flags |= FL_RESPAWN;
 		ent->svflags |= (SVF_NOCLIENT | SVF_RESPAWNING);
 		ent->solid = SOLID_NOT;
@@ -1638,6 +1675,7 @@ void SpawnItem(edict_t* ent, gitem_t* item, const spawn_temp_t& st)
 				g_horde->integer &&
 				G_IsDeathmatch() &&
 				(item->flags & (IF_WEAPON | IF_AMMO)) &&
+				item->id != IT_AMMO_NUKE &&
 				Horde_GetItemMinWave(item->id) > 0;
 
 			if (/*item->pickup == Pickup_Armor ||*/ item->pickup == Pickup_PowerArmor ||
