@@ -556,6 +556,54 @@ static void SV_CalcBlend(edict_t* ent)
 {
 	gtime_t remaining;
 
+	// First-person spectator eyecam should inherit the chased player's blend.
+	if (ent->client->resp.spectator &&
+		ent->client->chase_target &&
+		ent->client->chase_target->inuse &&
+		ent->client->chase_target->client &&
+		sv_eyecam->integer &&
+		(ent->client->use_eyecam ||
+			(ent->client->auto_eyecam && ent->client->ps.pmove.delta_angles != vec3_origin)))
+	{
+		edict_t* const chase = ent->client->chase_target;
+		ent->client->ps.damage_blend = chase->client->ps.damage_blend;
+		ent->client->ps.rdflags = chase->client->ps.rdflags;
+		ent->client->ps.screen_blend = {};
+
+		if (chase->client->quad_time > level.time)
+		{
+			remaining = chase->client->quad_time - level.time;
+			if (G_PowerUpExpiringRelative(remaining))
+				G_AddBlend(0, 0, 1, 0.08f, ent->client->ps.screen_blend);
+		}
+		else if (chase->client->quadfire_time > level.time)
+		{
+			remaining = chase->client->quadfire_time - level.time;
+			if (G_PowerUpExpiringRelative(remaining))
+				G_AddBlend(1, 0.2f, 0.5f, 0.08f, ent->client->ps.screen_blend);
+		}
+		else if (chase->client->double_time > level.time)
+		{
+			remaining = chase->client->double_time - level.time;
+			if (G_PowerUpExpiringRelative(remaining))
+				G_AddBlend(0.9f, 0.7f, 0, 0.08f, ent->client->ps.screen_blend);
+		}
+		else if (chase->client->invincible_time > level.time)
+		{
+			remaining = chase->client->invincible_time - level.time;
+			if (G_PowerUpExpiringRelative(remaining))
+				G_AddBlend(1, 1, 0, 0.08f, ent->client->ps.screen_blend);
+		}
+		else if (chase->client->invisible_time > level.time)
+		{
+			remaining = chase->client->invisible_time - level.time;
+			if (G_PowerUpExpiringRelative(remaining))
+				G_AddBlend(0.8f, 0.8f, 0.8f, 0.08f, ent->client->ps.screen_blend);
+		}
+
+		return;
+	}
+
 	ent->client->ps.damage_blend = ent->client->ps.screen_blend = {};
 
 	// Add visual effect for menu protection
