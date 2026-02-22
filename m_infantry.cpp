@@ -499,26 +499,57 @@ static bool infantry_prethrow_grenade_active(const edict_t* self)
 	return (self->monsterinfo.active_move == &infantry_move_grenade_throw && self->s.frame < FRAME_attak206);
 }
 
-// Simplified grenade throw for when infantry dies mid-throw
-static void infantry_death_grenade(edict_t* self)
+constexpr gtime_t INFANTRY_DEATH_GRENADE_FUSE = 0.8_sec;
+constexpr float INFANTRY_DEATH_GRENADE_DROP_CHANCE = 0.45f;
+
+static gtime_t infantry_remaining_grenade_fuse(const edict_t* self)
 {
-	const vec3_t offset = { 8, 0, 4 }; // Low position - drops at feet
+	constexpr gtime_t MIN_FUSE = 200_ms;
+
+	if (!self || self->timestamp <= 0_ms)
+		return INFANTRY_DEATH_GRENADE_FUSE;
+
+	gtime_t elapsed = level.time - self->timestamp;
+	if (elapsed < 0_ms)
+		elapsed = 0_ms;
+
+	gtime_t remaining = INFANTRY_DEATH_GRENADE_FUSE - elapsed;
+	if (remaining < MIN_FUSE)
+		remaining = MIN_FUSE;
+	else if (remaining > INFANTRY_DEATH_GRENADE_FUSE)
+		remaining = INFANTRY_DEATH_GRENADE_FUSE;
+
+	return remaining;
+}
+
+// Simplified grenade throw for when infantry dies mid-throw
+static void infantry_death_grenade(edict_t* self, gtime_t fuse, bool close_drop)
+{
+	const vec3_t offset = close_drop ? vec3_t{ 6, 0, 2 } : vec3_t{ 8, 0, 4 };
 	vec3_t forward, right, up;
 
 	// Calculate drop position and direction
 	AngleVectors(self->s.angles, forward, right, up);
 	vec3_t start_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
 
-	// Weak, downward-biased throw with randomized lateral angles.
-	vec3_t aim_dir = (forward * frandom(0.1f, 0.35f)) +
-		(right * crandom() * 0.9f) +
-		(up * -frandom(0.85f, 1.25f));
+	float const forward_scale = close_drop ? frandom(0.02f, 0.14f) : frandom(0.1f, 0.35f);
+	float const lateral_scale = close_drop ? 0.35f : 0.9f;
+	float const down_scale = close_drop ? frandom(0.95f, 1.35f) : frandom(0.85f, 1.25f);
+
+	// Downward-biased throw; close_drop keeps it near the corpse.
+	vec3_t aim_dir = (forward * forward_scale) +
+		(right * crandom() * lateral_scale) +
+		(up * -down_scale);
 	aim_dir.normalize();
 
 	// Fire a weaker grenade for a "dropped while dying" feel.
 	int damage = M_GRENADE_DMG(self);
 	float radius = damage > 0 ? (damage * 2.f) : 80.f;
-	fire_grenade(self, start_pos, aim_dir, damage > 0 ? damage : 40, 140, 2.5_sec, radius, crandom() * 6.f, -75.f, true);
+
+	int const throw_speed = close_drop ? 95 : 140;
+	float const right_adjust = close_drop ? (crandom() * 2.5f) : (crandom() * 6.f);
+	float const up_adjust = close_drop ? -110.f : -75.f;
+	fire_grenade(self, start_pos, aim_dir, damage > 0 ? damage : 40, throw_speed, fuse, radius, right_adjust, up_adjust, true);
 	gi.sound(self, CHAN_VOICE, sound_handgrenade, 1, ATTN_NORM, 0);
 }
 
@@ -535,6 +566,10 @@ THINK(infantry_delayed_grenade_explode) (edict_t* timer) -> void
 	if (damage <= 0)
 		damage = 40;
 	float radius = damage * 2.f;
+
+	// Force a direct self-hit so corpse blasts always show self-damage feedback.
+	const vec3_t blast_dir = { 0, 0, 1 };
+	T_Damage(corpse, corpse, corpse, blast_dir, corpse->s.origin, blast_dir, damage, damage, DAMAGE_RADIUS | DAMAGE_NO_KNOCKBACK | DAMAGE_NO_PROTECTION, MOD_HG_SPLASH);
 
 	T_RadiusDamage(corpse, corpse, static_cast<float>(damage), corpse, radius, DAMAGE_NONE, MOD_HG_SPLASH);
 
@@ -558,7 +593,7 @@ static void infantry_schedule_delayed_grenade_explode(edict_t* self)
 	edict_t* timer = G_Spawn();
 	if (!timer)
 	{
-		infantry_death_grenade(self);
+		infantry_death_grenade(self, infantry_remaining_grenade_fuse(self), true);
 		return;
 	}
 
@@ -568,7 +603,7 @@ static void infantry_schedule_delayed_grenade_explode(edict_t* self)
 	timer->solid = SOLID_NOT;
 	timer->svflags |= SVF_NOCLIENT;
 	timer->s.origin = self->s.origin;
-	timer->nextthink = level.time + random_time(500_ms, 2200_ms);
+	timer->nextthink = level.time + infantry_remaining_grenade_fuse(self);
 	timer->think = infantry_delayed_grenade_explode;
 	gi.linkentity(timer);
 }
@@ -612,12 +647,16 @@ DIE(infantry_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dam
 	const bool grenade_pin_pulled = (self->timestamp > 0_ms);
 	if (grenade_in_hand && grenade_pin_pulled)
 	{
-		infantry_schedule_delayed_grenade_explode(self);
+		const gtime_t remaining_fuse = infantry_remaining_grenade_fuse(self);
+		if (frandom() <= INFANTRY_DEATH_GRENADE_DROP_CHANCE)
+			infantry_death_grenade(self, remaining_fuse, true);
+		else
+			infantry_schedule_delayed_grenade_explode(self);
 	}
 	// Fallback: if somehow in pre-throw without armed timestamp, drop a weak grenade.
 	else if (grenade_in_hand)
 	{
-		infantry_death_grenade(self);
+		infantry_death_grenade(self, INFANTRY_DEATH_GRENADE_FUSE, true);
 	}
 
 	n = irandom(3);

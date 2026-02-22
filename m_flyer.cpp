@@ -439,7 +439,7 @@ void flyer_rocket(edict_t* self)
 			if (dist * trace.fraction > 72)
 			{
 				monster_fire_rocket(self, start, dir, damage, rocketSpeed, MZ2_TURRET_ROCKET);
-				self->monsterinfo.fire_wait = level.time + random_time(850_ms, 1.4_sec);
+				self->monsterinfo.fire_wait = level.time + random_time(350_ms, 0.8_sec);
 			}
 		}
 	}

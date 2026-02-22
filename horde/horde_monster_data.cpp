@@ -9,7 +9,7 @@ const MonsterTypeInfo monsterTypes[] = {
 	// --- WAVE 1 ---
 	{horde::MonsterTypeID::SOLDIER_LIGHT, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 1, 1.0f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
 	{horde::MonsterTypeID::SOLDIER, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 1, 0.9f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
-	{horde::MonsterTypeID::FLYER, MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Fast, 1, 0.65f, {-16, -16, -24}, {16, 16, 16}, 1.0f},
+	{horde::MonsterTypeID::FLYER, MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Fast, 1, 0.6f, {-16, -16, -24}, {16, 16, 16}, 1.0f},
 
 	// --- WAVE 2 ---
 	{horde::MonsterTypeID::SOLDIER_SS, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 2, 0.8f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
@@ -56,7 +56,7 @@ const MonsterTypeInfo monsterTypes[] = {
 
 	// --- WAVE 12 ---
 	{horde::MonsterTypeID::GUNCMDR_VANILLA, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Bomber, 12, 0.4f, {-16, -16, -24}, {16, 16, 36}, 1.25f},
-	{horde::MonsterTypeID::GLADIATOR, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Ranged, 11, 0.8f, {-32, -32, -24}, {32, 32, 42}, 1.0f},
+	{horde::MonsterTypeID::GLADIATOR, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Ranged, 7, 0.9f, {-32, -32, -24}, {32, 32, 42}, 1.0f},
 	{horde::MonsterTypeID::GUNNER, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Ranged | MonsterWaveType::Bomber | MonsterWaveType::Elite, 12, 0.8f, {-16, -16, -24}, {16, 16, 36}, 1.0f},
 
 	// --- WAVE 13 ---
