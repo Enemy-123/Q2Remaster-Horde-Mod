@@ -2224,6 +2224,22 @@ static const HordeItemInfo hordeItemData[] = {
 	// { IT_NULL, 0.0f, 0 }
 };
 
+int Horde_GetItemMinWave(int32_t item_id) noexcept
+{
+	int min_wave = 0;
+
+	for (const auto& item : hordeItemData)
+	{
+		if (static_cast<int32_t>(item.id) != item_id)
+			continue;
+
+		if (min_wave == 0 || item.minWave < min_wave)
+			min_wave = item.minWave;
+	}
+
+	return min_wave;
+}
+
 // First, add these at the top with other global variables
 static constexpr size_t WAVE_MEMORY_SIZE = 3; // Remember last 3 waves
 static std::array<MonsterWaveType, WAVE_MEMORY_SIZE> previous_wave_types = {};

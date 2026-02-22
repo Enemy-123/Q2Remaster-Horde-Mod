@@ -48,6 +48,7 @@ void ResetQueueMonitorVars();
 [[nodiscard]] bool IsSpawnPointOccupied(const edict_t *spawn_point, const edict_t *ignore_ent = nullptr);
 // Item selection in Horde mode
 gitem_t* G_HordePickItem();
+int Horde_GetItemMinWave(int32_t item_id) noexcept;
 
 // Game mode checks
 bool G_IsDeathmatch() noexcept;

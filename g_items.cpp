@@ -121,11 +121,52 @@ gitem_t* FindItem(const char* pickup_name)
 	return nullptr;
 }
 
+static bool IsHordeWaveManagedMapItem(const edict_t* ent)
+{
+	// Instagib-horde uses wave-locked, shared map weapons/ammo.
+	if (!ent || !ent->item)
+		return false;
+
+	if (!g_horde->integer || !G_IsDeathmatch() || !g_instagib->integer)
+		return false;
+
+	if (ent->spawnflags.has(SPAWNFLAG_ITEM_DROPPED | SPAWNFLAG_ITEM_DROPPED_PLAYER))
+		return false;
+
+	if (ent->spawnflags.has(SPAWNFLAG_ITEM_TRIGGER_SPAWN))
+		return false;
+
+	if (!(ent->item->flags & (IF_WEAPON | IF_AMMO)))
+		return false;
+
+	return Horde_GetItemMinWave(ent->item->id) > 0;
+}
+
+static bool IsHordeWaveManagedItemLocked(const edict_t* ent)
+{
+	if (!IsHordeWaveManagedMapItem(ent))
+		return false;
+
+	const int min_wave = Horde_GetItemMinWave(ent->item->id);
+	return min_wave > 1 && current_wave_level < min_wave;
+}
+
 //======================================================================
 
 THINK(DoRespawn) (edict_t* ent) -> void
 {
 	if (!ent) {
+		return;
+	}
+
+	if (IsHordeWaveManagedItemLocked(ent))
+	{
+		ent->flags |= FL_RESPAWN;
+		ent->svflags |= (SVF_NOCLIENT | SVF_RESPAWNING);
+		ent->solid = SOLID_NOT;
+		gi.linkentity(ent);
+		ent->nextthink = level.time + 1_sec;
+		ent->think = DoRespawn;
 		return;
 	}
 
@@ -1099,6 +1140,8 @@ Touch_Item
 TOUCH(Touch_Item) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	bool taken;
+	const bool horde_wave_managed_item = IsHordeWaveManagedMapItem(ent);
+
 	if (!other->client)
 		return;
 	if (other->health < 1)
@@ -1109,7 +1152,7 @@ TOUCH(Touch_Item) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 	// already got this instanced item
 	if (g_horde->integer)
 	{
-		if (P_UseCoopInstancedItems())
+		if (P_UseCoopInstancedItems() && !horde_wave_managed_item)
 		{
 			if (ent->item_picked_up_by[other->s.number - 1])
 				return;
@@ -1155,8 +1198,8 @@ TOUCH(Touch_Item) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 
 		if (g_horde->integer)
 		{
-			if ((G_IsDeathmatch() && P_UseCoopInstancedItems() && !ent->item_picked_up_by[player_number]) ||
-				(G_IsCooperative() && P_UseCoopInstancedItems() && !ent->item_picked_up_by[player_number]))
+			if ((G_IsDeathmatch() && P_UseCoopInstancedItems() && !horde_wave_managed_item && !ent->item_picked_up_by[player_number]) ||
+				(G_IsCooperative() && P_UseCoopInstancedItems() && !horde_wave_managed_item && !ent->item_picked_up_by[player_number]))
 			{
 				ent->item_picked_up_by[player_number] = true;
 				if (ent->message)
@@ -1208,7 +1251,17 @@ TOUCH(Touch_Item) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 
 		if (g_horde->integer)
 		{
-			if (G_IsCooperative() || G_IsDeathmatch())
+			if (horde_wave_managed_item && G_IsDeathmatch())
+			{
+				should_remove = ent->spawnflags.has(SPAWNFLAG_ITEM_DROPPED | SPAWNFLAG_ITEM_DROPPED_PLAYER);
+
+				if (!should_remove)
+				{
+					SetRespawn(ent, 30_sec);
+					return;
+				}
+			}
+			else if (G_IsCooperative() || G_IsDeathmatch())
 			{
 				if (P_UseCoopInstancedItems())
 					should_remove = ent->spawnflags.has(SPAWNFLAG_ITEM_DROPPED_PLAYER);
@@ -1447,6 +1500,17 @@ THINK(droptofloor) (edict_t* ent) -> void
 		ent->use = Use_Item;
 	}
 
+	if (!ent->team && IsHordeWaveManagedItemLocked(ent))
+	{
+		ent->flags |= FL_RESPAWN;
+		ent->svflags |= (SVF_NOCLIENT | SVF_RESPAWNING);
+		ent->solid = SOLID_NOT;
+		gi.linkentity(ent);
+		ent->nextthink = level.time + 1_sec;
+		ent->think = DoRespawn;
+		return;
+	}
+
 	ent->watertype = gi.pointcontents(ent->s.origin);
 	gi.linkentity(ent);
 }
@@ -1570,12 +1634,18 @@ void SpawnItem(edict_t* ent, gitem_t* item, const spawn_temp_t& st)
 		// [Kex] In instagib, spawn no pickups!
 		if (g_instagib->value)
 		{
+			const bool allow_horde_wave_managed_item =
+				g_horde->integer &&
+				G_IsDeathmatch() &&
+				(item->flags & (IF_WEAPON | IF_AMMO)) &&
+				Horde_GetItemMinWave(item->id) > 0;
+
 			if (/*item->pickup == Pickup_Armor ||*/ item->pickup == Pickup_PowerArmor ||
 				item->pickup == Pickup_Powerup 
 				/*|| item->pickup == Pickup_Sphere*/ || /*item->pickup == Pickup_SentryGun ||*/
 				/*(item->flags & IF_HEALTH) || 
 				(item->flags & IF_AMMO) || */   //test
-				item->pickup == Pickup_Weapon || item->pickup == Pickup_Pack ||
+				(item->pickup == Pickup_Weapon && !allow_horde_wave_managed_item) || item->pickup == Pickup_Pack ||
 				/*item->id == IT_ITEM_BANDOLIER ||*/ item->id == IT_ITEM_PACK) /*||
 				item->id == IT_AMMO_NUKE)*/
 			{
