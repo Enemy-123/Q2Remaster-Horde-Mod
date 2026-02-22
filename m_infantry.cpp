@@ -499,7 +499,7 @@ static bool infantry_prethrow_grenade_active(const edict_t* self)
 	return (self->monsterinfo.active_move == &infantry_move_grenade_throw && self->s.frame < FRAME_attak206);
 }
 
-constexpr gtime_t INFANTRY_DEATH_GRENADE_FUSE = 0.8_sec;
+constexpr gtime_t INFANTRY_DEATH_GRENADE_FUSE = 1_sec;
 constexpr float INFANTRY_DEATH_GRENADE_DROP_CHANCE = 0.45f;
 
 static gtime_t infantry_remaining_grenade_fuse(const edict_t* self)
@@ -547,9 +547,7 @@ static void infantry_death_grenade(edict_t* self, gtime_t fuse, bool close_drop)
 	float radius = damage > 0 ? (damage * 2.f) : 80.f;
 
 	int const throw_speed = close_drop ? 95 : 140;
-	float const right_adjust = close_drop ? (crandom() * 2.5f) : (crandom() * 6.f);
-	float const up_adjust = close_drop ? -110.f : -75.f;
-	fire_grenade(self, start_pos, aim_dir, damage > 0 ? damage : 40, throw_speed, fuse, radius, right_adjust, up_adjust, true);
+	fire_grenade2(self, start_pos, aim_dir, damage > 0 ? damage : 40, throw_speed, fuse, radius, true);
 	gi.sound(self, CHAN_VOICE, sound_handgrenade, 1, ATTN_NORM, 0);
 }
 

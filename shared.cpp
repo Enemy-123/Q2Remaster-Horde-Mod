@@ -65,9 +65,6 @@ void RemoveEntityFromGlobalList(edict_t* entity) {
 	}
 }
 
-// Helper to reset spawn point selection state when map changes
-static void ResetSpawnPointSelection();
-
 // 1:  spawn point selection using pre-shuffled global list
 // Excludes style=1 spawn points (aerial spawns for flying monsters)
 [[nodiscard]] static edict_t* SelectRandomClearSpawnPoint() {
@@ -104,13 +101,6 @@ static void ResetSpawnPointSelection();
 	// Last resort: return any spawn point (should rarely happen)
 	size_t fallback_index = static_cast<size_t>(irandom(g_num_spawn_points));
 	return g_spawn_point_list[fallback_index];
-}
-
-// Reset spawn point selection state (called when map changes)
-static void ResetSpawnPointSelection() {
-	// This will be called from GetMapSize when the map changes
-	// The thread_local variable in SelectRandomClearSpawnPoint will naturally
-	// reset when accessed next, but we document this for clarity
 }
 
 // 2: Compile-time lookup table for bonus effects
@@ -193,14 +183,11 @@ namespace {
 
 // 3: Enhanced map size cache with perfect hash
 [[nodiscard]] horde::MapSize GetMapSize(const char* mapname) noexcept {
-    // If the map has changed, clear cache and reset spawn point tracking
+    // If the map has changed, clear cache
     // Use case-insensitive comparison to handle "q2dm1" vs "Q2DM1"
     if (Q_strcasecmp(g_last_map_for_cache, level.mapname) != 0) {
         g_mapsize_cache.fill(std::nullopt);
         Q_strlcpy(g_last_map_for_cache, level.mapname, sizeof(g_last_map_for_cache));
-
-        // Reset spawn point selection state for new map
-        ResetSpawnPointSelection();
     }
 
     const horde::MapID mapId = horde::MapOriginRegistry::GetMapID(mapname);
@@ -247,53 +234,22 @@ void RemovePlayerOwnedEntities(edict_t* player) {
         return;
     }
 
-    edict_t* stack_entities[STACK_ENTITY_CAPACITY];
-    boost::container::small_vector<edict_t*, 64> heap_entities;
-
-    edict_t** entities_array = stack_entities;
-    size_t entity_count = 0;
-    size_t capacity = STACK_ENTITY_CAPACITY;
+    boost::container::small_vector<edict_t*, STACK_ENTITY_CAPACITY> entities_array;
 
     auto add_entity = [&](edict_t* ent) {
-        if (ent && ent->inuse) {
-            // Safety check: prevent overflow-induced bad_alloc
-            if (entity_count >= MAX_SAFE_CONTAINER_SIZE) {
-                if (developer && developer->integer) {
-                    gi.Com_PrintFmt("ERROR: Entity collection overflow ({}), cannot add more\n", entity_count);
-                }
-                return;
-            }
+        if (!ent || !ent->inuse) {
+            return;
+        }
 
-            if (entity_count >= capacity) {
-                if (entities_array == stack_entities) {
-                    // Copy stack data to heap first, then resize
-                    size_t new_capacity = safe_grow_capacity(capacity, entity_count + 1);
-                    try {
-                        // Protected assign - this is where bad_alloc 65530 can occur
-                        heap_entities.assign(stack_entities, stack_entities + entity_count);
-                    } catch (const std::bad_alloc&) {
-                        gi.Com_PrintFmt("ERROR: Failed to allocate {} bytes for entity collection\n",
-                                       entity_count * sizeof(edict_t*));
-                        return;
-                    }
-                    if (!safe_resize(heap_entities, new_capacity)) {
-                        gi.Com_Print("ERROR: Failed to allocate memory for entity collection\n");
-                        return;
-                    }
-                    entities_array = heap_entities.data();
-                    capacity = heap_entities.size();
-                } else {
-                    // Already using heap, just resize
-                    size_t new_capacity = safe_grow_capacity(capacity, entity_count + 1);
-                    if (!safe_resize(heap_entities, new_capacity)) {
-                        gi.Com_Print("ERROR: Failed to grow entity collection\n");
-                        return;
-                    }
-                    entities_array = heap_entities.data();
-                    capacity = heap_entities.size();
-                }
+        if (entities_array.size() >= MAX_SAFE_CONTAINER_SIZE) {
+            if (developer && developer->integer) {
+                gi.Com_PrintFmt("ERROR: Entity collection overflow ({}), cannot add more\n", entities_array.size());
             }
-            entities_array[entity_count++] = ent;
+            return;
+        }
+
+        if (!safe_push_back(entities_array, ent)) {
+            gi.Com_Print("ERROR: Failed to allocate memory for entity collection\n");
         }
     };
 
@@ -326,8 +282,7 @@ void RemovePlayerOwnedEntities(edict_t* player) {
         }
     }
 
-    for (size_t i = 0; i < entity_count; ++i) {
-        edict_t* ent = entities_array[i];
+    for (edict_t* ent : entities_array) {
         if (ent && ent->inuse) {
             RemoveEntity(ent);
         }
@@ -363,7 +318,7 @@ void RemovePlayerOwnedEntities(edict_t* player) {
 
     // Validate special_type_id is within valid range to prevent undefined behavior
     if (ent->special_type_id >= static_cast<uint8_t>(horde::SpecialEntityTypeID::COUNT)) {
-        if (developer->integer) {
+        if (developer && developer->integer) {
             gi.Com_PrintFmt("ERROR: Entity has invalid special_type_id {} (classname: {})\n",
                 ent->special_type_id, ent->classname ? ent->classname : "NULL");
         }
@@ -372,7 +327,7 @@ void RemovePlayerOwnedEntities(edict_t* player) {
 
     auto id = static_cast<horde::SpecialEntityTypeID>(ent->special_type_id);
     if (id == horde::SpecialEntityTypeID::UNKNOWN) {
-        if (developer->integer) {
+        if (developer && developer->integer) {
             thread_local boost::unordered::unordered_flat_set<std::string_view> reported_classnames;
             thread_local char last_map_for_reporting[MAX_QPATH] = "";
 
@@ -572,11 +527,16 @@ void InitializeDisplayNames() {
 // 11:  display name generation with proper buffer management
 // Fixed: No longer has re-entrancy bug from nested static buffer calls
 const char* GetDisplayName(const edict_t* ent) {
-    // Use thread_local buffer - safe because we capture title before calling G_Fmt
-    thread_local char display_name_buffer[128];
+    constexpr size_t NUM_BUFFERS = 8;
+    thread_local char display_name_buffers[NUM_BUFFERS][128];
+    thread_local size_t buffer_index = 0;
+
+    buffer_index = (buffer_index + 1) % NUM_BUFFERS;
+    char* const current_buffer = display_name_buffers[buffer_index];
 
     if (!ent) {
-        return "Unknown";
+        Q_strlcpy(current_buffer, "Unknown", sizeof(display_name_buffers[0]));
+        return current_buffer;
     }
 
     if (!g_displayNamesInitialized) {
@@ -587,9 +547,12 @@ const char* GetDisplayName(const edict_t* ent) {
     auto special_id = static_cast<horde::SpecialEntityTypeID>(ent->special_type_id);
     auto monster_id = static_cast<horde::MonsterTypeID>(ent->monsterinfo.monster_type_id);
 
-    if (special_id != horde::SpecialEntityTypeID::UNKNOWN) {
+    if (special_id != horde::SpecialEntityTypeID::UNKNOWN &&
+        static_cast<size_t>(special_id) < g_specialDisplayNames.size()) {
         base_name_ptr = g_specialDisplayNames[static_cast<size_t>(special_id)].c_str();
-    } else if (ent->svflags & SVF_MONSTER && monster_id != horde::MonsterTypeID::UNKNOWN) {
+    } else if ((ent->svflags & SVF_MONSTER) &&
+               monster_id != horde::MonsterTypeID::UNKNOWN &&
+               static_cast<size_t>(monster_id) < g_monsterDisplayNames.size()) {
         base_name_ptr = g_monsterDisplayNames[static_cast<size_t>(monster_id)].c_str();
     } else {
         base_name_ptr = ent->classname ? ent->classname : "Unknown";
@@ -601,11 +564,11 @@ const char* GetDisplayName(const edict_t* ent) {
 
     // Now safe to format - title is already captured and won't be overwritten
     auto result = G_Fmt("{}{}", title, base_name_ptr);
-    size_t copy_len = std::min(result.size(), sizeof(display_name_buffer) - 1);
-    memcpy(display_name_buffer, result.data(), copy_len);
-    display_name_buffer[copy_len] = '\0';
+    size_t copy_len = std::min(result.size(), sizeof(display_name_buffers[0]) - 1);
+    memcpy(current_buffer, result.data(), copy_len);
+    current_buffer[copy_len] = '\0';
 
-    return display_name_buffer;
+    return current_buffer;
 }
 
 // Get monster display name from MonsterTypeID (for projectiles)
@@ -1045,6 +1008,10 @@ void ApplyBossEffects(edict_t* boss)
 
 // 15:  player name retrieval with caching
 const char* GetPlayerName(const edict_t* player) {
+    constexpr size_t NUM_BUFFERS = 8;
+    thread_local char player_name_buffers[NUM_BUFFERS][MAX_INFO_VALUE];
+    thread_local size_t buffer_index = 0;
+
     thread_local struct {
         const edict_t* last_player = nullptr;
         char cached_name[MAX_INFO_VALUE];
@@ -1052,28 +1019,36 @@ const char* GetPlayerName(const edict_t* player) {
     } name_cache;
     
     static constexpr gtime_t CACHE_DURATION = 1_sec;
+
+    buffer_index = (buffer_index + 1) % NUM_BUFFERS;
+    char* const current_buffer = player_name_buffers[buffer_index];
     
     if (!player || !player->client || !player->inuse) { 
-        return "N/A";
+        Q_strlcpy(current_buffer, "N/A", sizeof(player_name_buffers[0]));
+        return current_buffer;
     }
     
     if (name_cache.last_player == player && 
         level.time - name_cache.cache_time < CACHE_DURATION) {
-        return name_cache.cached_name;
+        Q_strlcpy(current_buffer, name_cache.cached_name, sizeof(player_name_buffers[0]));
+        return current_buffer;
     }
     
     size_t written = gi.Info_ValueForKey(player->client->pers.userinfo, "name",
         name_cache.cached_name, sizeof(name_cache.cached_name) - 1);
     
     if (written == 0 || written >= sizeof(name_cache.cached_name)) {
-        return "N/A";
+        Q_strlcpy(current_buffer, "N/A", sizeof(player_name_buffers[0]));
+        return current_buffer;
     }
     
     name_cache.cached_name[written] = '\0';
     name_cache.last_player = player;
     name_cache.cache_time = level.time;
+
+    Q_strlcpy(current_buffer, name_cache.cached_name, sizeof(player_name_buffers[0]));
     
-    return name_cache.cached_name;
+    return current_buffer;
 }
 
 // Forward declarations for external functions
@@ -1200,12 +1175,7 @@ void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs
 	edict_t* touch[MAX_EDICTS];
 	int num_touched = gi.BoxEdicts(area_mins, area_maxs, touch, MAX_EDICTS, AREA_SOLID, nullptr, nullptr);
 
-	edict_t* stack_entities[STACK_ENTITY_CAPACITY];
-	boost::container::small_vector<edict_t*, 64> heap_entities;
-
-	edict_t** entities_array = stack_entities;
-	size_t entity_count = 0;
-	size_t capacity = STACK_ENTITY_CAPACITY;
+	boost::container::small_vector<edict_t*, STACK_ENTITY_CAPACITY> entities_array;
 
 	for (int i = 0; i < num_touched; i++) {
 		edict_t* ent = touch[i];
@@ -1221,51 +1191,20 @@ void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs
 		}
 
 		// Safety check: prevent overflow-induced bad_alloc
-		if (entity_count >= MAX_SAFE_CONTAINER_SIZE) {
+		if (entities_array.size() >= MAX_SAFE_CONTAINER_SIZE) {
 			if (developer && developer->integer) {
-				gi.Com_PrintFmt("ERROR: ClearSpawnArea entity overflow ({}), stopping collection\n", entity_count);
+				gi.Com_PrintFmt("ERROR: ClearSpawnArea entity overflow ({}), stopping collection\n", entities_array.size());
 			}
 			break;
 		}
 
-		if (entity_count >= capacity) {
-			if (entities_array == stack_entities) {
-				// Safe grow with overflow protection
-				size_t new_capacity = safe_grow_capacity(capacity, entity_count + 1);
-				if (!safe_reserve(heap_entities, new_capacity)) {
-					gi.Com_Print("ERROR: Failed to reserve memory for entities\n");
-					continue;
-				}
-				try {
-					// Protected assign - prevents bad_alloc 65530
-					heap_entities.assign(stack_entities, stack_entities + entity_count);
-				} catch (const std::bad_alloc&) {
-					gi.Com_PrintFmt("ERROR: Failed to allocate {} bytes for spawn area entities\n",
-					               entity_count * sizeof(edict_t*));
-					break;
-				}
-				entities_array = heap_entities.data();
-				if (!safe_resize(heap_entities, new_capacity)) {
-					gi.Com_Print("ERROR: Failed to resize heap entities\n");
-					continue;
-				}
-				capacity = new_capacity;
-			} else {
-				// Already using heap, grow safely
-				size_t new_capacity = safe_grow_capacity(capacity, entity_count + 1);
-				if (!safe_resize(heap_entities, new_capacity)) {
-					gi.Com_Print("ERROR: Failed to grow heap entities\n");
-					continue;
-				}
-				entities_array = heap_entities.data();
-				capacity = new_capacity;
-			}
+		if (!safe_push_back(entities_array, ent)) {
+			gi.Com_Print("ERROR: Failed to allocate memory for spawn area entity collection\n");
+			break;
 		}
-		entities_array[entity_count++] = ent;
 	}
 
-	for (size_t i = 0; i < entity_count; ++i) {
-		edict_t* current_ent = entities_array[i];
+	for (edict_t* current_ent : entities_array) {
 		if (!current_ent || !current_ent->inuse) continue;
 
 		if (current_ent->client) {
@@ -1501,7 +1440,7 @@ bool TeleportSelf(edict_t* ent) {
 	ent->client->resp.teleport_cooldown = level.time + 3_sec;
 
 	if (g_num_spawn_points == 0) {
-		if (developer->integer) {
+		if (developer && developer->integer) {
 			//gi.Com_PrintFmt("TeleportSelf WARNING: No valid spawn points found for teleport.\n");
 		}
 		return false;
@@ -1669,7 +1608,7 @@ void ApplySpecialWaveEffects(MonsterWaveType waveType)
 		SP_target_earthquake(earthquake);
 		earthquake->use(earthquake, world, world);
 
-		if (developer->integer)
+		if (developer && developer->integer)
 		{
 			gi.Com_PrintFmt("HORDE: Applied {} wave special effects (sound + earthquake)\n",
 				is_gekk_wave ? "Inferno Gekk" : "Trespasser");

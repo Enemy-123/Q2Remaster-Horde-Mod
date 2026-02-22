@@ -491,11 +491,22 @@ struct FileGuard {
         }
     }
 
-    // Non-copyable, non-movable
+    // Non-copyable, movable
     FileGuard(const FileGuard&) = delete;
     FileGuard& operator=(const FileGuard&) = delete;
-    FileGuard(FileGuard&&) = delete;
-    FileGuard& operator=(FileGuard&&) = delete;
+    FileGuard(FileGuard&& other) noexcept : fp(other.fp) {
+        other.fp = nullptr;
+    }
+    FileGuard& operator=(FileGuard&& other) noexcept {
+        if (this != &other) {
+            if (fp) {
+                fclose(fp);
+            }
+            fp = other.fp;
+            other.fp = nullptr;
+        }
+        return *this;
+    }
 
     // Allow boolean check for validity
     explicit operator bool() const { return fp != nullptr; }

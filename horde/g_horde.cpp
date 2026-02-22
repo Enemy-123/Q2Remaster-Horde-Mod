@@ -6799,6 +6799,25 @@ static void ExecuteNextSpecialSpawn()
 bool CheckHardCapAndLog(int32_t activeMonsters, int32_t hardCap, int32_t softCap, horde_state_t currentState, int32_t currentLevel);
 int32_t ManageSpawnCountsAndQueue(const horde::MapSize& mapSize, int32_t availableSpace);
 
+static void ClearPendingWaveSpawns(const char* reason)
+{
+	const int32_t pending_spawn_plan = static_cast<int32_t>(g_spawn_system.spawn_plan.size());
+	if (g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters <= 0 && pending_spawn_plan <= 0)
+	{
+		return;
+	}
+
+	if (developer->integer)
+	{
+		gi.Com_PrintFmt("HORDE: {}. Clearing pending spawns (num_to_spawn={}, queued={}, planned={}).\n",
+			reason, g_horde_local.num_to_spawn, g_horde_local.queued_monsters, pending_spawn_plan);
+	}
+
+	g_horde_local.num_to_spawn = 0;
+	g_horde_local.queued_monsters = 0;
+	g_spawn_system.spawn_plan.clear();
+}
+
 
 // PlanMonsterSpawnBatch moved to horde_spawning.cpp
 // PlanNextSpawnBatch moved to horde_spawning.cpp
@@ -6822,7 +6841,7 @@ bool CheckHardCapAndLog(int32_t activeMonsters, int32_t hardCap, int32_t softCap
 			next_wave_message_sent = true;
 			g_horde_local.state = horde_state_t::active_wave;
 		}
-		g_horde_local.num_to_spawn = 0;
+		ClearPendingWaveSpawns("Deployment finalized by hard cap");
 		return true; // Hard cap reached
 	}
 	return false; // Hard cap not reached
@@ -8276,6 +8295,7 @@ void Horde_RunFrame()
 				gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Deployment Finalized (Timeout).\nWave Level: {}\n", currentLevel);
 				next_wave_message_sent = true;
 			}
+			ClearPendingWaveSpawns("Deployment timeout reached");
 			g_horde_local.state = horde_state_t::active_wave;
 			// Reset acceleration when entering active wave
 			g_horde_local.timeAcceleration = 1.0f;
