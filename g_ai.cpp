@@ -1552,10 +1552,20 @@ bool FindTarget(edict_t* self)
 			{
 				heardit = true;
 			}
-			else if (!(self->enemy) && !(self->spawnflags & SPAWNFLAG_MONSTER_AMBUSH) &&
-				(client = AI_GetSoundClient(self, false)))
+			else
 			{
-				heardit = true;
+				// Horde behavior: before we've had confirmed visual contact, allow
+				// impact/explosion noises to override fallback player targeting so
+				// monsters investigate heard shots/explosions.
+				const bool can_investigate_impact_noise =
+					!(self->spawnflags & SPAWNFLAG_MONSTER_AMBUSH) &&
+					(!self->enemy ||
+					 (g_horde->integer && !self->monsterinfo.isfriendlyspawn && !self->monsterinfo.had_visibility));
+
+				if (can_investigate_impact_noise && (client = AI_GetSoundClient(self, false)))
+				{
+					heardit = true;
+				}
 			}
 		}
 	}
