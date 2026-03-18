@@ -534,7 +534,7 @@ void ResetQueueMonitorVars()
 }
 
 // --- Global/Static Variables ---
-static constexpr int32_t MAX_ELITES_PER_WAVE = 2;  // Allow up to 2 elites per wave for variety
+static constexpr int32_t MAX_ELITES_PER_WAVE = 1;  // Closer to 0.995 pacing: avoid stacking elite/champion pressure
 int32_t elites_spawned_this_wave = 0;  // Counter instead of boolean
 // int champion_spawn_cooldown = 0;
 static gtime_t champion_spawn_cooldown_ends_at = 0_sec;
@@ -2799,8 +2799,11 @@ static MonsterCache g_monster_picker_internal_cache;
 //-----------------------------------------------------
 static bool ShouldAttemptHigherLevelSpawn(int32_t currentLevel, bool isRetaliationActive, bool isRecoveryModeActive)
 {
-	// Don't spawn a special elite if we're already in a special mode or if we've hit the elite cap
-	if (elites_spawned_this_wave >= MAX_ELITES_PER_WAVE || isRetaliationActive || isRecoveryModeActive)
+	// Restore 0.995-style pacing: only attempt one higher-tier spawn path per wave,
+	// and never during retaliation/recovery batches.
+	if (g_special_high_level_monster_spawned_this_wave ||
+		elites_spawned_this_wave >= MAX_ELITES_PER_WAVE ||
+		isRetaliationActive || isRecoveryModeActive)
 	{
 		if (developer->integer)
 		{
@@ -2810,28 +2813,18 @@ static bool ShouldAttemptHigherLevelSpawn(int32_t currentLevel, bool isRetaliati
 		return false;
 	}
 
-	// Don't spawn elites in waves 1-2 (too early for special monsters)
-	if (currentLevel < 3)
-	{
-		if (developer->integer)
-		{
-			gi.Com_PrintFmt("ShouldAttemptHigherLevelSpawn: BLOCKED (wave {} < 3, too early for elites)\n", currentLevel);
-		}
-		return false;
-	}
-
-	// Define probabilities based on wave progression (increased for more variety)
+	// Restore the old odds from 0.995 instead of forcing higher-level picks in early waves.
 	if (currentLevel <= 10)
 	{
 		if (developer->integer)
 		{
-			gi.Com_PrintFmt("ShouldAttemptHigherLevelSpawn: TRUE (wave {}, 100%% chance)\n", currentLevel);
+			gi.Com_PrintFmt("ShouldAttemptHigherLevelSpawn: wave {} using 0.995 early-wave odds (32%%)\n", currentLevel);
 		}
-		return true; // 100% chance in early waves - FORCE elite spawn for variety
+		return frandom() < 0.32f;
 	}
 	if (currentLevel <= 20)
-		return frandom() < 0.30f; // Increased from 25% to 30% in mid waves
-	return frandom() < 0.15f;	  // Increased from 10% to 15% in late waves
+		return frandom() < 0.19f;
+	return frandom() < 0.07f;
 }
 
 static int32_t CalculateEffectiveMonsterLevel(int32_t currentActualLevel, bool attemptHigherLevel, MonsterWaveType waveTypeForFiltering)
@@ -2844,29 +2837,20 @@ static int32_t CalculateEffectiveMonsterLevel(int32_t currentActualLevel, bool a
 	int32_t levelBoost;
 	int32_t maxLevelCap;
 
-	// CRITICAL: Level boost must match dynamic elite buffer
-	// Early waves (1-6): +2 minimum to match +2 buffer
-	// Later waves (7+): +3 minimum to match +3/+4 buffer
-	const int32_t MIN_ELITE_BOOST = (currentActualLevel < 7) ? 2 : 3;
-
 	if (HasWaveType(waveTypeForFiltering, MonsterWaveType::Flying))
 	{
-		if (currentActualLevel < 10)
-			levelBoost = irandom(MIN_ELITE_BOOST, 8); // Ensure at least +3 for elite spawns
-		else
-			levelBoost = irandom(6, 17); // Original aggressive boost for later waves
-		maxLevelCap = currentActualLevel + 10;
+		levelBoost = irandom(6, 17);
+		maxLevelCap = currentActualLevel + 11;
 	}
 	else
 	{
-		// Ensure level boost is at least +3 for elite spawns to work
 		if (currentActualLevel < 7)
-			levelBoost = irandom(MIN_ELITE_BOOST, 8); // At least +3 minimum buffer
+			levelBoost = irandom(2, 4);
 		else if (currentActualLevel <= 15)
-			levelBoost = irandom(MIN_ELITE_BOOST, 8);
+			levelBoost = irandom(4, 8);
 		else
-			levelBoost = irandom(MIN_ELITE_BOOST, 6);
-		maxLevelCap = currentActualLevel + 10;
+			levelBoost = irandom(3, 6);
+		maxLevelCap = currentActualLevel + 8;
 	}
 
 	maxLevelCap = std::min(maxLevelCap, 45); // Absolute cap.
@@ -2882,68 +2866,23 @@ static int32_t CalculateEffectiveMonsterLevel(int32_t currentActualLevel, bool a
 
 	bool any_new_monsters_unlocked = false;
 
-	if (developer->integer)
+	for (; it != monsterTypes + MONSTER_DATA_COUNT && it->minWave <= potentialEffectiveLevel; ++it)
 	{
-		gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: Searching for monsters in boosted range (wave {}, effectiveLevel {}, waveType={})\n",
-			currentActualLevel, potentialEffectiveLevel, static_cast<int>(waveTypeForFiltering));
-	}
-
-	// Iterate only over the small, relevant subset of monsters.
-	// IMPORTANT: For elite spawns, we DON'T filter by wave type here!
-	// Elite spawns should bypass wave theme restrictions (Ground/Light/Gekk/etc)
-	// Use progressive fallback to ensure we always find candidates
-
-	// Dynamic buffer: +2 for waves 1-6, +3 for waves 7+
-	const int32_t MINIMUM_ELITE_BUFFER = (currentActualLevel < 7) ? 2 : 3;
-	int32_t active_buffer = MINIMUM_ELITE_BUFFER;
-
-	// For waves 1-10, try progressively smaller buffers to guarantee elite spawns
-	for (int32_t buffer = MINIMUM_ELITE_BUFFER; buffer >= 1 && !any_new_monsters_unlocked; --buffer)
-	{
-		if (developer->integer && buffer < MINIMUM_ELITE_BUFFER)
+		if (IsValidMonsterForWave(it->typeId, waveTypeForFiltering))
 		{
-			gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: No monsters with +{} buffer, trying +{}\n",
-				buffer + 1, buffer);
-		}
-
-		auto search_it = it;
-		for (; search_it != monsterTypes + MONSTER_DATA_COUNT && search_it->minWave <= potentialEffectiveLevel; ++search_it)
-		{
-			// Skip boss monsters (they should only come from boss waves)
-			if (search_it->minWave >= 999) {
-				continue;
-			}
-
-			// Check with current buffer
-			if (search_it->minWave < currentActualLevel + buffer) {
-				if (developer->integer && buffer == MINIMUM_ELITE_BUFFER)
-				{
-					gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: '{}' (minWave={}) TOO CLOSE for elite (need >= {})\n",
-						horde::MonsterTypeRegistry::GetClassname(search_it->typeId), search_it->minWave, currentActualLevel + buffer);
-				}
-				continue;
-			}
-
-			if (developer->integer)
-			{
-				gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: Found VALID elite candidate '{}' (minWave={}, buffer=+{}) - ELITE spawn enabled\n",
-					horde::MonsterTypeRegistry::GetClassname(search_it->typeId), search_it->minWave, buffer);
-			}
 			any_new_monsters_unlocked = true;
-			active_buffer = buffer;
-			break; // Found one, no need to check further.
+			break;
 		}
 	}
-	// --- END  SEARCH ---
 
 	if (!any_new_monsters_unlocked)
 	{
 		if (developer->integer)
 		{
-			gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: NO monsters found even with +1 buffer (waves {}-{}). Reverting to normal spawning.\n",
-				currentActualLevel + 1, potentialEffectiveLevel);
+			gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: No valid 0.995-style higher-tier candidate for wave {} (effective {}). Reverting.\n",
+				currentActualLevel, potentialEffectiveLevel);
 		}
-		return currentActualLevel; // Revert if the boost is meaningless.
+		return currentActualLevel;
 	}
 
 	if (developer->integer)
@@ -6944,7 +6883,7 @@ static int SelectChampionBonusType() {
 bool ApplyHordeBonuses(edict_t* monster, const int32_t currentLevel, const float champion_chance)
 {
 	bool became_champion = false;
-	// Allow multiple elites per wave (up to MAX_ELITES_PER_WAVE)
+	// Respect the restored per-wave elite/champion cap.
 	// Reduced cooldown for more dynamic gameplay
 	if ((!pvm->integer && currentLevel >= 3 && elites_spawned_this_wave < MAX_ELITES_PER_WAVE && champion_spawn_cooldown_ends_at < level.time && !monster->monsterinfo.IS_BOSS && frandom() < champion_chance) ||
 		(pvm->integer && currentLevel >= 10 && elites_spawned_this_wave < MAX_ELITES_PER_WAVE && champion_spawn_cooldown_ends_at < level.time && !monster->monsterinfo.IS_BOSS && frandom() < champion_chance))

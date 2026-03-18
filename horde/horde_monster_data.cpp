@@ -10,25 +10,25 @@ const MonsterTypeInfo monsterTypes[] = {
 	// --- WAVE 1 ---
 	{horde::MonsterTypeID::SOLDIER_LIGHT, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 1, 1.0f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
 	{horde::MonsterTypeID::SOLDIER, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 1, 0.9f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
-	{horde::MonsterTypeID::FLYER, MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Fast, 1, 0.6f, {-16, -16, -24}, {16, 16, 16}, 1.0f},
+	{horde::MonsterTypeID::FLYER, MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Fast, 1, 0.7f, {-16, -16, -24}, {16, 16, 16}, 1.0f},
 
 	// --- WAVE 2 ---
 	{horde::MonsterTypeID::SOLDIER_SS, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 2, 0.8f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
-	{horde::MonsterTypeID::GEKK, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Fast | MonsterWaveType::Melee | MonsterWaveType::Small | MonsterWaveType::Mutant | MonsterWaveType::Gekk, 1, 0.7f, {-16, -16, -24}, {16, 16, -8}, 1.0f},
+	{horde::MonsterTypeID::GEKK, MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Melee | MonsterWaveType::Small | MonsterWaveType::Mutant | MonsterWaveType::Gekk, 4, 0.7f, {-16, -16, -24}, {16, 16, -8}, 1.0f},
 	// --- WAVE 3 ---
 	{horde::MonsterTypeID::INFANTRY_VANILLA, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 3, 0.85f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
 
 	// --- WAVE 4 ---
-	{horde::MonsterTypeID::SOLDIER_HYPERGUN, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 2, 0.96f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
+	{horde::MonsterTypeID::SOLDIER_HYPERGUN, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 4, 0.7f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
 
 
 	// --- WAVE 5 ---
 	{horde::MonsterTypeID::PARASITE, MonsterWaveType::Ground | MonsterWaveType::Small | MonsterWaveType::Melee, 5, 0.6f, {-16, -16, -24}, {16, 16, 24}, 1.0f},
 
 	// --- WAVE 6 ---
-	{horde::MonsterTypeID::SOLDIER_RIPPER, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 4, 0.95f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
+	{horde::MonsterTypeID::SOLDIER_RIPPER, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 6, 0.8f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
 	{horde::MonsterTypeID::FIXBOT, MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 7, 0.45f, {-16, -16, -12}, {16, 16, 12}, 1.4f},
-	{horde::MonsterTypeID::BRAIN, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Special | MonsterWaveType::Melee | MonsterWaveType::Mutant, 5, 0.7f, {-16, -16, -24}, {16, 16, -8}, 1.0f},
+	{horde::MonsterTypeID::BRAIN, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Special | MonsterWaveType::Melee | MonsterWaveType::Mutant, 6, 0.7f, {-16, -16, -24}, {16, 16, -8}, 1.0f},
 	{horde::MonsterTypeID::BERSERK, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Melee | MonsterWaveType::Berserk, 6, 0.8f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
 	{horde::MonsterTypeID::CHICK, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 7, 0.6f, {-32, -32, -24}, {32, 32, 64}, 1.0f},
 
@@ -37,28 +37,28 @@ const MonsterTypeInfo monsterTypes[] = {
 	{horde::MonsterTypeID::GEKKKL, MonsterWaveType::SemiBoss | MonsterWaveType::Melee | MonsterWaveType::Gekk, 16, 0.65f, {-19, -19, -29}, {19, 19, -10}, 1.4f},
 
 	// --- WAVE 7 ---
-	{horde::MonsterTypeID::HOVER_VANILLA, MonsterWaveType::Flying | MonsterWaveType::Medium | MonsterWaveType::Light | MonsterWaveType::Ranged | MonsterWaveType::Gekk | MonsterWaveType::Berserk | MonsterWaveType::Elite, 6, 0.6f, {-24, -24, -24}, {24, 24, 32}, 1.0f},
+	{horde::MonsterTypeID::HOVER_VANILLA, MonsterWaveType::Flying | MonsterWaveType::Medium | MonsterWaveType::Light | MonsterWaveType::Ranged, 7, 0.6f, {-24, -24, -24}, {24, 24, 32}, 1.0f},
 	{horde::MonsterTypeID::STALKER, MonsterWaveType::Ground | MonsterWaveType::Small | MonsterWaveType::Fast | MonsterWaveType::Arachnophobic, 7, 0.6f, {-28, -28, -18}, {28, 28, -4}, 1.0f},
 	{horde::MonsterTypeID::MEDIC, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Special, 7, 0.5f, {-24, -24, -24}, {24, 24, 32}, 1.0f},
 	{horde::MonsterTypeID::SPIDER, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 7, 0.35f, {-48, -48, -20}, {48, 48, 48}, 0.7f},
 
-	// --- WAVE 6 --- (Changed from Wave 8 to spawn earlier, before regular GUNNER)
-	{horde::MonsterTypeID::GUNNER_VANILLA, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged | MonsterWaveType::Bomber | MonsterWaveType::Elite, 6, 1.0f, {-16, -16, -24}, {16, 16, 36}, 1.0f},
+	// --- WAVE 8 ---
+	{horde::MonsterTypeID::GUNNER_VANILLA, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 8, 0.8f, {-16, -16, -24}, {16, 16, 36}, 1.0f},
 
 	// --- WAVE 9 ---
 	{horde::MonsterTypeID::MUTANT, MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Melee | MonsterWaveType::Shambler | MonsterWaveType::Mutant, 9, 0.7f, {-18, -18, -24}, {18, 18, 30}, 1.0f},
 
 	// --- WAVE 10 ---
-	{horde::MonsterTypeID::SOLDIER_LASERGUN, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 4, 0.87f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
+	{horde::MonsterTypeID::SOLDIER_LASERGUN, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 10, 0.8f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
 
 	// --- WAVE 11 ---
-	{horde::MonsterTypeID::FLOATER, MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Ranged | MonsterWaveType::Elite, 11, 0.6f, {-24, -24, -24}, {24, 24, 48}, 0.9f},
+	{horde::MonsterTypeID::FLOATER, MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Ranged, 11, 0.6f, {-24, -24, -24}, {24, 24, 48}, 0.9f},
 	{horde::MonsterTypeID::INFANTRY, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Heavy | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 11, 0.85f, {-16, -16, -24}, {16, 16, 32}, 1.2f},
 
 	// --- WAVE 12 ---
 	{horde::MonsterTypeID::GUNCMDR_VANILLA, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Bomber, 12, 0.4f, {-16, -16, -24}, {16, 16, 36}, 1.25f},
-	{horde::MonsterTypeID::GLADIATOR, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Ranged, 7, 0.9f, {-32, -32, -24}, {32, 32, 42}, 1.0f},
-	{horde::MonsterTypeID::GUNNER, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Ranged | MonsterWaveType::Bomber | MonsterWaveType::Elite, 12, 0.8f, {-16, -16, -24}, {16, 16, 36}, 1.0f},
+	{horde::MonsterTypeID::GLADIATOR, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Ranged, 12, 0.7f, {-32, -32, -24}, {32, 32, 42}, 1.0f},
+	{horde::MonsterTypeID::GUNNER, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 12, 0.8f, {-16, -16, -24}, {16, 16, 36}, 1.0f},
 
 	// --- WAVE 13 ---
 	{horde::MonsterTypeID::CHICK_HEAT, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Medium | MonsterWaveType::Elite | MonsterWaveType::Fast, 13, 0.6f, {-32, -32, -24}, {32, 32, 64}, 1.0f},
@@ -69,12 +69,12 @@ const MonsterTypeInfo monsterTypes[] = {
 	{horde::MonsterTypeID::TANK, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Bomber, 14, 0.4f, {-32, -32, -16}, {32, 32, 64}, 1.0f},
 
 	// --- WAVE 15 ---
-	{horde::MonsterTypeID::TANK_SPAWNER, MonsterWaveType::Ground | MonsterWaveType::Spawner | MonsterWaveType::Heavy | MonsterWaveType::Medium | MonsterWaveType::Elite, 8, 0.7f, {-32, -32, -16}, {32, 32, 64}, 1.0f},
+	{horde::MonsterTypeID::TANK_SPAWNER, MonsterWaveType::Ground | MonsterWaveType::Spawner | MonsterWaveType::Heavy | MonsterWaveType::Medium | MonsterWaveType::Elite, 15, 0.6f, {-32, -32, -16}, {32, 32, 64}, 1.0f},
 	{horde::MonsterTypeID::GM_ARACHNID, MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Heavy | MonsterWaveType::Elite, 15, 0.45f, {-48, -48, -20}, {48, 48, 48}, 0.85f},
 	{horde::MonsterTypeID::GUNCMDR, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite | MonsterWaveType::Bomber, 15, 0.7f, {-16, -16, -24}, {16, 16, 36}, 1.25f},
 
 	// --- WAVE 16 ---
-	{horde::MonsterTypeID::TANK_COMMANDER, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Bomber, 8, 0.5f, {-32, -32, -16}, {32, 32, 64}, 1.0f},
+	{horde::MonsterTypeID::TANK_COMMANDER, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Bomber, 16, 0.5f, {-32, -32, -16}, {32, 32, 64}, 1.0f},
 
 	// --- WAVE 17 ---
 	{horde::MonsterTypeID::RUNNERTANK, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Fast, 17, 0.35f, {-32, -32, -16}, {32, 32, 64}, 1.0f},
@@ -95,14 +95,14 @@ const MonsterTypeInfo monsterTypes[] = {
 	{horde::MonsterTypeID::PERRO_KL, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Fast | MonsterWaveType::Small, 20, 0.4f, {-16, -16, -24}, {16, 16, 24}, 1.2f},
 
 	// --- WAVE 21 ---
-	{horde::MonsterTypeID::DAEDALUS, MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 14, 0.4f, {-24, -24, -24}, {24, 24, 32}, 1.0f},
-	{horde::MonsterTypeID::JANITOR, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Special | MonsterWaveType::Bomber | MonsterWaveType::Elite, 21, 0.5f, {-64, -64, -0}, {64, 64, 112}, 0.6f},
+	{horde::MonsterTypeID::DAEDALUS, MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 21, 0.4f, {-24, -24, -24}, {24, 24, 32}, 1.0f},
+	{horde::MonsterTypeID::JANITOR, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Special | MonsterWaveType::Bomber, 21, 0.5f, {-64, -64, -0}, {64, 64, 112}, 0.6f},
 
 	// --- WAVE 22 ---
 	{horde::MonsterTypeID::SHAMBLER, MonsterWaveType::Shambler | MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, 22, 0.4f, {-32, -32, -24}, {32, 32, 64}, 1.0f},
 
 	// --- WAVE 23 ---
-	{horde::MonsterTypeID::MAKRON, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 23, 0.1f, {-30, -30, 0}, {30, 30, 90}, 1.0f},
+	{horde::MonsterTypeID::MAKRON, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 23, 0.01f, {-30, -30, 0}, {30, 30, 90}, 1.0f},
 	{horde::MonsterTypeID::WIDOW1, MonsterWaveType::Ground | MonsterWaveType::Spawner | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 23, 0.15f, {-40, -40, 0}, {40, 40, 144}, 0.6f},
 
 	// --- WAVE 25 ---
@@ -265,22 +265,16 @@ bool IsValidMonsterForWave(horde::MonsterTypeID typeId, MonsterWaveType waveRequ
 	const bool monster_is_ground = HasWaveType(monster_flags, MonsterWaveType::Ground);
 	const bool monster_is_flying = HasWaveType(monster_flags, MonsterWaveType::Flying);
 
-	// Special case: Allow certain flying monsters on ground waves for variety
-	// FIXBOT can hover low and works on ground maps after wave 6
-	const bool allow_flying_on_ground = (typeId == horde::MonsterTypeID::FIXBOT ||
-	                                     typeId == horde::MonsterTypeID::HOVER_VANILLA ||
-	                                     typeId == horde::MonsterTypeID::FLOATER);
-
 	// If the wave wants BOTH ground and flying, the monster must be one or the other
 	if (wave_wants_ground && wave_wants_flying)
 	{
 		if (!monster_is_ground && !monster_is_flying)
 			return false;
 	}
-	// If the wave wants ONLY ground, the monster must be ground (or allowed flying)
+	// If the wave wants ONLY ground, the monster must be ground
 	else if (wave_wants_ground)
 	{
-		if (!monster_is_ground && !allow_flying_on_ground)
+		if (!monster_is_ground)
 			return false;
 	}
 	// If the wave wants ONLY flying, the monster must be flying
@@ -312,26 +306,10 @@ bool IsValidMonsterForWave(horde::MonsterTypeID typeId, MonsterWaveType waveRequ
 	return true;
 }
 
-
-// Get wave unlock with per-map variance for dynamic monster variety
-// Returns the adjusted minWave with ±2 wave variance based on map seed
-// This creates deterministic but per-map variation in when monsters unlock
-namespace
-{
-constexpr uint32_t GcdU32(uint32_t a, uint32_t b) noexcept
-{
-	while (b != 0)
-	{
-		const uint32_t t = a % b;
-		a = b;
-		b = t;
-	}
-	return a;
-}
-} // namespace
-
 int32_t GetAdjustedMinWave(horde::MonsterTypeID typeId, int32_t map_seed)
 {
+	(void) map_seed;
+
 	const size_t index = static_cast<size_t>(typeId);
 	if (index >= g_monsterData.MONSTER_ARRAY_SIZE)
 		return 999;
@@ -340,26 +318,5 @@ int32_t GetAdjustedMinWave(horde::MonsterTypeID typeId, int32_t map_seed)
 	if (base_wave <= 0)
 		return 999;
 
-	// Don't apply variance to very early monsters (wave 1-3) or special monsters (999)
-	if (base_wave < MonsterUnlockVariance::MIN_WAVE_FOR_VARIANCE || base_wave >= 999)
-	{
-		return base_wave;
-	}
-
-	// Deterministic variance based on monster ID and map seed
-	// This ensures the same map always has the same variance pattern
-	constexpr uint32_t variance_bucket_count =
-		static_cast<uint32_t>(2 * MonsterUnlockVariance::BASE_VARIANCE + 1);
-	static_assert(GcdU32(MonsterUnlockVariance::VARIANCE_SEED_MULTIPLIER, variance_bucket_count) == 1,
-		"VARIANCE_SEED_MULTIPLIER should be coprime with variance bucket count to avoid clustering");
-
-	uint32_t hash = static_cast<uint32_t>(typeId) * MonsterUnlockVariance::VARIANCE_SEED_MULTIPLIER 
-	              + static_cast<uint32_t>(map_seed);
-
-	// Generate variance in range [-BASE_VARIANCE, +BASE_VARIANCE]
-	int32_t variance = static_cast<int32_t>(hash % variance_bucket_count)
-	                  - MonsterUnlockVariance::BASE_VARIANCE;
-
-	// Clamp to ensure minimum wave is at least 3
-	return std::max<int32_t>(3, base_wave + variance);
+	return base_wave;
 }

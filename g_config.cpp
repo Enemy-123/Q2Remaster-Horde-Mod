@@ -2,6 +2,7 @@
 #include "g_local.h"
 #include "shared.h"
 #include "horde/horde_ids.h"
+#include "horde/horde_monster_data.h"
 #include "horde/weapon_id.h"
 #include "horde/g_pvm.h"
 #include <json/json.h>
@@ -1044,8 +1045,9 @@ int GetMonsterWeaponDamage(uint8_t monster_type_id, horde::WeaponID weapon_id)
 		damage = static_cast<int>(damage * config->damage_scale);
 	}
 
-	// Step 4: Apply wave scaling if horde mode is active
-	if (g_horde && g_horde->integer && current_wave_level > 0)
+	// Step 4: Only early-pool monsters keep wave-based damage scaling.
+	if (g_horde && g_horde->integer && current_wave_level > 0 &&
+		ShouldApplyMonsterWaveScaling(monster_type_id))
 	{
 		damage = ScaleWeaponDamage(damage, current_wave_level, false);
 	}
@@ -1201,6 +1203,16 @@ bool GetLoadentEnabledForMap(const char* mapname)
 }
 
 // Scaling helper functions
+bool ShouldApplyMonsterWaveScaling(uint8_t monster_type_id)
+{
+	const horde::MonsterTypeID type_id = static_cast<horde::MonsterTypeID>(monster_type_id);
+	if (type_id == horde::MonsterTypeID::UNKNOWN)
+		return false;
+
+	const int32_t min_wave = GetAdjustedMinWave(type_id, 0);
+	return min_wave > 0 && min_wave <= 5;
+}
+
 int GetScaledHealth(int base_health, float health_scale, int wave_level, bool is_boss)
 {
 	// Apply monster-specific health scale
@@ -1328,6 +1340,8 @@ int GetMonsterScaledArmor(uint8_t monster_type_id, int wave_level, bool is_boss)
 		// Fallback to old scaling if classname is invalid
 		int base_armor = config->armor_power;
 		float armor_scale = config->armor_scale;
+		if (!ShouldApplyMonsterWaveScaling(monster_type_id))
+			return static_cast<int>(base_armor * armor_scale);
 		return GetScaledArmor(base_armor, armor_scale, wave_level, is_boss);
 	}
 
@@ -1350,6 +1364,8 @@ int GetMonsterScaledArmor(uint8_t monster_type_id, int wave_level, bool is_boss)
 		// Fallback to old scaling if no level scaling config exists
 		int base_armor = config->armor_power;
 		float armor_scale = config->armor_scale;
+		if (!ShouldApplyMonsterWaveScaling(monster_type_id))
+			return static_cast<int>(base_armor * armor_scale);
 		return GetScaledArmor(base_armor, armor_scale, wave_level, is_boss);
 	}
 }
@@ -1373,6 +1389,8 @@ int GetMonsterScaledPowerArmor(uint8_t monster_type_id, int wave_level, bool is_
 		// Fallback if classname is invalid
 		int base_power_armor = config->power_armor_power;
 		float power_armor_scale = config->power_armor_scale;
+		if (!ShouldApplyMonsterWaveScaling(monster_type_id))
+			return static_cast<int>(base_power_armor * power_armor_scale);
 		return GetScaledPowerArmor(base_power_armor, power_armor_scale, wave_level, is_boss);
 	}
 
@@ -1395,6 +1413,8 @@ int GetMonsterScaledPowerArmor(uint8_t monster_type_id, int wave_level, bool is_
 		// Fallback to old (wave-based Horde) scaling if there is no level-scaling config
 		int base_power_armor = config->power_armor_power;
 		float power_armor_scale = config->power_armor_scale;
+		if (!ShouldApplyMonsterWaveScaling(monster_type_id))
+			return static_cast<int>(base_power_armor * power_armor_scale);
 		return GetScaledPowerArmor(base_power_armor, power_armor_scale, wave_level, is_boss);
 	}
 }

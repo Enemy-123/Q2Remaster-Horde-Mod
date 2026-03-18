@@ -672,6 +672,7 @@ float GetGlobalWeaponRadius(const char* weapon_name);
 int GetScaledHealth(int base_health, float health_scale, int wave_level, bool is_boss);
 int GetScaledArmor(int base_armor, float armor_scale, int wave_level, bool is_boss);
 int GetScaledPowerArmor(int base_power_armor, float power_armor_scale, int wave_level, bool is_boss);
+bool ShouldApplyMonsterWaveScaling(uint8_t monster_type_id);
 
 // Monster health/armor helpers (for macros)
 int GetMonsterBaseHealth(uint8_t monster_type_id);

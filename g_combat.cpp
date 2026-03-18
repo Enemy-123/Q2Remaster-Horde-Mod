@@ -1176,9 +1176,12 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	else {
 		// Apply damage scaling to players
 		if (g_config.use_sigmoid_scaling) {
-			// Use sigmoid scaling with 2.0x cap and difficulty modifiers
-			float sigmoid_scale = GetMonsterDamageScale(current_wave_level);
-			damage = static_cast<int>(damage * sigmoid_scale);
+			if (attacker && (attacker->svflags & SVF_MONSTER) &&
+				ShouldApplyMonsterWaveScaling(attacker->monsterinfo.monster_type_id)) {
+				// Only early-pool monsters keep the wave damage multiplier.
+				float sigmoid_scale = GetMonsterDamageScale(current_wave_level);
+				damage = static_cast<int>(damage * sigmoid_scale);
+			}
 		}
 		else {
 			// Use legacy integer cvar scaling
