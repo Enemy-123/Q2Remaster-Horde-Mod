@@ -70,7 +70,7 @@ def smart_copy_tree(src_dir, dst_dir):
     return copied_count, skipped_count
 
 def deploy_data_files(script_dir, deploy_path):
-    """Deploy bots, ents, config/player_config.json, and config/monsters.json and deploy/scaling.json to game directory."""
+    """Deploy bots, ents, and Lua config files to the game directory."""
     print("\n=== Deploying Data Files ===")
     deploy_src = os.path.join(script_dir, "deploy")
     game_dir = os.path.normpath(deploy_path)
@@ -100,53 +100,19 @@ def deploy_data_files(script_dir, deploy_path):
     config_dst_dir = os.path.join(game_dir, "config")
     os.makedirs(config_dst_dir, exist_ok=True)
 
-    # Copy config/scaling.json
-    config_src = os.path.join(deploy_src, "config", "scaling.json")
-    config_dst = os.path.join(config_dst_dir, "scaling.json")
-    if os.path.exists(config_src):
+    config_src_dir = os.path.join(deploy_src, "config")
+    for filename in sorted(os.listdir(config_src_dir)) if os.path.exists(config_src_dir) else []:
+        if not filename.endswith(".lua"):
+            continue
+        config_src = os.path.join(config_src_dir, filename)
+        config_dst = os.path.join(config_dst_dir, filename)
         if should_copy_file(config_src, config_dst):
             shutil.copy2(config_src, config_dst)
             total_copied += 1
-            print(f"config/scaling.json: copied")
+            print(f"config/{filename}: copied")
         else:
             total_skipped += 1
-            print(f"config/scaling.json: skipped (unchanged)")
-
-    # Copy config/player_config.json
-    config_src = os.path.join(deploy_src, "config", "player_config.json")
-    config_dst = os.path.join(config_dst_dir, "player_config.json")
-    if os.path.exists(config_src):
-        if should_copy_file(config_src, config_dst):
-            shutil.copy2(config_src, config_dst)
-            total_copied += 1
-            print(f"config/player_config.json: copied")
-        else:
-            total_skipped += 1
-            print(f"config/player_config.json: skipped (unchanged)")
-
-    # Copy config/monsters.json
-    monsters_src = os.path.join(deploy_src, "config", "monsters.json")
-    monsters_dst = os.path.join(config_dst_dir, "monsters.json")
-    if os.path.exists(monsters_src):
-        if should_copy_file(monsters_src, monsters_dst):
-            shutil.copy2(monsters_src, monsters_dst)
-            total_copied += 1
-            print(f"config/monsters.json: copied")
-        else:
-            total_skipped += 1
-            print(f"config/monsters.json: skipped (unchanged)")
-
-    # Copy config/maps_config.json
-    maps_src = os.path.join(deploy_src, "config", "maps_config.json")
-    maps_dst = os.path.join(config_dst_dir, "maps_config.json")
-    if os.path.exists(maps_src):
-        if should_copy_file(maps_src, maps_dst):
-            shutil.copy2(maps_src, maps_dst)
-            total_copied += 1
-            print(f"config/maps_config.json: copied")
-        else:
-            total_skipped += 1
-            print(f"config/maps_config.json: skipped (unchanged)")
+            print(f"config/{filename}: skipped (unchanged)")
 
     print(f"\nTotal: {total_copied} files copied, {total_skipped} files skipped")
 
@@ -281,7 +247,7 @@ def main():
             print(f"❌ Error: Expected DLL not found at {dll_path}")
             sys.exit(1)
 
-        # Deploy data files (bots, ents, config/player_config.json, config/monsters.json)
+        # Deploy data files (bots, ents, config/*.lua)
         deploy_data_files(script_dir, args.deploy_path)
 
     except Exception as e:

@@ -962,7 +962,7 @@ void SP_monster_makron(edict_t* self)
 
 	// --- REFACTORED ---
 	// This logic will be run *after* the ID has been potentially overridden by the KL spawner.
-	// Override with variant-specific config values from monsters.json
+	// Override with variant-specific config values from monsters.lua
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::MAKRON_KL)) {
 		if (!st.was_key_specified("power_armor_type"))
 			self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_MAKRON_KL_POWER_ARMOR_TYPE);
@@ -1175,4 +1175,3 @@ void MakronToss(edict_t* self)
 		if (level.health_bar_entities[i] && level.health_bar_entities[i]->enemy == self)
 			level.health_bar_entities[i]->enemy = ent;
 }
-

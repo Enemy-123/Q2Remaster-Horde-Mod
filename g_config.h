@@ -503,6 +503,8 @@ struct MonsterStatsConfig
 	// Weapon damage overrides - OPTIMIZED using array-based lookup (O(1) instead of O(log n))
 	// Index using horde::WeaponID enum. Value of 0 means "use global damage"
 	std::array<int, 24> weapon_damage_overrides{}; // 24 = horde::WeaponID::MAX_WEAPONS
+	std::array<int, 24> weapon_damage_max{};       // Original Remaster cap, 0 means no clamp
+	std::array<int, 24> weapon_addon_damage{};     // Reserved for future level scaling
 	
 	// Weapon speed overrides - OPTIMIZED using array-based lookup (O(1) instead of O(log n))
 	// Index using horde::WeaponID enum. Value of 0 means "use global speed with speed_scale"
@@ -659,14 +661,9 @@ void Config_LoadMaps(const char* basedir);
 
 // Monster config helper functions
 const MonsterStatsConfig* GetMonsterConfig(uint8_t monster_type_id);
-int GetMonsterWeaponDamage(uint8_t monster_type_id, const char* weapon_name);
-int GetMonsterWeaponSpeed(uint8_t monster_type_id, const char* weapon_name);
-int GetMonsterWeaponRadius(uint8_t monster_type_id, const char* weapon_name);
-
-// Global weapon helpers
-int GetGlobalWeaponDamage(const char* weapon_name);
-int GetGlobalWeaponSpeed(const char* weapon_name);
-float GetGlobalWeaponRadius(const char* weapon_name);
+int GetMonsterWeaponDamage(uint8_t monster_type_id, horde::WeaponID weapon_id);
+int GetMonsterWeaponSpeed(uint8_t monster_type_id, horde::WeaponID weapon_id);
+int GetMonsterWeaponRadius(uint8_t monster_type_id, horde::WeaponID weapon_id);
 
 // Scaling helpers
 int GetScaledHealth(int base_health, float health_scale, int wave_level, bool is_boss);

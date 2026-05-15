@@ -1,31 +1,21 @@
 #!/usr/bin/env python3
-import re
-import json
-import glob
+"""Print the monster weapon damage clamps generated for the Lua config."""
 
-# Load monsters.json
-with open('deploy/config/monsters.json', 'r') as f:
-    monsters_data = json.load(f)
+from pathlib import Path
 
-# Find all .cpp files
-cpp_files = glob.glob('*.cpp') + glob.glob('*/*.cpp')
+report_path = Path("monster_damage_clamp_report.md")
+if not report_path.exists():
+    raise SystemExit("monster_damage_clamp_report.md not found")
 
-# Pattern to find GetMonsterWeaponDamage with fallback
-pattern = r'GetMonsterWeaponDamage\([^,]+,\s*"([^"]+)"\)[^;]*(?:<=\s*0.*?=\s*(\d+)|>\s*0\s*\?\s*\w+\s*:\s*(\d+))'
+rows = [
+    line for line in report_path.read_text(encoding="ascii").splitlines()
+    if line.startswith("| `")
+]
 
-mismatches = []
+print("=== Monster Damage Caps ===")
+for row in rows:
+    parts = [part.strip().strip("`") for part in row.strip("|").split("|")]
+    if len(parts) == 3:
+        print(f"{parts[0]}.{parts[1]} <= {parts[2]}")
 
-for cpp_file in cpp_files:
-    with open(cpp_file, 'r') as f:
-        content = f.read()
-
-    # Find all matches
-    for match in re.finditer(pattern, content):
-        weapon = match.group(1)
-        fallback = match.group(2) or match.group(3)
-
-        if fallback:
-            print(f"{cpp_file}: weapon='{weapon}', fallback={fallback}")
-
-print("\n=== Summary ===")
-print(f"Found damage fallback values in code")
+print(f"\nTotal clamped weapon entries: {len(rows)}")

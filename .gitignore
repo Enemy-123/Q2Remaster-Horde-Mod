@@ -900,3 +900,6 @@ build_clang/CMakeFiles/4.2.2/CompilerIdCXX/CMakeCXXCompilerId.cpp
 build_clang/CMakeFiles/4.2.2/CompilerIdCXX/CMakeCXXCompilerId.o
 build_mingw/CMakeFiles/4.2.2/CompilerIdCXX/a.exe
 build_mingw/CMakeFiles/4.2.2/CompilerIdCXX/a.exe
+check_damage_fallbacks.py
+monsters_attack_analysis.md
+monster_damage_clamp_report.md

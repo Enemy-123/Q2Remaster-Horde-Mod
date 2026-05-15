@@ -1,0 +1,3 @@
+C:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod/build_verify_lua_vs/CMakeFiles/Q2HordeModDLL.dir
+C:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod/build_verify_lua_vs/CMakeFiles/ALL_BUILD.dir
+C:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod/build_verify_lua_vs/CMakeFiles/ZERO_CHECK.dir

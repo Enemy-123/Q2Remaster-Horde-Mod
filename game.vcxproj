@@ -50,7 +50,7 @@
     <TargetName>$(ProjectName)_x64</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>C:\Program Files (x86)\Steam\steamapps\common\Quake 2\rerelease\baseq2</OutDir>
+    <OutDir>C:\Program Files (x86)\Steam\steamapps\common\Quake 2\rerelease\horde</OutDir>
     <TargetName>$(ProjectName)_x64</TargetName>
   </PropertyGroup>
   <!-- CHANGE 1: Tell vcpkg to use static libraries for both configurations -->
@@ -75,7 +75,7 @@
       <!-- CHANGE 2: Use the static debug runtime library -->
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>$(SolutionDir)vcpkg_installed\x64-windows-static\x64-windows-static\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)vendor;$(SolutionDir)vcpkg_installed\x64-windows-static\x64-windows-static\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>NotSet</SubSystem>
@@ -88,7 +88,6 @@
 robocopy "$(SolutionDir)deploy\bots" "$(OutDir)bots" /E /XO /NJH /NJS /NDL /NC /NS /NP
 robocopy "$(SolutionDir)deploy\ents" "$(OutDir)ents" /E /XO /NJH /NJS /NDL /NC /NS /NP
 robocopy "$(SolutionDir)deploy\config" "$(OutDir)config" /E /XO /NJH /NJS /NDL /NC /NS /NP
-robocopy "$(SolutionDir)deploy" "$(OutDir)" horde_config.json /XO /NJH /NJS /NDL /NC /NS /NP
 echo Data files deployed
 )
 exit /b 0</Command>
@@ -109,7 +108,7 @@ exit /b 0</Command>
       <!-- CHANGE 2: Use the static release runtime library -->
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <Optimization>MaxSpeed</Optimization>
-      <AdditionalIncludeDirectories>$(SolutionDir)vcpkg_installed\x64-windows-static\x64-windows-static\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)vendor;$(SolutionDir)vcpkg_installed\x64-windows-static\x64-windows-static\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>NotSet</SubSystem>
@@ -124,7 +123,6 @@ exit /b 0</Command>
 robocopy "$(SolutionDir)deploy\bots" "$(OutDir)bots" /E /XO /NJH /NJS /NDL /NC /NS /NP
 robocopy "$(SolutionDir)deploy\ents" "$(OutDir)ents" /E /XO /NJH /NJS /NDL /NC /NS /NP
 robocopy "$(SolutionDir)deploy\config" "$(OutDir)config" /E /XO /NJH /NJS /NDL /NC /NS /NP
-robocopy "$(SolutionDir)deploy" "$(OutDir)" horde_config.json /XO /NJH /NJS /NDL /NC /NS /NP
 echo Data files deployed
 )
 exit /b 0</Command>
@@ -336,16 +334,16 @@ exit /b 0</Command>
     <ClCompile Include="xatrix\m_xatrix_fixbot.cpp" />
     <ClCompile Include="xatrix\m_xatrix_gekk.cpp" />
     <ClCompile Include="xatrix\p_xatrix_weapon.cpp" />
+    <ClCompile Include="vendor\lua.c" />
+    <ClCompile Include="vendor\sqlite3.c" />
+    <ClCompile Include="vendor\twister.c" />
   </ItemGroup>
   <ItemGroup>
     <None Include="deploy\horde.cfg" />
-    <None Include="deploy\horde_config.json" />
-    <None Include="deploy\config\maps_config.json" />
-    <None Include="deploy\config\monsters.json" />
-    <None Include="deploy\config\scaling.json" />
-    <None Include="deploy\config\player_horde_config.json" />
-    <None Include="deploy\config\player_pvm_config.json" />
-    <None Include="deploy\config\pvm_stats.json" />
+    <None Include="deploy\config\maps_config.lua" />
+    <None Include="deploy\config\monsters.lua" />
+    <None Include="deploy\config\player_horde_config.lua" />
+    <None Include="deploy\config\player_pvm_config.lua" />
     <None Include="deploy\ents\base1.ent" />
     <None Include="deploy\ents\base2.ent" />
     <None Include="deploy\ents\base3.ent" />

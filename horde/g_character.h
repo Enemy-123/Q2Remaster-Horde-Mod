@@ -4,7 +4,7 @@
 #include <string>
 
 // Character persistence system - works for both Horde and PvM modes
-// Stores player preferences, respawn weapon, and future leveling data
+// Stores player preferences, respawn weapon, progression, skills, and weapon upgrades in SQLite.
 
 // Character data structure
 struct CharacterData
@@ -41,14 +41,17 @@ struct CharacterData
 // Character system initialization
 void Character_Init();
 
-// Load character from file (called on player connect)
+// Load character from SQLite (called on player connect)
 bool Character_Load(edict_t* player);
 
-// Save character to file (called on disconnect, preference changes, etc.)
+// Save character to SQLite (called on disconnect, preference changes, etc.)
 bool Character_Save(edict_t* player);
 
-// Create default character file if it doesn't exist
+// Create default character row if it doesn't exist
 void Character_CreateDefault(edict_t* player);
+
+// Delete a character row and all scoped values from SQLite.
+bool Character_Reset(edict_t* player);
 
 // Set respawn weapon preference (called from menu)
 void Character_SetRespawnWeapon(edict_t* player, const char* weapon_name);
@@ -56,8 +59,8 @@ void Character_SetRespawnWeapon(edict_t* player, const char* weapon_name);
 // Get respawn weapon preference
 const char* Character_GetRespawnWeapon(edict_t* player);
 
-// Utility: Sanitize player name for filename (remove invalid chars)
+// Utility: Sanitize player name for DB key compatibility.
 std::string Character_SanitizeName(const char* name);
 
-// Utility: Get character file path for player
+// Utility: Get character database path.
 std::string Character_GetFilePath(edict_t* player);

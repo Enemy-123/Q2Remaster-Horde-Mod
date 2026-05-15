@@ -7,12 +7,8 @@
 #include "horde/g_horde_phys.h"
 #include "horde/horde_performance.h"
 #include "horde/g_upgrades.h"
-#include "horde/g_horde_scaling.h"
 #include "g_config.h"
 #include "shared.h"
-
-extern int16_t current_wave_level;
-
 
 /*
 ============
@@ -1174,19 +1170,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		damage *= ai_damage_scale->integer;
 	}
 	else {
-		// Apply damage scaling to players
-		if (g_config.use_sigmoid_scaling) {
-			if (attacker && (attacker->svflags & SVF_MONSTER) &&
-				ShouldApplyMonsterWaveScaling(attacker->monsterinfo.monster_type_id)) {
-				// Only early-pool monsters keep the wave damage multiplier.
-				float sigmoid_scale = GetMonsterDamageScale(current_wave_level);
-				damage = static_cast<int>(damage * sigmoid_scale);
-			}
-		}
-		else {
-			// Use legacy integer cvar scaling
-			damage *= g_damage_scale->integer;
-		}
+		damage *= g_damage_scale->integer;
 	}
 
 	client = targ->client;

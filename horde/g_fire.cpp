@@ -505,7 +505,7 @@ void fire_fireball(edict_t* self, const vec3_t& start, const vec3_t& aimdir,
 // ============================================================================
 
 // Cast a fireball suitable for monster use
-// This function reads damage values from monsters.json weapon_damage.fireball
+// This function reads damage values from monsters.lua weapon_damage.fireball
 // Can be called from monster attack routines (e.g., shambler_fireball_update, BerserkCastFireballs)
 void MonsterCastFireball(edict_t* self, const vec3_t& start, const vec3_t& target_pos)
 {

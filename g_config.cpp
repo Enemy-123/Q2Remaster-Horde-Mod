@@ -7,11 +7,21 @@
 #include "horde/g_pvm.h"
 #include <json/json.h>
 #include <fstream>
+#include <cmath>
+#include <limits>
 #include <string>
 #include <string_view>
 #include <unordered_map>
 #include <boost/container/flat_map.hpp>
+#include <cctype>
 #include <cstring>
+#include <iterator>
+
+extern "C" {
+#include "lua.h"
+#include "lauxlib.h"
+#include "lualib.h"
+}
 
 // Global config instance
 GameConfig g_config;
@@ -19,6 +29,534 @@ GameConfig g_config;
 // Global variables for player levels (updated periodically in Horde_RunFrame)
 int32_t g_lowest_player_level = 0;
 int32_t g_highest_player_level = 0;
+
+static void LuaValueToJson(lua_State* L, int index, Json::Value& out);
+static void LuaTableToJson(lua_State* L, int index, Json::Value& out);
+
+struct LuaNameMap
+{
+	const char* lua_name;
+	const char* json_name;
+};
+
+static std::string ToLowerAscii(std::string_view value)
+{
+	std::string out;
+	out.reserve(value.size());
+	for (char c : value)
+		out.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+	return out;
+}
+
+static bool StartsWith(std::string_view value, std::string_view prefix)
+{
+	return value.size() >= prefix.size() && value.substr(0, prefix.size()) == prefix;
+}
+
+static bool EndsWith(std::string_view value, std::string_view suffix)
+{
+	return value.size() >= suffix.size() && value.substr(value.size() - suffix.size()) == suffix;
+}
+
+static bool JsonFromLuaScalar(lua_State* L, int index, Json::Value& out)
+{
+	if (lua_isboolean(L, index) || lua_isnumber(L, index) || lua_isstring(L, index))
+	{
+		LuaValueToJson(L, index, out);
+		return true;
+	}
+
+	return false;
+}
+
+static bool LuaTableIsArray(lua_State* L, int index, int& max_index)
+{
+	index = lua_absindex(L, index);
+	max_index = 0;
+	int count = 0;
+
+	lua_pushnil(L);
+	while (lua_next(L, index) != 0)
+	{
+		if (!lua_isnumber(L, -2))
+		{
+			lua_pop(L, 1);
+			return false;
+		}
+
+		lua_Number n = lua_tonumber(L, -2);
+		int key = static_cast<int>(n);
+		if (key < 1 || static_cast<lua_Number>(key) != n)
+		{
+			lua_pop(L, 1);
+			return false;
+		}
+
+		if (key > max_index)
+			max_index = key;
+		count++;
+		lua_pop(L, 1);
+	}
+
+	return count > 0 && count == max_index;
+}
+
+static void LuaValueToJson(lua_State* L, int index, Json::Value& out)
+{
+	index = lua_absindex(L, index);
+
+	switch (lua_type(L, index))
+	{
+	case LUA_TBOOLEAN:
+		out = static_cast<bool>(lua_toboolean(L, index));
+		break;
+	case LUA_TNUMBER:
+	{
+		lua_Number value = lua_tonumber(L, index);
+		double integer_part = 0.0;
+		if (std::modf(static_cast<double>(value), &integer_part) == 0.0 &&
+			integer_part >= static_cast<double>(std::numeric_limits<int>::min()) &&
+			integer_part <= static_cast<double>(std::numeric_limits<int>::max()))
+		{
+			out = static_cast<int>(integer_part);
+		}
+		else
+		{
+			out = static_cast<double>(value);
+		}
+		break;
+	}
+	case LUA_TSTRING:
+		out = lua_tostring(L, index);
+		break;
+	case LUA_TTABLE:
+		LuaTableToJson(L, index, out);
+		break;
+	default:
+		out = Json::Value();
+		break;
+	}
+}
+
+static void LuaTableToJson(lua_State* L, int index, Json::Value& out)
+{
+	index = lua_absindex(L, index);
+	int max_index = 0;
+
+	if (LuaTableIsArray(L, index, max_index))
+	{
+		out = Json::Value(Json::arrayValue);
+		for (int i = 1; i <= max_index; ++i)
+		{
+			lua_rawgeti(L, index, i);
+			Json::Value value;
+			LuaValueToJson(L, -1, value);
+			out.append(value);
+			lua_pop(L, 1);
+		}
+		return;
+	}
+
+	out = Json::Value(Json::objectValue);
+	lua_pushnil(L);
+	while (lua_next(L, index) != 0)
+	{
+		std::string key;
+		if (lua_isstring(L, -2))
+		{
+			key = lua_tostring(L, -2);
+		}
+		else if (lua_isnumber(L, -2))
+		{
+			key = std::to_string(static_cast<int>(lua_tonumber(L, -2)));
+		}
+		else
+		{
+			lua_pop(L, 1);
+			continue;
+		}
+
+		Json::Value value;
+		LuaValueToJson(L, -1, value);
+		out[key] = value;
+		lua_pop(L, 1);
+	}
+}
+
+static void ParseFlatGlobalWeapon(Json::Value& root, std::string_view name, const Json::Value& value,
+	std::string_view prefix, const char* section)
+{
+	if (!StartsWith(name, prefix))
+		return;
+
+	std::string weapon = ToLowerAscii(name.substr(prefix.size()));
+	root[section][weapon] = value;
+}
+
+static bool ParseFlatMonsterField(Json::Value& root, std::string_view body, const Json::Value& value)
+{
+	static constexpr LuaNameMap kMonsterFields[] = {
+		{"POWER_ARMOR_POWER", "power_armor_power"},
+		{"POWER_ARMOR_TYPE", "power_armor_type"},
+		{"POWER_ARMOR_SCALE", "power_armor_scale"},
+		{"HEALTH_SCALE", "health_scale"},
+		{"DAMAGE_SCALE", "damage_scale"},
+		{"SPEED_SCALE", "speed_scale"},
+		{"ARMOR_SCALE", "armor_scale"},
+		{"POWER_ARMOR", "power_armor"},
+		{"ARMOR_POWER", "armor_power"},
+		{"ARMOR_TYPE", "armor_type"},
+		{"HEALTH", "health"},
+	};
+
+	for (const LuaNameMap& field : kMonsterFields)
+	{
+		std::string suffix = std::string("_") + field.lua_name;
+		if (!EndsWith(body, suffix))
+			continue;
+
+		std::string monster_name = ToLowerAscii(body.substr(0, body.size() - suffix.size()));
+		root["monsters"][monster_name][field.json_name] = value;
+		return true;
+	}
+
+	return false;
+}
+
+static bool ParseFlatMonsterWeapon(Json::Value& root, std::string_view body, const Json::Value& value)
+{
+	struct WeaponInfix
+	{
+		const char* lua_infix;
+		const char* json_section;
+		const char* json_field;
+	};
+
+	static constexpr WeaponInfix kWeaponInfixes[] = {
+		{"_ADDON_DAMAGE_", "weapon_damage", "addon_damage"},
+		{"_DAMAGE_MAX_", "weapon_damage", "damage_max"},
+		{"_DAMAGE_", "weapon_damage", "damage"},
+		{"_SPEED_", "weapon_speed", nullptr},
+	};
+
+	for (const WeaponInfix& infix : kWeaponInfixes)
+	{
+		size_t pos = body.find(infix.lua_infix);
+		if (pos == std::string_view::npos)
+			continue;
+
+		std::string monster_name = ToLowerAscii(body.substr(0, pos));
+		std::string weapon_name = ToLowerAscii(body.substr(pos + strlen(infix.lua_infix)));
+		if (monster_name.empty() || weapon_name.empty())
+			return false;
+
+		if (infix.json_field)
+			root["monsters"][monster_name][infix.json_section][weapon_name][infix.json_field] = value;
+		else
+			root["monsters"][monster_name][infix.json_section][weapon_name] = value;
+		return true;
+	}
+
+	return false;
+}
+
+static bool ParseFlatMonsterLevel(Json::Value& root, std::string_view body, const Json::Value& value)
+{
+	static constexpr LuaNameMap kLevelFields[] = {
+		{"INITIAL_POWER_ARMOR", "initial_power_armor"},
+		{"ADDON_POWER_ARMOR", "addon_power_armor"},
+		{"INITIAL_HEALTH", "initial_health"},
+		{"ADDON_HEALTH", "addon_health"},
+		{"INITIAL_ARMOR", "initial_armor"},
+		{"ADDON_ARMOR", "addon_armor"},
+	};
+
+	for (const LuaNameMap& field : kLevelFields)
+	{
+		std::string suffix = std::string("_") + field.lua_name;
+		if (!EndsWith(body, suffix))
+			continue;
+
+		std::string monster_name = ToLowerAscii(body.substr(0, body.size() - suffix.size()));
+		root["monster_level_scaling"][monster_name][field.json_name] = value;
+		return true;
+	}
+
+	return false;
+}
+
+static void ParseFlatMonsterGlobal(Json::Value& root, std::string_view name, const Json::Value& value)
+{
+	ParseFlatGlobalWeapon(root, name, value, "GLOBAL_DAMAGE_", "global_weapon_damage");
+	ParseFlatGlobalWeapon(root, name, value, "GLOBAL_SPEED_", "global_weapon_speed");
+	ParseFlatGlobalWeapon(root, name, value, "GLOBAL_RADIUS_", "global_weapon_radius");
+
+	if (StartsWith(name, "MONSTER_LEVEL_"))
+	{
+		ParseFlatMonsterLevel(root, name.substr(strlen("MONSTER_LEVEL_")), value);
+		return;
+	}
+
+	if (StartsWith(name, "MONSTER_"))
+	{
+		std::string_view body = name.substr(strlen("MONSTER_"));
+		if (!ParseFlatMonsterField(root, body, value))
+			ParseFlatMonsterWeapon(root, body, value);
+	}
+}
+
+static void ParseFlatMapGlobal(Json::Value& root, std::string_view name, const Json::Value& value)
+{
+	if (StartsWith(name, "MAP_CAP_"))
+	{
+		root["default_caps"][ToLowerAscii(name.substr(strlen("MAP_CAP_"))) + "_map"] = value;
+		return;
+	}
+
+	if (name == "MAP_DEFAULT_ENABLE_GRID")
+	{
+		root["default_settings"]["enable_grid"] = value;
+		return;
+	}
+
+	if (!StartsWith(name, "MAP_"))
+		return;
+
+	static constexpr LuaNameMap kMapFields[] = {
+		{"MONSTER_CAP", "monster_cap"},
+		{"ENABLE_LOADENT", "enable_loadent"},
+		{"ENABLE_GRID", "enable_grid"},
+		{"SIZE", "map_size"},
+	};
+
+	std::string_view body = name.substr(strlen("MAP_"));
+	for (const LuaNameMap& field : kMapFields)
+	{
+		std::string suffix = std::string("_") + field.lua_name;
+		if (!EndsWith(body, suffix))
+			continue;
+
+		std::string map_name = ToLowerAscii(body.substr(0, body.size() - suffix.size()));
+		size_t slash_pos = 0;
+		while ((slash_pos = map_name.find("_slash_", slash_pos)) != std::string::npos)
+		{
+			map_name.replace(slash_pos, strlen("_slash_"), "/");
+			slash_pos += 1;
+		}
+		root["map_overrides"][map_name][field.json_name] = value;
+		return;
+	}
+}
+
+static bool ParseNamedFlatGroup(Json::Value& root, std::string_view name, const Json::Value& value,
+	std::string_view prefix, const char* root_section, const LuaNameMap* groups, size_t group_count)
+{
+	if (!StartsWith(name, prefix))
+		return false;
+
+	std::string_view body = name.substr(prefix.size());
+	for (size_t i = 0; i < group_count; ++i)
+	{
+		const LuaNameMap& group = groups[i];
+		std::string group_prefix = std::string(group.lua_name) + "_";
+		if (!StartsWith(body, group_prefix))
+			continue;
+
+		std::string field = ToLowerAscii(body.substr(group_prefix.size()));
+		root[root_section][group.json_name][field] = value;
+		return true;
+	}
+
+	return false;
+}
+
+static void ParseFlatPlayerGlobal(Json::Value& root, std::string_view name, const Json::Value& value)
+{
+	static constexpr LuaNameMap kWeapons[] = {
+		{"GRENADELAUNCHER", "grenadelauncher"},
+		{"HYPERBLASTER", "hyperblaster"},
+		{"SUPERSHOTGUN", "supershotgun"},
+		{"CANNON20MM", "cannon20mm"},
+		{"PLASMABEAM", "plasmabeam"},
+		{"MACHINEGUN", "machinegun"},
+		{"IONRIPPER", "ionripper"},
+		{"ETFRIFLE", "etfrifle"},
+		{"CHAINGUN", "chaingun"},
+		{"BLASTER", "blaster"},
+		{"SHOTGUN", "shotgun"},
+		{"GRENADE", "grenade"},
+		{"PHALANX", "phalanx"},
+		{"TRACKER", "tracker"},
+		{"ROCKET", "rocket"},
+		{"RAILGUN", "railgun"},
+		{"BFG", "bfg"},
+	};
+
+	static constexpr LuaNameMap kDeployables[] = {
+		{"EXPLODING_BARREL", "exploding_barrel"},
+		{"DOPPLEGANGER", "doppleganger"},
+		{"SENTRYGUN", "sentrygun"},
+		{"PROX_MINE", "prox_mine"},
+		{"LASER", "laser"},
+		{"TESLA", "tesla"},
+		{"TRAP", "trap"},
+	};
+
+	static constexpr LuaNameMap kAbilities[] = {
+		{"EXPLODING_BARREL", "exploding_barrel"},
+		{"BOMB_SPELL", "bomb_spell"},
+		{"FIREBALL", "fireball"},
+		{"SUMMON", "summon"},
+	};
+
+	static constexpr LuaNameMap kAmmoRates[] = {
+		{"GRENADES", "grenades"},
+		{"BULLETS", "bullets"},
+		{"ROCKETS", "rockets"},
+		{"SHELLS", "shells"},
+		{"CELLS", "cells"},
+		{"SLUGS", "slugs"},
+		{"MAGSLUG", "magslug"},
+		{"TESLA", "tesla"},
+		{"PROX", "prox"},
+		{"TRAP", "trap"},
+	};
+
+	if (StartsWith(name, "ENTITY_LIMIT_"))
+	{
+		root["entity_limits"][ToLowerAscii(name.substr(strlen("ENTITY_LIMIT_")))] = value;
+		return;
+	}
+
+	if (ParseNamedFlatGroup(root, name, value, "WEAPON_", "weapons", kWeapons, std::size(kWeapons)) ||
+		ParseNamedFlatGroup(root, name, value, "DEPLOYABLE_", "deployables", kDeployables, std::size(kDeployables)) ||
+		ParseNamedFlatGroup(root, name, value, "ABILITY_", "special_abilities", kAbilities, std::size(kAbilities)))
+	{
+		return;
+	}
+
+	if (StartsWith(name, "HOOK_"))
+	{
+		root["hook"][ToLowerAscii(name.substr(strlen("HOOK_")))] = value;
+		return;
+	}
+
+	if (StartsWith(name, "GRAPPLE_"))
+	{
+		root["grapple"][ToLowerAscii(name.substr(strlen("GRAPPLE_")))] = value;
+		return;
+	}
+
+	if (name == "AMMO_REGEN_ENABLED")
+	{
+		root["ammo_regen"]["enabled"] = value;
+		return;
+	}
+
+	if (StartsWith(name, "AMMO_REGEN_"))
+	{
+		std::string_view body = name.substr(strlen("AMMO_REGEN_"));
+		for (const LuaNameMap& ammo : kAmmoRates)
+		{
+			std::string ammo_prefix = std::string(ammo.lua_name) + "_";
+			if (StartsWith(body, ammo_prefix))
+			{
+				root["ammo_regen"]["rates"][ammo.json_name][ToLowerAscii(body.substr(ammo_prefix.size()))] = value;
+				return;
+			}
+		}
+	}
+
+	if (StartsWith(name, "POWER_CUBES_REGEN_"))
+	{
+		root["power_cubes_regen"][ToLowerAscii(name.substr(strlen("POWER_CUBES_REGEN_")))] = value;
+		return;
+	}
+
+	if (StartsWith(name, "POWER_CUBES_"))
+	{
+		root["power_cubes"][ToLowerAscii(name.substr(strlen("POWER_CUBES_")))] = value;
+		return;
+	}
+}
+
+static bool LoadFlatLuaGlobals(lua_State* L, const std::string& config_path, Json::Value& root)
+{
+	root = Json::Value(Json::objectValue);
+	const bool is_monsters = config_path.find("monsters.lua") != std::string::npos;
+	const bool is_maps = config_path.find("maps_config.lua") != std::string::npos;
+	const bool is_player =
+		config_path.find("player_horde_config.lua") != std::string::npos ||
+		config_path.find("player_pvm_config.lua") != std::string::npos;
+
+	lua_pushglobaltable(L);
+	lua_pushnil(L);
+	while (lua_next(L, -2) != 0)
+	{
+		if (lua_isstring(L, -2))
+		{
+			Json::Value value;
+			if (JsonFromLuaScalar(L, -1, value))
+			{
+				std::string name = lua_tostring(L, -2);
+				if (is_monsters)
+					ParseFlatMonsterGlobal(root, name, value);
+				else if (is_maps)
+					ParseFlatMapGlobal(root, name, value);
+				else if (is_player)
+					ParseFlatPlayerGlobal(root, name, value);
+			}
+		}
+		lua_pop(L, 1);
+	}
+	lua_pop(L, 1);
+
+	return is_monsters || is_maps || is_player;
+}
+
+static bool LoadLuaConfig(const std::string& config_path, Json::Value& root)
+{
+	lua_State* L = luaL_newstate();
+	if (!L)
+	{
+		gi.Com_PrintFmt("Config: Failed to create Lua state for {}\n", config_path);
+		return false;
+	}
+
+	luaL_openlibs(L);
+	if (luaL_loadfile(L, config_path.c_str()) != LUA_OK)
+	{
+		gi.Com_PrintFmt("Config: Failed to load {}: {}\n", config_path, lua_tostring(L, -1));
+		lua_close(L);
+		return false;
+	}
+
+	const int base_top = lua_gettop(L) - 1;
+	if (lua_pcall(L, 0, LUA_MULTRET, 0) != LUA_OK)
+	{
+		gi.Com_PrintFmt("Config: Failed to execute {}: {}\n", config_path, lua_tostring(L, -1));
+		lua_close(L);
+		return false;
+	}
+
+	const int return_count = lua_gettop(L) - base_top;
+	if (return_count > 0 && lua_istable(L, -1))
+	{
+		LuaTableToJson(L, -1, root);
+		lua_close(L);
+		return true;
+	}
+
+	if (!LoadFlatLuaGlobals(L, config_path, root))
+	{
+		gi.Com_PrintFmt("Config: {} must return a table or use Horde flat globals\n", config_path);
+		lua_close(L);
+		return false;
+	}
+
+	lua_close(L);
+	return true;
+}
 
 // Helper function to safely get int from JSON
 static int GetJsonInt(const Json::Value& json, const char* key, int defaultValue)
@@ -55,35 +593,20 @@ void Config_SetDefaults()
 	g_config = GameConfig();
 	g_config.use_sigmoid_scaling = false;
 	g_config.use_sigmoid_scaling_bosses_only = false;
+	g_config.use_sigmoid_scaling_except_bosses = false;
 }
 
 void Config_LoadMonsters(const char* basedir)
 {
 	// Build config file path
-	std::string config_path = std::string(basedir) + "config/monsters.json";
+	std::string config_path = std::string(basedir) + "config/monsters.lua";
 
-	// Try to open config file
-	std::ifstream config_file(config_path, std::ifstream::binary);
-	if (!config_file.is_open())
-	{
-		gi.Com_PrintFmt("Config: config/monsters.json not found, using default monster values\n");
-		gi.Com_PrintFmt("Config: You can create {} to customize monster settings\n", config_path);
-		return;
-	}
-
-	// Parse JSON
 	Json::Value root;
-	Json::CharReaderBuilder builder;
-	std::string errs;
-
-	if (!Json::parseFromStream(builder, config_file, &root, &errs))
+	if (!LoadLuaConfig(config_path, root))
 	{
-		gi.Com_PrintFmt("Config: Failed to parse config/monsters.json: {}\n", errs);
-		gi.Com_PrintFmt("Config: Using default monster values\n");
+		gi.Com_PrintFmt("Config: config/monsters.lua not loaded, using default monster values\n");
 		return;
 	}
-
-	config_file.close();
 
 	// Load global weapon damage - OPTIMIZED: uses array-based storage with enum indexing
 	if (root.isMember("global_weapon_damage") && root["global_weapon_damage"].isObject())
@@ -202,6 +725,25 @@ void Config_LoadMonsters(const char* basedir)
 							gi.Com_PrintFmt("Config: WARNING - Unknown weapon '{}' in {} config\n", weapon_name, monster_name);
 						}
 					}
+					else if (overrides[weapon_name].isObject())
+					{
+						horde::WeaponID weapon_id = horde::WeaponRegistry::GetWeaponID(weapon_name.c_str());
+						if (weapon_id != horde::WeaponID::UNKNOWN)
+						{
+							const size_t weapon_index = static_cast<size_t>(weapon_id);
+							const Json::Value& damage_entry = overrides[weapon_name];
+							if (damage_entry.isMember("damage") && damage_entry["damage"].isInt())
+								config.weapon_damage_overrides[weapon_index] = damage_entry["damage"].asInt();
+							if (damage_entry.isMember("damage_max") && damage_entry["damage_max"].isInt())
+								config.weapon_damage_max[weapon_index] = damage_entry["damage_max"].asInt();
+							if (damage_entry.isMember("addon_damage") && damage_entry["addon_damage"].isInt())
+								config.weapon_addon_damage[weapon_index] = damage_entry["addon_damage"].asInt();
+						}
+						else
+						{
+							gi.Com_PrintFmt("Config: WARNING - Unknown weapon '{}' in {} config\n", weapon_name, monster_name);
+						}
+					}
 				}
 			}
 
@@ -232,7 +774,7 @@ void Config_LoadMonsters(const char* basedir)
 			loaded_count++;
 		}
 
-		gi.Com_PrintFmt("Config: Loaded {} monster configurations from config/monsters.json\n", loaded_count);
+		gi.Com_PrintFmt("Config: Loaded {} monster configurations from config/monsters.lua\n", loaded_count);
 
 		// Verify all monster types have configs
 		// Skip non-spawnable entities: misc_* (easter eggs, decorative), boss3_stand, commander_body
@@ -254,14 +796,14 @@ void Config_LoadMonsters(const char* basedir)
 				if (it == g_config.monsters.monsters.end())
 				{
 					missing_count++;
-					gi.Com_PrintFmt("WARNING: Monster '{}' (type_id {}) has NO config in monsters.json!\n", classname, type_id);
+					gi.Com_PrintFmt("WARNING: Monster '{}' (type_id {}) has NO config in monsters.lua!\n", classname, type_id);
 				}
 			}
 		}
 
 		if (missing_count > 0)
 		{
-			gi.Com_PrintFmt("ERROR: {} monsters are missing from config/monsters.json! Add them or they will use hardcoded stats.\n", missing_count);
+			gi.Com_PrintFmt("ERROR: {} monsters are missing from config/monsters.lua! Add them or they will use hardcoded stats.\n", missing_count);
 		}
 		else
 		{
@@ -303,30 +845,14 @@ void Config_LoadMonsters(const char* basedir)
 void Config_LoadMaps(const char* basedir)
 {
 	// Build config file path
-	std::string config_path = std::string(basedir) + "config/maps_config.json";
+	std::string config_path = std::string(basedir) + "config/maps_config.lua";
 
-	// Try to open config file
-	std::ifstream config_file(config_path, std::ifstream::binary);
-	if (!config_file.is_open())
-	{
-		gi.Com_PrintFmt("Config: config/maps_config.json not found, using default map values\n");
-		gi.Com_PrintFmt("Config: You can create {} to customize map settings\n", config_path);
-		return;
-	}
-
-	// Parse JSON
 	Json::Value root;
-	Json::CharReaderBuilder builder;
-	std::string errs;
-
-	if (!Json::parseFromStream(builder, config_file, &root, &errs))
+	if (!LoadLuaConfig(config_path, root))
 	{
-		gi.Com_PrintFmt("Config: Failed to parse config/maps_config.json: {}\n", errs);
-		gi.Com_PrintFmt("Config: Using default map values\n");
+		gi.Com_PrintFmt("Config: config/maps_config.lua not loaded, using default map values\n");
 		return;
 	}
-
-	config_file.close();
 
 	// Load default caps
 	if (root.isMember("default_caps") && root["default_caps"].isObject())
@@ -375,7 +901,7 @@ void Config_LoadMaps(const char* basedir)
 			horde::MapID mapId = horde::MapOriginRegistry::GetMapID(map_name.c_str());
 			if (mapId == horde::MapID::UNKNOWN)
 			{
-				gi.Com_PrintFmt("Config: WARNING - Unknown map '{}' in maps_config.json, skipping\n", map_name);
+				gi.Com_PrintFmt("Config: WARNING - Unknown map '{}' in maps_config.lua, skipping\n", map_name);
 				continue;
 			}
 
@@ -460,7 +986,7 @@ void Config_LoadMaps(const char* basedir)
 
 		if (loaded_count > 0)
 		{
-			gi.Com_PrintFmt("Config: Loaded {} map-specific overrides from config/maps_config.json\n", loaded_count);
+			gi.Com_PrintFmt("Config: Loaded {} map-specific overrides from config/maps_config.lua\n", loaded_count);
 		}
 	}
 }
@@ -471,31 +997,15 @@ void Config_Load(const char* basedir)
 	Config_SetDefaults();
 
 	// Build config file path based on game mode
-	std::string config_filename = IsPvMMode() ? "config/player_pvm_config.json" : "config/player_horde_config.json";
+	std::string config_filename = IsPvMMode() ? "config/player_pvm_config.lua" : "config/player_horde_config.lua";
 	std::string config_path = std::string(basedir) + config_filename;
 
-	// Try to open config file
-	std::ifstream config_file(config_path, std::ifstream::binary);
-	if (!config_file.is_open())
-	{
-		gi.Com_PrintFmt("Config: {} not found, using default values\n", config_filename);
-		gi.Com_PrintFmt("Config: You can create {} to customize settings\n", config_path);
-		return;
-	}
-
-	// Parse JSON
 	Json::Value root;
-	Json::CharReaderBuilder builder;
-	std::string errs;
-
-	if (!Json::parseFromStream(builder, config_file, &root, &errs))
+	if (!LoadLuaConfig(config_path, root))
 	{
-		gi.Com_PrintFmt("Config: Failed to parse {}: {}\n", config_filename, errs);
 		gi.Com_PrintFmt("Config: Using default values\n");
 		return;
 	}
-
-	config_file.close();
 
 	// Load entity limits
 	if (root.isMember("entity_limits") && root["entity_limits"].isObject())
@@ -1010,9 +1520,6 @@ const MonsterStatsConfig* GetMonsterConfig(uint8_t monster_type_id)
 // Include for sigmoid scaling
 #include "horde/g_horde_scaling.h"
 
-// External reference
-extern int16_t current_wave_level;
-
 // Get specific weapon damage for a monster - FULLY OPTIMIZED with enum-based O(1) lookups
 // CRITICAL HOT PATH: Called on every monster weapon attack (10-60 times per second)
 int GetMonsterWeaponDamage(uint8_t monster_type_id, horde::WeaponID weapon_id)
@@ -1045,11 +1552,11 @@ int GetMonsterWeaponDamage(uint8_t monster_type_id, horde::WeaponID weapon_id)
 		damage = static_cast<int>(damage * config->damage_scale);
 	}
 
-	// Step 4: Only early-pool monsters keep wave-based damage scaling.
-	if (g_horde && g_horde->integer && current_wave_level > 0 &&
-		ShouldApplyMonsterWaveScaling(monster_type_id))
+	// Step 4: Clamp comparable monster attacks to Remaster source max damage.
+	// addon_damage is intentionally parsed but not applied until a future Lua scaling system enables it.
+	if (config && config->weapon_damage_max[idx] > 0 && damage > config->weapon_damage_max[idx])
 	{
-		damage = ScaleWeaponDamage(damage, current_wave_level, false);
+		damage = config->weapon_damage_max[idx];
 	}
 
 	return damage;

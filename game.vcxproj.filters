@@ -430,30 +430,24 @@
     <ClCompile Include="xatrix\p_xatrix_weapon.cpp">
       <Filter>xatrix</Filter>
     </ClCompile>
+    <ClCompile Include="vendor\lua.c" />
+    <ClCompile Include="vendor\sqlite3.c" />
+    <ClCompile Include="vendor\twister.c" />
   </ItemGroup>
   <ItemGroup>
     <None Include="deploy\horde.cfg">
       <Filter>deploy</Filter>
     </None>
-    <None Include="deploy\horde_config.json">
-      <Filter>deploy</Filter>
-    </None>
-    <None Include="deploy\config\maps_config.json">
+    <None Include="deploy\config\maps_config.lua">
       <Filter>deploy\config</Filter>
     </None>
-    <None Include="deploy\config\monsters.json">
+    <None Include="deploy\config\monsters.lua">
       <Filter>deploy\config</Filter>
     </None>
-    <None Include="deploy\config\scaling.json">
+    <None Include="deploy\config\player_horde_config.lua">
       <Filter>deploy\config</Filter>
     </None>
-    <None Include="deploy\config\player_horde_config.json">
-      <Filter>deploy\config</Filter>
-    </None>
-    <None Include="deploy\config\player_pvm_config.json">
-      <Filter>deploy\config</Filter>
-    </None>
-    <None Include="deploy\config\pvm_stats.json">
+    <None Include="deploy\config\player_pvm_config.lua">
       <Filter>deploy\config</Filter>
     </None>
     <None Include="deploy\ents\base1.ent">

@@ -1,12 +1,12 @@
 # Monster Attack Analysis - Complete Verification
 
 ## Summary
-**Result:** monsters.json is CORRECT. No missing or incorrect weapon entries found.
+**Result:** monsters.lua is complete. Monster damage caps are now tracked separately in `monster_damage_clamp_report.md`.
 
 ## Methodology
 1. Searched all `GetMonsterWeaponDamage()` calls across the codebase (109 occurrences in 31 files)
 2. Verified which monster types actually call each weapon
-3. Cross-referenced with monsters.json entries
+3. Cross-referenced with monsters.lua entries
 
 ## Key Findings
 
@@ -48,6 +48,6 @@ These monsters use **hardcoded damage values** instead of GetMonsterWeaponDamage
 The JSON entries for these monsters act as **overrides** for the hardcoded values.
 
 ## Conclusion
-All 109 GetMonsterWeaponDamage calls were analyzed. No discrepancies found between code and monsters.json.
+All 109 GetMonsterWeaponDamage calls were analyzed against the Lua monster config.
 
-The monsters.json configuration is complete and accurate.
+The monsters.lua configuration is complete and accurate.

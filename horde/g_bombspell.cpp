@@ -7,7 +7,7 @@
 #include "g_horde_phys.h"
 
 // Bomb spell constants
-// NOTE: Player bombspell values are now loaded from player_config.json via g_config.bomb_spell
+// NOTE: Player bombspell values are now loaded from the active player Lua config via g_config.bomb_spell
 // Monster-only constants below (CARPETSLAM) remain hardcoded
 constexpr float CARPETBOMB_ROOF_BUFFER = 32;
 

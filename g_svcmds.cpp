@@ -466,7 +466,7 @@ void SVCmd_AddWeaponPoints_f()
 =================
 SVCmd_ResetPlayer_f
 Admin command: sv reset <playername>
-Deletes the player's character file and resets all progress
+Deletes the player's SQLite character row and resets all progress
 =================
 */
 void SVCmd_ResetPlayer_f()
@@ -486,32 +486,38 @@ void SVCmd_ResetPlayer_f()
 		return;
 	}
 
-	// Get character file path
-	std::string file_path = Character_GetFilePath(player);
-	
-	// Delete the character file
-	if (std::remove(file_path.c_str()) == 0)
+	if (Character_Reset(player))
 	{
-		gi.LocClient_Print(nullptr, PRINT_HIGH, "Character file for '{}' deleted successfully\n", 
-			player->client->pers.netname);
-		
+		std::string db_path = Character_GetFilePath(player);
+		gi.LocClient_Print(nullptr, PRINT_HIGH, "Character row for '{}' deleted successfully from {}\n",
+			player->client->pers.netname,
+			db_path.c_str());
+
 		// Reset all character data in memory
 		player->client->pers.pvm_level = 0;
 		player->client->pers.pvm_xp = 0;
+		player->client->pers.pvm_stat_points = 0;
+		player->client->pers.pvm_max_ammo_level = 0;
+		player->client->pers.pvm_vitality_level = 0;
 		player->client->pers.skill_points = 0;
 		player->client->pers.weapon_points = 0;
-		
-		// Reset skills
+		player->client->pers.horde_power_cubes = 0;
 		player->client->pers.skills = {};
-		
+		Q_strlcpy(player->client->pers.respawn_weapon_name,
+			"Rocket Launcher",
+			sizeof(player->client->pers.respawn_weapon_name));
+
 		gi.LocClient_Print(player, PRINT_HIGH, "Your character has been reset by an admin!\n");
-		
+
 		// Kick player to force reconnect and reload
 		gi.AddCommandString(G_Fmt("kick \"{}\"\n", player->client->pers.netname).data());
 	}
 	else
 	{
-		gi.LocClient_Print(nullptr, PRINT_HIGH, "Failed to delete character file: {}\n", file_path.c_str());
+		std::string db_path = Character_GetFilePath(player);
+		gi.LocClient_Print(nullptr, PRINT_HIGH, "Failed to delete character row for '{}' from {}\n",
+			player->client->pers.netname,
+			db_path.c_str());
 	}
 }
 

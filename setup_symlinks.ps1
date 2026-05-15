@@ -50,21 +50,5 @@ foreach ($folder in $folders) {
     }
 }
 
-# Also symlink horde_config.json
-$configSource = Join-Path $repoDir "deploy\horde_config.json"
-$configTarget = Join-Path $gameDir "horde_config.json"
-
-if (Test-Path $configSource) {
-    if (Test-Path $configTarget) {
-        Remove-Item $configTarget -Force
-    }
-    try {
-        New-Item -ItemType SymbolicLink -Path $configTarget -Target $configSource -ErrorAction Stop | Out-Null
-        Write-Host "OK: horde_config.json -> $configSource" -ForegroundColor Green
-    } catch {
-        Write-Host "FAILED: horde_config.json - $_" -ForegroundColor Red
-    }
-}
-
 Write-Host ""
 Write-Host "Done!" -ForegroundColor Cyan

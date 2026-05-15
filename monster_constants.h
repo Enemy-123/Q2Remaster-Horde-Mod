@@ -15,13 +15,12 @@
 // The macros automatically:
 //   - Get global base damage/speed/radius
 //   - Apply monster-specific damage_scale/speed_scale
-//   - Apply wave scaling (including boss bonuses via IS_BOSS flag)
+//   - Clamp comparable monster weapon damage to Remaster source caps
 //
 // All values scale with:
-//   - Global weapon base (from config/monsters.json)
+//   - Global weapon base (from config/monsters.lua)
 //   - Monster damage_scale (per-monster multiplier)
-//   - Wave level (sigmoid scaling)
-//   - Boss status (1.5x multiplier if IS_BOSS is true)
+//   - damage_max caps for attacks that map directly to Remaster source values
 // ============================================================================
 
 #include "g_local.h"
