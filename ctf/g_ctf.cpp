@@ -2732,11 +2732,15 @@ void CTFWinElection() {
 				gi.cvar_forceset("g_instagib", "1");
 				gi.cvar_forceset("pvm", "0");
 				gi.cvar_forceset("horde", "1");
+				gi.cvar_forceset("coop", "0");
+				gi.cvar_forceset("deathmatch", "1");
 			} else {
 				// PvM mode
 				gi.cvar_forceset("g_instagib", "0");
 				gi.cvar_forceset("pvm", "1");
 				gi.cvar_forceset("horde", "1");
+				gi.cvar_forceset("coop", "0");
+				gi.cvar_forceset("deathmatch", "1");
 			}
 
 			// Reset horde state if in horde mode
@@ -2843,6 +2847,8 @@ void CTFWinElection() {
 		gi.cvar_forceset("g_instagib", "0");
 		gi.cvar_forceset("pvm", "1");
 		gi.cvar_forceset("horde", "1");  // Keep horde mode active, just disable instagib
+		gi.cvar_forceset("coop", "0");
+		gi.cvar_forceset("deathmatch", "1");
 		// Reload the current map to apply settings
 		BeginIntermission(CreateTargetChangeLevel(level.mapname));
 		break;
@@ -2852,6 +2858,8 @@ void CTFWinElection() {
 		gi.cvar_forceset("g_instagib", "1");
 		gi.cvar_forceset("pvm", "0");
 		gi.cvar_forceset("horde", "1");  // Ensure horde mode is active
+		gi.cvar_forceset("coop", "0");
+		gi.cvar_forceset("deathmatch", "1");
 		// Reload the current map to apply settings
 		BeginIntermission(CreateTargetChangeLevel(level.mapname));
 		break;
@@ -3259,8 +3267,8 @@ void CTFShowScores(edict_t* ent, pmenu_t* p)
 
 bool CTFStartClient(edict_t* ent)
 {
-	// if (!G_TeamplayEnabled())
-	// 	return false;
+	if (!G_TeamplayEnabled() && !G_IsCooperative() && !coop->integer)
+		return false;
 
 	if (ent->client->resp.ctf_team != CTF_NOTEAM)
 		return false;

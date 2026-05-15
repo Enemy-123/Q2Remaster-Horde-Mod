@@ -612,6 +612,19 @@ edict_t* CreateTargetChangeLevel(const char* map)
 	return ent;
 }
 
+static void QueueSinglePlayerModeSettings()
+{
+	gi.AddCommandString(
+		"bot_pause 1; bot_minClients -1; "
+		"ctf 0; teamplay 0; pvm 0; horde 0; coop 0; deathmatch 0; "
+		"g_instagib 0; g_dm_spawns 0; g_dm_spawn_farthest 0; "
+		"g_use_hook 0; g_hook_wave 0; g_allow_grapple 0; g_allow_techs 0; "
+		"g_loadent 0; dm_monsters 0; g_hardcoop 0; vortex 0; "
+		"g_disable_player_collision 0; g_damage_scale 1; ai_damage_scale 1; ai_allow_dm_spawn 0; "
+		"timelimit 0; fraglimit 0; capturelimit 0; maxspectators 0; "
+		"set g_start_items \"\"; set cheats 0 s; maxclients 1; kexmultiplayer maxplayers 1\n");
+}
+
 /*
 =================
 EndDMLevel
@@ -1088,13 +1101,24 @@ void ExitLevel()
 	// end game
 	size_t start_offset = (level.changemap[0] == '*' ? 1 : 0);
 
+	// Check for true single-player mode switch
+	if (start_offset && !Q_strncasecmp(level.changemap + start_offset, "sp:", 3)) {
+		const char* map = level.changemap + start_offset + 3;
+
+		QueueSinglePlayerModeSettings();
+
+		extern ctfgame_t ctfgame;
+		ctfgame.elevel[0] = '\0';
+
+		gi.AddCommandString(G_Fmt("map \"{}\"\n", map).data());
+	}
 	// Check for cooperative mode switch
-	if (start_offset && !Q_strncasecmp(level.changemap + start_offset, "coop:", 5)) {
+	else if (start_offset && !Q_strncasecmp(level.changemap + start_offset, "coop:", 5)) {
 		// Extract the actual map name after "coop:"
 		const char* map = level.changemap + start_offset + 5;
 
 		// Apply cooperative settings first
-		gi.AddCommandString("bot_pause 1; skill 3; g_dm_spawns 0; g_use_hook 0; g_instagib 0; horde 0; coop 1; deathmatch 0; g_allow_grapple 0; g_coop_squad_respawn 1; g_allow_techs 0; g_coop_num_lives 7; set cheats 0 s; g_coop_health_scaling 0.23; g_allow_techs 0; timelimit 0; kexmultiplayer maxplayers 7");
+		gi.AddCommandString("bot_pause 1; skill 3; g_dm_spawns 0; g_use_hook 0; g_instagib 0; pvm 0; horde 0; coop 1; deathmatch 0; g_allow_grapple 0; g_coop_squad_respawn 1; g_allow_techs 0; g_coop_num_lives 7; set cheats 0 s; g_coop_health_scaling 0.23; timelimit 0; maxclients 7; kexmultiplayer maxplayers 7\n");
 
 		// Clear the election level after successful cooperative switch
 		extern ctfgame_t ctfgame;

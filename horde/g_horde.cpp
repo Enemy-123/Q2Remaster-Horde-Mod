@@ -3682,6 +3682,47 @@ void Horde_PreInit()
 	pvm = gi.cvar("pvm", "0", CVAR_LATCH);
 	// gi.Com_Print("After starting a normal server type: starthorde to start a game.\n");
 
+	if ((g_horde->integer || pvm->integer) && !deathmatch->integer)
+	{
+		gi.Com_Print("Clearing stale Horde/PvM cvars for non-deathmatch game start.\n");
+		gi.cvar_forceset("horde", "0");
+		gi.cvar_forceset("pvm", "0");
+		g_horde = gi.cvar("horde", "0", CVAR_LATCH);
+		pvm = gi.cvar("pvm", "0", CVAR_LATCH);
+	}
+
+	if (!deathmatch->integer && !coop->integer && !pvm->integer)
+	{
+		gi.cvar_forceset("ctf", "0");
+		gi.cvar_forceset("teamplay", "0");
+		gi.cvar_forceset("maxclients", "1");
+		gi.cvar_forceset("bot_minClients", "-1");
+		gi.cvar_forceset("bot_pause", "1");
+		gi.cvar_forceset("g_horde_grid_first", "0");
+		gi.cvar_forceset("g_instagib", "0");
+		gi.cvar_forceset("g_dm_spawns", "0");
+		gi.cvar_forceset("g_dm_spawn_farthest", "0");
+		gi.cvar_forceset("g_use_hook", "0");
+		gi.cvar_forceset("g_hook_wave", "0");
+		gi.cvar_forceset("g_allow_grapple", "0");
+		gi.cvar_forceset("g_allow_techs", "0");
+		gi.cvar_forceset("g_loadent", "0");
+		gi.cvar_forceset("dm_monsters", "0");
+		gi.cvar_forceset("g_hardcoop", "0");
+		gi.cvar_forceset("vortex", "0");
+		gi.cvar_forceset("g_disable_player_collision", "0");
+		gi.cvar_forceset("g_damage_scale", "1");
+		gi.cvar_forceset("ai_damage_scale", "1");
+		gi.cvar_forceset("ai_allow_dm_spawn", "0");
+		gi.cvar_forceset("timelimit", "0");
+		gi.cvar_forceset("fraglimit", "0");
+		gi.cvar_forceset("capturelimit", "0");
+		gi.cvar_forceset("maxspectators", "0");
+		gi.cvar_forceset("g_start_items", "");
+		gi.cvar_forceset("cheats", "0");
+		gi.AddCommandString("kexmultiplayer maxplayers 1\n");
+	}
+
 	// PvM (Player vs Monster) mode requires horde mode to be active for spawning/gameplay
 	// Auto-enable horde mode if PvM is enabled
 	if (pvm->integer && !g_horde->integer)
@@ -3692,13 +3733,11 @@ void Horde_PreInit()
 	}
 
 	if (!g_horde->integer)
-	{ // If horde mode is OFF (0)
-		// Ensure g_hardcoop is registered if it isn't already (safe check)
-		// Assuming g_hardcoop is already declared in g_local.h and registered in InitGame
-		// We just need to set its value here.
-		gi.cvar_set("g_hardcoop", "1");		 // Force hardcoop ON
-		gi.cvar_forceset("deathmatch", "0"); // Keep this line
-		return;								 // Exit Horde_PreInit early if horde mode is off
+	{
+		// Coop/non-Horde modes own their own difficulty settings. Do not force
+		// g_hardcoop here, otherwise switching out of Horde makes that cvar sticky.
+		gi.cvar_forceset("deathmatch", "0");
+		return;
 	}
 
 	// Configuración automática cuando horde está activo

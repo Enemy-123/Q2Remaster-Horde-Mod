@@ -2729,6 +2729,7 @@ constexpr spawnflags_t SPAWNFLAG_CHANGELEVEL_IMMEDIATE_LEAVE = 64_spawnflag;
 
 void respawn(edict_t* ent);
 void BeginIntermission(edict_t* targ);
+edict_t* CreateTargetChangeLevel(const char* map);
 void PutClientInServer(edict_t* ent);
 void InitClientPersistant(edict_t* ent, gclient_t* client);
 void Horde_UpdateStartItemsForWave(int32_t wave);

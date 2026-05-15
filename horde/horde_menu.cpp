@@ -146,6 +146,37 @@ static const char *GetMorphTypeName(int type)
 	}
 }
 
+static bool HasOtherHumanClients(const edict_t *ent)
+{
+	for (uint32_t i = 0; i < game.maxclients; i++)
+	{
+		const edict_t *player = &g_edicts[i + 1];
+
+		if (player == ent || !player->inuse || !player->client || (player->svflags & SVF_BOT))
+		{
+			continue;
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+static bool CanShowSinglePlayerCampaignMenu(const edict_t *ent)
+{
+	if (!ent || !ent->client || (ent->svflags & SVF_BOT))
+	{
+		return false;
+	}
+
+	const bool is_host = P_GetLobbyUserNum(ent) == 0;
+	const bool is_coop_mode = G_IsCooperative() || coop->integer;
+	const bool is_horde_mode = g_horde && g_horde->integer;
+
+	return is_host && (is_coop_mode || (is_horde_mode && !HasOtherHumanClients(ent)));
+}
+
 //--------------------------------
 static void SetGameName(pmenu_t *p);
 static void SetLevelName(pmenu_t *p);
@@ -200,6 +231,17 @@ static_assert(JOINMENU_JOIN_HORDE_COUNT_IDX < JOINMENU_SIZE, "JOINMENU_JOIN_HORD
 
 void HordeOpenJoinMenu(edict_t *ent)
 {
+	if (!ent || !ent->client)
+	{
+		return;
+	}
+
+	if (!deathmatch->integer && !coop->integer && !G_TeamplayEnabled())
+	{
+		OpenHordeMenu(ent);
+		return;
+	}
+
 	uint32_t num1 = 0, num2 = 0;
 	for (uint32_t i = 0; i < game.maxclients; i++)
 	{
@@ -254,7 +296,7 @@ void HordeUpdateJoinMenu(edict_t *ent)
 	SetLevelName(&entries[JOINMENU_LEVELNAME_IDX]); // Update Level Name
 
 	// --- Horde/Coop/PvM Specific Logic ---
-	if (g_horde->integer || pvm->integer || G_IsCooperative() || coop->integer || !deathmatch->integer) // Check if Horde mode, PvM, Coop, or single player is active
+	if (g_horde->integer || pvm->integer || G_IsCooperative() || coop->integer)
 	{
 		// Set appropriate join text based on mode
 		const char *join_text;
@@ -265,7 +307,7 @@ void HordeUpdateJoinMenu(edict_t *ent)
 		else if (G_IsCooperative() || coop->integer)
 			join_text = "Join Cooperative Game";
 		else
-			join_text = "Start Single Player";
+			join_text = "Join Game";
 
 		Q_strlcpy(entries[JOINMENU_JOIN_HORDE_IDX].text, join_text, sizeof(entries[JOINMENU_JOIN_HORDE_IDX].text));
 		entries[JOINMENU_JOIN_HORDE_IDX].SelectFunc = HordeJoinTeam;
@@ -507,8 +549,13 @@ void ModeSelectionHandler(edict_t *ent, pmenuhnd_t *p);
 void OpenCooperativeCampaignMenu(edict_t *ent);
 void CooperativeCampaignHandler(edict_t *ent, pmenuhnd_t *p);
 
+// Forward declaration for true single-player campaign menu
+void OpenSinglePlayerCampaignMenu(edict_t *ent);
+void SinglePlayerCampaignHandler(edict_t *ent, pmenuhnd_t *p);
+
 // Cooperative campaign selection menu
 static pmenu_t coop_campaign_menu[10];
+static pmenu_t sp_campaign_menu[10];
 
 void OpenCooperativeCampaignMenu(edict_t *ent)
 {
@@ -622,6 +669,123 @@ void CooperativeCampaignHandler(edict_t *ent, pmenuhnd_t *p)
 	else if (strcmp(selected_text, "Back") == 0)
 	{
 		OpenMapCategoryMenu(ent);
+	}
+}
+
+void OpenSinglePlayerCampaignMenu(edict_t *ent)
+{
+	if (!ent || !ent->client)
+	{
+		return;
+	}
+
+	if (ent->client->menu)
+	{
+		PMenu_Close(ent);
+	}
+
+	ent->client->menu_protected = true;
+	ent->client->menu_protection_start = level.time;
+
+	for (auto& e : sp_campaign_menu) e = {};
+	int idx = 0;
+
+	Q_strlcpy(sp_campaign_menu[idx].text, "Select Single Player Campaign", sizeof(sp_campaign_menu[idx].text));
+	sp_campaign_menu[idx].align = PMENU_ALIGN_CENTER;
+	sp_campaign_menu[idx].SelectFunc = nullptr;
+	idx++;
+
+	sp_campaign_menu[idx].text[0] = '\0';
+	sp_campaign_menu[idx].align = PMENU_ALIGN_CENTER;
+	sp_campaign_menu[idx].SelectFunc = nullptr;
+	idx++;
+
+	Q_strlcpy(sp_campaign_menu[idx].text, "Quake 2", sizeof(sp_campaign_menu[idx].text));
+	sp_campaign_menu[idx].align = PMENU_ALIGN_LEFT;
+	sp_campaign_menu[idx].SelectFunc = SinglePlayerCampaignHandler;
+	idx++;
+
+	Q_strlcpy(sp_campaign_menu[idx].text, "Call of the Machine", sizeof(sp_campaign_menu[idx].text));
+	sp_campaign_menu[idx].align = PMENU_ALIGN_LEFT;
+	sp_campaign_menu[idx].SelectFunc = SinglePlayerCampaignHandler;
+	idx++;
+
+	Q_strlcpy(sp_campaign_menu[idx].text, "The Reckoning", sizeof(sp_campaign_menu[idx].text));
+	sp_campaign_menu[idx].align = PMENU_ALIGN_LEFT;
+	sp_campaign_menu[idx].SelectFunc = SinglePlayerCampaignHandler;
+	idx++;
+
+	Q_strlcpy(sp_campaign_menu[idx].text, "Ground Zero", sizeof(sp_campaign_menu[idx].text));
+	sp_campaign_menu[idx].align = PMENU_ALIGN_LEFT;
+	sp_campaign_menu[idx].SelectFunc = SinglePlayerCampaignHandler;
+	idx++;
+
+	Q_strlcpy(sp_campaign_menu[idx].text, "Quake 2 N64", sizeof(sp_campaign_menu[idx].text));
+	sp_campaign_menu[idx].align = PMENU_ALIGN_LEFT;
+	sp_campaign_menu[idx].SelectFunc = SinglePlayerCampaignHandler;
+	idx++;
+
+	sp_campaign_menu[idx].text[0] = '\0';
+	sp_campaign_menu[idx].align = PMENU_ALIGN_CENTER;
+	sp_campaign_menu[idx].SelectFunc = nullptr;
+	idx++;
+
+	Q_strlcpy(sp_campaign_menu[idx].text, "Back", sizeof(sp_campaign_menu[idx].text));
+	sp_campaign_menu[idx].align = PMENU_ALIGN_LEFT;
+	sp_campaign_menu[idx].SelectFunc = SinglePlayerCampaignHandler;
+	idx++;
+
+	PMenu_Open(ent, sp_campaign_menu, -1, idx, nullptr, nullptr);
+}
+
+static void StartSinglePlayerCampaign(edict_t *ent, const char *campaign_name, const char *start_map)
+{
+	if (!ent || !ent->client || !start_map || !*start_map)
+	{
+		return;
+	}
+
+	char sp_map[64];
+	snprintf(sp_map, sizeof(sp_map), "*sp:%s", start_map);
+
+	gi.LocBroadcast_Print(PRINT_HIGH, "Starting Single Player: {}...\n", campaign_name);
+	BeginIntermission(CreateTargetChangeLevel(sp_map));
+}
+
+void SinglePlayerCampaignHandler(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client || !p)
+	{
+		return;
+	}
+
+	const char *selected_text = p->entries[p->cur].text;
+
+	PMenu_Close(ent);
+
+	if (strcmp(selected_text, "Quake 2") == 0)
+	{
+		StartSinglePlayerCampaign(ent, "Quake 2", "base1");
+	}
+	else if (strcmp(selected_text, "Call of the Machine") == 0)
+	{
+		StartSinglePlayerCampaign(ent, "Call of the Machine", "mguhub");
+	}
+	else if (strcmp(selected_text, "The Reckoning") == 0)
+	{
+		StartSinglePlayerCampaign(ent, "The Reckoning", "xswamp");
+	}
+	else if (strcmp(selected_text, "Ground Zero") == 0)
+	{
+		StartSinglePlayerCampaign(ent, "Ground Zero", "rmine1");
+	}
+	else if (strcmp(selected_text, "Quake 2 N64") == 0)
+	{
+		StartSinglePlayerCampaign(ent, "Quake 2 N64", "q64/outpost");
+	}
+	else if (strcmp(selected_text, "Back") == 0)
+	{
+		OpenHordeMenu(ent);
 	}
 }
 
@@ -2393,6 +2557,17 @@ void HordeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		OpenAdminMenu(ent);
 		shouldCloseMenu = false;
 	}
+	if (strcmp(selected_text, "Single Player") == 0)
+	{
+		if (!CanShowSinglePlayerCampaignMenu(ent))
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, "Single Player is only available to the host in coop, or in solo Horde.\n");
+			return;
+		}
+
+		OpenSinglePlayerCampaignMenu(ent);
+		return;
+	}
 	// Check for "Go Spectator/AFK"
 	if (strcmp(selected_text, "Go Spectator/AFK") == 0)
 	{
@@ -2528,6 +2703,11 @@ pmenuhnd_t *CreateHordeMenu(edict_t *ent)
 	add_entry(HORDE_MOD_VERSION_STRING, PMENU_ALIGN_CENTER);
 	add_entry("", PMENU_ALIGN_CENTER);
 
+	const bool is_true_single_player =
+		!deathmatch->integer && !coop->integer &&
+		(!g_horde || !g_horde->integer) &&
+		(!pvm || !pvm->integer);
+
 	// Add Show Objectives option if in coop mode (first option after joining)
 	if (coop->integer)
 	{
@@ -2539,9 +2719,17 @@ pmenuhnd_t *CreateHordeMenu(edict_t *ent)
 	if (playerNum == 0)
 	{
 		add_entry("[HOST] Admin Menu", PMENU_ALIGN_LEFT, HordeMenuHandler);
+
+		if (CanShowSinglePlayerCampaignMenu(ent))
+		{
+			add_entry("Single Player", PMENU_ALIGN_LEFT, HordeMenuHandler);
+		}
 	}
 
-	add_entry("Go Spectator/AFK", PMENU_ALIGN_LEFT, HordeMenuHandler);
+	if (!is_true_single_player)
+	{
+		add_entry("Go Spectator/AFK", PMENU_ALIGN_LEFT, HordeMenuHandler);
+	}
 
 	if (ctfgame.election == ELECT_NONE)
 	{
@@ -2599,7 +2787,7 @@ pmenuhnd_t *CreateHordeMenu(edict_t *ent)
 		add_entry("Character Info", PMENU_ALIGN_LEFT, HordeMenuHandler);
 	}
 
-	if (g_horde && !pvm->integer)
+	if (g_horde && g_horde->integer && !pvm->integer)
 	{
 		add_entry("Swap Tech", PMENU_ALIGN_LEFT, HordeMenuHandler);
 	}

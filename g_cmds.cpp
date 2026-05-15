@@ -1115,8 +1115,12 @@ void Cmd_Inven_f(edict_t* ent)
 			return;
 		}
 
-		// In coop/single player, give players choice to join or spectate
-		if ((G_IsCooperative() || coop->integer || !deathmatch->integer) && cl->resp.ctf_team == CTF_NOTEAM) {
+		// In coop/Horde/PvM, give players a join/spectate choice. True single
+		// player should open the utility menu directly.
+		const bool uses_join_menu =
+			((g_horde && g_horde->integer) || (pvm && pvm->integer) || G_IsCooperative() || coop->integer) &&
+			cl->resp.ctf_team == CTF_NOTEAM;
+		if (uses_join_menu) {
 			// Open join menu instead of auto-joining to give spectator option
 			HordeOpenJoinMenu(ent);
 			return;
@@ -2330,7 +2334,7 @@ void ClientCommand(edict_t* ent)
 		Cmd_Clear_AI_Enemy_f(ent);
 	else if (Q_strcasecmp(cmd, "coopp") == 0) {
 		// Execute the coopp alias commands for cooperative mode
-		gi.AddCommandString("bot_pause 1; skill 3; g_dm_spawns 0; g_use_hook 0; g_instagib 0; horde 0; coop 1; deathmatch 0; g_allow_grapple 0; g_coop_squad_respawn 1; g_allow_techs 0; g_coop_num_lives 7; set cheats 0 s; g_coop_health_scaling 0.23; g_allow_techs 0; timelimit 0; maxclients 7; kexmultiplayer maxplayers 7\n");
+		gi.AddCommandString("bot_pause 1; skill 3; g_dm_spawns 0; g_use_hook 0; g_instagib 0; pvm 0; horde 0; coop 1; deathmatch 0; g_allow_grapple 0; g_coop_squad_respawn 1; g_allow_techs 0; g_coop_num_lives 7; set cheats 0 s; g_coop_health_scaling 0.23; timelimit 0; maxclients 7; kexmultiplayer maxplayers 7\n");
 		gi.LocClient_Print(ent, PRINT_HIGH, "Cooperative mode activated!\n");
 	}
 	else if (Q_strcasecmp(cmd, "putaway") == 0)
