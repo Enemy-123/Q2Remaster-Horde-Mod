@@ -7,7 +7,7 @@
 #include <float.h>
 #ifdef __clang__
 #pragma clang diagnostic push
-#pragma GCC diagnostic ignored "-Weverything"
+#pragma clang diagnostic ignored "-Weverything"
 #endif
 #include "json/json.h"
 #include "json/config.h"
@@ -2663,10 +2663,14 @@ void ReadLevelJson(const char* jsonString)
 	Json::Value json = parseJson(jsonString);
 
 	// wipe all the entities
+#if defined(__GNUC__) || defined(__clang__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wclass-memaccess"
+#endif
 	memset(g_edicts, 0, game.maxentities * sizeof(g_edicts[0]));
+#if defined(__GNUC__) || defined(__clang__)
 #pragma GCC diagnostic pop
+#endif
 	globals.num_edicts = game.maxclients + 1;
 
 	// pull version

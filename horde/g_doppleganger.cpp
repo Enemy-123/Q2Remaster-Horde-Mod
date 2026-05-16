@@ -137,12 +137,12 @@ DIE(doppleganger_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int
 			if (dist > 768)
 			{
 				sphere = Sphere_Spawn(self, SPHERE_HUNTER | SPHERE_DOPPLEGANGER);
-				sphere->pain(sphere, attacker, 0, 0, mod);
+				sphere->pain(sphere, attacker, 0.0f, 0, mod);
 			}
 			else
 			{
 				sphere = Sphere_Spawn(self, SPHERE_VENGEANCE | SPHERE_DOPPLEGANGER);
-				sphere->pain(sphere, attacker, 0, 0, mod);
+				sphere->pain(sphere, attacker, 0.0f, 0, mod);
 			}
 		}
 	}

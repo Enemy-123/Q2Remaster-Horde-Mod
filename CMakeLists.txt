@@ -51,6 +51,8 @@ endif()
 
 if(MSVC)
     target_compile_options(Q2HordeModDLL PRIVATE /permissive- /bigobj)
+    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/vendor/lua.c"
+        PROPERTIES COMPILE_OPTIONS "/wd4090")
 else()
     target_compile_options(Q2HordeModDLL PRIVATE
         $<$<COMPILE_LANGUAGE:CXX>:-Wnull-dereference>

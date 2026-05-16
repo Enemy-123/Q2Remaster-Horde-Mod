@@ -1344,7 +1344,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		{
 			sphere_notified = true;
 			if (client->owned_sphere->pain)
-				client->owned_sphere->pain(client->owned_sphere, attacker, 0, 0, mod);
+				client->owned_sphere->pain(client->owned_sphere, attacker, 0.0f, 0, mod);
 		}
 
 		if (targ->health <= 0)
@@ -1379,7 +1379,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		{
 			sphere_notified = true;
 			if (client->owned_sphere->pain)
-				client->owned_sphere->pain(client->owned_sphere, attacker, 0, 0, mod);
+				client->owned_sphere->pain(client->owned_sphere, attacker, 0.0f, 0, mod);
 		}
 	}
 

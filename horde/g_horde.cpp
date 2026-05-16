@@ -380,6 +380,7 @@ namespace HordeConstants
 // --- Forward Declarations ---
 bool Horde_AttemptToUnstickMonster(edict_t* self);
 static void Horde_InitLevel(const int32_t lvl);
+static void RecordCurrentMapFamilyUsageToHistory();
 bool ApplyHordeBonuses(edict_t* monster, int32_t currentLevel, float champion_chance); // monster bonuses
 void CalculateTopDamager(PlayerStats& topDamager, float& percentage);
 void AwardKillXP(edict_t* attacker, edict_t* monster); // Award XP for kills
@@ -813,9 +814,6 @@ void BuildSpawnPointMap()
 				break;
 			}
 
-			// Add to map first, using the current size of the list as the compact index
-			uint16_t compact_index = static_cast<uint16_t>(g_spawn_point_list.size());
-			g_spawn_system.spawn_point_map[sp->s.number] = compact_index;
 			// OPTIMIZATION: O(1) vector lookup instead of O(log N) map lookup
 			// SAFETY: Bounds check to prevent out-of-bounds write
 			if (sp->s.number >= g_spawn_system.spawn_point_index_lookup.size()) [[unlikely]] {
@@ -823,14 +821,16 @@ void BuildSpawnPointMap()
 					sp->s.number, g_spawn_system.spawn_point_index_lookup.size());
 				continue;
 			}
-			g_spawn_system.spawn_point_index_lookup[sp->s.number] = compact_index;
-			// Then add the pointer to the list
+
+			const uint16_t compact_index = static_cast<uint16_t>(g_spawn_point_list.size());
 			if (!safe_push_back(g_spawn_point_list, sp, MAX_SPAWN_POINTS)) {
 				gi.Com_Print("WARNING: Failed to add spawn point\n");
-				g_spawn_system.spawn_point_map.erase(sp->s.number);
-				g_spawn_system.spawn_point_index_lookup[sp->s.number] = 0xFFFF;
 				break;
 			}
+
+			g_spawn_system.spawn_point_map[sp->s.number] = compact_index;
+			g_spawn_system.spawn_point_index_lookup[sp->s.number] = compact_index;
+
 			// Add to spatial index for fast spatial queries
 			HordePerf::g_spawn_spatial_index.AddSpawnPoint(sp);
 		}
@@ -1120,13 +1120,7 @@ void BuildSpawnPointMap()
 					break;
 				}
 
-				const uint16_t compact_index = static_cast<uint16_t>(g_spawn_point_list.size());
-				g_spawn_system.spawn_point_map[virtual_spawn->s.number] = compact_index;
-				if (virtual_spawn->s.number < g_spawn_system.spawn_point_index_lookup.size())
-				{
-					g_spawn_system.spawn_point_index_lookup[virtual_spawn->s.number] = compact_index;
-				}
-				else
+				if (virtual_spawn->s.number >= g_spawn_system.spawn_point_index_lookup.size())
 				{
 					gi.Com_PrintFmt("ERROR: Virtual spawn entity number {} exceeds lookup table size {}! Skipping.\n",
 						virtual_spawn->s.number, g_spawn_system.spawn_point_index_lookup.size());
@@ -1134,14 +1128,16 @@ void BuildSpawnPointMap()
 					continue;
 				}
 
+				const uint16_t compact_index = static_cast<uint16_t>(g_spawn_point_list.size());
 				if (!safe_push_back(g_spawn_point_list, virtual_spawn, MAX_SPAWN_POINTS))
 				{
 					gi.Com_Print("WARNING: Failed to add virtual spawn point to list\n");
-					g_spawn_system.spawn_point_map.erase(virtual_spawn->s.number);
-					g_spawn_system.spawn_point_index_lookup[virtual_spawn->s.number] = 0xFFFF;
 					G_FreeEdict(virtual_spawn);
 					break;
 				}
+
+				g_spawn_system.spawn_point_map[virtual_spawn->s.number] = compact_index;
+				g_spawn_system.spawn_point_index_lookup[virtual_spawn->s.number] = compact_index;
 
 				HordePerf::g_spawn_spatial_index.AddSpawnPoint(virtual_spawn);
 
@@ -1244,9 +1240,18 @@ edict_t* SelectNextShuffledSpawnPoint(TFilter filter)
 		}
 		edict_t* spawnPoint = g_spawn_system.potential_spawn_points[g_spawn_system.spawn_point_shuffle_index++];
 
-		const uint16_t index = g_spawn_system.spawn_point_map.at(spawnPoint->s.number);
+		if (!spawnPoint || !spawnPoint->inuse || !is_valid_vector(spawnPoint->s.origin))
+		{
+			continue;
+		}
 
-		if (!spawnPoint || !spawnPoint->inuse || !is_valid_vector(spawnPoint->s.origin) ||
+		const uint16_t index = GetSpawnPointIndexSafe(spawnPoint);
+		if (index == 0xFFFF || index >= g_spawn_system.spawn_points_data.isTemporarilyDisabled.size())
+		{
+			continue;
+		}
+
+		if (
 			(g_spawn_system.spawn_points_data.isTemporarilyDisabled[index] && level.time < g_spawn_system.spawn_points_data.cooldownEndsAt[index]) ||
 			(level.time < g_spawn_system.spawn_points_data.alternative_cooldown[index]))
 		{
@@ -2997,6 +3002,23 @@ static AssetFamilyID GetMonsterAssetFamily(horde::MonsterTypeID typeId)
 	return AssetFamilyID::UNKNOWN_FAMILY;
 }
 
+static void MarkMonsterTypePrecached(horde::MonsterTypeID typeId, const char* model_path = nullptr)
+{
+	const size_t idx = static_cast<size_t>(typeId);
+	if (idx >= g_precached_monster_types_flags.size())
+		return;
+
+	g_precached_monster_types_flags[idx] = true;
+	g_precached_monsters_this_map.insert(typeId);
+	MarkFamilyPrecached(GetMonsterAssetFamily(typeId));
+
+	if (!model_path)
+		model_path = GetMonsterModelPath(typeId);
+
+	if (model_path && *model_path)
+		g_precached_models_this_map.insert(model_path);
+}
+
 // ============================================================================
 // BuildMonsterCache Helper Structures and Functions
 // ============================================================================
@@ -3185,9 +3207,7 @@ static AssetFamilyID PrecacheEliteMonster(
 			if (temp_monster->inuse)
 				G_FreeEdict(temp_monster);
 
-			g_precached_monster_types_flags[array_index] = true;
-			g_precached_monsters_this_map.insert(type_id);
-			g_precached_models_this_map.insert(model_path);
+			MarkMonsterTypePrecached(type_id, model_path);
 
 			UnlockModelFamilyMembers(type_id, ctx.currentActualLevel);
 		}
@@ -4061,27 +4081,25 @@ static void PrecacheAllMonsters()
 	// Reset all flags to false.
 	g_precached_monster_types_flags.fill(false);
 
-	// Initialize family limit tracking for this map
-	g_precached_families_this_map.clear();
-
-	// Pre-mark core families as allowed
-	for (const auto& core_family : CORE_FAMILIES) {
-		g_precached_families_this_map.insert(core_family);
-	}
-
-	// Select rotating families based on a simple rotation (map load doesn't have g_map_rotation_seed yet)
-	// Use level.mapname hash as a seed for variety
-	uint32_t map_hash = 0;
-	if (level.mapname) {
-		for (const char* p = level.mapname; *p; ++p) {
-			map_hash = map_hash * 31 + static_cast<uint32_t>(*p);
+	if (g_precached_families_this_map.empty())
+	{
+		// Fallback for callers that have not initialized rotation yet.
+		for (const auto& core_family : CORE_FAMILIES) {
+			g_precached_families_this_map.insert(core_family);
 		}
-	}
-	size_t rotation_offset = static_cast<size_t>(map_hash) % ROTATING_FAMILIES.size();
 
-	for (size_t i = 0; i < PrecacheLimits::ROTATING_FAMILY_SLOTS && i < ROTATING_FAMILIES.size(); ++i) {
-		size_t idx = (rotation_offset + i) % ROTATING_FAMILIES.size();
-		g_precached_families_this_map.insert(ROTATING_FAMILIES[idx]);
+		uint32_t map_hash = 0;
+		if (level.mapname) {
+			for (const char* p = level.mapname; *p; ++p) {
+				map_hash = map_hash * 31 + static_cast<uint32_t>(*p);
+			}
+		}
+		size_t rotation_offset = static_cast<size_t>(map_hash) % ROTATING_FAMILIES.size();
+
+		for (size_t i = 0; i < PrecacheLimits::ROTATING_FAMILY_SLOTS && i < ROTATING_FAMILIES.size(); ++i) {
+			size_t idx = (rotation_offset + i) % ROTATING_FAMILIES.size();
+			g_precached_families_this_map.insert(ROTATING_FAMILIES[idx]);
+		}
 	}
 
 	if (developer->integer) {
@@ -4119,7 +4137,7 @@ static void PrecacheAllMonsters()
 						{
 							G_FreeEdict(temp_monster);
 						}
-						g_precached_monster_types_flags[static_cast<size_t>(monster_id)] = true;
+						MarkMonsterTypePrecached(monster_id);
 
 						if (developer->integer)
 						{
@@ -4177,7 +4195,7 @@ static void PrecacheAllMonsters()
 				{
 					G_FreeEdict(temp_monster);
 				}
-				g_precached_monster_types_flags[static_cast<size_t>(monster_info.typeId)] = true;
+				MarkMonsterTypePrecached(monster_info.typeId);
 				precached_count++;
 
 				if (developer->integer)
@@ -4244,7 +4262,7 @@ static void PrecacheAllMonsters()
 						{
 							G_FreeEdict(temp_monster);
 						}
-						g_precached_monster_types_flags[static_cast<size_t>(monster.typeId)] = true;
+						MarkMonsterTypePrecached(monster.typeId);
 
 						if (developer->integer)
 						{
@@ -4416,7 +4434,6 @@ void Horde_Init()
 	PrecacheAllGameItems();
 	PrecacheWaveSounds();
 	monsters_precached = false; // Reset the precache flag for the new map.
-	PrecacheAllMonsters();
 
 	InitializeWaveSystem();
 	last_wave_number = 0;
@@ -4425,7 +4442,7 @@ void Horde_Init()
 	g_spawn_system.spawn_map_needs_build = true; // SET THE FLAG INSTEAD
 	ResetGame(); // This will call RebuildSpawnPointCacheIfNeeded indirectly or directly
 
-	gi.Com_Print("PRINT: Horde game state initialized with all necessary resources precached.\n");
+	gi.Com_Print("PRINT: Horde game state initialized; wave monster precache will run with map rotation.\n");
 }
 
 // Helper function to select a suitable boss weapon drop based on wave level
@@ -4813,12 +4830,16 @@ void ResetGame()
 	g_precached_monsters_this_map.clear();
 	g_precached_models_this_map.clear();
 	g_precached_families_this_map.clear();  // Reset family tracking for precache limit
+	g_precached_monster_types_flags.fill(false);
+	monsters_precached = false;
 	// Note: g_map_rotation_seed is intentionally NOT reset here to maintain rotation across waves
 
 	// recent spawns
 	g_recent_spawns.positions.fill(vec3_origin);
 	g_recent_spawns.cooldowns_until.fill(0_sec);
 	g_recent_spawn_index = 0;
+
+	RecordCurrentMapFamilyUsageToHistory();
 
 	// FIX: Clear spawn history to prevent previous map's spawn patterns from affecting new map
 	// Note: g_map_family_history is intentionally NOT reset to maintain variety across maps
@@ -6401,10 +6422,8 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 		MarkPositionAsRecentlyTeleported(self->s.origin);
 		if (used_spawn_point)
 		{
-			// --- THIS IS THE FIX ---
-			// Check if the key exists before trying to access the map.
-			if (g_spawn_system.spawn_point_map.count(used_spawn_point->s.number)) {
-				const uint16_t index = g_spawn_system.spawn_point_map.at(used_spawn_point->s.number);
+			const uint16_t index = GetSpawnPointIndexSafe(used_spawn_point);
+			if (index != 0xFFFF && index < g_spawn_system.spawn_points_data.teleport_cooldown.size()) {
 				g_spawn_system.spawn_points_data.teleport_cooldown[index] = level.time + HordeConstants::SPAWN_POINT_TELEPORT_COOLDOWN;
 			}
 			ApplyLongFlyingLaneCooldown(used_spawn_point);
@@ -8729,8 +8748,7 @@ void UnlockModelFamilyMembers(horde::MonsterTypeID boss_typeId, int32_t current_
 		return; // Boss's family not allowed, don't unlock family members
 	}
 
-	// Mark the model as loaded
-	g_precached_models_this_map.insert(boss_model_path);
+	MarkMonsterTypePrecached(boss_typeId, boss_model_path);
 
 	int unlocked_count = 0;
 
@@ -8757,8 +8775,7 @@ void UnlockModelFamilyMembers(horde::MonsterTypeID boss_typeId, int32_t current_
 		}
 
 		// Unlock this monster - it shares the model so it's "free"
-		g_precached_monster_types_flags[static_cast<size_t>(monster.typeId)] = true;
-		g_precached_monsters_this_map.insert(monster.typeId);
+		MarkMonsterTypePrecached(monster.typeId, monster_model_path);
 
 		// Remove from exclusion list if it was excluded
 		auto it = g_excluded_monsters_this_map.find(monster.typeId);
@@ -8800,21 +8817,27 @@ static int32_t GetFamilyUsageInPreviousMaps(AssetFamilyID family_id)
 	return total_usage;
 }
 
-static void InitializeMonsterRotation()
+static void RecordCurrentMapFamilyUsageToHistory()
 {
-	// Save current map's family usage to history before clearing
-	// This tracks which families were heavily used to avoid repetition in next map
+	if (g_map_rotation_seed <= 0)
+		return;
+
 	MapFamilyUsage current_map_usage;
 	current_map_usage.map_seed = g_map_rotation_seed;
 
 	// Count how many times each family appeared in spawn history
+	bool has_usage = false;
 	for (const auto& entry : g_spawn_history)
 	{
 		if (entry.family_id != AssetFamilyID::UNKNOWN_FAMILY)
 		{
 			current_map_usage.family_usage_counts[static_cast<size_t>(entry.family_id)]++;
+			has_usage = true;
 		}
 	}
+
+	if (!has_usage)
+		return;
 
 	// Store in history ring buffer
 	g_map_family_history[g_map_history_index] = current_map_usage;
@@ -8825,7 +8848,10 @@ static void InitializeMonsterRotation()
 		gi.Com_PrintFmt("Saving map {} family usage to history (index {})\n",
 			g_map_rotation_seed, g_map_history_index);
 	}
+}
 
+static void InitializeMonsterRotation()
+{
 	g_excluded_monsters_this_map.clear();
 	g_precached_monsters_this_map.clear();
 	g_precached_models_this_map.clear();
@@ -9007,6 +9033,8 @@ static void ResetWaveState(int32_t lvl)
 	if (lvl == 1) {
 		InitializeMonsterRotation();
 		InitializeScalingSystem();
+		monsters_precached = false;
+		PrecacheAllMonsters();
 	}
 }
 
@@ -9169,12 +9197,8 @@ static bool PrecacheMonsterForWave(const MonsterTypeInfo* monster_info, float& p
 	ED_CallSpawnMonsterByID(temp_monster, monster_info->typeId);
 	G_FreeEdict(temp_monster);
 
-	g_precached_monster_types_flags[static_cast<size_t>(monster_info->typeId)] = true;
-	g_precached_monsters_this_map.insert(monster_info->typeId);
-
 	const char* model_path = GetMonsterModelPath(monster_info->typeId);
-	if (model_path)
-		g_precached_models_this_map.insert(model_path);
+	MarkMonsterTypePrecached(monster_info->typeId, model_path);
 
 	precache_cost_this_wave += precache_cost;
 	precached_count++;
@@ -9189,7 +9213,7 @@ static void PrecacheCurrentWaveMonsters(int32_t lvl, float precache_budget, floa
 	{
 		if (g_precached_monster_types_flags[static_cast<size_t>(monster_info->typeId)])
 		{
-			g_precached_monsters_this_map.insert(monster_info->typeId);
+			MarkMonsterTypePrecached(monster_info->typeId);
 			continue;
 		}
 

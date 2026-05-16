@@ -398,11 +398,14 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_gunner", SP_monster_gunner },
 	{ "monster_gunner_vanilla", SP_monster_gunner_vanilla },
 	{ "monster_infantry", SP_monster_infantry },
+	{ "monster_enforcer", SP_monster_infantry },
+	{ "monster_infantry2", SP_monster_infantry },
 	{ "monster_infantry_vanilla", SP_monster_infantry_vanilla },
 	{ "monster_soldier_light", SP_monster_soldier_light },
 	{ "monster_soldier", SP_monster_soldier },
 	{ "monster_soldier_ss", SP_monster_soldier_ss },
 	{ "monster_tank", SP_monster_tank },
+	{ "monster_tank2", SP_monster_tank_commander },
 	{ "monster_tank_spawner", SP_monster_tank_spawner },
 	{ "monster_runnertank", SP_monster_runnertank },
 	{ "monster_tank_64", SP_monster_tank_64 },
@@ -415,8 +418,10 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_flyer", SP_monster_flyer },
 	{ "monster_brain", SP_monster_brain },
 	{ "monster_floater", SP_monster_floater },
+	{ "monster_floater2", SP_monster_floater_tracker },
 	{ "monster_floater_tracker", SP_monster_floater_tracker },
 	{ "monster_hover", SP_monster_hover },
+	{ "monster_hover2", SP_monster_hover },
 	{ "monster_hover_vanilla", SP_monster_hover_vanilla },
 	{ "monster_mutant", SP_monster_mutant },
 	{ "monster_redmutant", SP_monster_redmutant },
@@ -1356,10 +1361,14 @@ const char* ED_ParseEdict(const char* data, edict_t* ent, spawn_temp_t& st)
 	}
 
 	if (!init)
+#if defined(__GNUC__) || defined(__clang__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wclass-memaccess"
+#endif
 		memset(ent, 0, sizeof(*ent));
+#if defined(__GNUC__) || defined(__clang__)
 #pragma GCC diagnostic pop
+#endif
 
 	if (coop->integer && g_hardcoop->integer && ent->classname) {
 		perform_replacement(ent, GetHardCoopReplacements(),
@@ -1684,10 +1693,14 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 	gi.FreeTags(TAG_LEVEL);
 
 	level = {};
+#if defined(__GNUC__) || defined(__clang__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wclass-memaccess"
+#endif
 	memset(g_edicts, 0, game.maxentities * sizeof(g_edicts[0]));
+#if defined(__GNUC__) || defined(__clang__)
 #pragma GCC diagnostic pop
+#endif
 
 	// Initialize global spawner limits for spawner monsters in horde mode
 	level.global_spawner_limit = 20;

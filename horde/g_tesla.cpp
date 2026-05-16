@@ -42,6 +42,8 @@ constexpr float CHAIN_LIGHTNING_RANGE = 200.0f;        // Range to find chain ta
 constexpr float CHAIN_LIGHTNING_DAMAGE_MULT = 0.5f;    // 50% of tesla damage for chain targets
 constexpr int MAX_CHAIN_TARGETS_PER_VICTIM = 3;        // Max chain targets per tesla victim (increased)
 constexpr int CHAIN_LIGHTNING_MAX_EFFECTS_PER_FRAME = 30; // Much higher limit for chain effects per frame
+static int chain_lightning_effects_this_frame = 0;
+static gtime_t chain_lightning_effect_frame_time = 0_sec;
 
 void tesla_remove(edict_t *self)
 {
@@ -287,7 +289,14 @@ bool try_send_tesla_effect(edict_t *self, edict_t *target, const vec3_t &ray_sta
 // Helper for sending chain lightning effects
 bool try_send_chain_lightning_effect(edict_t *tesla_source, edict_t *chain_target, const vec3_t &chain_start, const vec3_t &chain_end)
 {
-	// DEBUGGING: Remove ALL rate limiting to isolate the visibility issue
+	if (chain_lightning_effect_frame_time != level.time)
+	{
+		chain_lightning_effects_this_frame = 0;
+		chain_lightning_effect_frame_time = level.time;
+	}
+
+	if (chain_lightning_effects_this_frame >= CHAIN_LIGHTNING_MAX_EFFECTS_PER_FRAME)
+		return false;
 	
 	// Send the chain lightning effect
 	gi.WriteByte(svc_temp_entity);
@@ -298,6 +307,7 @@ bool try_send_chain_lightning_effect(edict_t *tesla_source, edict_t *chain_targe
 	gi.WritePosition(chain_end);
 	gi.multicast(chain_start, MULTICAST_PVS, false);
 
+	chain_lightning_effects_this_frame++;
 	return true;
 }
 
@@ -362,10 +372,8 @@ void tesla_chain_lightning(edict_t *self, const tesla_target *tesla_victims, int
 				chain_damage, TESLA_KNOCKBACK / 2, DAMAGE_NO_ARMOR, MOD_TESLA);
 
 			// Send chain lightning visual effect from victim to chain target
-			if (try_send_chain_lightning_effect(self, potential_chain_target, chain_start, chain_end))
-			{
-				chains_from_this_victim++;
-			}
+			try_send_chain_lightning_effect(self, potential_chain_target, chain_start, chain_end);
+			chains_from_this_victim++;
 		}
 	}
 }

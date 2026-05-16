@@ -1,0 +1,534 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <PreferredToolArchitecture>x64</PreferredToolArchitecture>
+  </PropertyGroup>
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="MinSizeRel|x64">
+      <Configuration>MinSizeRel</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="RelWithDebInfo|x64">
+      <Configuration>RelWithDebInfo</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{280F88FB-EA04-340C-885D-B90621DDEDF9}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
+    <Platform>x64</Platform>
+    <ProjectName>Q2HordeModDLL</ProjectName>
+    <VCProjectUpgraderObjectName>NoUpgrade</VCProjectUpgraderObjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\build_codex_scan\bin\Debug\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Q2HordeModDLL.dir\Debug\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">game_x64</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.dll</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\build_codex_scan\bin\Release\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Q2HordeModDLL.dir\Release\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">game_x64</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.dll</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\build_codex_scan\bin\MinSizeRel\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Q2HordeModDLL.dir\MinSizeRel\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">game_x64</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">.dll</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\build_codex_scan\bin\RelWithDebInfo\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Q2HordeModDLL.dir\RelWithDebInfo\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">game_x64</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">.dll</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</GenerateManifest>
+  </PropertyGroup>
+  <PropertyGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vendor;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "C:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows-static/x64-windows-static/include" /bigobj /utf-8</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <BufferSecurityCheck></BufferSecurityCheck>
+      <CallingConvention></CallingConvention>
+      <ConformanceMode>true</ConformanceMode>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <FloatingPointModel></FloatingPointModel>
+      <ForceConformanceInForLoopScope></ForceConformanceInForLoopScope>
+      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <MinimalRebuild></MinimalRebuild>
+      <Optimization>Disabled</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RemoveUnreferencedCodeData></RemoveUnreferencedCodeData>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <SupportJustMyCode></SupportJustMyCode>
+      <TreatWChar_tAsBuiltInType></TreatWChar_tAsBuiltInType>
+      <UseFullPaths>false</UseFullPaths>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;FMT_HEADER_ONLY;KEX_Q2_GAME;KEX_Q2GAME_EXPORTS;KEX_Q2GAME_DYNAMIC;_CRT_SECURE_NO_WARNINGS;SQLITE_THREADSAFE=1;SQLITE_OMIT_LOAD_EXTENSION;_CONSOLE;NOMINMAX;WIN32_LEAN_AND_MEAN;CMAKE_INTDIR="Debug";Q2HordeModDLL_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_DEBUG;_WINDOWS;FMT_HEADER_ONLY;KEX_Q2_GAME;KEX_Q2GAME_EXPORTS;KEX_Q2GAME_DYNAMIC;_CRT_SECURE_NO_WARNINGS;SQLITE_THREADSAFE=1;SQLITE_OMIT_LOAD_EXTENSION;_CONSOLE;NOMINMAX;WIN32_LEAN_AND_MEAN;CMAKE_INTDIR=\"Debug\";Q2HordeModDLL_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vendor;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vendor;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\debug\lib\fmtd.lib;ws2_32.lib;winmm.lib;user32.lib;gdi32.lib;ole32.lib;uuid.lib;kernel32.lib;advapi32.lib;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\debug\lib\jsoncpp.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <DataExecutionPrevention></DataExecutionPrevention>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImageHasSafeExceptionHandlers></ImageHasSafeExceptionHandlers>
+      <ImportLibrary>C:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod/build_codex_scan/lib/Debug/game_x64.lib</ImportLibrary>
+      <LinkErrorReporting></LinkErrorReporting>
+      <ProgramDataBaseFile>C:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod/build_codex_scan/bin/Debug/game_x64.pdb</ProgramDataBaseFile>
+      <RandomizedBaseAddress></RandomizedBaseAddress>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vendor;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "C:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows-static/x64-windows-static/include" /bigobj /utf-8</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <BufferSecurityCheck></BufferSecurityCheck>
+      <CallingConvention></CallingConvention>
+      <ConformanceMode>true</ConformanceMode>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <FloatingPointModel></FloatingPointModel>
+      <ForceConformanceInForLoopScope></ForceConformanceInForLoopScope>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <MinimalRebuild></MinimalRebuild>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RemoveUnreferencedCodeData></RemoveUnreferencedCodeData>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <SupportJustMyCode></SupportJustMyCode>
+      <TreatWChar_tAsBuiltInType></TreatWChar_tAsBuiltInType>
+      <UseFullPaths>false</UseFullPaths>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;FMT_HEADER_ONLY;KEX_Q2_GAME;KEX_Q2GAME_EXPORTS;KEX_Q2GAME_DYNAMIC;_CRT_SECURE_NO_WARNINGS;SQLITE_THREADSAFE=1;SQLITE_OMIT_LOAD_EXTENSION;_CONSOLE;NOMINMAX;WIN32_LEAN_AND_MEAN;CMAKE_INTDIR="Release";Q2HordeModDLL_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;FMT_HEADER_ONLY;KEX_Q2_GAME;KEX_Q2GAME_EXPORTS;KEX_Q2GAME_DYNAMIC;_CRT_SECURE_NO_WARNINGS;SQLITE_THREADSAFE=1;SQLITE_OMIT_LOAD_EXTENSION;_CONSOLE;NOMINMAX;WIN32_LEAN_AND_MEAN;CMAKE_INTDIR=\"Release\";Q2HordeModDLL_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vendor;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vendor;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\lib\fmt.lib;ws2_32.lib;winmm.lib;user32.lib;gdi32.lib;ole32.lib;uuid.lib;kernel32.lib;advapi32.lib;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\lib\jsoncpp.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <DataExecutionPrevention></DataExecutionPrevention>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImageHasSafeExceptionHandlers></ImageHasSafeExceptionHandlers>
+      <ImportLibrary>C:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod/build_codex_scan/lib/Release/game_x64.lib</ImportLibrary>
+      <LinkErrorReporting></LinkErrorReporting>
+      <ProgramDataBaseFile>C:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod/build_codex_scan/bin/Release/game_x64.pdb</ProgramDataBaseFile>
+      <RandomizedBaseAddress></RandomizedBaseAddress>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vendor;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "C:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows-static/x64-windows-static/include" /bigobj /utf-8</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <BufferSecurityCheck></BufferSecurityCheck>
+      <CallingConvention></CallingConvention>
+      <ConformanceMode>true</ConformanceMode>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <FloatingPointModel></FloatingPointModel>
+      <ForceConformanceInForLoopScope></ForceConformanceInForLoopScope>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <MinimalRebuild></MinimalRebuild>
+      <Optimization>MinSpace</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RemoveUnreferencedCodeData></RemoveUnreferencedCodeData>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <SupportJustMyCode></SupportJustMyCode>
+      <TreatWChar_tAsBuiltInType></TreatWChar_tAsBuiltInType>
+      <UseFullPaths>false</UseFullPaths>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;FMT_HEADER_ONLY;KEX_Q2_GAME;KEX_Q2GAME_EXPORTS;KEX_Q2GAME_DYNAMIC;_CRT_SECURE_NO_WARNINGS;SQLITE_THREADSAFE=1;SQLITE_OMIT_LOAD_EXTENSION;_CONSOLE;NOMINMAX;WIN32_LEAN_AND_MEAN;CMAKE_INTDIR="MinSizeRel";Q2HordeModDLL_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;FMT_HEADER_ONLY;KEX_Q2_GAME;KEX_Q2GAME_EXPORTS;KEX_Q2GAME_DYNAMIC;_CRT_SECURE_NO_WARNINGS;SQLITE_THREADSAFE=1;SQLITE_OMIT_LOAD_EXTENSION;_CONSOLE;NOMINMAX;WIN32_LEAN_AND_MEAN;CMAKE_INTDIR=\"MinSizeRel\";Q2HordeModDLL_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vendor;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vendor;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\debug\lib\fmtd.lib;ws2_32.lib;winmm.lib;user32.lib;gdi32.lib;ole32.lib;uuid.lib;kernel32.lib;advapi32.lib;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\debug\lib\jsoncpp.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <DataExecutionPrevention></DataExecutionPrevention>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImageHasSafeExceptionHandlers></ImageHasSafeExceptionHandlers>
+      <ImportLibrary>C:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod/build_codex_scan/lib/MinSizeRel/game_x64.lib</ImportLibrary>
+      <LinkErrorReporting></LinkErrorReporting>
+      <ProgramDataBaseFile>C:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod/build_codex_scan/bin/MinSizeRel/game_x64.pdb</ProgramDataBaseFile>
+      <RandomizedBaseAddress></RandomizedBaseAddress>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vendor;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "C:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows-static/x64-windows-static/include" /bigobj /utf-8</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <BufferSecurityCheck></BufferSecurityCheck>
+      <CallingConvention></CallingConvention>
+      <ConformanceMode>true</ConformanceMode>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <FloatingPointModel></FloatingPointModel>
+      <ForceConformanceInForLoopScope></ForceConformanceInForLoopScope>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <MinimalRebuild></MinimalRebuild>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RemoveUnreferencedCodeData></RemoveUnreferencedCodeData>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <SupportJustMyCode></SupportJustMyCode>
+      <TreatWChar_tAsBuiltInType></TreatWChar_tAsBuiltInType>
+      <UseFullPaths>false</UseFullPaths>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;FMT_HEADER_ONLY;KEX_Q2_GAME;KEX_Q2GAME_EXPORTS;KEX_Q2GAME_DYNAMIC;_CRT_SECURE_NO_WARNINGS;SQLITE_THREADSAFE=1;SQLITE_OMIT_LOAD_EXTENSION;_CONSOLE;NOMINMAX;WIN32_LEAN_AND_MEAN;CMAKE_INTDIR="RelWithDebInfo";Q2HordeModDLL_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;FMT_HEADER_ONLY;KEX_Q2_GAME;KEX_Q2GAME_EXPORTS;KEX_Q2GAME_DYNAMIC;_CRT_SECURE_NO_WARNINGS;SQLITE_THREADSAFE=1;SQLITE_OMIT_LOAD_EXTENSION;_CONSOLE;NOMINMAX;WIN32_LEAN_AND_MEAN;CMAKE_INTDIR=\"RelWithDebInfo\";Q2HordeModDLL_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vendor;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vendor;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\debug\lib\fmtd.lib;ws2_32.lib;winmm.lib;user32.lib;gdi32.lib;ole32.lib;uuid.lib;kernel32.lib;advapi32.lib;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\debug\lib\jsoncpp.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <DataExecutionPrevention></DataExecutionPrevention>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImageHasSafeExceptionHandlers></ImageHasSafeExceptionHandlers>
+      <ImportLibrary>C:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod/build_codex_scan/lib/RelWithDebInfo/game_x64.lib</ImportLibrary>
+      <LinkErrorReporting></LinkErrorReporting>
+      <ProgramDataBaseFile>C:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod/build_codex_scan/bin/RelWithDebInfo/game_x64.pdb</ProgramDataBaseFile>
+      <RandomizedBaseAddress></RandomizedBaseAddress>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\CMakeLists.txt">
+      <UseUtf8Encoding>Always</UseUtf8Encoding>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule C:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod -BC:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod/build_codex_scan --check-stamp-file C:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod/build_codex_scan/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeCInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeCXXInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeCommonLanguageInclude.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeGenericSystem.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeInitializeConfigs.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeLanguageInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeRCInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeSystemSpecificInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeSystemSpecificInitialize.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Compiler\MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Compiler\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Compiler\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Internal\CMakeCLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Internal\CMakeCXXLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Internal\CMakeCommonLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Linker\MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Linker\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Linker\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Linker\Windows-MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Linker\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Linker\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows-Initialize.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows-MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\WindowsPaths.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\build_codex_scan\CMakeFiles\4.3.1\CMakeCCompiler.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\build_codex_scan\CMakeFiles\4.3.1\CMakeCXXCompiler.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\build_codex_scan\CMakeFiles\4.3.1\CMakeRCCompiler.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\build_codex_scan\CMakeFiles\4.3.1\CMakeSystem.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\build_codex_scan\CMakeFiles\cmake.verify_globs;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\fmt\fmt-config-version.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\fmt\fmt-config.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\fmt\fmt-targets-debug.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\fmt\fmt-targets-release.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\fmt\fmt-targets.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\jsoncpp\jsoncpp-namespaced-targets.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\jsoncpp\jsoncpp-targets-debug.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\jsoncpp\jsoncpp-targets-release.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\jsoncpp\jsoncpp-targets.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\jsoncpp\jsoncppConfig.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\jsoncpp\jsoncppConfigVersion.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\build_codex_scan\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule C:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod -BC:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod/build_codex_scan --check-stamp-file C:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod/build_codex_scan/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeCInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeCXXInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeCommonLanguageInclude.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeGenericSystem.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeInitializeConfigs.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeLanguageInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeRCInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeSystemSpecificInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeSystemSpecificInitialize.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Compiler\MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Compiler\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Compiler\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Internal\CMakeCLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Internal\CMakeCXXLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Internal\CMakeCommonLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Linker\MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Linker\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Linker\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Linker\Windows-MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Linker\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Linker\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows-Initialize.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows-MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\WindowsPaths.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\build_codex_scan\CMakeFiles\4.3.1\CMakeCCompiler.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\build_codex_scan\CMakeFiles\4.3.1\CMakeCXXCompiler.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\build_codex_scan\CMakeFiles\4.3.1\CMakeRCCompiler.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\build_codex_scan\CMakeFiles\4.3.1\CMakeSystem.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\build_codex_scan\CMakeFiles\cmake.verify_globs;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\fmt\fmt-config-version.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\fmt\fmt-config.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\fmt\fmt-targets-debug.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\fmt\fmt-targets-release.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\fmt\fmt-targets.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\jsoncpp\jsoncpp-namespaced-targets.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\jsoncpp\jsoncpp-targets-debug.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\jsoncpp\jsoncpp-targets-release.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\jsoncpp\jsoncpp-targets.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\jsoncpp\jsoncppConfig.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\jsoncpp\jsoncppConfigVersion.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\build_codex_scan\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Building Custom Rule C:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod -BC:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod/build_codex_scan --check-stamp-file C:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod/build_codex_scan/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeCInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeCXXInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeCommonLanguageInclude.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeGenericSystem.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeInitializeConfigs.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeLanguageInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeRCInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeSystemSpecificInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeSystemSpecificInitialize.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Compiler\MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Compiler\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Compiler\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Internal\CMakeCLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Internal\CMakeCXXLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Internal\CMakeCommonLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Linker\MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Linker\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Linker\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Linker\Windows-MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Linker\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Linker\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows-Initialize.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows-MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\WindowsPaths.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\build_codex_scan\CMakeFiles\4.3.1\CMakeCCompiler.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\build_codex_scan\CMakeFiles\4.3.1\CMakeCXXCompiler.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\build_codex_scan\CMakeFiles\4.3.1\CMakeRCCompiler.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\build_codex_scan\CMakeFiles\4.3.1\CMakeSystem.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\build_codex_scan\CMakeFiles\cmake.verify_globs;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\fmt\fmt-config-version.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\fmt\fmt-config.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\fmt\fmt-targets-debug.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\fmt\fmt-targets-release.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\fmt\fmt-targets.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\jsoncpp\jsoncpp-namespaced-targets.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\jsoncpp\jsoncpp-targets-debug.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\jsoncpp\jsoncpp-targets-release.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\jsoncpp\jsoncpp-targets.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\jsoncpp\jsoncppConfig.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\jsoncpp\jsoncppConfigVersion.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\build_codex_scan\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Building Custom Rule C:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod -BC:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod/build_codex_scan --check-stamp-file C:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod/build_codex_scan/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeCInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeCXXInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeCommonLanguageInclude.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeGenericSystem.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeInitializeConfigs.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeLanguageInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeRCInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeSystemSpecificInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeSystemSpecificInitialize.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Compiler\MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Compiler\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Compiler\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Internal\CMakeCLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Internal\CMakeCXXLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Internal\CMakeCommonLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Linker\MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Linker\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Linker\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Linker\Windows-MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Linker\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Linker\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows-Initialize.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows-MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\WindowsPaths.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\build_codex_scan\CMakeFiles\4.3.1\CMakeCCompiler.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\build_codex_scan\CMakeFiles\4.3.1\CMakeCXXCompiler.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\build_codex_scan\CMakeFiles\4.3.1\CMakeRCCompiler.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\build_codex_scan\CMakeFiles\4.3.1\CMakeSystem.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\build_codex_scan\CMakeFiles\cmake.verify_globs;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\fmt\fmt-config-version.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\fmt\fmt-config.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\fmt\fmt-targets-debug.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\fmt\fmt-targets-release.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\fmt\fmt-targets.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\jsoncpp\jsoncpp-namespaced-targets.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\jsoncpp\jsoncpp-targets-debug.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\jsoncpp\jsoncpp-targets-release.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\jsoncpp\jsoncpp-targets.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\jsoncpp\jsoncppConfig.cmake;C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vcpkg_installed\x64-windows-static\x64-windows-static\share\jsoncpp\jsoncppConfigVersion.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\build_codex_scan\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\bots\bot_debug.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\bots\bot_exports.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\bots\bot_think.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\bots\bot_utils.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\cg_main.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\cg_screen.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\ctf\g_ctf.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\ctf\p_ctf_menu.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\g_ai.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\g_chase.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\g_cmds.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\g_combat.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\g_config.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\g_func.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\g_items.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\g_main.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\g_misc.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\g_monster.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\g_phys.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\g_save.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\g_spawn.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\g_svcmds.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\g_target.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\g_trigger.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\g_turret.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\g_utils.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\g_weapon.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\hook.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\horde\g_barrel.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\horde\g_bombspell.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\horde\g_character.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\horde\g_doppleganger.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\horde\g_entity_properties.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\horde\g_fire.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\horde\g_horde.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\horde\g_horde_benefits.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\horde\g_horde_phys.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\horde\g_horde_scaling.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\horde\g_idview.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\horde\g_laser.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\horde\g_pvm.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\horde\g_pvm_menu.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\horde\g_strogg_summoner.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\horde\g_teleport.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\horde\g_tesla.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\horde\g_traps.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\horde\g_upgrades.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\horde\horde_boss.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\horde\horde_ids.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\horde\horde_menu.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\horde\horde_monster_data.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\horde\horde_spawning.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\horde\p_brain_morph.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\horde\p_flyer_morph.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\horde\weapon_id.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\m_actor.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\m_arachnid.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\m_berserk.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\m_boss2.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\m_boss3.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\m_boss31.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\m_boss32.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\m_brain.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\m_chick.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\m_flipper.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\m_float.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\m_float_vanilla.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\m_flyer.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\m_gladiator.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\m_guardian.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\m_guncmdr.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\m_gunner.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\m_gunner_vanilla.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\m_hover.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\m_infantry.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\m_insane.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\m_medic.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\m_move.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\m_mutant.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\m_parasite.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\m_psxguardian.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\m_redmutant.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\m_runnertank.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\m_shambler.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\m_soldier.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\m_supertank.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\m_tank.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\p_client.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\p_hud.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\p_move.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\p_trail.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\p_view.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\p_weapon.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\profiler.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\q_std.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\rogue\g_rogue_combat.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\rogue\g_rogue_func.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\rogue\g_rogue_items.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\rogue\g_rogue_misc.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\rogue\g_rogue_monster.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\rogue\g_rogue_newai.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\rogue\g_rogue_newdm.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\rogue\g_rogue_newfnc.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\rogue\g_rogue_newtarg.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\rogue\g_rogue_newtrig.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\rogue\g_rogue_newweap.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\rogue\g_rogue_phys.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\rogue\g_rogue_spawn.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\rogue\g_rogue_sphere.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\rogue\g_rogue_utils.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\rogue\m_rogue_carrier.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\rogue\m_rogue_stalker.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\rogue\m_rogue_turret.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\rogue\m_rogue_widow.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\rogue\m_rogue_widow2.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\rogue\m_sentrygun.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\rogue\p_rogue_weapon.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\rogue\rogue_dm_ball.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\rogue\rogue_dm_tag.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\shared.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\xatrix\g_xatrix_func.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\xatrix\g_xatrix_items.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\xatrix\g_xatrix_misc.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\xatrix\g_xatrix_monster.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\xatrix\g_xatrix_target.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\xatrix\g_xatrix_weapon.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\xatrix\m_xatrix_fixbot.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\xatrix\m_xatrix_gekk.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\xatrix\p_xatrix_weapon.cpp" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vendor\lua.c">
+      <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4090;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4090;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">4090;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">4090;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vendor\sqlite3.c" />
+    <ClCompile Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\vendor\twister.c" />
+  </ItemGroup>
+  <ItemGroup />
+  <ItemGroup>
+    <ProjectReference Include="C:\Users\Bjorn\Documents\Repos\Q2Remaster-Horde-Mod\build_codex_scan\ZERO_CHECK.vcxproj">
+      <Project>{3EB7CC60-B002-37C2-959B-BFA77C314CCC}</Project>
+      <Name>ZERO_CHECK</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

@@ -823,6 +823,13 @@ void Config_LoadMonsters(const char* basedir)
 			if (!scaling_data.isObject())
 				continue;
 
+			std::string full_classname = "monster_" + monster_name;
+			if (horde::MonsterTypeRegistry::GetTypeID(full_classname.c_str()) == horde::MonsterTypeID::UNKNOWN)
+			{
+				gi.Com_PrintFmt("Config: WARNING - Unknown monster '{}' in level scaling config, skipping\n", monster_name);
+				continue;
+			}
+
 			MonsterLevelScaling level_scaling;
 			level_scaling.initial_health = GetJsonInt(scaling_data, "initial_health", 100);
 			level_scaling.addon_health = GetJsonInt(scaling_data, "addon_health", 10);
@@ -1001,10 +1008,10 @@ void Config_Load(const char* basedir)
 	std::string config_path = std::string(basedir) + config_filename;
 
 	Json::Value root;
-	if (!LoadLuaConfig(config_path, root))
+	const bool player_config_loaded = LoadLuaConfig(config_path, root);
+	if (!player_config_loaded)
 	{
 		gi.Com_PrintFmt("Config: Using default values\n");
-		return;
 	}
 
 	// Load entity limits
@@ -1457,7 +1464,10 @@ void Config_Load(const char* basedir)
 		g_config.power_cubes_regen.cubes_per_regen = GetJsonInt(pcr, "cubes_per_regen", 5);
 	}
 
-	gi.Com_PrintFmt("Config: Successfully loaded {}\n", config_filename);
+	if (player_config_loaded)
+		gi.Com_PrintFmt("Config: Successfully loaded {}\n", config_filename);
+	else
+		gi.Com_PrintFmt("Config: Player config defaults active for {}\n", config_filename);
 	gi.Com_PrintFmt("Config: Entity limits - Sentries: {}, Lasers: {}, Teslas: {}, Barrels: {}, Prox: {}, Traps: {}, Summons: {}\n",
 		g_config.entity_limits.max_sentries,
 		g_config.entity_limits.max_lasers,
