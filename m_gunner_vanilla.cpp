@@ -722,7 +722,9 @@ void gunner_vanilla_refire_chain(edict_t* self)
 {
 	if (!M_HasValidTarget(self))
 	{
-		return; // Stop immediately if the target is invalid.
+		self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
+		M_SetAnimation(self, &gunner_vanilla_move_endfire_chain, false);
+		return;
 	}
 
 	// Comprueba si self->enemy no es nullptr y tiene salud mayor a 0
