@@ -1064,35 +1064,29 @@ MONSTERINFO_ATTACK(infantry_attack) (edict_t* self) -> void
 	// handle blindfire grenade
 	if (self->monsterinfo.attack_state == AS_BLIND)
 	{
-		// don't shoot at the origin
-		if (!self->monsterinfo.blind_fire_target)
-        {
-            // IMPORTANT: If we enter blind attack state but have no target,
-            // we must clear the manual steering flag to avoid getting stuck.
-            self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
-			return;
-        }
+		static constexpr float INFANTRY_BLINDFIRE_GRENADE_CHANCE = 0.2f;
 
-		float chance;
-
-		// setup shot probabilities
-		if (self->monsterinfo.blind_fire_delay < 1.0_sec)
-			chance = 1.0;
-		else if (self->monsterinfo.blind_fire_delay < 7.5_sec)
-			chance = 0.35f;
-		else
-			chance = 0.1f;
-
-		// minimum of 2.5 seconds, plus up to 3 more, after the shot attempt.
+		// Advance the delay on every blindfire attempt so skipped rolls do not retry immediately.
 		self->monsterinfo.blind_fire_delay += random_time(2.5_sec, 5.5_sec);
 
-		// don't shoot if the dice say not to
-		if (frandom() > chance)
-        {
-            // IMPORTANT: Also clear the flag if we decide not to shoot.
-            self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
+		// don't shoot at the origin
+		if (!self->monsterinfo.blind_fire_target)
+		{
+			// IMPORTANT: If we enter blind attack state but have no target,
+			// we must clear the manual steering flag to avoid getting stuck.
+			self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
+			self->monsterinfo.attack_state = AS_STRAIGHT;
 			return;
-        }
+		}
+
+		// don't shoot if the dice say not to
+		if (frandom() >= INFANTRY_BLINDFIRE_GRENADE_CHANCE)
+		{
+			// IMPORTANT: Also clear the flag if we decide not to shoot.
+			self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
+			self->monsterinfo.attack_state = AS_STRAIGHT;
+			return;
+		}
 
 		// turn on manual steering to signal blindfire
 		self->monsterinfo.aiflags |= AI_MANUAL_STEERING;
