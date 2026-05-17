@@ -1384,6 +1384,8 @@ enum class WaveEndReason
 	FewMonstersRemaining  // Early wave start when 2-3 monsters remain
 };
 
+static constexpr gtime_t ZERO_MONSTER_DEPLOYMENT_GRACE = 5_sec;
+
 inline int8_t GetNumActivePlayers();
 inline int8_t GetNumSpectPlayers();
 
@@ -5075,8 +5077,11 @@ static bool CheckRemainingMonstersCondition(const horde::MapSize& mapSize, WaveE
 	{
 		reason = WaveEndReason::TimeLimitReached;
 		if (developer->integer)
-			// gi.Com_PrintFmt("Wave ended: Independent time limit reached ({:.1f}s).\n", ctx.params.independentTimeThreshold.seconds());
-			return true;
+		{
+			gi.Com_PrintFmt("Wave ended: Independent time limit reached ({:.1f}s).\n",
+				ctx.params.independentTimeThreshold.seconds());
+		}
+		return true;
 	}
 
 	// --- 4. Conditional Timer Logic ---
@@ -5416,6 +5421,7 @@ void ResetWaveAdvanceState() noexcept
 	g_horde_local.conditionTimeThreshold = 0_sec;
 	g_horde_local.timeWarningIssued = false;
 	g_horde_local.waveEndTime = 0_sec;
+	g_horde_local.zero_monster_deployment_start = 0_sec;
 
 	// Make sure warning flags are reset
 
@@ -6829,6 +6835,41 @@ static void ClearPendingWaveSpawns(const char* reason)
 	g_horde_local.num_to_spawn = 0;
 	g_horde_local.queued_monsters = 0;
 	g_spawn_system.spawn_plan.clear();
+}
+
+static bool CheckZeroMonsterDeploymentGrace(int32_t currentLevel, gtime_t currentTime, WaveEndReason& reason)
+{
+	const bool bossWaveWaitingForBoss = currentLevel >= 10 && (currentLevel % 5) == 0 && !boss_spawned_for_wave;
+	const bool hasPendingSpawns = g_horde_local.num_to_spawn > 0 || g_horde_local.queued_monsters > 0;
+	const bool hasPlannedSpawns = !g_spawn_system.spawn_plan.empty();
+	const bool zeroCountedMonsters = GetStroggsNum() == 0;
+
+	if (bossWaveWaitingForBoss || !zeroCountedMonsters || !hasPendingSpawns || hasPlannedSpawns)
+	{
+		g_horde_local.zero_monster_deployment_start = 0_sec;
+		return false;
+	}
+
+	if (g_horde_local.zero_monster_deployment_start == 0_sec)
+	{
+		g_horde_local.zero_monster_deployment_start = currentTime;
+		if (developer->integer)
+		{
+			gi.Com_PrintFmt("HORDE: Wave {} has 0 counted monsters while deployment is pending. Starting {:.1f}s grace.\n",
+				currentLevel, ZERO_MONSTER_DEPLOYMENT_GRACE.seconds());
+		}
+		return false;
+	}
+
+	if (currentTime < g_horde_local.zero_monster_deployment_start + ZERO_MONSTER_DEPLOYMENT_GRACE)
+	{
+		return false;
+	}
+
+	ClearPendingWaveSpawns("Zero-monster deployment grace expired");
+	g_horde_local.zero_monster_deployment_start = 0_sec;
+	reason = WaveEndReason::AllMonstersDead;
+	return true;
 }
 
 
@@ -8339,6 +8380,13 @@ void Horde_RunFrame()
 				}
 			}
 		}
+
+		if (g_horde_local.state == horde_state_t::spawning &&
+			CheckZeroMonsterDeploymentGrace(currentLevel, currentTime, currentWaveEndReason))
+		{
+			waveEnded = true;
+			break;
+		}
 		break;
 	}
 
@@ -9021,6 +9069,7 @@ static void ResetWaveState(int32_t lvl)
 
 	g_spawn_system.spawn_plan.clear();
 	g_spawn_system.special_spawn_state.clear();
+	g_horde_local.zero_monster_deployment_start = 0_sec;
 	g_horde_retaliation_end_time = 0_sec;
 	g_horde_retaliation_last_trigger_time = 0_sec;
 	ResetChampionMonsterState();

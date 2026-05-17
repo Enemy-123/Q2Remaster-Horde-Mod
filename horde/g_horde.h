@@ -138,6 +138,7 @@ struct HordeState
 	int32_t wave_at_last_check = 0;
 	gtime_t spawning_phase_timeout_start = 0_sec;
 	int32_t prev_wave_level_for_spawning_timers = -1;
+	gtime_t zero_monster_deployment_start = 0_sec;
 
 	// Time acceleration for smooth wave ending
 	float timeAcceleration = 1.0f;           // Current acceleration multiplier
