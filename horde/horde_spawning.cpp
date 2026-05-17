@@ -739,7 +739,7 @@ void PlanMonsterSpawnBatch(
         try_plan_at_spawn_point(spawn_point);
     }
 
-    if (developer->integer && (planned_count < num_to_plan || developer->integer >= 2))
+    if (developer->integer > 1)
     {
         gi.Com_PrintFmt("SPAWN PLAN: Target={}, Planned={}, FailedValidation={}, FailedPick={}, PointsChecked={}/{} (Remaining: {})\n",
                         num_to_plan, planned_count, failed_validation, failed_monster_pick,
@@ -859,7 +859,7 @@ void RebuildSpawnPointCacheIfNeeded()
         g_spawn_system.need_spawn_cache_reset = false;
         g_spawn_system.consecutive_spawn_failures = 0;
 
-        if (developer->integer)
+        if (developer->integer > 1)
             gi.Com_PrintFmt("Spawn Point Cache Rebuilt: {} points shuffled ({} flying).\n", g_spawn_system.potential_spawn_points.size(), g_spawn_system.cached_flying_spawn_count);
     }
 }
@@ -1003,7 +1003,7 @@ int ExecuteEmergencySpawnProcedure(int32_t spawnable_this_call,
     {
         g_spawn_system.consecutive_spawn_failures = 0; // Reset failures on any success
         g_spawn_system.consecutive_emergency_failures = 0; // Reset emergency failures too
-        if (developer->integer)
+        if (developer->integer > 1)
             gi.Com_PrintFmt("EMERGENCY SPAWN PROCEDURE: Spawned {}.\n", emergency_spawned_count);
     }
     else

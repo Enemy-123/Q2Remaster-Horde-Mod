@@ -858,7 +858,7 @@ void BuildSpawnPointMap()
 		gi.Com_Print("ERROR: Failed to resize spawn validation cache\n");
 	}
 
-	if (developer->integer) {
+	if (developer->integer > 1) {
 		gi.Com_PrintFmt("Spawn Point Map Built: Found {} spawn points with spatial index.\n", g_num_spawn_points);
 	}
 
@@ -962,10 +962,10 @@ void BuildSpawnPointMap()
 			}
 		}
 
-		if (bounds_source_count > 0) {
+		if (developer->integer > 1 && bounds_source_count > 0) {
 			gi.Com_PrintFmt("Calculated world bounds from .ent file ({} entities)\n", bounds_source_count);
 		}
-		if (developer->integer && !style1_spawn_hints.empty()) {
+		if (developer->integer > 1 && !style1_spawn_hints.empty()) {
 			gi.Com_PrintFmt("Applied {} style-1 DM spawn hints from .ent ({} hints found)\n",
 				style1_applied, style1_spawn_hints.size());
 			if (runtime_style1_count > 0)
@@ -978,7 +978,8 @@ void BuildSpawnPointMap()
 
 	// Method 2 (Fallback): Use runtime entities if .ent parsing failed
 	if (bounds_source_count == 0) {
-		gi.Com_Print("Fallback: Calculating bounds from runtime entities...\n");
+		if (developer->integer > 1)
+			gi.Com_Print("Fallback: Calculating bounds from runtime entities...\n");
 
 		for (int i = game.maxclients + 1; i < static_cast<int>(globals.num_edicts); i++) {
 			edict_t* ent = &g_edicts[i];
@@ -997,19 +998,22 @@ void BuildSpawnPointMap()
 			}
 		}
 
-		gi.Com_PrintFmt("Calculated bounds from {} runtime entities\n", bounds_source_count);
+		if (developer->integer > 1)
+			gi.Com_PrintFmt("Calculated bounds from {} runtime entities\n", bounds_source_count);
 	}
 
 	// Method 3 (Last resort): Use spawn points only
 	if (bounds_source_count == 0) {
-		gi.Com_Print("Last resort: Using spawn points for bounds...\n");
+		if (developer->integer > 1)
+			gi.Com_Print("Last resort: Using spawn points for bounds...\n");
 		for (edict_t* sp : g_spawn_point_list) {
 			if (sp && sp->inuse && is_valid_vector(sp->s.origin)) {
 				AddPointToBounds(sp->s.origin, world_mins, world_maxs);
 				bounds_source_count++;
 			}
 		}
-		gi.Com_PrintFmt("Calculated bounds from {} spawn points\n", bounds_source_count);
+		if (developer->integer > 1)
+			gi.Com_PrintFmt("Calculated bounds from {} spawn points\n", bounds_source_count);
 	}
 
 	// Safety check
@@ -1029,14 +1033,19 @@ void BuildSpawnPointMap()
 	g_spawn_world_maxs = world_maxs;
 	g_spawn_world_bounds_valid = true;
 
-	// Generate grid only when enabled for this map, or when we have no classic spawn points.
+	// Generate grid when enabled, when there are no classic spawn points, or when
+	// boss waves need a fallback because this map has no registered boss origin.
+	vec3_t boss_origin_check;
+	const bool needs_boss_grid_fallback = !horde::MapOriginRegistry::GetOrigin(level.mapname, boss_origin_check);
 	const bool grid_enabled_for_map = (g_horde_grid_first && g_horde_grid_first->integer != 0);
-	if (grid_enabled_for_map || g_num_spawn_points == 0)
+	if (grid_enabled_for_map || g_num_spawn_points == 0 || needs_boss_grid_fallback)
 	{
-		gi.Com_Print("Generating spawn grid...\n");
+		if (developer->integer > 1)
+			gi.Com_Print("Generating spawn grid...\n");
 		if (HordePhys::g_spawn_grid.Generate(world_mins, world_maxs))
 		{
-			gi.Com_PrintFmt("Spawn grid ready with {} nodes.\n", HordePhys::g_spawn_grid.GetNodeCount());
+			if (developer->integer > 1)
+				gi.Com_PrintFmt("Spawn grid ready with {} nodes.\n", HordePhys::g_spawn_grid.GetNodeCount());
 		}
 		else
 		{
@@ -1046,7 +1055,8 @@ void BuildSpawnPointMap()
 	else
 	{
 		HordePhys::g_spawn_grid.Clear();
-		gi.Com_Print("Spawn grid disabled for this map, using classic spawn points.\n");
+		if (developer->integer > 1)
+			gi.Com_Print("Spawn grid disabled for this map, using classic spawn points.\n");
 	}
 
 	// Virtual spawn generation:
@@ -1060,8 +1070,9 @@ void BuildSpawnPointMap()
 		const int available_slots = std::max(0, static_cast<int>(MAX_SPAWN_POINTS) - static_cast<int>(g_spawn_point_list.size()));
 
 		int target_spawn_count = std::min(std::max(grid_node_count / 10, 16), available_slots);
-		gi.Com_PrintFmt("No traditional spawn points found, creating virtual spawn points from grid ({} nodes available)...\n",
-			grid_node_count);
+		if (developer->integer > 1)
+			gi.Com_PrintFmt("No traditional spawn points found, creating virtual spawn points from grid ({} nodes available)...\n",
+				grid_node_count);
 
 		if (target_spawn_count > 0)
 		{
@@ -1162,7 +1173,8 @@ void BuildSpawnPointMap()
 				gi.Com_Print("ERROR: Failed to resize spawn validation cache for virtual spawns\n");
 			}
 
-			gi.Com_PrintFmt("Created {} virtual spawn points from grid nodes.\n", virtual_spawns_created);
+			if (developer->integer > 1)
+				gi.Com_PrintFmt("Created {} virtual spawn points from grid nodes.\n", virtual_spawns_created);
 		}
 	}
 }
@@ -2812,7 +2824,7 @@ static bool ShouldAttemptHigherLevelSpawn(int32_t currentLevel, bool isRetaliati
 		elites_spawned_this_wave >= MAX_ELITES_PER_WAVE ||
 		isRetaliationActive || isRecoveryModeActive)
 	{
-		if (developer->integer)
+		if (developer->integer > 1)
 		{
 			gi.Com_PrintFmt("ShouldAttemptHigherLevelSpawn: BLOCKED (elites={}/{}, retaliation={}, recovery={})\n",
 				elites_spawned_this_wave, MAX_ELITES_PER_WAVE, isRetaliationActive, isRecoveryModeActive);
@@ -2823,7 +2835,7 @@ static bool ShouldAttemptHigherLevelSpawn(int32_t currentLevel, bool isRetaliati
 	// Restore the old odds from 0.995 instead of forcing higher-level picks in early waves.
 	if (currentLevel <= 10)
 	{
-		if (developer->integer)
+		if (developer->integer > 1)
 		{
 			gi.Com_PrintFmt("ShouldAttemptHigherLevelSpawn: wave {} using 0.995 early-wave odds (32%%)\n", currentLevel);
 		}
@@ -2884,7 +2896,7 @@ static int32_t CalculateEffectiveMonsterLevel(int32_t currentActualLevel, bool a
 
 	if (!any_new_monsters_unlocked)
 	{
-		if (developer->integer)
+		if (developer->integer > 1)
 		{
 			gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: No valid 0.995-style higher-tier candidate for wave {} (effective {}). Reverting.\n",
 				currentActualLevel, potentialEffectiveLevel);
@@ -2892,7 +2904,7 @@ static int32_t CalculateEffectiveMonsterLevel(int32_t currentActualLevel, bool a
 		return currentActualLevel;
 	}
 
-	if (developer->integer)
+	if (developer->integer > 1)
 	{
 		gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: Attempting ELITE spawn. Using effective level {} (Current is {}).\n", potentialEffectiveLevel, currentActualLevel);
 	}
@@ -3085,7 +3097,7 @@ static void CollectEliteCandidates(
 		float priority = g_monsterData.weights[i] / (1.0f + abs(monster_info.minWave - ctx.effectiveLevel));
 		candidates.push_back({ monster_info.typeId, i, priority });
 
-		if (developer->integer)
+		if (developer->integer > 1)
 		{
 			gi.Com_PrintFmt("Dynamic Precache: CANDIDATE '{}' (minWave={}, buffer=+{}, priority={:.2f})\n",
 				horde::MonsterTypeRegistry::GetClassname(monster_info.typeId),
@@ -3137,7 +3149,7 @@ static EliteCandidateResult FindEliteCandidate(const MonsterSelectionContext& ct
 	EliteCandidateResult result = SelectWeightedCandidate(candidates);
 	if (result.found)
 	{
-		if (developer->integer)
+		if (developer->integer > 1)
 			gi.Com_PrintFmt("Dynamic Precache: SELECTED from {} candidates (buffer=+{})\n", candidates.size(), initial_buffer);
 		return result;
 	}
@@ -3145,7 +3157,7 @@ static EliteCandidateResult FindEliteCandidate(const MonsterSelectionContext& ct
 	// Fallback: try with smaller buffers (+2, +1)
 	for (int32_t fallback_buffer = std::min(2, initial_buffer - 1); fallback_buffer >= 1; --fallback_buffer)
 	{
-		if (developer->integer)
+		if (developer->integer > 1)
 			gi.Com_PrintFmt("Dynamic Precache: FALLBACK attempt with +{} buffer\n", fallback_buffer);
 
 		candidates.clear();
@@ -3154,7 +3166,7 @@ static EliteCandidateResult FindEliteCandidate(const MonsterSelectionContext& ct
 		result = SelectWeightedCandidate(candidates);
 		if (result.found)
 		{
-			if (developer->integer)
+			if (developer->integer > 1)
 				gi.Com_PrintFmt("Dynamic Precache: FALLBACK SELECTED from {} candidates (buffer=+{})\n", candidates.size(), fallback_buffer);
 			return result;
 		}
@@ -3178,7 +3190,7 @@ static AssetFamilyID PrecacheEliteMonster(
 	AssetFamilyID family = GetMonsterAssetFamily(type_id);
 	if (g_precached_families_this_map.find(family) == g_precached_families_this_map.end())
 	{
-		if (developer->integer)
+		if (developer->integer > 1)
 		{
 			gi.Com_PrintFmt("Dynamic Precache: BLOCKED '{}' - family {} not allowed on this map\n",
 				classname, static_cast<int>(family));
@@ -3188,7 +3200,7 @@ static AssetFamilyID PrecacheEliteMonster(
 
 	const bool already_precached = g_precached_monster_types_flags[array_index];
 
-	if (developer->integer)
+	if (developer->integer > 1)
 	{
 		if (already_precached)
 			gi.Com_PrintFmt("Dynamic Precache: REUSING '{}' for wave {} elite\n", classname, ctx.currentActualLevel);
@@ -3240,7 +3252,7 @@ static AssetFamilyID PrecacheEliteMonster(
 		if (!already_eligible)
 		{
 			g_eligible_monsters_for_wave.push_back(&family_monster);
-			if (developer->integer)
+			if (developer->integer > 1)
 				gi.Com_PrintFmt("Dynamic Precache: Added '{}' to eligible monsters (minWave {} is elite)\n",
 					horde::MonsterTypeRegistry::GetClassname(family_monster.typeId), family_monster.minWave);
 		}
@@ -3326,7 +3338,7 @@ static void HandleLowVarietyFallback(
 	constexpr int MINIMUM_VARIETY_THRESHOLD = 5;
 	if (cache_ref.count >= MINIMUM_VARIETY_THRESHOLD) return;
 
-	if (developer->integer)
+	if (developer->integer > 1)
 		gi.Com_PrintFmt("BuildMonsterCache: LOW VARIETY ({} monsters) - Applying relaxed filters\n", cache_ref.count);
 
 	MonsterWaveType relaxed_wave_type = ctx.waveTypeForFiltering;
@@ -3335,7 +3347,7 @@ static void HandleLowVarietyFallback(
 	if (HasWaveType(relaxed_wave_type, MonsterWaveType::Special))
 	{
 		relaxed_wave_type = relaxed_wave_type & ~MonsterWaveType::Special;
-		if (developer->integer)
+		if (developer->integer > 1)
 			gi.Com_PrintFmt("BuildMonsterCache: PASS 1 - Removed 'Special' requirement\n");
 		AddMonstersWithRelaxedFilter(cache_ref, ctx, relaxed_wave_type, 0.4f, MIN_MONSTERS_AVAILABLE);
 	}
@@ -3343,7 +3355,7 @@ static void HandleLowVarietyFallback(
 	// PASS 2: Relax Light/Medium/Heavy categories
 	if (cache_ref.count < MINIMUM_VARIETY_THRESHOLD)
 	{
-		if (developer->integer)
+		if (developer->integer > 1)
 			gi.Com_PrintFmt("BuildMonsterCache: PASS 2 - Relaxing Light/Medium/Heavy categories\n");
 
 		if (HasWaveType(relaxed_wave_type, MonsterWaveType::Light))
@@ -3359,7 +3371,7 @@ static void HandleLowVarietyFallback(
 	// PASS 3: Add any early-wave monsters
 	if (cache_ref.count < MINIMUM_VARIETY_THRESHOLD)
 	{
-		if (developer->integer)
+		if (developer->integer > 1)
 			gi.Com_PrintFmt("BuildMonsterCache: PASS 3 - Adding any early-wave monsters\n");
 
 		for (const MonsterTypeInfo* monster_info : g_eligible_monsters_for_wave)
@@ -3398,7 +3410,7 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 	// When higher-level spawns are triggered, precache ONE new monster family
 	if (mutable_ctx.effectiveLevel > mutable_ctx.currentActualLevel)
 	{
-		if (developer->integer)
+		if (developer->integer > 1)
 			gi.Com_PrintFmt("BuildMonsterCache: Elite attempt (effectiveLevel={} > currentActualLevel={})\n",
 				mutable_ctx.effectiveLevel, mutable_ctx.currentActualLevel);
 
@@ -3409,7 +3421,7 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 
 			if (candidate.found)
 			{
-				if (developer->integer)
+				if (developer->integer > 1)
 					gi.Com_PrintFmt("Dynamic Precache: FINAL SELECTION '{}'\n",
 						horde::MonsterTypeRegistry::GetClassname(candidate.selected_type));
 
@@ -3423,11 +3435,11 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 			{
 				// No suitable elite monster found - revert to normal spawning
 				mutable_ctx.effectiveLevel = mutable_ctx.currentActualLevel;
-				if (developer->integer)
+				if (developer->integer > 1)
 					gi.Com_PrintFmt("Dynamic Precache: No suitable elite found, reverting to normal spawning\n");
 			}
 		}
-		else if (developer->integer)
+		else if (developer->integer > 1)
 		{
 			gi.Com_PrintFmt("BuildMonsterCache: Skipping dynamic precache (already precached elite this wave)\n");
 		}
@@ -3489,7 +3501,7 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 	HandleLowVarietyFallback(cache_ref, mutable_ctx);
 
 	// Debug output
-	if (developer->integer)
+	if (developer->integer > 1)
 	{
 		gi.Com_PrintFmt("BuildMonsterCache: Final cache has {} monsters, total_weight={:.1f}\n",
 			cache_ref.count, cache_ref.total_weight);
@@ -9186,10 +9198,13 @@ static void AddSpecialWaveMonsters(int32_t lvl, MonsterWaveType wave_type)
 			g_eligible_monsters_for_wave.push_back(boss_info);
 		}
 
-		gi.Com_PrintFmt("HORDE: Added {} regular + {} boss {} to spawn pool for wave {}\n",
-			num_regular, num_bosses, is_gekk_wave ? "Gekks" : "Berserkers", lvl);
+		if (developer->integer > 1)
+		{
+			gi.Com_PrintFmt("HORDE: Added {} regular + {} boss {} to spawn pool for wave {}\n",
+				num_regular, num_bosses, is_gekk_wave ? "Gekks" : "Berserkers", lvl);
+		}
 
-		if (developer->integer)
+		if (developer->integer > 1)
 		{
 			int regular_count = 0;
 			int boss_count = 0;

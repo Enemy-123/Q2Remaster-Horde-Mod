@@ -2,10 +2,12 @@
 #include "g_horde.h"
 #include "../g_local.h"
 #include "../shared.h"
+#include "g_horde_phys.h"
 #include "horde_spawning.h"
 #include <algorithm>
 #include <boost/container/flat_set.hpp>
 #include <cmath>
+#include <string>
 
 // Global boss variables
 bool boss_spawned_for_wave = false;
@@ -117,28 +119,28 @@ static PositionValidationResult IsPositionPhysicallyValidForBoss(const vec3_t &p
 	return result;
 }
 
+static constexpr std::array<vec3_t, 12> BOSS_RADIAL_OFFSETS = {{
+	{128.0f, 0.0f, 0.0f},
+	{-128.0f, 0.0f, 0.0f},
+	{0.0f, 128.0f, 0.0f},
+	{0.0f, -128.0f, 0.0f},
+	{256.0f, 0.0f, 0.0f},
+	{-256.0f, 0.0f, 0.0f},
+	{0.0f, 256.0f, 0.0f},
+	{0.0f, -256.0f, 0.0f},
+	{180.0f, 180.0f, 0.0f},
+	{-180.0f, 180.0f, 0.0f},
+	{180.0f, -180.0f, 0.0f},
+	{-180.0f, -180.0f, 0.0f}
+}};
+
 // Try alternative spawn points in a radial pattern around the primary spawn
 // Returns true if a valid position was found, with final_pos set to the valid position
 static bool TryAlternativeSpawnPoints(const vec3_t &primary_spawn, const vec3_t &predicted_mins, const vec3_t &predicted_maxs, bool is_flying,
 	int push_iterations, float push_radius, float push_strength, float push_player_str, float push_monster_str, vec3_t &final_pos)
 {
-	// Radial offsets: try close positions first, then expand outward
-	static constexpr std::array<vec3_t, 12> radial_offsets = {{
-		{128.0f, 0.0f, 0.0f},
-		{-128.0f, 0.0f, 0.0f},
-		{0.0f, 128.0f, 0.0f},
-		{0.0f, -128.0f, 0.0f},
-		{256.0f, 0.0f, 0.0f},
-		{-256.0f, 0.0f, 0.0f},
-		{0.0f, 256.0f, 0.0f},
-		{0.0f, -256.0f, 0.0f},
-		{180.0f, 180.0f, 0.0f},
-		{-180.0f, 180.0f, 0.0f},
-		{180.0f, -180.0f, 0.0f},
-		{-180.0f, -180.0f, 0.0f}
-	}};
 
-	for (const auto &offset : radial_offsets)
+	for (const auto &offset : BOSS_RADIAL_OFFSETS)
 	{
 		vec3_t test_pos = primary_spawn + offset;
 
@@ -160,7 +162,7 @@ static bool TryAlternativeSpawnPoints(const vec3_t &primary_spawn, const vec3_t 
 			// Apply the same push entities logic
 			PushEntitiesAway(final_pos, push_iterations, push_radius, push_strength, push_player_str, push_monster_str);
 
-			if (developer->integer)
+			if (developer->integer > 1)
 				gi.Com_PrintFmt("TryAlternativeSpawnPoints: Found valid alternative spawn at {} (offset: {})\n", final_pos, offset);
 
 			return true;
@@ -237,6 +239,154 @@ namespace {
 
 	// Boss announcement timing
 	constexpr gtime_t BOSS_ANNOUNCEMENT_DURATION = 4_sec;
+
+	// Boss grid fallback
+	constexpr int32_t BOSS_GRID_FALLBACK_ATTEMPTS = 32;
+	constexpr int32_t BOSS_GRID_TACTICAL_ATTEMPTS = 16;
+	constexpr int32_t BOSS_GRID_TACTICAL_SAMPLE_ATTEMPTS = 12;
+	constexpr float BOSS_GRID_MIN_PLAYER_DISTANCE = 512.0f;
+
+	// Boss selection space scoring
+	constexpr int32_t BOSS_SPACE_GRID_SAMPLE_ATTEMPTS = 24;
+	constexpr int32_t BOSS_SPACE_VALIDATION_CAP = 8;
+}
+
+static float GetBossEffectScale(BossSizeCategory sizeCategory)
+{
+	switch (sizeCategory) {
+		case BossSizeCategory::Large:
+			return 1.5f;
+		case BossSizeCategory::Medium:
+			return 1.3f;
+		case BossSizeCategory::Small:
+			return 1.1f;
+	}
+
+	return 1.0f;
+}
+
+static void GetBossPlacementBounds(horde::MonsterTypeID typeId, BossSizeCategory sizeCategory, vec3_t &mins, vec3_t &maxs)
+{
+	GetPredictedScaledBounds(typeId, mins, maxs);
+
+	const float boss_effect_scale = GetBossEffectScale(sizeCategory);
+	mins *= boss_effect_scale;
+	maxs *= boss_effect_scale;
+}
+
+static bool GetBossGridCandidate(int32_t attempt, bool prefer_out_of_visibility, vec3_t &candidate)
+{
+	if (attempt < BOSS_GRID_TACTICAL_ATTEMPTS)
+	{
+		return HordePhys::g_spawn_grid.GetTacticalSpawnPosition(
+			candidate,
+			BOSS_GRID_MIN_PLAYER_DISTANCE,
+			BOSS_GRID_TACTICAL_SAMPLE_ATTEMPTS,
+			prefer_out_of_visibility);
+	}
+
+	return HordePhys::g_spawn_grid.GetRandomPosition(candidate);
+}
+
+static bool PrepareBossPlacementAt(const vec3_t &candidate, const vec3_t &predicted_mins, const vec3_t &predicted_maxs,
+	bool is_flying, vec3_t &final_pos)
+{
+	if (!is_valid_vector(candidate))
+		return false;
+
+	if (gi.pointcontents(candidate) & MASK_SOLID)
+		return false;
+
+	ClearSpawnArea(candidate, predicted_mins, predicted_maxs);
+
+	const auto validation = IsPositionPhysicallyValidForBoss(candidate, predicted_mins, predicted_maxs, is_flying);
+	if (!validation.is_valid)
+		return false;
+
+	final_pos = validation.adjusted_position;
+	PushEntitiesAway(final_pos, PUSH_ITERATIONS, PUSH_BASE_RADIUS, PUSH_BASE_STRENGTH, PUSH_PLAYER_STRENGTH, PUSH_MONSTER_STRENGTH);
+	return true;
+}
+
+static bool TryBossGridFallbackPosition(const vec3_t &predicted_mins, const vec3_t &predicted_maxs, bool is_flying,
+	bool prefer_out_of_visibility, const char *context, vec3_t &final_pos)
+{
+	if (!HordePhys::g_spawn_grid.IsGenerated())
+	{
+		if (developer->integer)
+			gi.Com_PrintFmt("Boss grid fallback unavailable for {}: spawn grid is not generated.\n", context);
+		return false;
+	}
+
+	for (int32_t attempt = 0; attempt < BOSS_GRID_FALLBACK_ATTEMPTS; ++attempt)
+	{
+		vec3_t candidate;
+		if (!GetBossGridCandidate(attempt, prefer_out_of_visibility, candidate))
+			continue;
+
+		if (!PrepareBossPlacementAt(candidate, predicted_mins, predicted_maxs, is_flying, final_pos))
+			continue;
+
+		HordePhys::g_spawn_grid.MarkPositionUsed(final_pos);
+
+		if (developer->integer > 1)
+			gi.Com_PrintFmt("Boss grid fallback selected {} position at {}.\n", context, final_pos);
+
+		return true;
+	}
+
+	if (developer->integer)
+	{
+		gi.Com_PrintFmt("Boss grid fallback failed for {} after {} attempts.\n",
+			context, BOSS_GRID_FALLBACK_ATTEMPTS);
+	}
+
+	return false;
+}
+
+static bool TryTeleportBossToGridFallback(edict_t *self, const vec3_t &predicted_mins, const vec3_t &predicted_maxs,
+	bool is_flying, const vec3_t &destination_angles, bool force_teleport)
+{
+	if (!HordePhys::g_spawn_grid.IsGenerated())
+	{
+		if (developer->integer)
+			gi.Com_PrintFmt("CTB: Boss grid fallback unavailable: spawn grid is not generated.\n");
+		return false;
+	}
+
+	for (int32_t attempt = 0; attempt < BOSS_GRID_FALLBACK_ATTEMPTS; ++attempt)
+	{
+		vec3_t candidate;
+		if (!GetBossGridCandidate(attempt, false, candidate))
+			continue;
+
+		vec3_t final_pos;
+		if (!PrepareBossPlacementAt(candidate, predicted_mins, predicted_maxs, is_flying, final_pos))
+			continue;
+
+		if (!Horde_TeleportMonster(self, final_pos, destination_angles, true, force_teleport))
+			continue;
+
+		HordePhys::g_spawn_grid.MarkPositionUsed(final_pos);
+
+		if (developer->integer > 1)
+		{
+			gi.Com_PrintFmt("CTB: Boss {} teleported via grid fallback to ({},{},{}).\n",
+				self->classname ? self->classname : "UNKNOWN",
+				self->s.origin[0], self->s.origin[1], self->s.origin[2]);
+		}
+
+		return true;
+	}
+
+	if (developer->integer)
+	{
+		gi.Com_PrintFmt("CTB: Boss grid fallback failed for {} after {} attempts.\n",
+			self->classname ? self->classname : "UNKNOWN",
+			BOSS_GRID_FALLBACK_ATTEMPTS);
+	}
+
+	return false;
 }
 
 // Boss data arrays
@@ -467,6 +617,204 @@ const BossDataSoA *GetBossListSoA(const horde::MapSize &mapSize)
 	return nullptr;
 }
 
+struct WeightedBossCandidate
+{
+	horde::MonsterTypeID typeId = horde::MonsterTypeID::UNKNOWN;
+	BossSizeCategory sizeCategory = BossSizeCategory::Medium;
+	float weight = 0.0f;
+	float cumulativeWeight = 0.0f;
+	int32_t validPlacementCount = 0;
+};
+
+static const char *BossSizeCategoryName(BossSizeCategory sizeCategory)
+{
+	switch (sizeCategory) {
+		case BossSizeCategory::Small:
+			return "small";
+		case BossSizeCategory::Medium:
+			return "medium";
+		case BossSizeCategory::Large:
+			return "large";
+	}
+
+	return "unknown";
+}
+
+static int32_t GetBossSizeRank(BossSizeCategory sizeCategory)
+{
+	switch (sizeCategory) {
+		case BossSizeCategory::Small:
+			return 0;
+		case BossSizeCategory::Medium:
+			return 1;
+		case BossSizeCategory::Large:
+			return 2;
+	}
+
+	return 1;
+}
+
+static int32_t GetPreferredBossSizeRank(const horde::MapSize &mapSize)
+{
+	if (mapSize.isSmallMap)
+		return 0;
+	if (mapSize.isBigMap)
+		return 2;
+	return 1;
+}
+
+static float GetMapBossSizePreferenceMultiplier(const horde::MapSize &mapSize, BossSizeCategory sizeCategory)
+{
+	const int32_t delta = GetBossSizeRank(sizeCategory) - GetPreferredBossSizeRank(mapSize);
+	if (delta == 0)
+		return 1.0f;
+	if (delta < 0)
+		return delta == -1 ? 0.75f : 0.55f;
+	return delta == 1 ? 0.70f : 0.35f;
+}
+
+static float GetBossSpaceMultiplier(int32_t validPlacementCount)
+{
+	if (validPlacementCount >= BOSS_SPACE_VALIDATION_CAP)
+		return 1.25f;
+	if (validPlacementCount >= 5)
+		return 1.0f;
+	if (validPlacementCount >= 3)
+		return 0.75f;
+	if (validPlacementCount >= 1)
+		return 0.45f;
+	return 0.0f;
+}
+
+static bool IsBossEntryEligibleForWave(const BossDataSoA &bossList, size_t index, int32_t waveNumber)
+{
+	const int32_t min_level = bossList.min_levels[index];
+	const int32_t max_level = bossList.max_levels[index];
+
+	return (min_level == -1 || waveNumber >= min_level) &&
+		   (max_level == -1 || waveNumber <= max_level);
+}
+
+static bool IsBossPlacementCandidatePhysicallyValid(const vec3_t &position, const vec3_t &predicted_mins,
+	const vec3_t &predicted_maxs, bool is_flying)
+{
+	if (!is_valid_vector(position))
+		return false;
+
+	if (gi.pointcontents(position) & MASK_SOLID)
+		return false;
+
+	return IsPositionPhysicallyValidForBoss(position, predicted_mins, predicted_maxs, is_flying).is_valid;
+}
+
+static int32_t CountValidBossPlacements(horde::MonsterTypeID typeId, BossSizeCategory sizeCategory, const char *mapname)
+{
+	vec3_t predicted_mins, predicted_maxs;
+	GetBossPlacementBounds(typeId, sizeCategory, predicted_mins, predicted_maxs);
+	const bool is_flying = IsFlying(typeId);
+	int32_t valid_count = 0;
+
+	auto count_if_valid = [&](const vec3_t &position) {
+		if (valid_count >= BOSS_SPACE_VALIDATION_CAP)
+			return;
+		if (IsBossPlacementCandidatePhysicallyValid(position, predicted_mins, predicted_maxs, is_flying))
+			valid_count++;
+	};
+
+	vec3_t boss_origin;
+	const horde::MapID mapId = horde::MapOriginRegistry::GetMapID(mapname);
+	if (horde::MapOriginRegistry::GetOrigin(mapId, boss_origin))
+	{
+		count_if_valid(boss_origin);
+
+		for (const vec3_t &offset : BOSS_RADIAL_OFFSETS)
+		{
+			count_if_valid(boss_origin + offset);
+		}
+	}
+
+	if (HordePhys::g_spawn_grid.IsGenerated())
+	{
+		for (int32_t attempt = 0; attempt < BOSS_SPACE_GRID_SAMPLE_ATTEMPTS && valid_count < BOSS_SPACE_VALIDATION_CAP; ++attempt)
+		{
+			vec3_t grid_position;
+			if (!HordePhys::g_spawn_grid.GetRandomPosition(grid_position))
+				break;
+
+			count_if_valid(grid_position);
+		}
+	}
+
+	return valid_count;
+}
+
+static size_t CountEligibleBossEntries(const std::array<const BossDataSoA *, 3> &bossLists, int32_t waveNumber)
+{
+	size_t eligible_count = 0;
+	for (const BossDataSoA *boss_list : bossLists)
+	{
+		if (!boss_list)
+			continue;
+
+		for (size_t i = 0; i < boss_list->count; ++i)
+		{
+			if (boss_list->weights[i] > 0.0f && IsBossEntryEligibleForWave(*boss_list, i, waveNumber))
+				eligible_count++;
+		}
+	}
+
+	return eligible_count;
+}
+
+static size_t BuildWeightedBossCandidates(const std::array<const BossDataSoA *, 3> &bossLists,
+	const horde::MapSize &mapSize, const char *mapname, int32_t waveNumber, bool excludeRecent, size_t recentLimit,
+	bool requireSpaceValidation, std::array<WeightedBossCandidate, BossDataSoA::MAX_BOSSES * 3> &weightedBosses,
+	float &totalWeight)
+{
+	size_t count = 0;
+	totalWeight = 0.0f;
+
+	for (const BossDataSoA *boss_list : bossLists)
+	{
+		if (!boss_list)
+			continue;
+
+		for (size_t i = 0; i < boss_list->count; ++i)
+		{
+			const horde::MonsterTypeID typeId = boss_list->typeIds[i];
+			const BossSizeCategory sizeCategory = boss_list->sizeCategories[i];
+
+			if (!IsBossEntryEligibleForWave(*boss_list, i, waveNumber))
+				continue;
+
+			if (excludeRecent && recent_bosses.contains(typeId, recentLimit))
+				continue;
+
+			const int32_t valid_placements = requireSpaceValidation ?
+				CountValidBossPlacements(typeId, sizeCategory, mapname) :
+				BOSS_SPACE_VALIDATION_CAP;
+
+			const float space_multiplier = GetBossSpaceMultiplier(valid_placements);
+			if (space_multiplier <= 0.0f)
+				continue;
+
+			const float size_preference = GetMapBossSizePreferenceMultiplier(mapSize, sizeCategory);
+			const float weight = boss_list->weights[i] * size_preference * space_multiplier;
+			if (weight <= 0.0f)
+				continue;
+
+			if (count >= weightedBosses.size())
+				break;
+
+			totalWeight += weight;
+			weightedBosses[count] = { typeId, sizeCategory, weight, totalWeight, valid_placements };
+			count++;
+		}
+	}
+
+	return count;
+}
+
 // Boss selection function
 BossPickResult G_HordePickBOSSType(const horde::MapSize& mapSize, std::string_view mapname, int32_t waveNumber)
 {
@@ -474,88 +822,97 @@ BossPickResult G_HordePickBOSSType(const horde::MapSize& mapSize, std::string_vi
 	if (!g_bossWaveTypeArray[0].announcement)
 		InitializeBossWaveTypes();
 
-	// Get the appropriate boss list
-	const BossDataSoA* boss_list_soa = GetBossListSoA(mapSize);
-	if (!boss_list_soa)
+	const std::string map_name_storage(mapname);
+	const char *map_name = map_name_storage.c_str();
+	const std::array<const BossDataSoA *, 3> all_boss_lists = { &g_smallBossData, &g_mediumBossData, &g_largeBossData };
+	const size_t eligible_entry_count = CountEligibleBossEntries(all_boss_lists, waveNumber);
+	if (eligible_entry_count == 0)
 	{
 		if (developer && developer->integer)
-			gi.Com_PrintFmt("WARNING: Empty boss list for map {} at wave {}\n", mapname.data(), waveNumber);
+			gi.Com_PrintFmt("WARNING: No bosses eligible for wave {}.\n", waveNumber);
 		return BossPickResult();
 	}
 
-	// Get eligible bosses from cache
-	const BossEligibilityCache::EligibilityData& eligibilityData = g_bossEligibilityCache.get(waveNumber, mapSize);
-
-	if (eligibilityData.count == 0)
-	{
-		if (developer && developer->integer)
-			gi.Com_PrintFmt("WARNING: No bosses eligible for wave {} on this map type.\n", waveNumber);
-		return BossPickResult();
-	}
-
-	struct WeightedBoss
-	{
-		size_t index_in_soa;
-		float weight;
-		float cumulativeWeight;
-	};
-
-	// Calculate how many recent bosses to track based on eligible count
-	// Track ~40% of eligible bosses (min 2, max 5) to ensure good variety
 	const size_t max_recent_to_track = std::clamp(
-		eligibilityData.count * 2 / 5,  // 40% of eligible bosses
-		static_cast<size_t>(2),          // Minimum 2
-		static_cast<size_t>(RecentBosses::MAX_RECENT_BOSSES)  // Maximum 5
-	);
+		eligible_entry_count * 2 / 5,
+		static_cast<size_t>(2),
+		static_cast<size_t>(RecentBosses::MAX_RECENT_BOSSES));
 
-	// Lambda to build weighted boss list
-	auto build_weighted_list = [&](bool exclude_recent, size_t recent_limit) {
-		std::array<WeightedBoss, BossEligibilityCache::MAX_ELIGIBLE_BOSSES> weighted_list{};
-		size_t count = 0;
-		float total_weight = 0.0f;
+	std::array<WeightedBossCandidate, BossDataSoA::MAX_BOSSES * 3> weightedBosses{};
+	float totalWeight = 0.0f;
+	size_t weightedCount = BuildWeightedBossCandidates(
+		all_boss_lists,
+		mapSize,
+		map_name,
+		waveNumber,
+		true,
+		max_recent_to_track,
+		true,
+		weightedBosses,
+		totalWeight);
 
-		for (size_t i = 0; i < eligibilityData.count; ++i)
-		{
-			const size_t boss_index_in_soa = eligibilityData.soa_indices[i];
-			const horde::MonsterTypeID bossTypeId = boss_list_soa->typeIds[boss_index_in_soa];
-
-			// Skip recent bosses if requested (only check the most recent N)
-			if (exclude_recent && recent_bosses.contains(bossTypeId, recent_limit))
-				continue;
-
-			float weight = boss_list_soa->weights[boss_index_in_soa];
-			if (weight > 0.0f)
-			{
-				total_weight += weight;
-				weighted_list[count].index_in_soa = boss_index_in_soa;
-				weighted_list[count].weight = weight;
-				weighted_list[count].cumulativeWeight = total_weight;
-				count++;
-			}
-		}
-
-		return std::make_tuple(weighted_list, count, total_weight);
-	};
-
-	if (developer && developer->integer)
+	if (developer && developer->integer > 1)
 	{
-		gi.Com_PrintFmt("Boss Selection: {} eligible bosses, tracking {} recent (40% rule)\n",
-			eligibilityData.count, max_recent_to_track);
+		gi.Com_PrintFmt("Boss Selection: {} eligible entries, {} space-valid after recent filtering, tracking {} recent.\n",
+			eligible_entry_count, weightedCount, max_recent_to_track);
 	}
-
-	// First pass: try to find bosses not in recent history
-	auto [weightedBosses, weightedCount, totalWeight] = build_weighted_list(true, max_recent_to_track);
 
 	// If no non-recent bosses found, use all eligible bosses
 	if (weightedCount == 0)
 	{
-		if (developer && developer->integer)
-			gi.Com_PrintFmt("INFO: No non-recent bosses eligible, ignoring history for this pick.\n");
+		if (developer && developer->integer > 1)
+			gi.Com_PrintFmt("INFO: No non-recent space-valid bosses eligible, ignoring history for this pick.\n");
 
-		std::tie(weightedBosses, weightedCount, totalWeight) = build_weighted_list(false, max_recent_to_track);
+		weightedCount = BuildWeightedBossCandidates(
+			all_boss_lists,
+			mapSize,
+			map_name,
+			waveNumber,
+			false,
+			max_recent_to_track,
+			true,
+			weightedBosses,
+			totalWeight);
 	}
 
 	if (weightedCount == 0)
+	{
+		const BossDataSoA *fallback_list = GetBossListSoA(mapSize);
+		const std::array<const BossDataSoA *, 3> fallback_lists = { fallback_list, nullptr, nullptr };
+
+		if (developer && developer->integer)
+		{
+			gi.Com_PrintFmt("WARNING: No physically validated boss candidates for map {} wave {}. Using map-size fallback pool.\n",
+				map_name, waveNumber);
+		}
+
+		weightedCount = BuildWeightedBossCandidates(
+			fallback_lists,
+			mapSize,
+			map_name,
+			waveNumber,
+			true,
+			max_recent_to_track,
+			false,
+			weightedBosses,
+			totalWeight);
+
+		if (weightedCount == 0)
+		{
+			weightedCount = BuildWeightedBossCandidates(
+				fallback_lists,
+				mapSize,
+				map_name,
+				waveNumber,
+				false,
+				max_recent_to_track,
+				false,
+				weightedBosses,
+				totalWeight);
+		}
+	}
+
+	if (weightedCount == 0 || totalWeight <= 0.0f)
 	{
 		if (developer && developer->integer)
 			gi.Com_PrintFmt("WARNING: No eligible bosses found after all filtering.\n");
@@ -568,7 +925,7 @@ BossPickResult G_HordePickBOSSType(const horde::MapSize& mapSize, std::string_vi
 		weightedBosses.begin(),
 		weightedBosses.begin() + weightedCount,
 		randomValue,
-		[](const WeightedBoss& boss, float value)
+		[](const WeightedBossCandidate &boss, float value)
 		{
 			return boss.cumulativeWeight < value;
 		});
@@ -576,17 +933,17 @@ BossPickResult G_HordePickBOSSType(const horde::MapSize& mapSize, std::string_vi
 	if (it == weightedBosses.begin() + weightedCount)
 		it = weightedBosses.begin() + (weightedCount - 1);
 
-	const size_t chosen_index = it->index_in_soa;
-	const horde::MonsterTypeID chosen_typeId = boss_list_soa->typeIds[chosen_index];
-	const BossSizeCategory chosen_sizeCategory = boss_list_soa->sizeCategories[chosen_index];
-
-	if (developer && developer->integer)
+	if (developer && developer->integer > 1)
 	{
-		const char* chosen_name = horde::MonsterTypeRegistry::GetClassname(chosen_typeId);
-		gi.Com_PrintFmt("Selected Boss: {} (Weight: {:.2f})\n", chosen_name ? chosen_name : "Unknown", it->weight);
+		const char* chosen_name = horde::MonsterTypeRegistry::GetClassname(it->typeId);
+		gi.Com_PrintFmt("Selected Boss: {} ({}, Weight: {:.2f}, SpaceScore: {})\n",
+			chosen_name ? chosen_name : "Unknown",
+			BossSizeCategoryName(it->sizeCategory),
+			it->weight,
+			it->validPlacementCount);
 	}
 
-	return BossPickResult(chosen_typeId, chosen_sizeCategory);
+	return BossPickResult(it->typeId, it->sizeCategory);
 }
 
 // Helper function to select boss weapon drop
@@ -925,66 +1282,77 @@ void SpawnBossAutomatically()
 		return;
 	}
 
-	// Determine spawn location
-	vec3_t spawn_origin;
-	horde::MapID mapId = horde::MapOriginRegistry::GetMapID(map_name);
-	if (!horde::MapOriginRegistry::GetOrigin(mapId, spawn_origin))
-	{
-		if (developer->integer)
-			gi.Com_PrintFmt("SpawnBossAutomatically: No designated boss spawn origin found for map '{}'. Retrying next frame.\n", map_name);
-		boss_spawned_for_wave = false;
-		return;
-	}
-
 	// Prepare spawn area
 	vec3_t predicted_mins, predicted_maxs;
-	GetPredictedScaledBounds(boss_pick_result.typeId, predicted_mins, predicted_maxs);
-
-	// Apply worst-case boss effect scaling based on size category
-	// ApplyBossEffects can scale bosses up to 1.5x (Large), 1.3x (Medium), or 1.1x (Small)
-	float boss_effect_scale = 1.0f;
-	switch (boss_pick_result.sizeCategory) {
-		case BossSizeCategory::Large:
-			boss_effect_scale = 1.5f;
-			break;
-		case BossSizeCategory::Medium:
-			boss_effect_scale = 1.3f;
-			break;
-		case BossSizeCategory::Small:
-			boss_effect_scale = 1.1f;
-			break;
-	}
-	predicted_mins *= boss_effect_scale;
-	predicted_maxs *= boss_effect_scale;
+	GetBossPlacementBounds(boss_pick_result.typeId, boss_pick_result.sizeCategory, predicted_mins, predicted_maxs);
 
 	// HYBRID APPROACH: Try relaxed validation first, then alternative spawns if needed
 	const bool is_flying = IsFlying(boss_pick_result.typeId);
 	vec3_t final_spawn_origin;
+	bool has_spawn_position = false;
+
+	// Determine spawn location. Prefer registered map coordinates, but fall back
+	// to the generated spawn grid when a map has no boss coordinate.
+	vec3_t spawn_origin;
+	const horde::MapID mapId = horde::MapOriginRegistry::GetMapID(map_name);
+	const bool has_registered_spawn_origin = horde::MapOriginRegistry::GetOrigin(mapId, spawn_origin);
 
 	// Step 1: Clear and validate primary spawn with relaxed boss checks
-	ClearSpawnArea(spawn_origin, predicted_mins, predicted_maxs);
-	const auto primary_validation = IsPositionPhysicallyValidForBoss(spawn_origin, predicted_mins, predicted_maxs, is_flying);
+	if (has_registered_spawn_origin)
+	{
+		ClearSpawnArea(spawn_origin, predicted_mins, predicted_maxs);
+		const auto primary_validation = IsPositionPhysicallyValidForBoss(spawn_origin, predicted_mins, predicted_maxs, is_flying);
 
-	if (primary_validation.is_valid)
-	{
-		final_spawn_origin = primary_validation.adjusted_position;
-		PushEntitiesAway(final_spawn_origin, PUSH_ITERATIONS, PUSH_BASE_RADIUS, PUSH_BASE_STRENGTH, PUSH_PLAYER_STRENGTH, PUSH_MONSTER_STRENGTH);
+		if (primary_validation.is_valid)
+		{
+			final_spawn_origin = primary_validation.adjusted_position;
+			PushEntitiesAway(final_spawn_origin, PUSH_ITERATIONS, PUSH_BASE_RADIUS, PUSH_BASE_STRENGTH, PUSH_PLAYER_STRENGTH, PUSH_MONSTER_STRENGTH);
+			has_spawn_position = true;
 
-		if (developer->integer)
-			gi.Com_PrintFmt("SpawnBossAutomatically: Primary spawn validated at {}\n", final_spawn_origin);
+			if (developer->integer > 1)
+				gi.Com_PrintFmt("SpawnBossAutomatically: Primary spawn validated at {}\n", final_spawn_origin);
+		}
+		// Step 2: If primary fails, try alternative spawn points
+		else if (TryAlternativeSpawnPoints(spawn_origin, predicted_mins, predicted_maxs, is_flying,
+			PUSH_ITERATIONS, PUSH_BASE_RADIUS, PUSH_BASE_STRENGTH, PUSH_PLAYER_STRENGTH, PUSH_MONSTER_STRENGTH, final_spawn_origin))
+		{
+			has_spawn_position = true;
+
+			if (developer->integer > 1)
+				gi.Com_PrintFmt("SpawnBossAutomatically: Using alternative spawn at {}\n", final_spawn_origin);
+		}
+		else if (developer->integer > 1)
+		{
+			gi.Com_PrintFmt("SpawnBossAutomatically: Registered boss origin failed validation at {}. Trying grid fallback.\n", spawn_origin);
+		}
 	}
-	// Step 2: If primary fails, try alternative spawn points
-	else if (TryAlternativeSpawnPoints(spawn_origin, predicted_mins, predicted_maxs, is_flying,
-		PUSH_ITERATIONS, PUSH_BASE_RADIUS, PUSH_BASE_STRENGTH, PUSH_PLAYER_STRENGTH, PUSH_MONSTER_STRENGTH, final_spawn_origin))
+	else if (developer->integer > 1)
+	{
+		gi.Com_PrintFmt("SpawnBossAutomatically: No designated boss spawn origin found for map '{}'. Trying grid fallback.\n", map_name);
+	}
+
+	// Step 3: If coordinates are missing or unusable, use the validated spawn grid.
+	if (!has_spawn_position)
+	{
+		has_spawn_position = TryBossGridFallbackPosition(
+			predicted_mins,
+			predicted_maxs,
+			is_flying,
+			true,
+			"boss spawn",
+			final_spawn_origin);
+	}
+
+	// Step 4: All attempts failed - abort and retry next frame
+	if (!has_spawn_position)
 	{
 		if (developer->integer)
-			gi.Com_PrintFmt("SpawnBossAutomatically: Using alternative spawn at {}\n", final_spawn_origin);
-	}
-	// Step 3: All attempts failed - abort and retry next frame
-	else
-	{
-		if (developer->integer)
-			gi.Com_PrintFmt("SpawnBossAutomatically: All spawn attempts failed at {}. Will retry next frame.\n", spawn_origin);
+		{
+			if (has_registered_spawn_origin)
+				gi.Com_PrintFmt("SpawnBossAutomatically: All coordinate and grid spawn attempts failed at {}. Will retry next frame.\n", spawn_origin);
+			else
+				gi.Com_PrintFmt("SpawnBossAutomatically: No boss coordinate or valid grid fallback for map '{}'. Will retry next frame.\n", map_name);
+		}
 		boss_spawned_for_wave = false;
 		return;
 	}
@@ -1088,7 +1456,7 @@ THINK(BossSpawnThink)(edict_t *self)->void
 			gi.sound(self, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
 		}
 	}
-	else if (self->inuse && developer->integer)
+	else if (self->inuse && developer->integer > 1)
 	{
 		gi.Com_PrintFmt("SpawnGrow_Spawn/ImprovedSpawnGrow skipped in BossSpawnThink: Boss {} (idx {}) not fully alive. DeadFlag:{}, Health:%.0f\n",
 						(self->classname ? self->classname : "Unknown"),
@@ -1143,38 +1511,56 @@ bool CheckAndTeleportBoss(edict_t *self, BossTeleportReason reason)
 	const char *current_map = GetCurrentMapName();
 	horde::MapID mapId = horde::MapOriginRegistry::GetMapID(current_map);
 
-	if (mapId == horde::MapID::UNKNOWN)
-	{
-		if (developer->integer)
-			gi.Com_PrintFmt("CTB: MapID unknown for {}, cannot get teleport origin.\n", current_map);
-		return false;
-	}
-
-	vec3_t destination_origin;
-	if (!horde::MapOriginRegistry::GetOrigin(mapId, destination_origin))
-	{
-		if (developer->integer)
-			gi.Com_PrintFmt("CTB: Failed to get teleport origin for map_id {}.\n", (int)mapId);
-		return false;
-	}
-
 	// Perform teleportation
 	bool force_teleport = (reason == BossTeleportReason::TRIGGER_HURT || reason == BossTeleportReason::DROWNING);
 	vec3_t destination_angles = self->s.angles;
+	bool teleported = false;
 
-	if (developer->integer > 1)
-	{
-		gi.Com_PrintFmt("CTB: Attempting Horde_TeleportMonster for boss {} to ({},{},{}) (ForceVisible: {})\n",
-						self->classname ? self->classname : "UNKNOWN",
-						destination_origin[0], destination_origin[1], destination_origin[2],
-						force_teleport);
-	}
-
-	if (!Horde_TeleportMonster(self, destination_origin, destination_angles, true, force_teleport))
+	vec3_t destination_origin;
+	if (mapId != horde::MapID::UNKNOWN && horde::MapOriginRegistry::GetOrigin(mapId, destination_origin))
 	{
 		if (developer->integer > 1)
-			gi.Com_PrintFmt("CTB: Horde_TeleportMonster returned false for boss {}.\n",
+		{
+			gi.Com_PrintFmt("CTB: Attempting Horde_TeleportMonster for boss {} to ({},{},{}) (ForceVisible: {})\n",
+							self->classname ? self->classname : "UNKNOWN",
+							destination_origin[0], destination_origin[1], destination_origin[2],
+							force_teleport);
+		}
+
+		teleported = Horde_TeleportMonster(self, destination_origin, destination_angles, true, force_teleport);
+
+		if (!teleported && developer->integer > 1)
+		{
+			gi.Com_PrintFmt("CTB: Registered boss teleport origin failed for {}. Trying grid fallback.\n",
 							self->classname ? self->classname : "UNKNOWN");
+		}
+	}
+	else if (developer->integer > 1)
+	{
+		if (mapId == horde::MapID::UNKNOWN)
+			gi.Com_PrintFmt("CTB: MapID unknown for {}, trying grid fallback.\n", current_map ? current_map : "");
+		else
+			gi.Com_PrintFmt("CTB: Failed to get teleport origin for map_id {}, trying grid fallback.\n", (int)mapId);
+	}
+
+	if (!teleported)
+	{
+		horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
+		vec3_t predicted_mins, predicted_maxs;
+		GetBossPlacementBounds(typeId, self->bossSizeCategory, predicted_mins, predicted_maxs);
+		const bool is_flying = IsFlying(typeId);
+
+		teleported = TryTeleportBossToGridFallback(
+			self,
+			predicted_mins,
+			predicted_maxs,
+			is_flying,
+			destination_angles,
+			force_teleport);
+	}
+
+	if (!teleported)
+	{
 		return false;
 	}
 
@@ -1205,7 +1591,7 @@ bool CheckAndTeleportBoss(edict_t *self, BossTeleportReason reason)
 		SpawnGrow_Spawn(spawn_pos, TELEPORT_EFFECT_SIZE, end_size);
 	}
 
-	if (developer->integer)
+	if (developer->integer > 1)
 	{
 		const char *reason_str = reason == BossTeleportReason::DROWNING ? "drowning" : "trigger_hurt";
 		gi.Com_PrintFmt("CTB: Boss {} successfully teleported due to {} to ({},{},{}).\n",

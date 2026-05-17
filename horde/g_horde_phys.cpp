@@ -668,7 +668,8 @@ void ProximityGrid::Reset()
     // Based on Vortex's CreateGrid() function
     bool SpawnGrid::Generate(const vec3_t& world_mins, const vec3_t& world_maxs, bool force_regenerate) {
         if (!force_regenerate && LoadFromDisk(level.mapname)) {
-            gi.Com_PrintFmt("Spawn grid loaded from disk ({} nodes).\n", m_node_count);
+            if (developer->integer > 1)
+                gi.Com_PrintFmt("Spawn grid loaded from disk ({} nodes).\n", m_node_count);
             return true;
         }
 
@@ -683,8 +684,10 @@ void ProximityGrid::Reset()
         const vec3_t world_span = world_maxs - world_mins;
         m_grid_size = world_span / static_cast<float>(GRID_DIMENSION);
 
-        gi.Com_PrintFmt("Spawn grid world bounds: mins={} maxs={}\n", world_mins, world_maxs);
-        gi.Com_PrintFmt("Spawn grid cell size: {}\n", m_grid_size);
+        if (developer->integer > 1) {
+            gi.Com_PrintFmt("Spawn grid world bounds: mins={} maxs={}\n", world_mins, world_maxs);
+            gi.Com_PrintFmt("Spawn grid cell size: {}\n", m_grid_size);
+        }
 
         // Use TWO different bounding boxes like Vortex:
         // Point trace to find ground, then box for clearance validation
@@ -700,7 +703,8 @@ void ProximityGrid::Reset()
         int failed_slope = 0, failed_clearance = 0, failed_final_trace = 0;
         int failed_checkbottom = 0, failed_nearby = 0, failed_sky = 0;
 
-        gi.Com_PrintFmt("Generating spawn grid for map {}...\n", level.mapname);
+        if (developer->integer > 1)
+            gi.Com_PrintFmt("Generating spawn grid for map {}...\n", level.mapname);
 
         // --- SPATIAL HASH FOR O(1) NEARBY LOOKUPS ---
         // Use 64-unit cells (2x min_distance of 32) for efficient nearby checks
@@ -838,12 +842,13 @@ void ProximityGrid::Reset()
                     generated_count++;
 
                     // Progress indicator
-                    if (generated_count % 500 == 0) {
+                    if (developer->integer > 1 && generated_count % 500 == 0) {
                         gi.Com_PrintFmt("  ... {} nodes found\n", generated_count);
                     }
 
                     if (generated_count >= MAX_GRID_NODES) {
-                        gi.Com_PrintFmt("  ... reached MAX_GRID_NODES limit\n");
+                        if (developer->integer > 1)
+                            gi.Com_PrintFmt("  ... reached MAX_GRID_NODES limit\n");
                         goto done;
                     }
                 }
@@ -854,18 +859,20 @@ void ProximityGrid::Reset()
         m_node_count = generated_count;
 
         // DEBUG: Print validation failure statistics
-        gi.Com_PrintFmt("Grid generation stats:\n");
-        gi.Com_PrintFmt("  Tested positions: {}\n", tested_positions);
-        gi.Com_PrintFmt("  Failed pointcontents: {}\n", failed_pointcontents);
-        gi.Com_PrintFmt("  Failed func_entity: {}\n", failed_func_entity);
-        gi.Com_PrintFmt("  Failed hazards: {}\n", failed_hazards);
-        gi.Com_PrintFmt("  Failed slope: {}\n", failed_slope);
-        gi.Com_PrintFmt("  Failed clearance: {}\n", failed_clearance);
-        gi.Com_PrintFmt("  Failed final_trace: {}\n", failed_final_trace);
-        gi.Com_PrintFmt("  Failed checkbottom: {}\n", failed_checkbottom);
-        gi.Com_PrintFmt("  Failed sky: {}\n", failed_sky);
-        gi.Com_PrintFmt("  Failed nearby: {}\n", failed_nearby);
-        gi.Com_PrintFmt("Spawn grid generation complete: {} valid nodes.\n", m_node_count);
+        if (developer->integer > 1) {
+            gi.Com_PrintFmt("Grid generation stats:\n");
+            gi.Com_PrintFmt("  Tested positions: {}\n", tested_positions);
+            gi.Com_PrintFmt("  Failed pointcontents: {}\n", failed_pointcontents);
+            gi.Com_PrintFmt("  Failed func_entity: {}\n", failed_func_entity);
+            gi.Com_PrintFmt("  Failed hazards: {}\n", failed_hazards);
+            gi.Com_PrintFmt("  Failed slope: {}\n", failed_slope);
+            gi.Com_PrintFmt("  Failed clearance: {}\n", failed_clearance);
+            gi.Com_PrintFmt("  Failed final_trace: {}\n", failed_final_trace);
+            gi.Com_PrintFmt("  Failed checkbottom: {}\n", failed_checkbottom);
+            gi.Com_PrintFmt("  Failed sky: {}\n", failed_sky);
+            gi.Com_PrintFmt("  Failed nearby: {}\n", failed_nearby);
+            gi.Com_PrintFmt("Spawn grid generation complete: {} valid nodes.\n", m_node_count);
+        }
 
         if (m_node_count > 0) {
             SaveToDisk(level.mapname);
@@ -996,7 +1003,7 @@ void ProximityGrid::Reset()
 
         // Fallback: couldn't find position meeting all criteria
         // Try one more pass with just cooldown check (skip distance/visibility for emergency)
-        if (developer->integer >= 1) {
+        if (developer->integer > 1) {
             gi.Com_PrintFmt("GetTacticalSpawnPosition: No optimal position found after {} attempts, trying relaxed fallback\n", max_attempts);
         }
 
@@ -1069,7 +1076,8 @@ void ProximityGrid::Reset()
             // Write node positions
             fwrite(m_grid_nodes.data(), sizeof(vec3_t), m_node_count, fp);
 
-            gi.Com_PrintFmt("Spawn grid saved to {}\n", grid_file.string());
+            if (developer->integer > 1)
+                gi.Com_PrintFmt("Spawn grid saved to {}\n", grid_file.string());
             return true;
 
         } catch (const std::exception& e) {
