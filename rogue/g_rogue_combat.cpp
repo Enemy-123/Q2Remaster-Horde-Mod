@@ -30,6 +30,20 @@ namespace NukeDamageConstants {
     constexpr float EntityCenterOffsetFactor = 0.5f;
 }
 
+static bool HordeNukeProtectsTeammate(const edict_t* inflictor, const edict_t* attacker, const edict_t* target)
+{
+    if (!g_horde->integer || g_friendly_fire->integer || !inflictor || !target || target == attacker) {
+        return false;
+    }
+
+    const ctfteam_t nuke_team = inflictor->ctf_team;
+    if (nuke_team == CTF_NOTEAM) {
+        return false;
+    }
+
+    return GetEntityTeam(target) == nuke_team;
+}
+
 /*
 ============
 T_RadiusNukeDamage
@@ -90,10 +104,11 @@ void T_RadiusNukeDamage(edict_t *inflictor, edict_t *attacker, float damage_fall
         v_diff_to_center = ent_aabb_center - inflictor_origin;
         dist_to_center = v_diff_to_center.length();
 
+        const bool protect_teammate = HordeNukeProtectsTeammate(inflictor, attacker, ent);
         points = 0.0f;
         if (dist_to_center <= killzone1_radius)
         {
-            if (ent->client) {
+            if (ent->client && !protect_teammate) {
                 ent->flags |= FL_NOGIB; // Prevent gibbing for direct max damage hits on players
             }
             points = NukeDamageConstants::MaxDamagePoints;
@@ -110,6 +125,8 @@ void T_RadiusNukeDamage(edict_t *inflictor, edict_t *attacker, float damage_fall
 
         if (points > 0.0f)
         {
+            const int damage_to_apply = protect_teammate ? 0 : static_cast<int>(points);
+
             if (ent->client) {
                 // Mark client for nuke screen effect, direct hit gets longest duration
                 // level.time is gtime_t, NukeEffectTimeDirectHit is gtime_t
@@ -125,7 +142,7 @@ void T_RadiusNukeDamage(edict_t *inflictor, edict_t *attacker, float damage_fall
             //          int damage, int knockback, damageflags_t dflags, mod_t mod)
             // For normal, vec3_origin is often used for radius damage where a specific impact normal isn't clear.
             T_Damage(ent, inflictor, attacker, dir_to_ent, inflictor_origin, vec3_origin,
-                     static_cast<int>(points), static_cast<int>(points), DAMAGE_RADIUS, mod);
+                     damage_to_apply, static_cast<int>(points), DAMAGE_RADIUS, mod);
         }
     }
 

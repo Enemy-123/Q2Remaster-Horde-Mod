@@ -1038,6 +1038,8 @@ void fire_nuke(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int spe
 	nuke->s.modelindex = gi.modelindex("models/weapons/g_nuke/tris.md2");
 	nuke->owner = self;
 	nuke->teammaster = self;
+	if (g_horde->integer)
+		nuke->ctf_team = GetEntityTeam(self);
 	nuke->nextthink = level.time + FRAME_TIME_S;
 	nuke->wait = (level.time + NUKE_DELAY + NUKE_TIME_TO_LIVE).seconds();
 	nuke->think = Nuke_Think;
