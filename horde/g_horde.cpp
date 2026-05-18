@@ -3614,14 +3614,14 @@ horde::MonsterTypeID G_HordePickMonsterType(
 	bool isRecoveryModeActive_param,
 	MonsterWaveType originalWaveTypeBeforeRecovery_param)
 {
-	if (!spawn_point || !spawn_point->inuse)
+	if (spawn_point && !spawn_point->inuse)
 		return horde::MonsterTypeID::UNKNOWN;
 
 	// --- 1. Setup Context (no changes) ---
 	MonsterSelectionContext ctx;
 	ctx.currentActualLevel = currentActualLevel_param;
 	ctx.currentActualWaveType = currentActualWaveType_param;
-	ctx.isSpawnPointFlying = (spawn_point->style == 1);
+	ctx.isSpawnPointFlying = (spawn_point && spawn_point->style == 1);
 	ctx.isRetaliationActive = isRetaliationActive_param;
 	ctx.isRecoveryModeActive = isRecoveryModeActive_param;
 	ctx.isBossWaveMinionPhase = (ctx.currentActualLevel >= 10 && ctx.currentActualLevel % 5 == 0 && boss_spawned_for_wave);
@@ -5869,7 +5869,6 @@ static edict_t* FindSafeTeleportDestination(edict_t* self)
 
 	// --- 2. Get Monster Properties ---
 	const bool can_monster_fly = IsFlying(static_cast<horde::MonsterTypeID>(self->monsterinfo.monster_type_id));
-	const bool has_flying_only_points = (g_spawn_system.cached_flying_spawn_count > 0);
 
 	// 25% chance to require out-of-visibility position for this teleport
 	const bool require_out_of_visibility = frandom() < HordeConstants::OUT_OF_VISIBILITY_CHANCE;
@@ -5887,7 +5886,7 @@ static edict_t* FindSafeTeleportDestination(edict_t* self)
 	boost::container::small_vector<edict_t*, 32> nearby_spawn_points;
 	HordePerf::g_spawn_spatial_index.GetNearbySpawnPoints(target_player->s.origin, SEARCH_RADIUS, nearby_spawn_points);
 
-	auto consider_candidates = [&](auto& candidates, bool strict_flying_style_filter) -> bool
+	auto consider_candidates = [&](auto& candidates) -> bool
 		{
 			edict_t* local_best_spot = nullptr;
 			float local_best_score = -1.0f;
@@ -5911,12 +5910,7 @@ static edict_t* FindSafeTeleportDestination(edict_t* self)
 				}
 
 				const bool spawn_is_flying = (spawn_point->style == 1);
-				if (can_monster_fly)
-				{
-					if (strict_flying_style_filter && !spawn_is_flying)
-						continue; // style 1 dedicated to flying monsters
-				}
-				else if (spawn_is_flying)
+				if (!can_monster_fly && spawn_is_flying)
 				{
 					continue; // Ground monsters must never use style 1 points.
 				}
@@ -5989,21 +5983,12 @@ static edict_t* FindSafeTeleportDestination(edict_t* self)
 			return false;
 		};
 
-	// First pass: enforce dedicated flying style when possible.
-	const bool should_strict_flying_style = can_monster_fly && has_flying_only_points;
-	if (!consider_candidates(nearby_spawn_points, should_strict_flying_style))
+	// Flying monsters may use style-1 lanes, but those lanes do not get extra priority.
+	if (!consider_candidates(nearby_spawn_points))
 	{
-		// Second pass (flying only): search globally but still require style 1 points.
-		if (should_strict_flying_style && consider_candidates(g_spawn_point_list, true))
-			return best_spot;
-
-		// Second pass: for flying monsters, relax style filter in nearby points.
-		if (!consider_candidates(nearby_spawn_points, false))
-		{
-			// Third pass: broaden search across all known DM spawn points.
-			// Ground monsters still keep style 1 excluded via the filter above.
-			consider_candidates(g_spawn_point_list, false);
-		}
+		// Broaden search across all known DM spawn points.
+		// Ground monsters still keep style 1 excluded via the filter above.
+		consider_candidates(g_spawn_point_list);
 	}
 
 	if (developer->integer > 1 && best_spot)

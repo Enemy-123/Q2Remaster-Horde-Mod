@@ -676,27 +676,74 @@ void PlanMonsterSpawnBatch(
     }
 
     size_t points_checked = 0;
+    size_t monster_pick_attempts = 0;
     int planned_count = 0;
     int failed_validation = 0;
     int failed_monster_pick = 0;
     bool plan_capacity_exhausted = false;
 
-    auto try_plan_at_spawn_point = [&](edict_t* spawn_point) -> bool
+    auto find_spawn_point_for_monster = [&](horde::MonsterTypeID monster_type_id) -> edict_t*
     {
-        if (!ValidateSpawnPointForMonster(spawn_point, level.time))
+        const bool monster_is_flying = IsFlying(monster_type_id);
+
+        for (size_t i = 0; i < total_potential_points; ++i)
         {
-            failed_validation++;
-            return false;
+            if (g_spawn_system.spawn_point_shuffle_index >= total_potential_points)
+            {
+                g_spawn_system.spawn_point_shuffle_index = 0;
+            }
+
+            edict_t* spawn_point = g_spawn_system.potential_spawn_points[g_spawn_system.spawn_point_shuffle_index++];
+            points_checked++;
+
+            if (!spawn_point || !spawn_point->inuse)
+            {
+                failed_validation++;
+                continue;
+            }
+
+            if (!monster_is_flying && spawn_point->style == 1)
+            {
+                failed_validation++;
+                continue;
+            }
+
+            if (!ValidateSpawnPointForMonster(spawn_point, level.time))
+            {
+                failed_validation++;
+                continue;
+            }
+
+            if (developer->integer > 2 && monster_is_flying)
+            {
+                gi.Com_PrintFmt("FLYING SPAWN POINT: using {} bucket at {}.\n",
+                                spawn_point->style == 1 ? "style-1" : "normal",
+                                spawn_point->s.origin);
+            }
+
+            return spawn_point;
         }
 
+        return nullptr;
+    };
+
+    auto try_plan_next_monster = [&]() -> bool
+    {
+        monster_pick_attempts++;
         horde::MonsterTypeID monster_type_id = G_HordePickMonsterType(
-            spawn_point, currentLevel_param, current_actual_wave_type_param,
+            nullptr, currentLevel_param, current_actual_wave_type_param,
             is_retaliation_active_param, is_recovery_mode_active_param,
             original_wave_type_before_recovery_param);
 
         if (monster_type_id == horde::MonsterTypeID::UNKNOWN)
         {
             failed_monster_pick++;
+            return false;
+        }
+
+        edict_t* spawn_point = find_spawn_point_for_monster(monster_type_id);
+        if (!spawn_point)
+        {
             return false;
         }
 
@@ -711,39 +758,21 @@ void PlanMonsterSpawnBatch(
         return true;
     };
 
-    // Force at least one style-1 flying lane spawn attempt per batch when available.
-    if (g_spawn_system.cached_flying_spawn_count > 0 && planned_count < num_to_plan)
+    const size_t max_points_to_check = total_potential_points * std::max<size_t>(2, static_cast<size_t>(num_to_plan));
+    const size_t max_monster_pick_attempts = std::max<size_t>(static_cast<size_t>(num_to_plan) * 4, 4);
+    while (!plan_capacity_exhausted &&
+           planned_count < num_to_plan &&
+           points_checked < max_points_to_check &&
+           monster_pick_attempts < max_monster_pick_attempts)
     {
-        const size_t start_index = static_cast<size_t>(irandom(static_cast<int>(total_potential_points)));
-        for (size_t i = 0; i < total_potential_points; ++i)
-        {
-            edict_t* candidate = g_spawn_system.potential_spawn_points[(start_index + i) % total_potential_points];
-            points_checked++;
-
-            if (!candidate || candidate->style != 1)
-                continue;
-
-            if (try_plan_at_spawn_point(candidate) || plan_capacity_exhausted)
-                break;
-        }
-    }
-
-    while (!plan_capacity_exhausted && planned_count < num_to_plan && points_checked < total_potential_points * 2)
-    {
-        if (g_spawn_system.spawn_point_shuffle_index >= total_potential_points)
-        {
-            g_spawn_system.spawn_point_shuffle_index = 0;
-        }
-        edict_t* spawn_point = g_spawn_system.potential_spawn_points[g_spawn_system.spawn_point_shuffle_index++];
-        points_checked++;
-        try_plan_at_spawn_point(spawn_point);
+        try_plan_next_monster();
     }
 
     if (developer->integer > 1)
     {
         gi.Com_PrintFmt("SPAWN PLAN: Target={}, Planned={}, FailedValidation={}, FailedPick={}, PointsChecked={}/{} (Remaining: {})\n",
                         num_to_plan, planned_count, failed_validation, failed_monster_pick,
-                        points_checked, total_potential_points, g_horde_local.num_to_spawn);
+                        points_checked, max_points_to_check, g_horde_local.num_to_spawn);
     }
 }
 
