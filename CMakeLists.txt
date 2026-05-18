@@ -1,22 +1,89 @@
-cmake_minimum_required(VERSION 3.15)
-if(POLICY CMP0091)
-    cmake_policy(SET CMP0091 NEW)
-endif()
+cmake_minimum_required(VERSION 3.25)
+
+include(FetchContent)
+
 project(Q2HordeMod LANGUAGES C CXX)
 
+option(VRX_REPRO "Use Quake II Remaster/q2repro game library naming." TRUE)
+option(Q2HORDE_FETCH_DEPS "Fetch fmt/jsoncpp if they are not available locally." TRUE)
+
 set(CMAKE_C_STANDARD 99)
-set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_STANDARD 23)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 
 set(DEPLOY_DIRECTORY "" CACHE PATH "Directory where the game library and data files should be copied")
 
-find_package(fmt CONFIG REQUIRED)
-find_package(jsoncpp CONFIG REQUIRED)
+if(APPLE)
+    foreach(HOMEBREW_PREFIX IN ITEMS /opt/homebrew /usr/local)
+        if(EXISTS "${HOMEBREW_PREFIX}")
+            list(APPEND CMAKE_PREFIX_PATH "${HOMEBREW_PREFIX}")
+        endif()
+    endforeach()
+endif()
+
+find_path(Q2HORDE_BOOST_INCLUDE_DIR
+    NAMES
+        boost/container/flat_map.hpp
+        boost/unordered/unordered_flat_map.hpp)
+
+if(NOT Q2HORDE_BOOST_INCLUDE_DIR)
+    message(FATAL_ERROR "Boost headers were not found. Install Boost or configure with a CMAKE_PREFIX_PATH that contains Boost.")
+endif()
+
+find_package(fmt CONFIG QUIET)
+if(NOT fmt_FOUND AND Q2HORDE_FETCH_DEPS)
+    set(FMT_INSTALL OFF CACHE BOOL "" FORCE)
+    set(FMT_TEST OFF CACHE BOOL "" FORCE)
+    set(FMT_DOC OFF CACHE BOOL "" FORCE)
+    FetchContent_Declare(
+        fmt
+        GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+        GIT_TAG 12.1.0)
+    FetchContent_MakeAvailable(fmt)
+endif()
+
+if(TARGET fmt::fmt-header-only)
+    set(Q2HORDE_FMT_TARGET fmt::fmt-header-only)
+elseif(TARGET fmt::fmt)
+    set(Q2HORDE_FMT_TARGET fmt::fmt)
+else()
+    message(FATAL_ERROR "fmt was not found and could not be made available.")
+endif()
+
+find_package(jsoncpp CONFIG QUIET)
+if(NOT jsoncpp_FOUND AND Q2HORDE_FETCH_DEPS)
+    set(JSONCPP_WITH_TESTS OFF CACHE BOOL "" FORCE)
+    set(JSONCPP_WITH_POST_BUILD_UNITTEST OFF CACHE BOOL "" FORCE)
+    set(JSONCPP_WITH_WARNING_AS_ERROR OFF CACHE BOOL "" FORCE)
+    set(JSONCPP_WITH_PKGCONFIG_SUPPORT OFF CACHE BOOL "" FORCE)
+    set(JSONCPP_WITH_CMAKE_PACKAGE OFF CACHE BOOL "" FORCE)
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+    FetchContent_Declare(
+        jsoncpp
+        GIT_REPOSITORY https://github.com/open-source-parsers/jsoncpp.git
+        GIT_TAG 1.9.6)
+    FetchContent_MakeAvailable(jsoncpp)
+endif()
+
+if(TARGET JsonCpp::JsonCpp)
+    set(Q2HORDE_JSONCPP_TARGET JsonCpp::JsonCpp)
+elseif(TARGET jsoncpp_static)
+    set(Q2HORDE_JSONCPP_TARGET jsoncpp_static)
+elseif(TARGET jsoncpp_lib)
+    set(Q2HORDE_JSONCPP_TARGET jsoncpp_lib)
+else()
+    message(FATAL_ERROR "jsoncpp was not found and could not be made available.")
+endif()
 
 file(GLOB MOD_SOURCES CONFIGURE_DEPENDS
-     "*.cpp" "bots/*.cpp" "ctf/*.cpp" "horde/*.cpp" "rogue/*.cpp" "xatrix/*.cpp")
+    "*.cpp"
+    "bots/*.cpp"
+    "ctf/*.cpp"
+    "horde/*.cpp"
+    "rogue/*.cpp"
+    "xatrix/*.cpp")
 
 set(VENDOR_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/vendor/lua.c"
@@ -29,7 +96,8 @@ set_property(TARGET Q2HordeModDLL PROPERTY
 
 target_include_directories(Q2HordeModDLL PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
-    "${CMAKE_CURRENT_SOURCE_DIR}/vendor")
+    "${CMAKE_CURRENT_SOURCE_DIR}/vendor"
+    "${Q2HORDE_BOOST_INCLUDE_DIR}")
 
 target_compile_definitions(Q2HordeModDLL PRIVATE
     FMT_HEADER_ONLY
@@ -58,8 +126,13 @@ else()
         $<$<COMPILE_LANGUAGE:CXX>:-Wnull-dereference>
         -Wno-unused-parameter
         -Wno-error
+        $<$<COMPILE_LANG_AND_ID:CXX,AppleClang,Clang>:-Wno-unknown-warning-option>
         $<$<COMPILE_LANGUAGE:CXX>:-Wno-deprecated-enum-enum-conversion>
-        $<$<COMPILE_LANGUAGE:CXX>:-Wno-template-id-cdtor>
+        $<$<COMPILE_LANGUAGE:CXX>:-Wno-deprecated-anon-enum-enum-conversion>
+        $<$<COMPILE_LANGUAGE:CXX>:-Wno-invalid-offsetof>
+        $<$<COMPILE_LANG_AND_ID:CXX,GNU>:-Wno-template-id-cdtor>
+        $<$<COMPILE_LANGUAGE:CXX>:-Wno-ignored-attributes>
+        $<$<COMPILE_LANG_AND_ID:CXX,AppleClang,Clang>:-fdeclspec>
         $<$<CONFIG:Debug>:-g>
         $<$<CONFIG:Debug>:-O0>
         $<$<CONFIG:RelWithDebInfo>:-g>
@@ -70,8 +143,8 @@ else()
 endif()
 
 target_link_libraries(Q2HordeModDLL PRIVATE
-    fmt::fmt
-    JsonCpp::JsonCpp)
+    ${Q2HORDE_FMT_TARGET}
+    ${Q2HORDE_JSONCPP_TARGET})
 
 if(WIN32)
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND MINGW)
@@ -101,31 +174,46 @@ elseif(UNIX)
     endif()
 endif()
 
+if(NOT VRX_REPRO)
+    set(GAME_NAME game)
+else()
+    set(GAME_NAME game_)
+endif()
+
 if(WIN32)
     if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-        set(GAME_OUTPUT_NAME "game_x64")
+        if(VRX_REPRO)
+            set(GAME_OUTPUT_NAME "${GAME_NAME}x64")
+        else()
+            set(GAME_OUTPUT_NAME "${GAME_NAME}x86_64")
+        endif()
     else()
-        set(GAME_OUTPUT_NAME "game_x86")
+        set(GAME_OUTPUT_NAME "${GAME_NAME}x86")
     endif()
     set(GAME_SUFFIX ".dll")
-elseif(APPLE)
-    execute_process(COMMAND uname -m OUTPUT_VARIABLE GAME_ARCH OUTPUT_STRIP_TRAILING_WHITESPACE)
-    set(GAME_OUTPUT_NAME "game_${GAME_ARCH}")
-    set(GAME_SUFFIX ".dylib")
+elseif(UNIX)
+    execute_process(
+        COMMAND uname -m
+        COMMAND sed s/i.86/i386/
+        COMMAND tr -d "\n"
+        OUTPUT_VARIABLE GAME_ARCH)
+    set(GAME_OUTPUT_NAME "${GAME_NAME}${GAME_ARCH}")
+    if(APPLE)
+        set(GAME_SUFFIX ".dylib")
+    else()
+        set(GAME_SUFFIX ".so")
+    endif()
 else()
-    execute_process(COMMAND uname -m OUTPUT_VARIABLE GAME_ARCH OUTPUT_STRIP_TRAILING_WHITESPACE)
-    string(REGEX REPLACE "^i.86$" "i386" GAME_ARCH "${GAME_ARCH}")
-    set(GAME_OUTPUT_NAME "game_${GAME_ARCH}")
-    set(GAME_SUFFIX ".so")
+    message(FATAL_ERROR "Unknown platform")
 endif()
 
 set_target_properties(Q2HordeModDLL PROPERTIES
     OUTPUT_NAME "${GAME_OUTPUT_NAME}"
     PREFIX ""
     SUFFIX "${GAME_SUFFIX}"
-    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
-    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 
 if(DEPLOY_DIRECTORY AND IS_DIRECTORY "${DEPLOY_DIRECTORY}")
     install(TARGETS Q2HordeModDLL

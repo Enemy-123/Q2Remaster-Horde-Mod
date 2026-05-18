@@ -414,6 +414,14 @@ struct save_type_deducer<uint64_t>
 		return { name, offset, { ST_UINT64 } };
 	}
 };
+template<typename T>
+struct save_type_deducer<T, std::enable_if_t<std::is_same_v<T, size_t> && !std::is_same_v<T, uint64_t>>>
+{
+	static constexpr save_field_t get_save_type(const char* name, size_t offset)
+	{
+		return { name, offset, { ST_UINT64 } };
+	}
+};
 
 // floating point
 template<>
@@ -2514,7 +2522,7 @@ char* WriteGameJson(bool autosave, size_t* out_size)
 
 	Json::Value json(Json::objectValue);
 
-	json["save_version"] = SAVE_FORMAT_VERSION;
+	json["save_version"] = Json::Value(static_cast<Json::UInt64>(SAVE_FORMAT_VERSION));
 	// TODO: engine version ID?
 
 	// write game
@@ -2599,7 +2607,7 @@ char* WriteLevelJson(bool transition, size_t* out_size)
 
 	Json::Value json(Json::objectValue);
 
-	json["save_version"] = SAVE_FORMAT_VERSION;
+	json["save_version"] = Json::Value(static_cast<Json::UInt64>(SAVE_FORMAT_VERSION));
 
 	// write level
 	write_save_struct_json(&level, &level_locals_t_savestruct, false, json["level"]);

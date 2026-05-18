@@ -1560,35 +1560,63 @@ static void G_PrecacheStartItems()
 constexpr size_t MAX_ENTITY_FILE_SIZE = 0x40000; // 256 KB
 
 //#define NOMINMAX
+#ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN // Also good practice
 #endif
 #include <windows.h>
+#else
+#include <dlfcn.h>
+#endif
 #include <filesystem>
 #include <fstream>
+
+static bool GetGameModuleDirectory(std::filesystem::path& outPath)
+{
+	namespace fs = std::filesystem;
+
+#ifdef _WIN32
+	std::array<char, MAX_PATH> modulePath{};
+
+	auto [success, hModule] = [&] {
+		HMODULE h = nullptr;
+		bool s = GetModuleHandleExA(
+			GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+			reinterpret_cast<LPCSTR>(&GetGameModuleDirectory),
+			&h);
+		return std::make_pair(s, h);
+	}();
+
+	if (!success) {
+		gi.Com_PrintFmt("Error obtaining module handle.\n");
+		return false;
+	}
+
+	if (DWORD result = GetModuleFileNameA(hModule, modulePath.data(), MAX_PATH);
+		result == 0 || result == MAX_PATH) {
+		gi.Com_PrintFmt("Error obtaining module path.\n");
+		return false;
+	}
+
+	outPath = fs::path(modulePath.data()).parent_path();
+	return true;
+#else
+	Dl_info info{};
+	if (dladdr(reinterpret_cast<const void*>(&GetGameModuleDirectory), &info) == 0 || !info.dli_fname) {
+		gi.Com_PrintFmt("Error obtaining module path.\n");
+		return false;
+	}
+
+	outPath = fs::path(info.dli_fname).parent_path();
+	return true;
+#endif
+}
 
 bool LoadEntityFile(std::string_view mapname, std::vector<char>& buffer, std::string& outFilename) {
 	namespace fs = std::filesystem;
 	try {
-		std::array<char, MAX_PATH> modulePath{};
-
-		auto [success, hModule] = [&] {
-			HMODULE h = nullptr;
-			bool s = GetModuleHandleExA(
-				GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-				reinterpret_cast<LPCSTR>(&LoadEntityFile),
-				&h);
-			return std::make_pair(s, h);
-			}();
-
-		if (!success) {
-			gi.Com_PrintFmt("Error obtaining module handle.\n");
-			return false;
-		}
-
-		if (DWORD result = GetModuleFileNameA(hModule, modulePath.data(), MAX_PATH);
-			result == 0 || result == MAX_PATH) {
-			gi.Com_PrintFmt("Error obtaining module path.\n");
+		fs::path moduleDirectory;
+		if (!GetGameModuleDirectory(moduleDirectory)) {
 			return false;
 		}
 
@@ -1599,7 +1627,7 @@ bool LoadEntityFile(std::string_view mapname, std::vector<char>& buffer, std::st
 		}
 
 		// Load .ent file from ents folder using basename only
-		fs::path entfile_path = fs::path(modulePath.data()).parent_path() / "ents" /
+		fs::path entfile_path = moduleDirectory / "ents" /
 			fmt::format("{}.ent", map_basename);
 
 		FILE* fp = fopen(entfile_path.string().c_str(), "rb");
