@@ -1398,6 +1398,11 @@ enum class WaveEndReason
 
 static constexpr gtime_t ZERO_MONSTER_DEPLOYMENT_GRACE = 5_sec;
 
+static bool DeveloperSuppressesWaveAutoAdvance() noexcept
+{
+	return developer && developer->integer >= 3;
+}
+
 inline int8_t GetNumActivePlayers();
 inline int8_t GetNumSpectPlayers();
 
@@ -5087,6 +5092,9 @@ static bool CheckRemainingMonstersCondition(const horde::MapSize& mapSize, WaveE
 	// A hard time limit for the wave, regardless of other conditions.
 	if (ctx.currentTime >= g_independent_timer_start + ctx.params.independentTimeThreshold)
 	{
+		if (DeveloperSuppressesWaveAutoAdvance())
+			return false;
+
 		reason = WaveEndReason::TimeLimitReached;
 		if (developer->integer)
 		{
@@ -5138,6 +5146,9 @@ static bool CheckRemainingMonstersCondition(const horde::MapSize& mapSize, WaveE
 	// Check if the conditional timer has run out.
 	if (g_horde_local.conditionTriggered && ctx.currentTime >= g_horde_local.waveEndTime)
 	{
+		if (DeveloperSuppressesWaveAutoAdvance())
+			return false;
+
 		reason = WaveEndReason::MonstersRemaining;
 		if (developer->integer)
 			// gi.Com_PrintFmt("Wave ended: Conditional timer expired. Live: {}, Queued: {}.\n", ctx.liveMonsters, g_horde_local.queued_monsters);
@@ -5152,6 +5163,9 @@ static bool CheckRemainingMonstersCondition(const horde::MapSize& mapSize, WaveE
 		if (g_horde_local.conditionTimeThreshold > 0_sec &&
 			elapsed_since_condition_start >= (g_horde_local.conditionTimeThreshold * 0.7f))
 		{
+			if (DeveloperSuppressesWaveAutoAdvance())
+				return false;
+
 			reason = WaveEndReason::MonstersRemaining;
 			// if (developer->integer)
 			// 	gi.Com_PrintFmt("Wave ended: High level, few monsters, 70%% of conditional timer elapsed.\n");
@@ -6863,6 +6877,11 @@ static bool CheckZeroMonsterDeploymentGrace(int32_t currentLevel, gtime_t curren
 		return false;
 	}
 
+	if (DeveloperSuppressesWaveAutoAdvance())
+	{
+		return false;
+	}
+
 	ClearPendingWaveSpawns("Zero-monster deployment grace expired");
 	g_horde_local.zero_monster_deployment_start = 0_sec;
 	reason = WaveEndReason::AllMonstersDead;
@@ -8259,12 +8278,14 @@ void Horde_RunFrame()
 	}
 	else if (g_horde_local.state != horde_state_t::warmup && currentTime > g_horde_local.last_wave_change_time + HordeConstants::WAVE_STUCK_TIMEOUT) {
 		if (GetStroggsNum() == 0) {
-			if (developer->integer) {
-				gi.Com_PrintFmt("CRITICAL: Wave {} stuck for over ({:.1f}s with 0 monsters. Forcing progression.\n",
-					currentLevel, HordeConstants::WAVE_STUCK_TIMEOUT.seconds());
+			if (!DeveloperSuppressesWaveAutoAdvance()) {
+				if (developer->integer) {
+					gi.Com_PrintFmt("CRITICAL: Wave {} stuck for over ({:.1f}s with 0 monsters. Forcing progression.\n",
+						currentLevel, HordeConstants::WAVE_STUCK_TIMEOUT.seconds());
+				}
+				g_horde_local.state = horde_state_t::cleanup;
+				g_horde_local.monster_spawn_time = currentTime;
 			}
-			g_horde_local.state = horde_state_t::cleanup;
-			g_horde_local.monster_spawn_time = currentTime;
 		}
 		else {
 			g_horde_local.last_wave_change_time = currentTime;
