@@ -610,7 +610,6 @@ void ProximityGrid::Reset()
 
     // Clear the grid
     void SpawnGrid::Clear() {
-        m_grid_nodes.clear();
         m_node_count = 0;
         ClearCooldowns();
     }
@@ -674,7 +673,6 @@ void ProximityGrid::Reset()
         }
 
         Clear();
-        // Note: static_vector has fixed capacity - no reserve() needed
 
         // Store world bounds
         m_world_mins = world_mins;
@@ -833,8 +831,14 @@ void ProximityGrid::Reset()
                     }
 
                     // Valid spawn position found!
-                    const int new_idx = static_cast<int>(m_grid_nodes.size());
-                    m_grid_nodes.push_back(final_pos);
+                    if (generated_count >= MAX_GRID_NODES) {
+                        if (developer->integer > 1)
+                            gi.Com_PrintFmt("  ... reached MAX_GRID_NODES limit\n");
+                        goto done;
+                    }
+
+                    const int new_idx = generated_count;
+                    m_grid_nodes[static_cast<size_t>(new_idx)] = final_pos;
                     
                     // Add to spatial hash for future nearby checks
                     spatial_hash[hash_pos(final_pos)].push_back(new_idx);
@@ -846,11 +850,6 @@ void ProximityGrid::Reset()
                         gi.Com_PrintFmt("  ... {} nodes found\n", generated_count);
                     }
 
-                    if (generated_count >= MAX_GRID_NODES) {
-                        if (developer->integer > 1)
-                            gi.Com_PrintFmt("  ... reached MAX_GRID_NODES limit\n");
-                        goto done;
-                    }
                 }
             }
         }
@@ -1124,8 +1123,12 @@ void ProximityGrid::Reset()
 
             // Read nodes
             Clear();
-            m_grid_nodes.resize(node_count);
-            fread(m_grid_nodes.data(), sizeof(vec3_t), node_count, fp);
+            const size_t nodes_read = fread(m_grid_nodes.data(), sizeof(vec3_t), node_count, fp);
+            if (nodes_read != static_cast<size_t>(node_count)) {
+                gi.Com_PrintFmt("Incomplete spawn grid file: {}\n", grid_file.string());
+                Clear();
+                return false;
+            }
             m_node_count = node_count;
 
             return true;

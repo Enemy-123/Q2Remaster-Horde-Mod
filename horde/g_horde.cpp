@@ -35,10 +35,6 @@ constexpr int32_t MAX_EFFECTIVE_LEVEL_BOOST = 20;
 // Style 1 spawn points are dedicated to flying lanes; keep a long reuse cooldown.
 static constexpr gtime_t FLYING_ONLY_SPAWN_LONG_COOLDOWN = 12.0_sec;
 
-// Maps an edict_t* to a compact index [0...N-1]
-// g_spawn_point_map now in g_spawn_system
-
-
 boost::container::flat_map<int, trap_state_t> g_trap_states;
 boost::container::flat_map<int, EmitterState> g_emitter_states;
 
@@ -784,9 +780,25 @@ struct SpawnPointCacheArray
 // spawn_validation_cache now in g_spawn_system
 static SpawnPointCacheArray spawn_point_cache;
 
+static void ResizeSpawnPointCaches(size_t spawn_count, const char* validation_context)
+{
+	g_num_spawn_points = spawn_count;
+
+	if (g_num_spawn_points > MAX_SAFE_CONTAINER_SIZE) {
+		gi.Com_PrintFmt("ERROR: Too many spawn points ({}) exceeds maximum ({})\n",
+			g_num_spawn_points, MAX_SAFE_CONTAINER_SIZE);
+		g_num_spawn_points = MAX_SAFE_CONTAINER_SIZE;
+	}
+
+	g_spawn_system.spawn_points_data.resize(g_num_spawn_points);
+	spawn_point_cache.resize(g_num_spawn_points);
+	if (!safe_resize(g_spawn_system.spawn_validation_cache, g_num_spawn_points)) {
+		gi.Com_PrintFmt("ERROR: Failed to resize spawn validation cache{}\n", validation_context);
+	}
+}
+
 void BuildSpawnPointMap()
 {
-	g_spawn_system.spawn_point_map.clear();
 	g_spawn_point_list.clear();
 
 	// Initialize O(1) lookup vector (indexed by entity number)
@@ -828,7 +840,6 @@ void BuildSpawnPointMap()
 				break;
 			}
 
-			g_spawn_system.spawn_point_map[sp->s.number] = compact_index;
 			g_spawn_system.spawn_point_index_lookup[sp->s.number] = compact_index;
 
 			// Add to spatial index for fast spatial queries
@@ -836,27 +847,9 @@ void BuildSpawnPointMap()
 		}
 	}
 
-	g_num_spawn_points = g_spawn_point_list.size();
-
 	// Shrink to fit to release any excess capacity
 	g_spawn_point_list.shrink_to_fit();
-
-	// Finally, resize all data structures to the exact size needed with safety checks
-	// g_spawn_system.spawn_points_data has its own resize method that handles all its vectors
-	if (g_num_spawn_points > MAX_SAFE_CONTAINER_SIZE) {
-		gi.Com_PrintFmt("ERROR: Too many spawn points ({}) exceeds maximum ({})\n",
-			g_num_spawn_points, MAX_SAFE_CONTAINER_SIZE);
-		g_num_spawn_points = MAX_SAFE_CONTAINER_SIZE;
-	}
-	g_spawn_system.spawn_points_data.resize(g_num_spawn_points);
-
-	// spawn_point_cache also has its own resize method
-	spawn_point_cache.resize(g_num_spawn_points);
-
-	// g_spawn_system.spawn_validation_cache is a std::vector, use safe_resize
-	if (!safe_resize(g_spawn_system.spawn_validation_cache, g_num_spawn_points)) {
-		gi.Com_Print("ERROR: Failed to resize spawn validation cache\n");
-	}
+	ResizeSpawnPointCaches(g_spawn_point_list.size(), "");
 
 	if (developer->integer > 1) {
 		gi.Com_PrintFmt("Spawn Point Map Built: Found {} spawn points with spatial index.\n", g_num_spawn_points);
@@ -1147,7 +1140,6 @@ void BuildSpawnPointMap()
 					break;
 				}
 
-				g_spawn_system.spawn_point_map[virtual_spawn->s.number] = compact_index;
 				g_spawn_system.spawn_point_index_lookup[virtual_spawn->s.number] = compact_index;
 
 				HordePerf::g_spawn_spatial_index.AddSpawnPoint(virtual_spawn);
@@ -1156,22 +1148,8 @@ void BuildSpawnPointMap()
 			}
 
 			// Update counts and resize structures.
-			g_num_spawn_points = g_spawn_point_list.size();
 			g_spawn_point_list.shrink_to_fit();
-
-			if (g_num_spawn_points > MAX_SAFE_CONTAINER_SIZE)
-			{
-				gi.Com_PrintFmt("ERROR: Too many spawn points ({}) exceeds maximum ({})\n",
-					g_num_spawn_points, MAX_SAFE_CONTAINER_SIZE);
-				g_num_spawn_points = MAX_SAFE_CONTAINER_SIZE;
-			}
-
-			g_spawn_system.spawn_points_data.resize(g_num_spawn_points);
-			spawn_point_cache.resize(g_num_spawn_points);
-			if (!safe_resize(g_spawn_system.spawn_validation_cache, g_num_spawn_points))
-			{
-				gi.Com_Print("ERROR: Failed to resize spawn validation cache for virtual spawns\n");
-			}
+			ResizeSpawnPointCaches(g_spawn_point_list.size(), " for virtual spawns");
 
 			if (developer->integer > 1)
 				gi.Com_PrintFmt("Created {} virtual spawn points from grid nodes.\n", virtual_spawns_created);
@@ -4817,7 +4795,7 @@ void ResetGame()
 	// RESET (cleared in this function):
 	//   - All boost::flat_map/flat_set tracking entity state (traps, emitters, bosses, morphs, teleport cache)
 	//   - Progressive precaching state (excluded/precached monsters, models)
-	//   - Spawn system state (spawn_plan, special_spawn_state, spawn_point_map, spawn_history)
+	//   - Spawn system state (spawn_plan, special_spawn_state, spawn lookups, spawn_history)
 	//   - Wave state arrays (previous_wave_types via ResetWaveMemory(), g_wave_sound_order, g_start_sound_order)
 	//   - Recent spawns, teleport tracking, benefits
 	//   - LaserPool: BFG laser entity pool (prevents dangling pointers)

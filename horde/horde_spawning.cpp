@@ -81,23 +81,22 @@ extern void ExecuteSpawnPlan();
 // ============================================================================
 
 void SpawnPointsSoA::resize(size_t new_size) {
-    // Clamp size to static_vector capacity (128)
-    constexpr size_t MAX_SPAWN_POINTS_CAPACITY = 128;
-    if (new_size > MAX_SPAWN_POINTS_CAPACITY) {
-        gi.Com_PrintFmt("WARNING: Spawn points data resize {} exceeds static_vector capacity {}, clamping\n",
-            new_size, MAX_SPAWN_POINTS_CAPACITY);
-        new_size = MAX_SPAWN_POINTS_CAPACITY;
+    if (new_size > MAX_STATE_SPAWN_POINTS) {
+        gi.Com_PrintFmt("WARNING: Spawn points data resize {} exceeds fixed capacity {}, clamping\n",
+            new_size, MAX_STATE_SPAWN_POINTS);
+        new_size = MAX_STATE_SPAWN_POINTS;
     }
 
-    isTemporarilyDisabled.assign(new_size, false);
-    cooldownEndsAt.assign(new_size, 0_sec);
-    alternative_cooldown.assign(new_size, 0_sec);
-    teleport_cooldown.assign(new_size, 0_sec);
-    lastSpawnTime.assign(new_size, 0_sec);
-    attempts.assign(new_size, 0);
-    successfulSpawns.assign(new_size, 0);
-    alternative_attempts.assign(new_size, 0);
-    needs_long_alternative_cooldown.assign(new_size, false);
+    active_count = new_size;
+    isTemporarilyDisabled.fill(false);
+    cooldownEndsAt.fill(0_sec);
+    alternative_cooldown.fill(0_sec);
+    teleport_cooldown.fill(0_sec);
+    lastSpawnTime.fill(0_sec);
+    attempts.fill(0);
+    successfulSpawns.fill(0);
+    alternative_attempts.fill(0);
+    needs_long_alternative_cooldown.fill(false);
 }
 
 // ============================================================================

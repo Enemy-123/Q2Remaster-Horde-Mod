@@ -3,7 +3,8 @@
 #include "horde_ids.h"
 #include "../shared.h"
 #include "../memory_safety.h"  // For MAX_ENTITIES_PER_FRAME
-#include <boost/container/static_vector.hpp>  // For static_vector (fixed-capacity, no heap allocation)
+#include <array>
+#include <boost/container/small_vector.hpp>
 
 // Forward declarations (edict_t is already defined in shared.h)
 
@@ -41,21 +42,24 @@ struct SpawnPlanEntry {
     edict_t* spawn_point;
 };
 
-// Spawn points data using SoA (Structure of Arrays) for cache efficiency
-// Using static_vector with capacity 128 (MAX_SPAWN_POINTS=64, doubled for safety) - NO heap allocations!
+// Spawn points data using SoA (Structure of Arrays) for cache efficiency.
+// Fixed-capacity arrays avoid heap allocation and keep lookup state cache-friendly.
 struct SpawnPointsSoA {
+    static constexpr size_t MAX_STATE_SPAWN_POINTS = 128;
+
     // --- HOT DATA ---
-    boost::container::static_vector<bool, 128> isTemporarilyDisabled;
-    boost::container::static_vector<gtime_t, 128> cooldownEndsAt;
-    boost::container::static_vector<gtime_t, 128> alternative_cooldown;
-    boost::container::static_vector<gtime_t, 128> teleport_cooldown;
+    std::array<bool, MAX_STATE_SPAWN_POINTS> isTemporarilyDisabled{};
+    std::array<gtime_t, MAX_STATE_SPAWN_POINTS> cooldownEndsAt{};
+    std::array<gtime_t, MAX_STATE_SPAWN_POINTS> alternative_cooldown{};
+    std::array<gtime_t, MAX_STATE_SPAWN_POINTS> teleport_cooldown{};
 
     // --- COLD DATA ---
-    boost::container::static_vector<gtime_t, 128> lastSpawnTime;
-    boost::container::static_vector<uint16_t, 128> attempts;
-    boost::container::static_vector<int32_t, 128> successfulSpawns;
-    boost::container::static_vector<uint16_t, 128> alternative_attempts;
-    boost::container::static_vector<bool, 128> needs_long_alternative_cooldown;
+    std::array<gtime_t, MAX_STATE_SPAWN_POINTS> lastSpawnTime{};
+    std::array<uint16_t, MAX_STATE_SPAWN_POINTS> attempts{};
+    std::array<int32_t, MAX_STATE_SPAWN_POINTS> successfulSpawns{};
+    std::array<uint16_t, MAX_STATE_SPAWN_POINTS> alternative_attempts{};
+    std::array<bool, MAX_STATE_SPAWN_POINTS> needs_long_alternative_cooldown{};
+    size_t active_count = 0;
 
     // Helper to resize all vectors at once
     void resize(size_t new_size);
@@ -96,7 +100,6 @@ struct SpawnSystemState {
     int32_t cached_flying_spawn_count = 0;
 
     // --- Spawn Point Data ---
-    boost::container::flat_map<int, uint16_t> spawn_point_map;  // C++23 flat_map for better cache locality [DEPRECATED: Use spawn_point_index_lookup]
     std::vector<uint16_t> spawn_point_index_lookup;  // O(1) lookup: index by ent->s.number, value = compact index (0xFFFF = invalid)
     SpawnPointsSoA spawn_points_data;
     // Using small_vector to avoid heap allocation for typical maps (most have < 64 spawn points)
@@ -126,7 +129,6 @@ struct SpawnSystemState {
         spawn_point_shuffle_index = 0;
         cached_flying_spawn_count = 0;
 
-        spawn_point_map.clear();
         spawn_point_index_lookup.clear();
         spawn_points_data.clear();
         spawn_validation_cache.clear();
