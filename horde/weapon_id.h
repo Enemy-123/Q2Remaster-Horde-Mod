@@ -3,7 +3,6 @@
 #include <cstdint>
 #include <array>
 #include <string_view>
-#include <boost/container/flat_map.hpp>
 
 namespace horde {
 
@@ -42,9 +41,6 @@ namespace horde {
     // Class for efficient weapon type lookups
     class WeaponRegistry {
     public:
-        // Initialize the registry with all weapon mappings
-        static void Initialize();
-
         // Get weapon ID from weapon name string
         static WeaponID GetWeaponID(const char* weapon_name);
 
@@ -54,8 +50,5 @@ namespace horde {
         // For debugging - get weapon name from ID
         static const char* GetWeaponName(WeaponID id);
     };
-
-    // Initialize weapon registry (called as part of InitializeHordeIDs)
-    void InitializeWeaponIDs();
 
 } // namespace horde

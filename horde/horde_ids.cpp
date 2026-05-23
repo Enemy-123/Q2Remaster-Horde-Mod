@@ -1,15 +1,14 @@
 #include "horde_ids.h"
-#include "weapon_id.h"
 #include "g_horde.h"
 #include <algorithm>
 #include <cctype>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <boost/container/flat_map.hpp>
 
 namespace horde {
 
-    static bool s_specialTypeRegistryInitialized = false;
     static bool s_monsterTypeRegistryInitialized = false;
 
     // Global instances
@@ -21,8 +20,38 @@ namespace horde {
     std::array<MapSize, static_cast<size_t>(MapID::MAX_MAPS)> MapOriginRegistry::s_mapSizes;
     bool MapOriginRegistry::s_initialized = false;
 
+    using SpecialTypeEntry = std::pair<std::string_view, SpecialEntityTypeID>;
+
+    // Sorted by classname for binary search. This fixed table avoids building a
+    // Boost map for the small special-entity registry.
+    static constexpr std::array<SpecialTypeEntry, 11> SPECIAL_TYPE_BY_CLASSNAME = {{
+        {"doppleganger",         SpecialEntityTypeID::DOPPLEGANGER},
+        {"emitter",              SpecialEntityTypeID::LASER_EMITTER},
+        {"food_cube_trap",       SpecialEntityTypeID::FOOD_CUBE_TRAP},
+        {"horde_barrel",         SpecialEntityTypeID::BARREL},
+        {"laser",                SpecialEntityTypeID::LASER_BEAM},
+        {"monster_sentrygun",    SpecialEntityTypeID::SENTRY_GUN},
+        {"monster_turret",       SpecialEntityTypeID::TURRET},
+        {"nuke",                 SpecialEntityTypeID::NUKE_MINE},
+        {"prox_mine",            SpecialEntityTypeID::PROX_MINE},
+        {"strogg_summoner_base", SpecialEntityTypeID::STROGG_SUMMONER},
+        {"tesla_mine",           SpecialEntityTypeID::TESLA_MINE}
+    }};
+
+    static constexpr bool SpecialTypeTableIsSorted() {
+        for (size_t i = 1; i < SPECIAL_TYPE_BY_CLASSNAME.size(); ++i) {
+            if (SPECIAL_TYPE_BY_CLASSNAME[i - 1].first >= SPECIAL_TYPE_BY_CLASSNAME[i].first) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // MORPHED_PLAYER is an internal state marker, not a spawn classname.
+    static_assert(SPECIAL_TYPE_BY_CLASSNAME.size() == static_cast<size_t>(SpecialEntityTypeID::COUNT) - 1);
+    static_assert(SpecialTypeTableIsSorted());
+
     // Use string_view for zero-copy lookups with static string literals
-    static boost::container::flat_map<std::string_view, SpecialEntityTypeID> s_specialTypeMap;
     static boost::container::flat_map<std::string_view, MonsterTypeID> s_monsterTypeMap;
     static boost::container::flat_map<std::string_view, MapID> s_mapIDMap;
     // Reverse map of type IDs to classnames - used for debugging
@@ -32,48 +61,27 @@ namespace horde {
     void InitializeHordeIDs() {
         MonsterTypeRegistry::Initialize();
         MapOriginRegistry::Initialize(); // This will now initialize origins and sizes
-        SpecialTypeRegistry::Initialize();
-        WeaponRegistry::Initialize();
 
         // Reset the trackers
         g_monsterSpawnTracker.Reset();
         g_spawnPointTimeTracker.Reset();
     }
 
-    //
-    // SpecialTypeRegistry implementation
-    //
-
-    void SpecialTypeRegistry::Initialize() {
-        if (s_specialTypeRegistryInitialized) {
-            return;
-        }
-
-        s_specialTypeMap.clear();
-        s_specialTypeMap.reserve(16); // Reserve space for all special entity types
-        s_specialTypeMap = {
-            {"tesla_mine",           SpecialEntityTypeID::TESLA_MINE},
-            {"food_cube_trap",       SpecialEntityTypeID::FOOD_CUBE_TRAP},
-            {"prox_mine",            SpecialEntityTypeID::PROX_MINE},
-            {"monster_sentrygun",    SpecialEntityTypeID::SENTRY_GUN},
-            {"monster_turret",       SpecialEntityTypeID::TURRET},
-            {"nuke",                 SpecialEntityTypeID::NUKE_MINE},
-            {"emitter",              SpecialEntityTypeID::LASER_EMITTER},
-            {"laser",                SpecialEntityTypeID::LASER_BEAM},
-            {"doppleganger",         SpecialEntityTypeID::DOPPLEGANGER},
-            {"strogg_summoner_base", SpecialEntityTypeID::STROGG_SUMMONER},
-            {"horde_barrel",         SpecialEntityTypeID::BARREL}
-        };
-
-        s_specialTypeRegistryInitialized = true;
-    }
-
     SpecialEntityTypeID SpecialTypeRegistry::GetTypeID(const char* classname) {
         if (!classname || !classname[0]) [[unlikely]] {
             return SpecialEntityTypeID::UNKNOWN;
         }
-        auto it = s_specialTypeMap.find(classname);
-        if (it != s_specialTypeMap.end()) [[likely]] {
+
+        const std::string_view name{classname};
+        const auto it = std::lower_bound(
+            SPECIAL_TYPE_BY_CLASSNAME.begin(),
+            SPECIAL_TYPE_BY_CLASSNAME.end(),
+            name,
+            [](const SpecialTypeEntry& entry, std::string_view value) {
+                return entry.first < value;
+            });
+
+        if (it != SPECIAL_TYPE_BY_CLASSNAME.end() && it->first == name) [[likely]] {
             return it->second;
         }
         return SpecialEntityTypeID::UNKNOWN;

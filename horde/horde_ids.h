@@ -156,9 +156,6 @@ enum class SpecialEntityTypeID : uint8_t {
 // Class for efficient special entity type lookups
 class SpecialTypeRegistry {
 public:
-    // Initialize the registry with all special entity mappings
-    static void Initialize();
-
     // Get special entity type ID from classname
     static SpecialEntityTypeID GetTypeID(const char* classname);
 };

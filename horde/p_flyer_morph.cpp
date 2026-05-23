@@ -4,21 +4,27 @@
 #include "../bots/bot_includes.h"
 #include "g_horde_benefits.h"
 #include "horde_ids.h"
-#include <boost/container/flat_map.hpp>
+#include <array>
+#include <bitset>
 
 [[nodiscard]] constexpr float SHORT2ANGLE(int16_t x) {
     return static_cast<float>(x) * (360.0f / 65536.0f);
 }
 
-// Static storage for morph data - using entity userdata would be cleaner but this works
-boost::container::flat_map<edict_t*, morph_data_t> s_morph_data;  // C++23 - per-player morph state
+// Player morph state is indexed by client entity number (1..MAX_CLIENTS).
+static std::array<morph_data_t, MAX_CLIENTS + 1> s_morph_data{};
+static std::bitset<MAX_CLIENTS + 1> s_morph_data_active;
+
+static size_t GetMorphSlot(const edict_t* ent) noexcept {
+    if (!ent || !ent->client || ent->s.number <= 0 || ent->s.number > static_cast<int>(MAX_CLIENTS)) {
+        return 0;
+    }
+    return static_cast<size_t>(ent->s.number);
+}
 
 morph_data_t* GetMorphData(edict_t* ent) {
-    auto it = s_morph_data.find(ent);
-    if (it != s_morph_data.end()) {
-        return &it->second;
-    }
-    return nullptr;
+    const size_t slot = GetMorphSlot(ent);
+    return (slot != 0 && s_morph_data_active.test(slot)) ? &s_morph_data[slot] : nullptr;
 }
 
 // Backward compatibility
@@ -27,10 +33,16 @@ flyer_data_t* GetFlyerData(edict_t* ent) {
 }
 
 void InitMorphData(edict_t* ent, morph_type_t type) {
-    morph_data_t& data = s_morph_data[ent];
+    const size_t slot = GetMorphSlot(ent);
+    if (slot == 0) {
+        return;
+    }
+
+    morph_data_t& data = s_morph_data[slot];
     data = {};
     data.morph_type = type;
     data.ability_level = 1; // Default ability level
+    s_morph_data_active.set(slot);
 }
 
 // Backward compatibility
@@ -39,7 +51,11 @@ void InitFlyerData(edict_t* ent) {
 }
 
 void ClearMorphData(edict_t* ent) {
-    s_morph_data.erase(ent);
+    const size_t slot = GetMorphSlot(ent);
+    if (slot != 0) {
+        s_morph_data_active.reset(slot);
+        s_morph_data[slot] = {};
+    }
 }
 
 // Backward compatibility
@@ -49,7 +65,8 @@ void ClearFlyerData(edict_t* ent) {
 
 // Reset all morph data on game reset (called from ResetGame)
 void ResetAllMorphData() {
-    s_morph_data.clear();
+    s_morph_data_active.reset();
+    s_morph_data.fill({});
 }
 
 bool IsMorphed(edict_t* ent) {

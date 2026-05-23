@@ -58,8 +58,8 @@ static bool g_spawn_world_bounds_valid = false;
 
 // spawn_map_needs_build now in g_spawn_system
 
-// *** NEW: Use boost::container::flat_map instead of a giant static array ***
-static boost::container::flat_map<int, gtime_t> last_boss_teleport_attempt_time;  // C++23 - per-boss teleport tracking 
+// Sparse per-boss teleport tracking; avoids a giant entity-number array.
+static boost::container::flat_map<int, gtime_t> last_boss_teleport_attempt_time;
 
 // Forward declaration for the new map-building function
 void BuildSpawnPointMap();
@@ -1540,7 +1540,7 @@ HordeState g_horde_local;
 
 int16_t current_wave_level = g_horde_local.level;
 bool next_wave_message_sent = false;
-auto auto_spawned_bosses = boost::container::flat_set<edict_t*>{};  // C++23 - boss tracking
+auto auto_spawned_bosses = boost::container::flat_set<edict_t*>{};
 
 // Function to get the current map size (for use by horde_boss.cpp)
 horde::MapSize GetCurrentMapSize()
@@ -7668,35 +7668,6 @@ private:
 
 	SpawnBatch current_batch;
 
-	// FIXED: LRU cache with bounded size
-	struct MonsterTypeCache {
-		horde::MonsterTypeID type_id = horde::MonsterTypeID::UNKNOWN;
-		vec3_t predicted_mins = vec3_origin;
-		vec3_t predicted_maxs = vec3_origin;
-		bool is_flying = false;
-		gtime_t last_access = 0_sec; // For LRU eviction
-	};
-
-	static constexpr size_t MAX_CACHE_SIZE = 32;
-	boost::container::flat_map<horde::MonsterTypeID, MonsterTypeCache> type_cache;  // C++23 - hot path cache
-
-	// FIXED: Evict oldest entry when cache is full
-	void EvictOldestCacheEntry() {
-		if (type_cache.empty()) return;
-
-		auto oldest = type_cache.begin();
-		gtime_t oldest_time = oldest->second.last_access;
-
-		for (auto it = type_cache.begin(); it != type_cache.end(); ++it) {
-			if (it->second.last_access < oldest_time) {
-				oldest_time = it->second.last_access;
-				oldest = it;
-			}
-		}
-
-		type_cache.erase(oldest);
-	}
-
 	void HandleSuccessfulSpawn(edict_t* spawn_point, bool used_alternative, edict_t* monster) {
 		g_spawn_system.consecutive_spawn_failures = 0;
 		if (used_alternative) {
@@ -7721,29 +7692,6 @@ private:
 		else {
 			IncreaseSpawnAttempts(spawn_point);
 		}
-	}
-
-	// FIXED: Added const correctness and LRU cache management
-	const MonsterTypeCache& GetOrCacheMonsterType(horde::MonsterTypeID type_id) {
-		auto it = type_cache.find(type_id);
-		if (it != type_cache.end()) {
-			it->second.last_access = level.time; // Update access time
-			return it->second;
-		}
-
-		// FIXED: Evict if cache is full
-		if (type_cache.size() >= MAX_CACHE_SIZE) {
-			EvictOldestCacheEntry();
-		}
-
-		MonsterTypeCache new_entry;
-		new_entry.type_id = type_id;
-		new_entry.is_flying = IsFlying(type_id);
-		new_entry.last_access = level.time;
-		GetPredictedScaledBounds(type_id, new_entry.predicted_mins, new_entry.predicted_maxs);
-
-		auto [inserted_it, success] = type_cache.emplace(type_id, new_entry);
-		return inserted_it->second;
 	}
 
 	void PrepareBatch() {

@@ -16,8 +16,8 @@ All tank variants unified in a single file
 #include "horde/g_horde_scaling.h"
 #include "monster_constants.h"
 #include <algorithm>
+#include <bitset>
 #include <numeric>
-#include <boost/container/flat_map.hpp>
 #include <boost/container/small_vector.hpp>
 
 // Forward declarations for all variants
@@ -121,19 +121,32 @@ struct TeleportTargetCache {
 	}
 };
 
-// Static cache for tank teleportation
-static boost::container::flat_map<int, TeleportTargetCache> g_teleport_cache;  // C++23 - integer keys for better cache locality
+// Static cache for tank teleportation, indexed by target entity number.
+static std::array<TeleportTargetCache, MAX_EDICTS> g_teleport_cache{};
+static std::bitset<MAX_EDICTS> g_teleport_cache_active;
+static TeleportTargetCache g_teleport_fallback_cache;
+
+static size_t GetTeleportCacheSlot(const edict_t* target) noexcept {
+	if (!target || target->s.number <= 0 || target->s.number >= static_cast<int>(MAX_EDICTS)) {
+		return 0;
+	}
+	return static_cast<size_t>(target->s.number);
+}
 
 // Cache management functions
 static TeleportTargetCache& GetOrCreateTargetCache(edict_t* target) {
-	// Prevent unbounded growth in long Horde matches
-	if (g_teleport_cache.size() > 256) {
-		g_teleport_cache.clear();
+	const size_t slot = GetTeleportCacheSlot(target);
+	if (slot == 0) {
+		if (target && g_teleport_fallback_cache.IsStale(target)) {
+			g_teleport_fallback_cache.Update(target);
+		}
+		return g_teleport_fallback_cache;
 	}
 
-	auto& cache = g_teleport_cache[target->s.number];
-	if (cache.IsStale(target)) {
+	auto& cache = g_teleport_cache[slot];
+	if (!g_teleport_cache_active.test(slot) || cache.IsStale(target)) {
 		cache.Update(target);
+		g_teleport_cache_active.set(slot);
 	}
 	return cache;
 }
@@ -146,7 +159,8 @@ static bool ValidateTeleportPosition(edict_t* self, const vec3_t& position, edic
 
 // Reset teleport cache on game reset (called from ResetGame)
 void ResetTankTeleportCache() {
-	g_teleport_cache.clear();
+	g_teleport_cache_active.reset();
+	g_teleport_fallback_cache = {};
 }
 
 // Tank spawner constants

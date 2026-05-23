@@ -877,3 +877,4 @@ baseq2/characters/unknown.json
 build_mingw/CMakeFiles/*
 .DS_Store
 .codex_deps/*
+build_codex_verify/*
