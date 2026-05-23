@@ -16,8 +16,8 @@ All tank variants unified in a single file
 #include "horde/g_horde_scaling.h"
 #include "monster_constants.h"
 #include <algorithm>
-#include <bitset>
 #include <numeric>
+#include <vector>
 #include <boost/container/small_vector.hpp>
 
 // Forward declarations for all variants
@@ -122,19 +122,39 @@ struct TeleportTargetCache {
 };
 
 // Static cache for tank teleportation, indexed by target entity number.
-static std::array<TeleportTargetCache, MAX_EDICTS> g_teleport_cache{};
-static std::bitset<MAX_EDICTS> g_teleport_cache_active;
+// Sized to globals.max_edicts at runtime to avoid a full MAX_EDICTS cache.
+static std::vector<TeleportTargetCache> g_teleport_cache;
+static std::vector<bool> g_teleport_cache_active;
 static TeleportTargetCache g_teleport_fallback_cache;
 
+static size_t GetTeleportCacheSize() noexcept {
+	return (globals.max_edicts > 0)
+		? static_cast<size_t>(globals.max_edicts)
+		: static_cast<size_t>(MAX_EDICTS);
+}
+
 static size_t GetTeleportCacheSlot(const edict_t* target) noexcept {
-	if (!target || target->s.number <= 0 || target->s.number >= static_cast<int>(MAX_EDICTS)) {
+	if (!target || target->s.number <= 0) {
 		return 0;
 	}
-	return static_cast<size_t>(target->s.number);
+
+	const size_t entity_number = static_cast<size_t>(target->s.number);
+	return (entity_number < GetTeleportCacheSize()) ? entity_number : 0;
+}
+
+static void EnsureTeleportCacheCapacity() {
+	const size_t needed_size = GetTeleportCacheSize();
+
+	if (g_teleport_cache.size() != needed_size) {
+		g_teleport_cache.assign(needed_size, {});
+		g_teleport_cache_active.assign(needed_size, false);
+	}
 }
 
 // Cache management functions
 static TeleportTargetCache& GetOrCreateTargetCache(edict_t* target) {
+	EnsureTeleportCacheCapacity();
+
 	const size_t slot = GetTeleportCacheSlot(target);
 	if (slot == 0) {
 		if (target && g_teleport_fallback_cache.IsStale(target)) {
@@ -144,9 +164,9 @@ static TeleportTargetCache& GetOrCreateTargetCache(edict_t* target) {
 	}
 
 	auto& cache = g_teleport_cache[slot];
-	if (!g_teleport_cache_active.test(slot) || cache.IsStale(target)) {
+	if (!g_teleport_cache_active[slot] || cache.IsStale(target)) {
 		cache.Update(target);
-		g_teleport_cache_active.set(slot);
+		g_teleport_cache_active[slot] = true;
 	}
 	return cache;
 }
@@ -159,7 +179,8 @@ static bool ValidateTeleportPosition(edict_t* self, const vec3_t& position, edic
 
 // Reset teleport cache on game reset (called from ResetGame)
 void ResetTankTeleportCache() {
-	g_teleport_cache_active.reset();
+	g_teleport_cache.clear();
+	g_teleport_cache_active.clear();
 	g_teleport_fallback_cache = {};
 }
 
