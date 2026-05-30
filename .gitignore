@@ -433,3 +433,4 @@ build_codex_verify/*
 /setup_symlink*
 /oldupgrade.md
 /monsters_*
+/test/
