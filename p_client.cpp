@@ -1801,6 +1801,11 @@ select_spawn_result_t SelectDeathmatchSpawnPoint(bool farthest, bool force_spawn
 		const char* classname = spot->classname;
 		bool is_valid_spawn = (strcmp(classname, dm_spawn_class) == 0);
 
+		// Horde: info_player_deathmatch with style == 1 are dedicated flying-monster
+		// spawn lanes. Players, bots and spectators must never spawn on them.
+		if (is_valid_spawn && spot->style == 1)
+			continue;
+
 		if (!is_valid_spawn && fallback_to_ctf_or_start)
 		{
 			is_valid_spawn = (strcmp(classname, team1_spawn_class) == 0 ||

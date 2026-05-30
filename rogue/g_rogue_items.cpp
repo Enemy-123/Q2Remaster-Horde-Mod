@@ -53,6 +53,15 @@ void Use_Nuke(edict_t* ent, gitem_t* item)
 	vec3_t forward, right, start;
 	int	   speed;
 
+	if (!ent->client)
+		return;
+
+	// Spectators must not be able to detonate the A-M Bomb.
+	if (ClientIsSpectating(ent->client)) {
+		gi.Client_Print(ent, PRINT_HIGH, "Need to be Non-Spect to use the A-M Bomb\n");
+		return;
+	}
+
 	ent->client->pers.inventory[item->id]--;
 
 	AngleVectors(ent->client->v_angle, forward, right, nullptr);
