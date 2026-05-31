@@ -1,3 +1,0 @@
-C:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod/build_codex_scan/CMakeFiles/Q2HordeModDLL.dir
-C:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod/build_codex_scan/CMakeFiles/ALL_BUILD.dir
-C:/Users/Bjorn/Documents/Repos/Q2Remaster-Horde-Mod/build_codex_scan/CMakeFiles/ZERO_CHECK.dir
