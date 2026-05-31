@@ -1,0 +1,53 @@
+CompileFlags:
+  # This mod is C++ (C++23) for the game DLL, with a few C99 vendor files
+  # (vendor/lua.c, sqlite3.c, twister.c). clangd uses msys2 clang64's own
+  # Windows headers, so it does NOT need the Linux/MinGW cross paths the
+  # actual build uses. This block only feeds IntelliSense.
+  Add:
+    - -std=c++23
+    - -xc++
+    # Project include roots (mirror target_include_directories in CMakeLists.txt)
+    - -I.
+    - -Ivendor
+    - -Ivcpkg_installed/x64-windows/include
+    # Defines from CMakeLists.txt (target_compile_definitions) + the Windows block
+    - -DFMT_HEADER_ONLY
+    - -DKEX_Q2_GAME
+    - -DKEX_Q2GAME_EXPORTS
+    - -DKEX_Q2GAME_DYNAMIC
+    - -D_CRT_SECURE_NO_WARNINGS
+    - -DSQLITE_THREADSAFE=1
+    - -DSQLITE_OMIT_LOAD_EXTENSION
+    - -D_WINDOWS
+    - -DWIN32
+    - -D_CONSOLE
+    - -DNOMINMAX
+    - -DWIN32_LEAN_AND_MEAN
+    # clang on Windows needs this for MSVC-style __declspec the Kex headers use
+    - -fdeclspec
+    - -fms-extensions
+  # Drop flags that come from a build-generated compile DB but break the
+  # native clang64 parse (we drive IntelliSense ourselves here).
+  Remove:
+    - -fabi-version=*
+    - --target=*
+    - -m*
+
+Diagnostics:
+  UnusedIncludes: None
+  Suppress:
+    # Kex/Quake headers lean on MSVC-isms; don't drown the panel in pedantry.
+    - -Wmicrosoft-*
+
+---
+# Vendor C files are C99, not C++.
+If:
+  PathMatch: vendor/.*\.c
+CompileFlags:
+  Add:
+    - -std=c99
+    - -xc
+  Remove:
+    - -std=c++23
+    - -xc++
+    - -fdeclspec

@@ -177,7 +177,7 @@ def build_with_mingw(script_dir, deploy_path, build_type, sanitizer='none'):
 
     cmake_configure_command = [
         "cmake", "..",
-        "-G", "Unix Makefiles",
+        "-G", "Ninja",
         f"-DCMAKE_BUILD_TYPE={build_type}",
         f"-DDEPLOY_DIRECTORY={deploy_path}",
         f"-DCMAKE_TOOLCHAIN_FILE={vcpkg_toolchain_file}",

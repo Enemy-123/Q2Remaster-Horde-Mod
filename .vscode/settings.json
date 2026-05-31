@@ -12,6 +12,19 @@
         "fmt_DIR": "${workspaceFolder}/vcpkg_installed/x64-mingw-static/share/fmt"
     },
 
+    // --- IntelliSense: use clangd (msys2 clang64), not the MS C/C++ engine.
+    // Flags/includes/defines come from the workspace .clangd file. Turning the
+    // cpptools engine off prevents duplicate squiggles from the two parsers.
+    "C_Cpp.intelliSenseEngine": "disabled",
+    "clangd.arguments": [
+        "--background-index",
+        "--clang-tidy",
+        "--header-insertion=never",
+        "--completion-style=detailed",
+        "--pch-storage=memory",
+        "-j=4"
+    ],
+
     "files.associations": {
         "algorithm": "cpp",
         "any": "cpp",
