@@ -152,19 +152,13 @@ namespace MonsterUnlockVariance {
 	inline constexpr uint32_t VARIANCE_SEED_MULTIPLIER = 17; // For deterministic per-map variance
 }
 
-// --- Monster Precache Limit Settings ---
-// Limits total precached model families to prevent bad_alloc crashes on late waves
-// Players connecting past wave 40 would crash without this limit
 namespace PrecacheLimits {
-	// Maximum number of unique model families that can be precached per map
-	// This prevents memory exhaustion - monsters sharing models count as ONE slot
-	inline constexpr int32_t MAX_PRECACHED_MODEL_FAMILIES = 20;
+	// If system memory allows, slightly increase the limit to accommodate more concurrent active models
+	inline constexpr int32_t MAX_PRECACHED_MODEL_FAMILIES = 24;
 
-	// Number of slots reserved for "core" families that are always available
-	// Includes basic monsters + essential units (tanks, gladiators, mutants, gekk, berserk)
-	inline constexpr int32_t CORE_FAMILY_SLOTS = 14;  // 14 core families always available
+	// Shrink core slots from 14 down to 6
+	inline constexpr int32_t CORE_FAMILY_SLOTS = 6;
 
-	// Remaining slots for "rotating" families that vary per map
-	// = MAX_PRECACHED_MODEL_FAMILIES - CORE_FAMILY_SLOTS = 6 rotating slots
-	inline constexpr int32_t ROTATING_FAMILY_SLOTS = MAX_PRECACHED_MODEL_FAMILIES - CORE_FAMILY_SLOTS;
+	// Expand rotating slots to fill the remaining budget (24 max - 6 core = 18 rotating)
+	inline constexpr int32_t ROTATING_FAMILY_SLOTS = 18;
 }

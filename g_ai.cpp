@@ -93,7 +93,7 @@ edict_t* AI_GetSightClient(edict_t* self)
 		if (player->health <= 0 ||
 			player->deadflag ||
 			!player->solid ||
-			player->flags & (FL_NOTARGET | FL_DISGUISED))
+			player->flags & (FL_NOTARGET | FL_DISGUISED | FL_GODMODE))
 			continue;
 
 		// Cache box intersection

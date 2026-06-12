@@ -115,39 +115,36 @@ static size_t g_map_history_index = 0;
 // Tracks which model families are precached this map to enforce the limit
 static boost::container::flat_set<AssetFamilyID> g_precached_families_this_map;
 
-// Core families that are ALWAYS precached (basic gameplay essentials + heavy units)
-// These use CORE_FAMILY_SLOTS from PrecacheLimits (14 slots)
-static constexpr std::array<AssetFamilyID, 14> CORE_FAMILIES = { {
-	AssetFamilyID::SOLDIER_FAMILY,      // Always - basic enemies
-	AssetFamilyID::INFANTRY_FAMILY,     // Always - basic enemies
-	AssetFamilyID::GUNNER_FAMILY,       // Always - core mid-tier
-	AssetFamilyID::BERSERK_FAMILY,      // Always - melee + fog wave (berserk/berserkerkl)
-	AssetFamilyID::BRAIN_FAMILY,        // Always - special attacks
-	AssetFamilyID::CHICK_FAMILY,        // Always - ranged variety
-	AssetFamilyID::PARASITE_FAMILY,     // Always - small ground unit
-	AssetFamilyID::FLYER_FAMILY,        // Always - basic flying
-	AssetFamilyID::HOVER_FAMILY,        // Always - flying variety
-	AssetFamilyID::STALKER_FAMILY,      // Always - small agile unit
-	AssetFamilyID::TANK_FAMILY,         // Always - essential heavy
-	AssetFamilyID::GLADIATOR_FAMILY,    // Always - essential heavy
-	AssetFamilyID::MUTANT_FAMILY,       // Always - mutant+redmutant together
-	AssetFamilyID::GEKK_FAMILY          // Always - wave 1 monster + fog wave (gekk/gekkkl)
+static constexpr std::array<AssetFamilyID, 6> CORE_FAMILIES = { {
+	AssetFamilyID::SOLDIER_FAMILY,      // Absolute basic enemies
+	AssetFamilyID::INFANTRY_FAMILY,     // Absolute basic enemies
+	AssetFamilyID::GUNNER_FAMILY,       // Core mid-tier standard
+	AssetFamilyID::PARASITE_FAMILY,     // Small ground units
+	AssetFamilyID::FLYER_FAMILY,        // Basic flying lane
+	AssetFamilyID::TANK_FAMILY,         // Core heavy benchmark
 } };
 
-// Rotating families that vary per map (selected based on map seed)
-// These compete for ROTATING_FAMILY_SLOTS from PrecacheLimits (6 slots)
-// Note: TURRET removed - spawned by fixbot boss, sentrygun shares model
-static constexpr std::array<AssetFamilyID, 9> ROTATING_FAMILIES = { {
-	AssetFamilyID::MEDIC_FAMILY,        // Special - rotates
-	AssetFamilyID::FLOATER_FAMILY,      // Flying - rotates
-	AssetFamilyID::DAEDALUS_FAMILY,     // Flying - rotates
-	AssetFamilyID::ARACHNID_FAMILY,     // Ground - rotates (shares model: spider, arachnid, gm_arachnid)
-	AssetFamilyID::FIXBOT_FAMILY,       // Flying/special - rotates (fixbot boss spawns turrets)
-	AssetFamilyID::INSANE_FAMILY,       // Special - rotates
-	AssetFamilyID::GUARDIAN_FAMILY,     // Heavy - rotates (shares model: guardian, psx_guardian, janitor2)
-	AssetFamilyID::SUPERTANK_FAMILY,    // Boss-tier - rotates (shares model: janitor, supertank, boss5)
-	AssetFamilyID::SHAMBLER_FAMILY      // Boss-tier - rotates
-} };
+static constexpr std::array<AssetFamilyID, 17> ROTATING_FAMILIES = { {
+		// Shifting these from Core to Rotating splits them up across maps:
+		AssetFamilyID::BERSERK_FAMILY,
+		AssetFamilyID::BRAIN_FAMILY,
+		AssetFamilyID::CHICK_FAMILY,
+		AssetFamilyID::HOVER_FAMILY,
+		AssetFamilyID::STALKER_FAMILY,
+		AssetFamilyID::GLADIATOR_FAMILY,
+		AssetFamilyID::MUTANT_FAMILY,
+		AssetFamilyID::GEKK_FAMILY,
+		// Original rotating pool elements:
+		AssetFamilyID::MEDIC_FAMILY,
+		AssetFamilyID::FLOATER_FAMILY,
+		AssetFamilyID::DAEDALUS_FAMILY,
+		AssetFamilyID::ARACHNID_FAMILY,
+		AssetFamilyID::FIXBOT_FAMILY,
+		AssetFamilyID::INSANE_FAMILY,
+		AssetFamilyID::GUARDIAN_FAMILY,
+		AssetFamilyID::SUPERTANK_FAMILY,
+		AssetFamilyID::SHAMBLER_FAMILY
+	} };
 
 // Helper to check if a family is a core family (always precached)
 static bool IsCoreFamily(AssetFamilyID family) {
