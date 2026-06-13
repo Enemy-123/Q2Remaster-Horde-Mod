@@ -152,6 +152,16 @@ namespace MonsterUnlockVariance {
 	inline constexpr uint32_t VARIANCE_SEED_MULTIPLIER = 17; // For deterministic per-map variance
 }
 
+// Progressive phase-out of the weak soldier variants (light / default / ss) on higher
+// waves so the upgraded lasergun/ripper/hypergun variants dominate the soldier family.
+// The weak variants get one-shotted past the early game; this fades their weight to a
+// small floor (and the Light wave category drops them entirely from wave 16+ anyway).
+namespace SoldierPhaseout {
+	inline constexpr int32_t START_WAVE         = 8;     // begin fading weak soldiers
+	inline constexpr float   REDUCTION_PER_WAVE = 0.16f; // ~near-zero by ~wave 14
+	inline constexpr float   MIN_MULTIPLIER     = 0.05f; // never fully zero (keeps fallback safe)
+}
+
 namespace PrecacheLimits {
 	// If system memory allows, slightly increase the limit to accommodate more concurrent active models
 	inline constexpr int32_t MAX_PRECACHED_MODEL_FAMILIES = 24;

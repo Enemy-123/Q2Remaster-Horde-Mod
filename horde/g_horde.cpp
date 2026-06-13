@@ -86,7 +86,10 @@ static int g_last_precache_wave = 0;
 static int32_t g_last_dynamic_precache_wave = -1;
 static int g_dynamic_precache_count_this_wave = 0;
 
-constexpr int MONSTERS_TO_EXCLUDE_PER_MAP = 15; // Reduced from 28 for more monster variety
+// Number of whole non-core families to drop from each map's rotation. Excluding at the
+// family (= model) granularity is what actually reduces the distinct models a connecting
+// client must load, and it never leaves a family represented only by its weak members.
+constexpr int FAMILIES_TO_EXCLUDE_PER_MAP = 4;
 constexpr int WAVES_BETWEEN_PRECACHE = 5; // RESTORED from 0.995: Add new monsters every 5 waves
 constexpr int MIN_MONSTERS_AVAILABLE = 12; // Always have at least 12 monster types available
 
@@ -146,10 +149,29 @@ static constexpr std::array<AssetFamilyID, 17> ROTATING_FAMILIES = { {
 		AssetFamilyID::SHAMBLER_FAMILY
 	} };
 
+// Rotating families that must never be dropped from a map's rotation. These either
+// drive themed special waves (Gekk / Berserk / Mutant) or are kept for variety the
+// same way the old per-type exclusion always spared them (medics, fixbots).
+static constexpr std::array<AssetFamilyID, 5> PROTECTED_FAMILIES = { {
+	AssetFamilyID::MEDIC_FAMILY,
+	AssetFamilyID::FIXBOT_FAMILY,
+	AssetFamilyID::GEKK_FAMILY,     // Gekk special waves
+	AssetFamilyID::BERSERK_FAMILY,  // Berserk special waves
+	AssetFamilyID::MUTANT_FAMILY,   // Mutant special waves
+} };
+
 // Helper to check if a family is a core family (always precached)
 static bool IsCoreFamily(AssetFamilyID family) {
 	for (const auto& core : CORE_FAMILIES) {
 		if (core == family) return true;
+	}
+	return false;
+}
+
+// Helper to check if a family is protected from per-map rotation drops
+static bool IsProtectedFamily(AssetFamilyID family) {
+	for (const auto& protected_family : PROTECTED_FAMILIES) {
+		if (protected_family == family) return true;
 	}
 	return false;
 }
@@ -3265,6 +3287,22 @@ static float ApplyMonsterWeightModifiers(
 	if (ctx.currentActualLevel >= 5 && monster_family == AssetFamilyID::SOLDIER_FAMILY)
 		weight *= 0.6f;
 
+	// Phase out the weak soldier variants on higher waves so the upgraded
+	// lasergun/ripper/hypergun variants dominate the soldier family (the weak ones
+	// just get one-shotted). Keyed on the actual level so this also covers recovery
+	// and emergency-fallback paths that relax wave-type filtering.
+	const horde::MonsterTypeID sid = monster_info->typeId;
+	if ((sid == horde::MonsterTypeID::SOLDIER_LIGHT ||
+		 sid == horde::MonsterTypeID::SOLDIER ||
+		 sid == horde::MonsterTypeID::SOLDIER_SS) &&
+		ctx.currentActualLevel >= SoldierPhaseout::START_WAVE)
+	{
+		const float waves_since = static_cast<float>(ctx.currentActualLevel - SoldierPhaseout::START_WAVE);
+		const float mult = std::max(SoldierPhaseout::MIN_MULTIPLIER,
+									1.0f - waves_since * SoldierPhaseout::REDUCTION_PER_WAVE);
+		weight *= mult;
+	}
+
 	// Infantry_vanilla progressive weight reduction for waves 11+
 	if (monster_info->typeId == horde::MonsterTypeID::INFANTRY_VANILLA && ctx.currentActualLevel >= 11)
 	{
@@ -3532,6 +3570,12 @@ static horde::MonsterTypeID EmergencyFallbackSelection(const MonsterSelectionCon
 		const auto& monster = monsterTypes[i];
 		if (monster.minWave <= ctx.currentActualLevel)
 		{
+			// Only fall back to monsters whose model is actually loaded this map.
+			// Dropped families are not precached, so spawning one would load a new
+			// model mid-game (the very thing the family limit prevents for clients).
+			if (!g_precached_monster_types_flags[static_cast<size_t>(monster.typeId)])
+				continue;
+
 			// Respect wave type requirements (important for Gekk/Berserk special waves)
 			if (!IsValidMonsterForWave(monster.typeId, ctx.waveTypeForFiltering))
 				continue;
@@ -3575,6 +3619,10 @@ static horde::MonsterTypeID EmergencyFallbackSelection(const MonsterSelectionCon
 		const auto& monster = monsterTypes[i];
 		if (monster.minWave <= ctx.currentActualLevel)
 		{
+			// Still require the model to be loaded (see note above).
+			if (!g_precached_monster_types_flags[static_cast<size_t>(monster.typeId)])
+				continue;
+
 			const bool isFlyingMonster = HasWaveType(GetMonsterWaveTypes(monster.typeId), MonsterWaveType::Flying);
 			if (!(ctx.isSpawnPointFlying && !isFlyingMonster))
 				return monster.typeId;
@@ -8727,14 +8775,24 @@ void UnlockModelFamilyMembers(horde::MonsterTypeID boss_typeId, int32_t current_
 		return; // No model path, nothing to unlock
 	}
 
-	// Check if the boss's family is allowed for this map
+	// Check if the boss's family is allowed for this map. If it isn't pre-marked, try to
+	// claim a free precache slot for it: boss families (widow/makron/carrier/boss2/etc.)
+	// are not in the rotation, so they rely on the headroom the family rotation leaves
+	// under the model cap rather than being permanently blocked.
 	AssetFamilyID boss_family = GetMonsterAssetFamily(boss_typeId);
 	if (g_precached_families_this_map.find(boss_family) == g_precached_families_this_map.end()) {
+		if (!CanPrecacheFamily(boss_family)) {
+			if (developer->integer) {
+				gi.Com_PrintFmt("Model Family Unlock: BLOCKED - family {} not allowed and no free slot\n",
+					static_cast<int>(boss_family));
+			}
+			return; // No budget for a new family, don't unlock family members
+		}
+		MarkFamilyPrecached(boss_family);
 		if (developer->integer) {
-			gi.Com_PrintFmt("Model Family Unlock: BLOCKED - family {} not allowed on this map\n",
+			gi.Com_PrintFmt("Model Family Unlock: family {} claimed a free precache slot for boss\n",
 				static_cast<int>(boss_family));
 		}
-		return; // Boss's family not allowed, don't unlock family members
 	}
 
 	MarkMonsterTypePrecached(boss_typeId, boss_model_path);
@@ -8853,96 +8911,83 @@ static void InitializeMonsterRotation()
 		g_precached_families_this_map.insert(core_family);
 	}
 
-	// Select which rotating families are available this map based on seed
-	// This ensures variety across maps while staying within the limit
-	boost::container::small_vector<AssetFamilyID, 14> available_rotating;
-	size_t rotation_offset = static_cast<size_t>(g_map_rotation_seed) % ROTATING_FAMILIES.size();
-
-	for (size_t i = 0; i < PrecacheLimits::ROTATING_FAMILY_SLOTS && i < ROTATING_FAMILIES.size(); ++i) {
-		size_t idx = (rotation_offset + i) % ROTATING_FAMILIES.size();
-		available_rotating.push_back(ROTATING_FAMILIES[idx]);
-	}
-
-	// Pre-mark selected rotating families as allowed
-	for (const auto& family : available_rotating) {
-		g_precached_families_this_map.insert(family);
-	}
-
-	if (developer->integer) {
-		gi.Com_PrintFmt("Precache Limit: Map {} - {} core + {} rotating = {} families allowed\n",
-			g_map_rotation_seed,
-			CORE_FAMILIES.size(),
-			available_rotating.size(),
-			g_precached_families_this_map.size());
-		gi.Com_Print("  Rotating families this map: ");
-		for (const auto& family : available_rotating) {
-			gi.Com_PrintFmt("{} ", static_cast<int>(family));
-		}
-		gi.Com_Print("\n");
-	}
-
-	// Create a deterministic but rotating exclusion list
-	// IMPROVED: Prefer excluding families that were heavily used in previous maps
-	struct ExcludableMonsterInfo {
-		horde::MonsterTypeID typeId;
+	// --- Family-level rotation / exclusion ---
+	// Choose a few whole non-core, non-protected families to DROP this map. Dropping at
+	// family (= model) granularity is what actually reduces the number of distinct models
+	// a connecting client must load, and unlike the old per-type exclusion it never strips
+	// a strong variant (e.g. soldier lasergun) while its weak siblings keep the shared
+	// model loaded anyway. Core + protected families are always kept.
+	struct ExcludableFamilyInfo {
 		AssetFamilyID family;
 		int32_t prev_map_usage; // How much this family was used in previous maps
 	};
-	boost::container::small_vector<ExcludableMonsterInfo, 32> excludable_monsters;
+	boost::container::small_vector<ExcludableFamilyInfo, 17> excludable_families;
+	for (const auto& family : ROTATING_FAMILIES) {
+		if (IsProtectedFamily(family))
+			continue;
+		excludable_families.push_back({ family, GetFamilyUsageInPreviousMaps(family) });
+	}
 
-	// Build list of monsters that can be excluded (not bosses or critical monsters)
-	for (size_t i = 0; i < MONSTER_DATA_COUNT; ++i) {
-		const auto& monster = monsterTypes[i];
+	// Prefer dropping families that were heavily used in previous maps (avoid repetition)
+	std::sort(excludable_families.begin(), excludable_families.end(),
+		[](const ExcludableFamilyInfo& a, const ExcludableFamilyInfo& b) {
+			if (a.prev_map_usage != b.prev_map_usage)
+				return a.prev_map_usage > b.prev_map_usage;
+			return a.family < b.family; // deterministic tie-break
+		});
 
-		// Never exclude bosses, semi-bosses, or wave 1-3 monsters (core monsters)
-		// Also protect critical monsters that should always be available for variety
-		if (monster.minWave > 3 &&
-			!HasWaveType(monster.types, MonsterWaveType::Boss) &&
-			!HasWaveType(monster.types, MonsterWaveType::SemiBoss) &&
-			monster.typeId != horde::MonsterTypeID::MEDIC &&           // Always keep medics
-			monster.typeId != horde::MonsterTypeID::GUNNER &&          // Always keep gunners
-			monster.typeId != horde::MonsterTypeID::GUNNER_VANILLA &&  // Always keep vanilla gunners
-			monster.typeId != horde::MonsterTypeID::FIXBOT &&          // Always keep fixbots (flying variety)
-			monster.typeId != horde::MonsterTypeID::TANK &&            // Always keep tanks
-			monster.typeId != horde::MonsterTypeID::TANK_COMMANDER) {  // Always keep tank commanders
+	boost::container::flat_set<AssetFamilyID> dropped_families;
+	if (!excludable_families.empty()) {
+		const int to_drop = std::min(FAMILIES_TO_EXCLUDE_PER_MAP, static_cast<int>(excludable_families.size()));
 
-			AssetFamilyID family = GetMonsterAssetFamily(monster.typeId);
-			int32_t prev_usage = GetFamilyUsageInPreviousMaps(family);
+		// Mix: 70% from heavily-used families, 30% seed-rotated for map-to-map variety
+		const int biased_count = static_cast<int>(to_drop * 0.7f);
+		for (int i = 0; i < biased_count && i < static_cast<int>(excludable_families.size()); ++i)
+			dropped_families.insert(excludable_families[i].family);
 
-			excludable_monsters.push_back({ monster.typeId, family, prev_usage });
+		const size_t drop_offset = (static_cast<size_t>(g_map_rotation_seed) * 7) % excludable_families.size();
+		for (int i = biased_count; i < to_drop; ++i) {
+			const size_t index = (drop_offset + static_cast<size_t>(i) * 3) % excludable_families.size();
+			dropped_families.insert(excludable_families[index].family);
 		}
 	}
 
-	// Sort by previous usage (descending) - prefer excluding heavily used families
-	std::sort(excludable_monsters.begin(), excludable_monsters.end(),
-		[](const ExcludableMonsterInfo& a, const ExcludableMonsterInfo& b) {
-			// Primary sort: Previous usage (higher = prefer to exclude)
-			if (a.prev_map_usage != b.prev_map_usage)
-				return a.prev_map_usage > b.prev_map_usage;
-			// Secondary sort: Family ID for deterministic ordering
-			return a.family < b.family;
-		});
+	// Pre-mark core + every non-dropped rotating family as allowed. Only these families'
+	// models get loaded, so fewer distinct models load per map and the set varies by seed.
+	boost::container::small_vector<AssetFamilyID, 17> available_rotating;
+	for (const auto& family : ROTATING_FAMILIES) {
+		if (dropped_families.find(family) != dropped_families.end())
+			continue;
+		available_rotating.push_back(family);
+		g_precached_families_this_map.insert(family);
+	}
 
-	// Exclude up to MONSTERS_TO_EXCLUDE_PER_MAP monsters
-	// Biased toward families that were used in previous maps
-	if (!excludable_monsters.empty()) {
-		int to_exclude = std::min(MONSTERS_TO_EXCLUDE_PER_MAP, static_cast<int>(excludable_monsters.size()));
+	// Mark the dropped families' regular members as excluded so the eligibility list
+	// (BuildEligibleMonstersNormal) stays consistent. Boss/semi-boss members are left
+	// alone so the separate boss system is unaffected.
+	for (size_t i = 0; i < MONSTER_DATA_COUNT; ++i) {
+		const auto& monster = monsterTypes[i];
+		if (monster.minWave <= 3 || monster.minWave >= 999)
+			continue;
+		if (HasWaveType(monster.types, MonsterWaveType::Boss) ||
+			HasWaveType(monster.types, MonsterWaveType::SemiBoss))
+			continue;
+		if (dropped_families.find(GetMonsterAssetFamily(monster.typeId)) != dropped_families.end())
+			g_excluded_monsters_this_map.insert(monster.typeId);
+	}
 
-		// Mix: 70% from heavily-used families, 30% random rotation for variety
-		int biased_count = static_cast<int>(to_exclude * 0.7f);
-		int random_count = to_exclude - biased_count;
-
-		// Add biased exclusions (from top of sorted list)
-		for (int i = 0; i < biased_count && i < static_cast<int>(excludable_monsters.size()); i++) {
-			g_excluded_monsters_this_map.insert(excludable_monsters[i].typeId);
+	if (developer->integer) {
+		gi.Com_PrintFmt("Precache Limit: Map {} - {} core + {} rotating = {} families allowed ({} dropped)\n",
+			g_map_rotation_seed,
+			CORE_FAMILIES.size(),
+			available_rotating.size(),
+			g_precached_families_this_map.size(),
+			dropped_families.size());
+		gi.Com_Print("  Dropped families this map: ");
+		for (const auto& family : dropped_families) {
+			gi.Com_PrintFmt("{} ", static_cast<int>(family));
 		}
-
-		// Add random rotation exclusions
-		size_t rotation_offset = (static_cast<size_t>(g_map_rotation_seed) * 7) % excludable_monsters.size();
-		for (int i = 0; i < random_count; i++) {
-			size_t index = (rotation_offset + static_cast<size_t>(i) * 3) % excludable_monsters.size();
-			g_excluded_monsters_this_map.insert(excludable_monsters[index].typeId);
-		}
+		gi.Com_Print("\n");
 	}
 
 	if (developer->integer) {
