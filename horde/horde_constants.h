@@ -172,3 +172,32 @@ namespace PrecacheLimits {
 	// Expand rotating slots to fill the remaining budget (24 max - 6 core = 18 rotating)
 	inline constexpr int32_t ROTATING_FAMILY_SLOTS = 18;
 }
+
+// Fog / limit-break waves (the single-asset-family Gekk & Berserk special waves at 15+).
+// These can blow far past the normal map monster cap without touching the precache budget,
+// so we let them swarm the map. Live cap + reinforcement queue scale with wave and map size.
+namespace LimitBreakWave {
+	inline constexpr int32_t WAVE_SCALE_START   = 30;   // below this wave, use the floor values
+	inline constexpr int32_t LIVE_CAP_FLOOR     = 30;   // ~30 alive on early fog waves
+	inline constexpr int32_t QUEUE_FLOOR        = 30;   // ~30 reinforcements queued on early fog waves
+	inline constexpr float   LIVE_CAP_PER_WAVE  = 2.0f; // ramp after WAVE_SCALE_START
+	inline constexpr float   QUEUE_PER_WAVE     = 1.0f;
+
+	// Per-map ceilings for simultaneously-alive monsters.
+	inline constexpr int32_t LIVE_CAP_MAX_SMALL  = 45;
+	inline constexpr int32_t LIVE_CAP_MAX_MEDIUM = 60;
+	inline constexpr int32_t LIVE_CAP_MAX_BIG    = 80;
+
+	// Per-map ceilings for the extra reinforcement queue that feeds in as monsters die.
+	inline constexpr int32_t QUEUE_MAX_SMALL  = 30;
+	inline constexpr int32_t QUEUE_MAX_MEDIUM = 40;
+	inline constexpr int32_t QUEUE_MAX_BIG    = 55;
+
+	// Spawn-point bias: chance to use the farthest spawn point (so the horde "comes from
+	// nowhere"), and how many valid candidates to consider when that bias is active.
+	inline constexpr float FARTHEST_SPAWN_CHANCE     = 0.5f;
+	inline constexpr int   FARTHEST_SPAWN_CANDIDATES = 6;
+
+	// Weight multiplier so chickkl spawns far more often than other monsters where eligible.
+	inline constexpr float CHICKKL_WEIGHT_BOOST = 3.0f;
+}

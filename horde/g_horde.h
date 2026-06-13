@@ -27,6 +27,7 @@ struct PlayerStats;
 // --- Horde Mode Game Initialization and Management Functions ---
 extern cvar_t* g_horde;
 extern cvar_t* g_horde_grid_first;  // Test cvar: prioritize grid spawning
+extern cvar_t* g_horde_force_fog_wave;  // Test cvar: force the next wave to be a fog (Gekk/Berserk) wave
 extern cvar_t* pvm;  // PvM mode (Player vs Monster with character persistence)
 void Horde_PreInit();
 void Horde_Init();
@@ -285,6 +286,12 @@ constexpr MonsterWaveType operator~(MonsterWaveType val) noexcept {
 
 inline bool HasWaveType(MonsterWaveType entityTypes, MonsterWaveType typeToCheck) noexcept {
 	return (entityTypes & typeToCheck) != MonsterWaveType::None;
+}
+
+// A "limit-break" / fog wave is a single-asset-family Gekk or Berserk special wave. These
+// are allowed to swarm well past the normal map monster cap (see namespace LimitBreakWave).
+inline bool IsLimitBreakWave(MonsterWaveType t) noexcept {
+	return HasWaveType(t, MonsterWaveType::Gekk) || HasWaveType(t, MonsterWaveType::Berserk);
 }
 
 // --- Horde Module Includes (after MonsterWaveType is defined) ---

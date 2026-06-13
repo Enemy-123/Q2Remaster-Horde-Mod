@@ -250,6 +250,24 @@ static bool IsSpawnPositionInPlayerPVS(const vec3_t& spawn_pos) noexcept
     return false;  // Not in PVS of any player
 }
 
+/// Squared distance from a position to the nearest active (non-spectator) player.
+/// Returns 0 when there are no players to measure against.
+static float MinDistSqToActivePlayer(const vec3_t& pos) noexcept
+{
+    float min_sq = std::numeric_limits<float>::max();
+    bool found = false;
+    for (const auto* player : active_players_no_spect())
+    {
+        const float d = DistanceSquared(pos, player->s.origin);
+        if (d < min_sq)
+        {
+            min_sq = d;
+            found = true;
+        }
+    }
+    return found ? min_sq : 0.0f;
+}
+
 /// Checks if spawn point is too close to players and optionally checks visibility
 /// UPDATED: Now includes 25% chance to require out-of-visibility spawning
 static bool CheckSpawnPointPlayerProximity(const vec3_t& spawn_pos, bool emergency_mode, bool recovery_mode) noexcept
@@ -685,6 +703,15 @@ void PlanMonsterSpawnBatch(
     {
         const bool monster_is_flying = IsFlying(monster_type_id);
 
+        // Limit-break / fog waves: with some chance, bias toward the farthest spawn point so the
+        // horde appears to come from nowhere. We scan a short run of valid candidates and keep
+        // the one farthest from the nearest player instead of taking the first valid one.
+        const bool prefer_farthest = IsLimitBreakWave(current_wave_type) &&
+                                     frandom() < LimitBreakWave::FARTHEST_SPAWN_CHANCE;
+        edict_t* farthest_point = nullptr;
+        float farthest_dist_sq = -1.0f;
+        int candidates_seen = 0;
+
         for (size_t i = 0; i < total_potential_points; ++i)
         {
             if (g_spawn_system.spawn_point_shuffle_index >= total_potential_points)
@@ -720,10 +747,22 @@ void PlanMonsterSpawnBatch(
                                 spawn_point->s.origin);
             }
 
-            return spawn_point;
+            if (!prefer_farthest)
+                return spawn_point;
+
+            const float dist_sq = MinDistSqToActivePlayer(spawn_point->s.origin);
+            if (dist_sq > farthest_dist_sq)
+            {
+                farthest_dist_sq = dist_sq;
+                farthest_point = spawn_point;
+            }
+            if (++candidates_seen >= LimitBreakWave::FARTHEST_SPAWN_CANDIDATES)
+                return farthest_point;
         }
 
-        return nullptr;
+        // prefer_farthest with fewer than FARTHEST_SPAWN_CANDIDATES valid points returns the best
+        // found (or nullptr if none were valid).
+        return farthest_point;
     };
 
     auto try_plan_next_monster = [&]() -> bool
@@ -946,8 +985,11 @@ bool ValidateSpawnPointForMonster(edict_t* spawn_point, gtime_t current_time)
 
 void DetermineSpawnStrategy(const horde::MapSize& mapSize, int32_t& out_spawnable_this_call, bool& out_use_emergency_spawn, bool& out_recovery_mode_active_ref, float& out_champion_chance, int32_t availableSpace)
 {
-    const int32_t base_batch = mapSize.isSmallMap ? HordeConstants::SPAWN_BATCH_SMALL_MAP :
+    int32_t base_batch = mapSize.isSmallMap ? HordeConstants::SPAWN_BATCH_SMALL_MAP :
                                 (mapSize.isBigMap ? HordeConstants::SPAWN_BATCH_BIG_MAP : HordeConstants::SPAWN_BATCH_MEDIUM_MAP);
+    // Fog / limit-break waves spawn in bigger batches so the swarm ramps up to the raised cap.
+    if (IsLimitBreakWave(current_wave_type))
+        base_batch *= 2;
     out_spawnable_this_call = std::min({g_horde_local.num_to_spawn, base_batch, availableSpace});
 
     if (developer->integer >= 2 && out_spawnable_this_call < g_horde_local.num_to_spawn)

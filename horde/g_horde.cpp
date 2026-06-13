@@ -1518,6 +1518,7 @@ static float CalculateCooldownScale(int32_t lvl, const horde::MapSize& mapSize)
 }
 cvar_t* g_horde;
 cvar_t* g_horde_grid_first;  // Test cvar: prioritize grid spawning
+cvar_t* g_horde_force_fog_wave;  // Test cvar: force the next wave to be a fog (Gekk/Berserk) wave
 
 // NOTE: horde_state_t enum and HordeState struct moved to g_horde.h
 
@@ -1612,6 +1613,42 @@ static inline int32_t CalculateChaosInsanityBonus(int32_t lvl)
 	}
 }
 
+// Live-monster cap and reinforcement queue size for a fog / limit-break wave.
+// Below WAVE_SCALE_START both sit at their floor (~30/30); past it they ramp up per wave,
+// clamped to per-map ceilings (big maps reach ~80 alive / ~55 queued).
+struct LimitBreakWaveCaps
+{
+	int32_t liveCap;
+	int32_t queue;
+};
+
+static LimitBreakWaveCaps GetLimitBreakWaveCaps(const horde::MapSize& mapSize, int32_t waveLevel)
+{
+	using namespace LimitBreakWave;
+
+	const int32_t liveMax  = mapSize.isSmallMap ? LIVE_CAP_MAX_SMALL
+						   : mapSize.isBigMap   ? LIVE_CAP_MAX_BIG
+												: LIVE_CAP_MAX_MEDIUM;
+	const int32_t queueMax = mapSize.isSmallMap ? QUEUE_MAX_SMALL
+						   : mapSize.isBigMap   ? QUEUE_MAX_BIG
+												: QUEUE_MAX_MEDIUM;
+
+	int32_t live  = LIVE_CAP_FLOOR;
+	int32_t queue = QUEUE_FLOOR;
+
+	if (waveLevel > WAVE_SCALE_START)
+	{
+		const float wavesPast = static_cast<float>(waveLevel - WAVE_SCALE_START);
+		live  = LIVE_CAP_FLOOR + static_cast<int32_t>(wavesPast * LIVE_CAP_PER_WAVE);
+		queue = QUEUE_FLOOR    + static_cast<int32_t>(wavesPast * QUEUE_PER_WAVE);
+	}
+
+	live  = std::clamp(live,  LIVE_CAP_FLOOR, liveMax);
+	queue = std::clamp(queue, QUEUE_FLOOR, queueMax);
+
+	return { live, queue };
+}
+
 inline int32_t GetAdjustedMonsterCap(const horde::MapSize& mapSize, int32_t waveLevel, const char* mapname = nullptr)
 {
 	// Get base cap from config (considers map overrides and map size)
@@ -1653,6 +1690,13 @@ inline int32_t GetAdjustedMonsterCap(const horde::MapSize& mapSize, int32_t wave
 		// }
 	}
 	// --- End Player Count Bonus ---
+
+	// Fog / limit-break waves blow past the normal cap so the map gets genuinely swarmed.
+	// Only ever raises the cap (keeps any player-count bonus already folded in above).
+	if (IsLimitBreakWave(current_wave_type))
+	{
+		finalAdjustedCap = std::max(finalAdjustedCap, GetLimitBreakWaveCaps(mapSize, waveLevel).liveCap);
+	}
 
 	// Ensure the cap doesn't go below a minimum reasonable value (e.g., 6)
 	finalAdjustedCap = std::max(6, finalAdjustedCap);
@@ -1925,6 +1969,17 @@ static void UnifiedAdjustSpawnRate(const horde::MapSize& mapSize, int32_t lvl, i
 	// Calculate queued monsters
 	const bool isHardMode = g_insane->integer || g_chaotic->integer;
 	g_horde_local.queued_monsters = CalculateQueuedMonsters(mapSize, safeLevel, isHardMode);
+
+	// Fog / limit-break waves: fill all the way up to the (already-raised) live cap and stack a
+	// large reinforcement queue on top, so the swarm reaches ~80 alive and keeps replacing the dead.
+	// num_to_spawn is allowed up to g_adjusted_monster_cap (ClampNumToSpawn ran above with the
+	// boosted cap), so setting it to liveCap actually fills the map rather than capping out early.
+	if (IsLimitBreakWave(current_wave_type))
+	{
+		const LimitBreakWaveCaps caps = GetLimitBreakWaveCaps(mapSize, safeLevel);
+		g_horde_local.num_to_spawn    = std::max(g_horde_local.num_to_spawn, caps.liveCap);
+		g_horde_local.queued_monsters = std::max(g_horde_local.queued_monsters, caps.queue);
+	}
 
 	//	// Debug output
 	// 	if (developer->integer == 3)
@@ -2598,11 +2653,24 @@ static inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpeci
 
 void InitializeWaveType(int32_t waveLevel)
 {
-	current_wave_type = GetWaveComposition(waveLevel);
+	bool forced_fog = false;
 
-	// Apply fog effect and special effects for Gekk/Berserk special waves (wave 15+)
-	if (waveLevel >= 15 && (HasWaveType(current_wave_type, MonsterWaveType::Gekk) ||
-		HasWaveType(current_wave_type, MonsterWaveType::Berserk)))
+	// g_horde_force_fog_wave forces the next wave to be a fog (Gekk/Berserk) wave, then
+	// consumes the request so it only affects this one wave.
+	if (g_horde_force_fog_wave && g_horde_force_fog_wave->integer)
+	{
+		current_wave_type = (frandom() < 0.5f) ? MonsterWaveType::Gekk : MonsterWaveType::Berserk;
+		gi.cvar_set("g_horde_force_fog_wave", "0");
+		forced_fog = true;
+	}
+	else
+	{
+		current_wave_type = GetWaveComposition(waveLevel);
+	}
+
+	// Apply fog effect and special effects for Gekk/Berserk special waves (wave 15+),
+	// or whenever a fog wave was explicitly forced via the cvar.
+	if (IsLimitBreakWave(current_wave_type) && (forced_fog || waveLevel >= 15))
 	{
 		ApplyFogEffect();
 		ApplySpecialWaveEffects(current_wave_type);
@@ -3274,14 +3342,19 @@ static float ApplyMonsterWeightModifiers(
 {
 	float weight = base_weight;
 
-	// Apply spawn history penalty
+	// Apply spawn history penalty (chickkl is exempt so it's allowed to dominate / repeat).
 	AssetFamilyID monster_family = GetMonsterAssetFamily(monster_info->typeId);
-	if (monster_family != AssetFamilyID::UNKNOWN_FAMILY)
+	if (monster_family != AssetFamilyID::UNKNOWN_FAMILY &&
+		monster_info->typeId != horde::MonsterTypeID::CHICKKL)
 	{
 		int32_t recent_spawn_count = GetFamilySpawnCountInHistory(monster_family);
 		if (recent_spawn_count >= 2)
 			weight *= 0.3f;
 	}
+
+	// Boost chickkl so it spawns far more often than other monsters wherever it's eligible.
+	if (monster_info->typeId == horde::MonsterTypeID::CHICKKL)
+		weight *= LimitBreakWave::CHICKKL_WEIGHT_BOOST;
 
 	// Soldier weight reduction for waves 5+
 	if (ctx.currentActualLevel >= 5 && monster_family == AssetFamilyID::SOLDIER_FAMILY)
@@ -3741,6 +3814,7 @@ void Horde_PreInit()
 
 	g_horde = gi.cvar("horde", "0", CVAR_LATCH);
 	g_horde_grid_first = gi.cvar("g_horde_grid_first", "0", CVAR_NOFLAGS);
+	g_horde_force_fog_wave = gi.cvar("g_horde_force_fog_wave", "0", CVAR_NOFLAGS);
 	pvm = gi.cvar("pvm", "0", CVAR_LATCH);
 	// gi.Com_Print("After starting a normal server type: starthorde to start a game.\n");
 
@@ -6944,7 +7018,10 @@ int32_t ManageSpawnCountsAndQueue(const horde::MapSize& mapSize, int32_t availab
 {
 	if (g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters > 0)
 	{
-		const int32_t base_transfer = mapSize.isSmallMap ? 3 : (mapSize.isBigMap ? 5 : 4);
+		int32_t base_transfer = mapSize.isSmallMap ? 3 : (mapSize.isBigMap ? 5 : 4);
+		// Fog / limit-break waves drain the queue faster so the swarm ramps up to the cap.
+		if (IsLimitBreakWave(current_wave_type))
+			base_transfer *= 2;
 		const int32_t transfer_amount = std::min({ g_horde_local.queued_monsters, availableSpace, base_transfer });
 		if (transfer_amount > 0)
 		{
@@ -9411,10 +9488,10 @@ static void Horde_InitLevel(const int32_t lvl)
 	g_horde_local.level = lvl;
 	current_wave_level = lvl;
 
-	// Auto-enable network optimization at wave 25+
-	if (lvl >= 25 && !g_nolag->integer) {
-		gi.cvar_set("g_nolag", "1");
-	}
+	//// Auto-enable network optimization at wave 25+
+	//if (lvl >= 25 && !g_nolag->integer) {
+	//	gi.cvar_set("g_nolag", "1");
+	//}
 
 	// Update g_start_items for this wave's loadout
 	Horde_UpdateStartItemsForWave(lvl);

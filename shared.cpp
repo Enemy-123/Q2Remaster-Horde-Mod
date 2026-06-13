@@ -1386,7 +1386,8 @@ static constexpr auto monster_name_replacements = []() constexpr {
     set(horde::MonsterTypeID::STALKER, "Stalker");
     set(horde::MonsterTypeID::BRAIN, "Brain");
     set(horde::MonsterTypeID::CHICK, "Iron Maiden");
-    set(horde::MonsterTypeID::CHICK_HEAT, "Iron Praetor");
+	set(horde::MonsterTypeID::CHICK_HEAT, "Iron Praetor");
+	set(horde::MonsterTypeID::CHICKKL, "Hell Maiden");
     set(horde::MonsterTypeID::TANK, "Tank");
     set(horde::MonsterTypeID::TANK_64, "N64 Tank");
     set(horde::MonsterTypeID::TANK_COMMANDER, "Tank Commander");

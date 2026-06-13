@@ -33,8 +33,8 @@ const MonsterTypeInfo monsterTypes[] = {
 	{horde::MonsterTypeID::CHICK, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 7, 0.6f, {-32, -32, -24}, {32, 32, 64}, 1.0f},
 
 	// Special fog wave bosses
-	{horde::MonsterTypeID::BERSERKERKL, MonsterWaveType::SemiBoss | MonsterWaveType::Melee | MonsterWaveType::Berserk, 16, 0.65f, {-22, -22, -36}, {22, 22, 44}, 1.4f},
-	{horde::MonsterTypeID::GEKKKL, MonsterWaveType::SemiBoss | MonsterWaveType::Melee | MonsterWaveType::Gekk, 16, 0.65f, {-19, -19, -29}, {19, 19, -10}, 1.4f},
+	{horde::MonsterTypeID::BERSERKERKL, MonsterWaveType::SemiBoss | MonsterWaveType::Melee | MonsterWaveType::Ground | MonsterWaveType::Berserk, 16, 0.65f, {-22, -22, -36}, {22, 22, 44}, 1.4f},
+	{horde::MonsterTypeID::GEKKKL, MonsterWaveType::SemiBoss | MonsterWaveType::Melee | MonsterWaveType::Ground | MonsterWaveType::Gekk, 16, 0.65f, {-19, -19, -29}, {19, 19, -10}, 1.4f},
 
 	// --- WAVE 7 ---
 	{horde::MonsterTypeID::HOVER_VANILLA, MonsterWaveType::Flying | MonsterWaveType::Medium | MonsterWaveType::Light | MonsterWaveType::Ranged, 7, 0.6f, {-24, -24, -24}, {24, 24, 32}, 1.0f},
@@ -113,7 +113,8 @@ const MonsterTypeInfo monsterTypes[] = {
 
 	// --- WAVE 27 ---
 	{horde::MonsterTypeID::MEDIC_COMMANDER, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Special | MonsterWaveType::Elite | MonsterWaveType::Spawner, 27, 0.3f, {-24, -24, -24}, {24, 24, 32}, 1.0f},
-	{horde::MonsterTypeID::CARRIER_MINI, MonsterWaveType::Flying | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Spawner, 27, 0.2f, {-56, -56, -44}, {56, 56, 44}, 0.6f},
+	{horde::MonsterTypeID::CARRIER_MINI, MonsterWaveType::Flying | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Spawner, 27, 0.2f, {-56, -56, -44}, {56, 56, 44}, 0.6f },
+	{horde::MonsterTypeID::CHICKKL, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Medium, 28, 0.65f, {-16, -16, 0}, {16, 16, 56}, 1.5f },
 
 	// --- WAVE 28 ---
 	{horde::MonsterTypeID::TANK_64, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, 28, 0.3f, {-32, -32, -16}, {32, 32, 64}, 1.1f},
