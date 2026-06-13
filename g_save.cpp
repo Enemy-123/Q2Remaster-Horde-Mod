@@ -1091,6 +1091,11 @@ FIELD_AUTO(lastCommand),
 FIELD_AUTO(lastEnt),
 FIELD_AUTO(lastPosition),
 
+// Moved from edict_t (player-only fields)
+FIELD_AUTO(safety_time),
+FIELD_AUTO(hook_time),
+FIELD_AUTO(regen_info),
+
 SAVE_STRUCT_END
 #undef DECLARE_SAVE_STRUCT
 // clang-format on
@@ -1433,6 +1438,7 @@ FIELD_AUTO(monsterinfo.bonus_flags),
 FIELD_AUTO(monsterinfo.team),
 FIELD_AUTO(monsterinfo.next_regen_time), 
 FIELD_AUTO(monsterinfo.monster_type_id),
+FIELD_AUTO(monsterinfo.is_fading_out),
 FIELD_AUTO(monsterinfo.was_spawned_by_horde),
 FIELD_AUTO(monsterinfo.spawned_in_spawn_state),
 
@@ -1508,11 +1514,7 @@ FIELD_AUTO(lastMOD.friendly_fire),
 FIELD_AUTO(vision_cone),
 
 FIELD_AUTO(special_type_id),                  // CRITICAL: Must be saved for non-monsters.
-FIELD_AUTO(is_fading_out),
 FIELD_AUTO(bossSizeCategory),
-FIELD_AUTO(regen_info),
-FIELD_AUTO(safety_time),
-FIELD_AUTO(hook_time),
 FIELD_AUTO(beam_hit_time),
 FIELD_AUTO(bounce_count),
 

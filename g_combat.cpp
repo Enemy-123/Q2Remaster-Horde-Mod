@@ -695,8 +695,8 @@ namespace VampireConfig {
 }
 
 void ApplyGradualHealing(edict_t* ent) {
-	// Fast-path early returns grouped for better branch prediction
-	if (!ent || ent->health <= 0 || level.time < ent->regen_info.next_regen_time)
+	// Regen info is on gclient_t - skip non-players
+	if (!ent || !ent->client || ent->health <= 0 || level.time < ent->client->regen_info.next_regen_time)
 		return;
 
 	// Skip if player is menu protected - disable vampire regen during menu
@@ -705,9 +705,9 @@ void ApplyGradualHealing(edict_t* ent) {
 	}
 
 	// Apply health regeneration with  checks and calculations
-	if (ent->health < ent->max_health && ent->regen_info.stored_healing > 0) {
+	if (ent->health < ent->max_health && ent->client->regen_info.stored_healing > 0) {
 		// Use direct min operation to simplify logic
-		const float heal_amount = std::min(2.0f, ent->regen_info.stored_healing);
+		const float heal_amount = std::min(2.0f, ent->client->regen_info.stored_healing);
 
 		// Calculate new health with single-step clamping
 		const int new_health = std::min(ent->health + static_cast<int>(heal_amount), ent->max_health);
@@ -716,21 +716,18 @@ void ApplyGradualHealing(edict_t* ent) {
 		// Only update if actual healing occurred (avoids unnecessary writes)
 		if (actual_healed > 0) {
 			ent->health = new_health;
-			ent->regen_info.stored_healing -= actual_healed;
+			ent->client->regen_info.stored_healing -= actual_healed;
 		          // Clear remaining stored healing if max health is reached or exceeded
 		          if (ent->health >= ent->max_health) {
-		              ent->regen_info.stored_healing = 0;
+		              ent->client->regen_info.stored_healing = 0;
 		          }
 		}
 	}
 
-	// Apply armor regeneration if player - direct condition check
-	if (ent->client) {
-		ApplyGradualArmor(ent);
-	}
+	ApplyGradualArmor(ent);
 
 	// Set next regeneration time
-	ent->regen_info.next_regen_time = level.time + VampireConfig::REGEN_INTERVAL;
+	ent->client->regen_info.next_regen_time = level.time + VampireConfig::REGEN_INTERVAL;
 }
 
 void ApplyGradualArmor(edict_t* ent) {
@@ -742,15 +739,15 @@ void ApplyGradualArmor(edict_t* ent) {
 	const int index = ArmorIndex(ent);
 	if (!index) {
 		// Player has no armor - give them jacket armor if we have stored armor
-		if (ent->regen_info.stored_armor > 0 && level.time >= ent->regen_info.next_regen_time) {
+		if (ent->client->regen_info.stored_armor > 0 && level.time >= ent->client->regen_info.next_regen_time) {
 			// Give jacket armor with the stored amount (capped at reasonable starting value)
-			int initial_armor = std::min(static_cast<int>(ent->regen_info.stored_armor), 25);
+			int initial_armor = std::min(static_cast<int>(ent->client->regen_info.stored_armor), 25);
 			ent->client->pers.inventory[IT_ARMOR_JACKET] = initial_armor;
-			ent->regen_info.stored_armor -= initial_armor;
+			ent->client->regen_info.stored_armor -= initial_armor;
 
 			// If we still have stored armor, it will be added next frame
-			if (ent->regen_info.stored_armor <= 0)
-				ent->regen_info.stored_armor = 0;
+			if (ent->client->regen_info.stored_armor <= 0)
+				ent->client->regen_info.stored_armor = 0;
 		}
 		return;
 	}
@@ -760,16 +757,16 @@ void ApplyGradualArmor(edict_t* ent) {
 
 	// Combined condition check for better branching
 	if (current_armor <= 0 || current_armor >= VampireConfig::MAX_ARMOR) {
-		ent->regen_info.stored_armor = 0;
+		ent->client->regen_info.stored_armor = 0;
 		return;
 	}
 
 	// Fast path for no regeneration needed
-	if (ent->regen_info.stored_armor <= 0 || level.time < ent->regen_info.next_regen_time)
+	if (ent->client->regen_info.stored_armor <= 0 || level.time < ent->client->regen_info.next_regen_time)
 		return;
 
 	// Calculate regeneration with a single min operation
-	const float regen_amount = std::min(VampireConfig::ARMOR_REGEN_AMOUNT, ent->regen_info.stored_armor);
+	const float regen_amount = std::min(VampireConfig::ARMOR_REGEN_AMOUNT, ent->client->regen_info.stored_armor);
 
 	// Direct calculation of new armor with clamping
 	const int new_armor = std::min(
@@ -781,11 +778,11 @@ void ApplyGradualArmor(edict_t* ent) {
 	const int actual_added = new_armor - current_armor;
 	if (actual_added > 0) {
 		current_armor = new_armor;
-		ent->regen_info.stored_armor -= actual_added;
+		ent->client->regen_info.stored_armor -= actual_added;
 
 		// Fast cleanup if max reached
 		if (new_armor >= VampireConfig::MAX_ARMOR)
-			ent->regen_info.stored_armor = 0;
+			ent->client->regen_info.stored_armor = 0;
 	}
 }
 
@@ -903,8 +900,8 @@ void apply_armor_vampire(edict_t* attacker, int damage) {
 	if (!index) {
 		// Player has no armor - store the stolen armor for later
 		// It will be given as jacket armor in ApplyGradualArmor
-		attacker->regen_info.stored_armor = std::min(
-			attacker->regen_info.stored_armor + armor_stolen,
+		attacker->client->regen_info.stored_armor = std::min(
+			attacker->client->regen_info.stored_armor + armor_stolen,
 			static_cast<float>(VampireConfig::MAX_STORED_ARMOR)
 		);
 		return;
@@ -916,8 +913,8 @@ void apply_armor_vampire(edict_t* attacker, int damage) {
 		return;
 
 	// Store the stolen armor for gradual regeneration
-	attacker->regen_info.stored_armor = std::min(
-		attacker->regen_info.stored_armor + armor_stolen,
+	attacker->client->regen_info.stored_armor = std::min(
+		attacker->client->regen_info.stored_armor + armor_stolen,
 		static_cast<float>(VampireConfig::MAX_STORED_ARMOR)
 	);
 }
@@ -1023,8 +1020,8 @@ void HandleVampireEffect(edict_t* attacker, edict_t* targ, int damage)
         // Add the stolen health to the attacker's stored regeneration pool,
         // clamping it to the maximum allowed value.
         const float max_healing = static_cast<float>(VampireConfig::MAX_STORED_HEALING);
-        attacker->regen_info.stored_healing = std::min(
-            attacker->regen_info.stored_healing + health_stolen,
+        attacker->client->regen_info.stored_healing = std::min(
+            attacker->client->regen_info.stored_healing + health_stolen,
             max_healing
         );
     }

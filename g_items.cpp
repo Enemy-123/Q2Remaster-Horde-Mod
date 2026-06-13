@@ -400,7 +400,7 @@ void Drop_General(edict_t* ent, gitem_t* item)
 
 //======================================================================
 
-int CalculateWaveBasedMaxHealth(int base_max_health, gclient_t* client = nullptr);
+int CalculateWaveBasedMaxHealth(int base_max_health, gclient_t* client = nullptr, bool is_bot = false);
 
 void Use_Adrenaline(edict_t* ent, gitem_t* item)
 {
@@ -412,7 +412,7 @@ void Use_Adrenaline(edict_t* ent, gitem_t* item)
 	int new_max;
 	if (g_horde->integer) {
 		// In horde mode, use the wave-based calculation
-		new_max = CalculateWaveBasedMaxHealth(100, ent->client);
+		new_max = CalculateWaveBasedMaxHealth(100, ent->client, !!(ent->svflags & SVF_BOT));
 	} else {
 		// Outside horde mode, apply a fixed bonus
 		new_max = ent->max_health + ADRENALINE_HEALTH_BONUS;

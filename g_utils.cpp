@@ -868,13 +868,13 @@ THINK(fade_out_think)(edict_t* self) -> void {
 	if (self->health > 0 && !self->deadflag) {
 		CheckAndRestoreMonsterAlpha(self);
 		self->nextthink = level.time + FRAME_TIME_MS;
-		self->is_fading_out = false;
+		self->monsterinfo.is_fading_out = false;
 		return;
 	}
 
 	// Fade complete - free the entity
 	if (level.time >= self->timestamp) {
-		self->is_fading_out = false;
+		self->monsterinfo.is_fading_out = false;
 		G_FreeEdict(self);
 		return;
 	}
@@ -889,7 +889,7 @@ THINK(fade_out_think)(edict_t* self) -> void {
 void StartFadeOut(edict_t* ent) {
 	// Don't start fade out if monster is alive or already fading
 	if ((ent->health > 0 && !ent->deadflag) ||
-		ent->is_fading_out ||
+		ent->monsterinfo.is_fading_out ||
 		(ent->monsterinfo.aiflags & (AI_CLEANUP_FADE | AI_CLEANUP_NORMAL))) {
 		return;
 	}
@@ -904,7 +904,7 @@ void StartFadeOut(edict_t* ent) {
 	ent->nextthink = level.time + FRAME_TIME_MS;
 
 	// Mark as fading in progress
-	ent->is_fading_out = true;
+	ent->monsterinfo.is_fading_out = true;
 
 	// Configure entity state
 	ent->solid = SOLID_NOT;
@@ -999,7 +999,7 @@ void CleanupStuckEntities() {
 		// --- Conditions for identifying a stuck/lingering entity ---
 		if ((ent->solid == SOLID_BSP || ent->solid == SOLID_BBOX) && ent->health <= 0) {
 			bool stopped_thinking = (!ent->think || ent->nextthink <= level.time - STUCK_ENTITY_THINK_TIMEOUT);
-			bool not_fading = !ent->is_fading_out;
+			bool not_fading = !ent->monsterinfo.is_fading_out;
 			bool likely_monster = (ent->svflags & (SVF_MONSTER | SVF_DEADMONSTER)) || ent->monsterinfo.was_spawned_by_horde;
 
 			if (stopped_thinking && not_fading && likely_monster) {
@@ -1011,7 +1011,7 @@ void CleanupStuckEntities() {
 						ent->health,
 						ent->think ? "Yes" : "No",
 						ent->nextthink.seconds(),
-						ent->is_fading_out ? "Yes" : "No");
+						ent->monsterinfo.is_fading_out ? "Yes" : "No");
 				}
 				G_FreeEdict(ent);
 			}

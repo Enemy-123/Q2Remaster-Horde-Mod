@@ -1706,18 +1706,16 @@ void chickkl_fire_plasma(edict_t* self)
 		plasma->flags |= FL_DODGE;
 		plasma->owner = self;
 
-		// Store attacker info
-		if (self->svflags & SVF_MONSTER) {
-			plasma->projectile_was_player_attacker = false;
-			plasma->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
-		}
+		// Store attacker info in case owner dies before projectile hits
+		SetProjectileAttackerInfo(plasma, self);
 
 		plasma->touch = plasma_touch;
 		plasma->nextthink = level.time + (0.15_sec + gtime_t::from_sec(i * 0.05f));
 		plasma->think = heat_chick_think;
-		plasma->dmg = 35;
-		plasma->radius_dmg = 35;
-		plasma->dmg_radius = 120;
+		int plasma_dmg = M_GET_DMG_OR(self, PLASMA, 35);
+		plasma->dmg = plasma_dmg;
+		plasma->radius_dmg = plasma_dmg;
+		plasma->dmg_radius = M_PLASMA_RADIUS(self);
 		plasma->s.sound = gi.soundindex("weapons/rockfly.wav");
 		plasma->s.modelindex = gi.modelindex("sprites/s_photon.sp2");
 		plasma->s.effects |= EF_PLASMA | EF_ANIM_ALLFAST;

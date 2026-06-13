@@ -1286,7 +1286,7 @@ void G_SetStats(edict_t* ent)
 
 	// Network optimization: Only update STAT_ID_DAMAGE if value actually changed
 	int new_damage_stat = ent->client->ps.stats[STAT_ID_DAMAGE];
-	int current_shot_damage = static_cast<int>(std::min<uint64_t>(ent->client->dmg_counter, INT_MAX));
+	int current_shot_damage = static_cast<int>(ent->client->dmg_counter);
 
 	if (g_iddmg->integer && ent->client->pers.iddmg_state && (ent->svflags & SVF_PLAYER) && !(ent->svflags & SVF_BOT))
 	{

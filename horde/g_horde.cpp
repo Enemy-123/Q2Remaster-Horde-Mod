@@ -4461,7 +4461,7 @@ void Horde_CleanBodies()
 	{
 		if (ent->deadflag || ent->health <= 0)
 		{
-			if (!ent->is_fading_out)
+			if (!ent->monsterinfo.is_fading_out)
 			{ // Only check once before starting fade
 				StartFadeOut(ent);
 			}
@@ -4486,7 +4486,7 @@ void Horde_CleanBodies()
 		if (strcmp(ent->classname, "gib") == 0)
 		{
 			// Start fade out if not already fading
-			if (!ent->is_fading_out)
+			if (!ent->monsterinfo.is_fading_out)
 			{
 				StartFadeOut(ent);
 			}
@@ -4497,7 +4497,7 @@ void Horde_CleanBodies()
 			ent->timestamp > 0_ms &&
 			level.time > ent->timestamp + 5_sec) // 5 seconds past their normal timeout
 		{
-			if (!ent->is_fading_out)
+			if (!ent->monsterinfo.is_fading_out)
 			{
 				StartFadeOut(ent);
 			}

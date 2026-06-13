@@ -520,7 +520,7 @@ THINK(Hook_Track) (edict_t* self) -> void
 		// for a hooked client. 
 		self->velocity = self->enemy->velocity;
 
-		if (hook_maxtime->value && level.time - self->owner->hook_time > gtime_t::from_sec(hook_maxtime->value))
+		if (hook_maxtime->value && level.time - self->owner->client->hook_time > gtime_t::from_sec(hook_maxtime->value))
 		{
 			Hook_Reset(self);
 			return;
@@ -573,7 +573,7 @@ TOUCH(Hook_Touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_
 		// Play attachment sound
 		gi.positioned_sound(self->s.origin, self, CHAN_WEAPON, gi.soundindex("flyer/Flyatck2.wav"), 1, ATTN_NORM, 0);
 
-		self->owner->hook_time = level.time;
+		self->owner->client->hook_time = level.time;
 		return;
 	}
 	else if (other->client)
@@ -626,7 +626,7 @@ TOUCH(Hook_Touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_
 
 	self->solid = SOLID_NOT;
 
-	self->owner->hook_time = level.time;
+	self->owner->client->hook_time = level.time;
 }
 
 // move the two ends of the laser beam to the proper positions

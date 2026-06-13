@@ -1946,6 +1946,7 @@ struct monsterinfo_t
 	gtime_t next_regen_time; // Timer for Stygian/other regen effects
  	sentry_state_t* sentry_state; 
 
+	bool is_fading_out = false; // corpse cleaning management (moved from edict_t)
 	bool was_spawned_by_horde;
 	bool spawned_in_spawn_state;
 
@@ -3105,8 +3106,7 @@ namespace TrapConstants {
 }
 
 
-// Define esta enumeración antes de la estructura edict_t
-enum class BossSizeCategory {
+enum class BossSizeCategory : uint8_t {
 	Small,
 	Medium,
 	Large
@@ -3757,8 +3757,7 @@ struct gclient_t
 
 	// HORDE STUFF
 
-		//coop respawn
-
+	//coop respawn
 	vec3_t      cached_squad_spot;          // The last valid spot found by G_FindRespawnSpot.
     gtime_t     squad_spot_cache_time;      // The level.time when the spot was cached.
     vec3_t      squad_spot_cached_at_pos;   // The player's position when the spot was cached.
@@ -3771,32 +3770,32 @@ struct gclient_t
 	bool    hook_toggle;      // Kyper - Lithium port - added for remaster
 	edict_t* hook;
 	float		last_hook_time;
-	int			hook_damage;
+	int16_t		hook_damage;
+	gtime_t safety_time;
+	gtime_t hook_time;
 
 	vec3_t old_origin; // Agregar para almacenar la posición anterior del jugador
 	vec3_t old_angles; // Agregar para almacenar los ángulos anteriores del jugador
 	gtime_t time_in_bad_area;
 	edict_t* idtarget;
-	uint64_t dmg_counter;     // ID DMG
-	uint64_t total_damage;    // Total damage dealt
+	uint32_t dmg_counter;     // ID DMG
+	uint32_t total_damage;    // Total damage dealt
 
-	//int num_traps; //foodcube trap per client
-
-	int last_wave_timer_horde_update; // hud timer
-	int last_wave_level_update;
+	int16_t last_wave_timer_horde_update; // hud timer
+	int16_t last_wave_level_update;
 	char voted_map[128];
 	bool emergency_teleport = false;
 
 	// Mode selection for voting (0=none, 1=horde, 2=pvm)
-	int pending_mode_vote;
+	uint8_t pending_mode_vote;
 
 	//int ctf_lasttechmsg_count;
 	gtime_t		ammoregentime;
 	bool ir_tracking_active; //horde tracking
-	int ir_frame_count;
+	uint8_t ir_frame_count;
 
 	// Vortex-style blaster ammo system
-	int blaster_ammo;           // Current blaster ammo (0-50)
+	uint8_t blaster_ammo;           // Current blaster ammo (0-50)
 	gtime_t blaster_regen_time; // Next blaster ammo regeneration time
 
 	// Ammo regeneration skill system
@@ -3811,6 +3810,9 @@ struct gclient_t
 	gtime_t  lastCommand;          // For double-click detection
 	edict_t* lastEnt;              // Last entity commanded
 	vec3_t   lastPosition;         // Last position commanded
+
+	// Moved from edict_t (player-only fields)
+	regeneration_info_t regen_info;
 };
 
 // ==========================================
@@ -4055,29 +4057,19 @@ struct edict_t
 	edict_t* owned_sphere; //dopplegangers one
 	edict_t* laser;
 
-	bool is_fading_out = false; // corpse cleaning management
-
 	BossSizeCategory bossSizeCategory;
-	regeneration_info_t regen_info;
-
-	gtime_t safety_time;
-	gtime_t hook_time;
 
 	gtime_t beam_hit_time; // heatbeam piercing balance
-	int bounce_count; // max blaster/hb bounces to avoid sound overflow
+	uint8_t bounce_count; // max blaster/hb bounces to avoid sound overflow
 	uint8_t special_type_id;
 
 	// Store original attacker info for projectiles (when owner dies before projectile hits)
 	uint8_t projectile_attacker_type_id; // monster type id if attacker was monster
 	bool projectile_was_player_attacker; // true if attacker was a player
-	int projectile_attacker_level; // pvm_level of monster attacker (for obituary)
+	int16_t projectile_attacker_level; // pvm_level of monster attacker (for obituary)
 
-	// Proximity grid optimization: track which cells this entity occupies
-	// Stored as int8_t to save memory (max 127 cells, we have 16x16=256 but entities span max 4)
-	// -1 = not in grid
-	int8_t grid_cells[4] = {-1, -1, -1, -1};
-	uint8_t grid_cell_count = 0;
-	uint32_t cached_entity_type = 0; // Cache for EntityGrid::GetEntityType to avoid repeated string checks
+	// NOTE: Grid tracking data (grid_cells, grid_cell_count, cached_entity_type) is stored
+	// in HordePhys::ProximityGrid/EntityGrid, not on edict_t. See g_horde_phys.h.
 };
 
 // static constexpr const char* TEAM1 = "team1";

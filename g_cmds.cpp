@@ -1882,7 +1882,7 @@ void Cmd_Wave_f(edict_t* ent)
 				{
 					ent->client->hook_toggle = true;
 					Weapon_Hook_Fire(ent);
-					ent->safety_time = 0_ms;
+					ent->client->safety_time = 0_ms;
 				}
 			}
 			else if (special_wave_type == SPECIAL_WAVE_BOMBSPELL_FORWARD)
@@ -2151,7 +2151,7 @@ void ClientCommand(edict_t* ent)
 			{
 				ent->client->hook_toggle = !(Q_strcasecmp(cmd, "hook_toggle"));
 				Weapon_Hook_Fire(ent);
-				ent->safety_time = 0_ms;
+				ent->client->safety_time = 0_ms;
 			}
 		}
 		else

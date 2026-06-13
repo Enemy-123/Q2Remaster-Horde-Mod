@@ -171,7 +171,8 @@ namespace HordePhys
             return;
 
         // Clear previous grid cell tracking
-        ent->grid_cell_count = 0;
+        auto& tracking = GetTracking(ent);
+        tracking.cell_count = 0;
 
         const int min_idx = GetCellIndex(ent->absmin);
         const int max_idx = GetCellIndex(ent->absmax);
@@ -179,13 +180,13 @@ namespace HordePhys
         // Add to min cell and track it
         if (min_idx != -1) {
             m_cells[static_cast<size_t>(min_idx)].add(ent);
-            ent->grid_cells[ent->grid_cell_count++] = static_cast<int8_t>(min_idx);
+            tracking.cells[tracking.cell_count++] = static_cast<int8_t>(min_idx);
         }
 
         // Add to max cell if different and track it
         if (max_idx != -1 && max_idx != min_idx) {
             m_cells[static_cast<size_t>(max_idx)].add(ent);
-            ent->grid_cells[ent->grid_cell_count++] = static_cast<int8_t>(max_idx);
+            tracking.cells[tracking.cell_count++] = static_cast<int8_t>(max_idx);
         }
     }
 
@@ -196,9 +197,10 @@ namespace HordePhys
 
         // Optimized: Use tracked cell indices instead of scanning all 256 cells
         // This reduces Remove from O(256*128) to O(k) where k is typically 1-4 cells
-        for (uint8_t i = 0; i < ent->grid_cell_count; ++i)
+        auto& tracking = GetTracking(ent);
+        for (uint8_t i = 0; i < tracking.cell_count; ++i)
         {
-            int8_t cell_idx = ent->grid_cells[i];
+            int8_t cell_idx = tracking.cells[i];
             if (cell_idx < 0 || cell_idx >= CELL_COUNT)
                 continue;
 
@@ -219,8 +221,7 @@ namespace HordePhys
         }
 
         // Clear the tracking data
-        ent->grid_cell_count = 0;
-        std::fill(std::begin(ent->grid_cells), std::end(ent->grid_cells), static_cast<int8_t>(-1));
+        tracking = EntityGridTracking{};
     }
 
     // Helper method to query a range of cells with a filter function
@@ -329,6 +330,8 @@ void ProximityGrid::Reset()
     {
         cell.clear();
     }
+    // Clear per-entity tracking data
+    m_tracking = {};
 }
 
     // ============================================================================
@@ -410,8 +413,8 @@ void ProximityGrid::Reset()
         if (!ent || !ent->inuse) return;
 
         // Use cached entity type if available, otherwise compute and cache it
-        if (ent->cached_entity_type == 0) {
-            ent->cached_entity_type = GetEntityType(ent);
+        if (m_cached_types[ent->s.number] == 0) {
+            m_cached_types[ent->s.number] = GetEntityType(ent);
         }
 
         // Use parent class Add method
@@ -447,7 +450,7 @@ void ProximityGrid::Reset()
             if (filtered_count >= m_filtered_buffer.size()) break;
 
             // Use cached entity type instead of map lookup
-            uint32_t ent_type = ent->cached_entity_type;
+            uint32_t ent_type = m_cached_types[ent->s.number];
             if (ent_type & type_mask) {
                 m_filtered_buffer[filtered_count++] = ent;
             }

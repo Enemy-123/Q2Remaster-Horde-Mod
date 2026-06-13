@@ -1060,7 +1060,7 @@ but is called after each death and level change in deathmatch
 ==============
 */
 // Calculate maximum health based on current wave level
-int CalculateWaveBasedMaxHealth(int base_max_health, gclient_t* client = nullptr) noexcept
+int CalculateWaveBasedMaxHealth(int base_max_health, gclient_t* client = nullptr, bool is_bot = false) noexcept
 {
 	if (!g_horde->integer && !pvm->integer)
 		return max(100, base_max_health);
@@ -1071,7 +1071,7 @@ int CalculateWaveBasedMaxHealth(int base_max_health, gclient_t* client = nullptr
 
 	// Calculate health based on wave tier (optimized lookup)
 	int calculated_max_health = base_max_health;
-	
+
 	if (current_wave_level >= 30)
 		calculated_max_health = 250;
 	else if (current_wave_level >= 25)
@@ -1086,12 +1086,16 @@ int CalculateWaveBasedMaxHealth(int base_max_health, gclient_t* client = nullptr
 		calculated_max_health = 125;
 	else
 		calculated_max_health = 100;
-	
+
 	calculated_max_health = max(calculated_max_health, base_max_health);
 
 	// Add adrenaline bonus if client provided
 	if (client)
 		calculated_max_health += (client->pers.adrenaline_count * ADRENALINE_HEALTH_BONUS);
+
+	// Cap bot health to prevent them from becoming too tanky
+	if (is_bot)
+		calculated_max_health = std::min(calculated_max_health, 200);
 
 	return calculated_max_health;
 }
@@ -1317,7 +1321,7 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 	// HEALTH INITIALIZATION
 	//
 	const int saved_adrenaline = client->pers.adrenaline_count;
-	const int new_max_health = CalculateWaveBasedMaxHealth(100, client);
+	const int new_max_health = CalculateWaveBasedMaxHealth(100, client, !!(ent->svflags & SVF_BOT));
 	client->pers.max_health = client->resp.max_health = ent->max_health = new_max_health;
 	client->pers.health = new_max_health;
 	client->pers.adrenaline_count = saved_adrenaline;
@@ -4243,7 +4247,7 @@ void UpdateClientHealth(edict_t* ent, gclient_t* client)
 		return;
 	}
 
-	const int new_max_health = CalculateWaveBasedMaxHealth(100, client);
+	const int new_max_health = CalculateWaveBasedMaxHealth(100, client, !!(ent->svflags & SVF_BOT));
 
 	if (new_max_health != client->pers.max_health)
 	{

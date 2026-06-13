@@ -11,6 +11,12 @@ namespace HordePhys {
     // Helper function to get water level for a position
     water_level_t GetWaterLevelForPosition(const vec3_t& in_point);
 
+    // Per-entity grid tracking data (stored here instead of on edict_t to reduce entity footprint)
+    struct EntityGridTracking {
+        int8_t cells[4] = {-1, -1, -1, -1};
+        uint8_t cell_count = 0;
+    };
+
     // A simple grid cell that holds pointers to monsters.
     struct ProximityGridCell {
         // Using small_vector for inline storage - avoids heap allocation for typical case
@@ -54,9 +60,16 @@ namespace HordePhys {
         [[nodiscard]] float GetCellSize() const noexcept { return m_cell_size; }
         [[nodiscard]] const vec3_t& GetWorldMins() const noexcept { return m_world_mins; }
 
+        // Access grid tracking data for an entity (indexed by entity number)
+        EntityGridTracking& GetTracking(edict_t* ent) { return m_tracking[ent->s.number]; }
+        const EntityGridTracking& GetTracking(const edict_t* ent) const { return m_tracking[ent->s.number]; }
+
     protected:
         std::array<ProximityGridCell, CELL_COUNT> m_cells;
         std::array<edict_t*, MAX_QUERY_RESULTS> m_query_buffer;
+
+        // Per-entity tracking: which cells each entity occupies (replaces edict_t::grid_cells/grid_cell_count)
+        std::array<EntityGridTracking, MAX_EDICTS> m_tracking{};
 
         // Query ID system for efficient duplicate detection across cells
         std::array<uint32_t, MAX_EDICTS> m_last_query_ids;
@@ -97,9 +110,16 @@ namespace HordePhys {
             TYPE_ALL        = 0xFFFFFFFF
         };
 
+        // Get/set cached entity type (stored here instead of on edict_t)
+        uint32_t GetCachedEntityType(const edict_t* ent) const { return m_cached_types[ent->s.number]; }
+        void SetCachedEntityType(edict_t* ent, uint32_t type) { m_cached_types[ent->s.number] = type; }
+
     private:
         // Buffer for filtered query results (thread-safe member instead of static)
         std::array<edict_t*, MAX_QUERY_RESULTS> m_filtered_buffer;
+
+        // Per-entity cached type flags (replaces edict_t::cached_entity_type)
+        std::array<uint32_t, MAX_EDICTS> m_cached_types{};
 
         uint32_t GetEntityType(edict_t* ent) const;
     };
