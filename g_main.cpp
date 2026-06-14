@@ -1314,7 +1314,7 @@ static void UpdateProximityGrids()
             continue;
         if (ent->client)
             continue;
-        if (ent->flags & SVF_PROJECTILE)
+        if (ent->svflags & SVF_PROJECTILE)
             continue;
 
         // Add other damageable entities (barrels, breakables, etc.)

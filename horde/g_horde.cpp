@@ -395,6 +395,7 @@ namespace HordeConstants
 // --- Forward Declarations ---
 bool Horde_AttemptToUnstickMonster(edict_t* self);
 static void Horde_InitLevel(const int32_t lvl);
+static void InitializeMonsterRotation();
 static void RecordCurrentMapFamilyUsageToHistory();
 bool ApplyHordeBonuses(edict_t* monster, int32_t currentLevel, float champion_chance); // monster bonuses
 void CalculateTopDamager(PlayerStats& topDamager, float& percentage);
@@ -1404,6 +1405,17 @@ inline int8_t GetNumActivePlayers();
 inline int8_t GetNumSpectPlayers();
 
 int32_t g_adjusted_monster_cap = 0;
+
+// Per-frame cache for GetStroggsNum() (an O(num_edicts) scan queried several times
+// per server frame). Keyed on level.time so only the first caller per frame pays the
+// scan; invalidated explicitly after each frame's spawns and on level reset.
+static gtime_t g_strogg_count_cache_time = -1_ms;
+static int32_t g_strogg_count_cache = 0;
+
+static inline void InvalidateStroggCountCache() noexcept
+{
+	g_strogg_count_cache_time = -1_ms;
+}
 
 bool allowWaveAdvance = false;		// Global variable to control wave advancement
 // Moved to horde_boss.cpp; // to avoid boss spamming
@@ -4558,7 +4570,22 @@ void Horde_Init()
 	g_spawn_system.spawn_map_needs_build = true; // SET THE FLAG INSTEAD
 	ResetGame(); // This will call RebuildSpawnPointCacheIfNeeded indirectly or directly
 
-	gi.Com_Print("PRINT: Horde game state initialized; wave monster precache will run with map rotation.\n");
+	// PERF: Do the one-time, map-wide setup HERE (end of SpawnEntities = the load screen)
+	// instead of in Horde_InitLevel(1) at the warmup->spawning transition. On a listen
+	// server, gi.modelindex/soundindex only register configstrings; the local client loads
+	// the actual model/sound assets the first time it sees a NEW configstring. Registering
+	// them during the load screen means the client loads them while the map is loading -
+	// doing it at wave-1 start instead forced all those loads into a single live frame,
+	// which is the first-wave stutter. Player count is irrelevant to all of these, so it is
+	// safe to run before clients connect. Must run AFTER ResetGame() (which clears the
+	// family/precache/spatial-index state these populate).
+	InitializeMonsterRotation();       // picks this map's allowed families (advances rotation seed once)
+	InitializeScalingSystem();         // cheap, stateless config setup
+	BuildSpawnPointMap();              // parse .ent file + build spatial index once
+	g_spawn_system.spawn_map_needs_build = false;
+	PrecacheAllMonsters();             // temp-spawn wave 1-3 monsters to register their assets
+
+	gi.Com_Print("PRINT: Horde game state initialized; wave monster assets precached during load.\n");
 }
 
 // Helper function to select a suitable boss weapon drop based on wave level
@@ -4995,6 +5022,7 @@ void ResetGame()
 	HordePerf::g_spawn_spatial_index.Clear();  // FIX: Clear spawn spatial index (also cleared in BuildSpawnPointMap, but explicit here)
 	HordePerf::g_monster_type_cache.Clear();   // FIX: Clear monster type property cache to prevent stale monster data
 	HordePerf::g_visibility_cache.Clear();     // FIX: Clear visibility check cache to prevent stale entity reference checks
+	InvalidateStroggCountCache();              // FIX: Drop cached live-monster count so the new level recomputes fresh
 
 	// =======================================================================
 	// --- UNIFIED RESET (THIS IS THE FIX) ---
@@ -5121,20 +5149,25 @@ static bool CheckRemainingMonstersCondition(const horde::MapSize& mapSize, WaveE
 {
 	// --- 1. Setup Context ---
 	// Cache all frequently used values once at the start.
+	// GetStroggsNum() is an O(num_edicts) scan; compute the live count exactly once
+	// and reuse it everywhere below (no monster dies between these reads).
+	const int32_t liveMonsters = CalculateRemainingMonsters();
 	const WaveConditionContext ctx = {
 		.currentTime = level.time,
-		.liveMonsters = CalculateRemainingMonsters(),
+		.liveMonsters = liveMonsters,
 		.currentLevel = current_wave_level,
-		.remainingPercentage = static_cast<float>(CalculateRemainingMonsters()) / ((g_totalMonstersInWave > 0) ? g_totalMonstersInWave : 1),
+		.remainingPercentage = static_cast<float>(liveMonsters) / ((g_totalMonstersInWave > 0) ? g_totalMonstersInWave : 1),
 		.isBossWaveActive = IsBossWave(),
 		.mapSize = mapSize,
 		.params = g_lastParams };
 
 	// --- 2. Immediate Win Condition (100% Elimination Required) ---
 	// Wave ends ONLY when all monsters are dead (no early advancement)
-	if (allowWaveAdvance || GetStroggsNum() == 0)
+	// Reuse the cached count: CalculateRemainingMonsters() == max(0, GetStroggsNum()),
+	// so ctx.liveMonsters == 0 is exactly equivalent to GetStroggsNum() == 0.
+	if (allowWaveAdvance || ctx.liveMonsters == 0)
 	{
-		if (GetStroggsNum() == 0)
+		if (ctx.liveMonsters == 0)
 		{
 			reason = WaveEndReason::AllMonstersDead;
 			ResetWaveAdvanceState();
@@ -8283,6 +8316,9 @@ void Horde_RunFrame()
 	// --- TIME-SLICED EXECUTION PHASE ---
 	ExecuteSpawnPlan();
 	ExecuteNextSpecialSpawn();
+	// Drop any live-monster count cached during this frame's monster think pass so the
+	// wave-state checks below see monsters that were just spawned above (no stale count).
+	InvalidateStroggCountCache();
 	// --- END EXECUTION PHASE ---
 
 	const gtime_t currentTime = level.time;
@@ -8603,6 +8639,12 @@ gtime_t GetWaveTimer()
 // Helper functionget stroggs alive on the map
 int32_t GetStroggsNum() noexcept
 {
+	// Per-frame cache: this scan is queried multiple times per frame from several
+	// systems (wave-end checks, cooldown reduction, stuck-monster teleporting,
+	// scoreboard). Return the cached value if it was computed this frame.
+	if (g_strogg_count_cache_time == level.time)
+		return g_strogg_count_cache;
+
 	int32_t live_monster_count = 0;
 	// Use the efficient 'active_monsters' iterator.
 	for (edict_t* ent : active_monsters())
@@ -8618,6 +8660,9 @@ int32_t GetStroggsNum() noexcept
 		// The monster is inuse, alive, and meant to be counted.
 		live_monster_count++;
 	}
+
+	g_strogg_count_cache_time = level.time;
+	g_strogg_count_cache = live_monster_count;
 	return live_monster_count;
 }
 
@@ -9200,13 +9245,9 @@ static void ResetWaveState(int32_t lvl)
 	// Clear emergency spawn history - old positions from previous waves are irrelevant
 	ResetEmergencySpawnHistory();
 
-	// Initialize monster rotation and scaling for wave 1 (first wave of a new map)
-	if (lvl == 1) {
-		InitializeMonsterRotation();
-		InitializeScalingSystem();
-		monsters_precached = false;
-		PrecacheAllMonsters();
-	}
+	// NOTE: Wave-1 one-time setup (monster rotation, scaling, spawn-point map and the
+	// wave 1-3 monster precache) now runs in Horde_Init() during the load screen, so the
+	// first wave deploys without the asset-loading stutter. See Horde_Init() for details.
 }
 
 // Find monster info by type ID in the global monsterTypes array
