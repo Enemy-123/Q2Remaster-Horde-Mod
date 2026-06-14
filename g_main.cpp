@@ -152,6 +152,8 @@ cvar_t* ai_damage_scale;
 cvar_t* ai_model_scale;
 cvar_t* ai_allow_dm_spawn;
 cvar_t* ai_movement_disabled;
+cvar_t* g_monster_squeeze;        // target half-WIDTH a blocked monster shrinks its box down to, to fit a tight gap (0 = off; smaller = squeezes tighter)
+cvar_t* g_monster_squeeze_height; // target total HEIGHT a blocked monster shrinks its box down to (0 = don't shrink height)
 
 cvar_t* g_nolag; // Network optimization: convert gibs to temp entities
 
@@ -404,6 +406,8 @@ void InitGame()
 	ai_model_scale = gi.cvar("ai_model_scale", "0", CVAR_NOFLAGS);
 	ai_allow_dm_spawn = gi.cvar("ai_allow_dm_spawn", "1", CVAR_NOFLAGS);
 	ai_movement_disabled = gi.cvar("ai_movement_disabled", "0", CVAR_NOFLAGS);
+	g_monster_squeeze = gi.cvar("g_monster_squeeze", "8", CVAR_NOFLAGS);
+	g_monster_squeeze_height = gi.cvar("g_monster_squeeze_height", "56", CVAR_NOFLAGS);
 
 	g_nolag = gi.cvar("g_nolag", "0", CVAR_NOFLAGS);
 

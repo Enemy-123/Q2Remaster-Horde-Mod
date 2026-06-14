@@ -26,6 +26,7 @@ constexpr float REPULSION_STRENGTH_BOSS = 0.1f;
 constexpr float REPULSION_STRENGTH_COMBAT = 0.5f;
 constexpr float REPULSION_STRENGTH_CORRIDOR = 0.1f;       // Reduced from 0.3 to 0.1
 constexpr float REPULSION_STRENGTH_TIGHT_CORRIDOR = 0.0f; // New: completely disable in very tight spaces
+constexpr float REPULSION_BACKWARD_KEEP = 0.25f;          // keep only 25% of goal-opposing repulsion (don't push monsters back out of doorways)
 constexpr float REPULSION_MIN_THRESHOLD_SQ = 1.0f;
 constexpr int REPULSION_MAX_NEARBY_MONSTERS = 8;
 constexpr int REPULSION_CROWDING_THRESHOLD = 4;
@@ -276,6 +277,19 @@ static void ApplyMonsterRepulsion(edict_t* ent, vec3_t& move, bool in_combat)
 
 	// Blend repulsion with intended movement
 	const vec3_t original_move = move;
+
+	// Prioritize the goal direction: don't let repulsion shove monsters away from where
+	// they're trying to go (fixes doorway deadlocks where a crowd pushes each other back
+	// out of the opening). Lateral (perpendicular) spread is preserved; only the
+	// goal-opposing component is stripped.
+	if (original_move.lengthSquared() > 1.0f)
+	{
+		const vec3_t move_dir = original_move.normalized();
+		const float backward = repulsion.dot(move_dir); // <0 means repulsion opposes the goal
+		if (backward < 0.f)
+			repulsion -= move_dir * (backward * (1.0f - REPULSION_BACKWARD_KEEP));
+	}
+
 	move = original_move * (1.0f - repulsion_strength) + repulsion * repulsion_strength;
 
 	// Maintain some minimum forward progress
@@ -300,6 +314,7 @@ void InitMonsterAntiStack(edict_t* ent)
 	ent->monsterinfo.corridor_check_time = 0_sec;
 	ent->monsterinfo.corridor_blocked_dirs = 0;
 	ent->monsterinfo.corridor_tight_blocked_dirs = 0;
+	ent->monsterinfo.bbox_squeeze = {};
 
 	// Set preferred combat range based on monster type
 	if (ent->monsterinfo.melee)
@@ -1013,6 +1028,103 @@ if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::
         mask &= ~CONTENTS_MONSTER;
     }
 }
+
+	// [Horde] Squeeze-to-fit: a monster too big for a doorway-sized gap shrinks its collision
+	// box just enough to clear the opening - and grows back as the gap allows - recomputed
+	// every step so it adapts to the actual wall instead of always collapsing to the minimum.
+	// Width shrinks toward g_monster_squeeze (half-width), height toward g_monster_squeeze_height
+	// (total). The whole entity is resized + relinked, so all stepping/ground logic stays
+	// consistent (this is what makes stairs/crates work). bbox_squeeze stores the per-axis inset
+	// so the real size is always recoverable. Trace-based; works for func_door openings and bare
+	// door-sized gaps alike. Ground monsters only.
+	if (g_horde->integer && (ent->svflags & SVF_MONSTER) && !(ent->flags & (FL_SWIM | FL_FLY)) &&
+		(g_monster_squeeze->value > 0.f || g_monster_squeeze_height->value > 0.f))
+	{
+		const vec3_t sq = ent->monsterinfo.bbox_squeeze;
+
+		// Recover the monster's real (unsqueezed) box from the stored inset.
+		vec3_t orig_mins = ent->mins, orig_maxs = ent->maxs;
+		orig_mins[0] -= sq[0]; orig_maxs[0] += sq[0];
+		orig_mins[1] -= sq[1]; orig_maxs[1] += sq[1];
+		orig_maxs[2] += sq[2];
+
+		if ((ent->monsterinfo.aiflags & AI_DUCKED) || ent->health <= 0)
+		{
+			// Duck / death-shrink own the height; hand the width back and let them manage the rest.
+			if (sq[0] != 0.f || sq[1] != 0.f || sq[2] != 0.f)
+			{
+				ent->mins[0] = orig_mins[0]; ent->maxs[0] = orig_maxs[0];
+				ent->mins[1] = orig_mins[1]; ent->maxs[1] = orig_maxs[1];
+				ent->monsterinfo.bbox_squeeze = {};
+				gi.linkentity(ent);
+			}
+		}
+		else
+		{
+			// Desired box this step = full size, unless the full box is blocked along the move;
+			// then shrink the LEAST amount that clears the opening about as well as the smallest
+			// allowed box would.
+			vec3_t want_mins = orig_mins, want_maxs = orig_maxs;
+			trace_t full = gi.trace(oldorg, orig_mins, orig_maxs, oldorg + move, ent, mask);
+			if (full.startsolid || full.allsolid || full.fraction < 1.0f)
+			{
+				const float wtarget = (g_monster_squeeze->value > 0.f) ? std::max(4.f, g_monster_squeeze->value) : 0.f;
+				const float htarget = g_monster_squeeze_height->value;
+				const float half_x = (orig_maxs[0] - orig_mins[0]) * 0.5f;
+				const float half_y = (orig_maxs[1] - orig_mins[1]) * 0.5f;
+				const float total_h = orig_maxs[2] - orig_mins[2];
+				const float max_ins_x = (wtarget > 0.f) ? std::max(0.f, half_x - wtarget) : 0.f;
+				const float max_ins_y = (wtarget > 0.f) ? std::max(0.f, half_y - wtarget) : 0.f;
+				const float max_ins_z = (htarget > 0.f && total_h > htarget) ? std::min(total_h - htarget, std::max(0.f, total_h - 24.f)) : 0.f;
+
+				if (max_ins_x > 0.f || max_ins_y > 0.f || max_ins_z > 0.f)
+				{
+					// Box for a given uniform shrink fraction t in [0,1] (0 = full, 1 = minimum).
+					auto box_at = [&](float t, vec3_t& bmins, vec3_t& bmaxs)
+					{
+						bmins = orig_mins; bmaxs = orig_maxs;
+						bmins[0] += max_ins_x * t; bmaxs[0] -= max_ins_x * t;
+						bmins[1] += max_ins_y * t; bmaxs[1] -= max_ins_y * t;
+						bmaxs[2] -= max_ins_z * t;
+					};
+
+					// Does even the smallest allowed box help? If not, a solid wall blocks us
+					// regardless of size - don't shrink at all.
+					vec3_t tmin, tmax;
+					box_at(1.0f, tmin, tmax);
+					trace_t tight = gi.trace(oldorg, tmin, tmax, oldorg + move, ent, mask);
+					const float full_frac = (full.startsolid || full.allsolid) ? 0.f : full.fraction;
+					if (!tight.startsolid && !tight.allsolid && tight.fraction > full_frac + 0.1f)
+					{
+						// Binary-search the least shrink that clears about as well as the smallest box.
+						const float goal = tight.fraction - 0.02f;
+						float lo = 0.f, hi = 1.f;
+						for (int i = 0; i < 5; i++)
+						{
+							const float midt = (lo + hi) * 0.5f;
+							box_at(midt, tmin, tmax);
+							trace_t mt = gi.trace(oldorg, tmin, tmax, oldorg + move, ent, mask);
+							if (!mt.startsolid && !mt.allsolid && mt.fraction >= goal)
+								hi = midt; // this much shrink is enough - try keeping more size
+							else
+								lo = midt; // not enough - shrink more
+						}
+						box_at(hi, want_mins, want_maxs);
+					}
+				}
+			}
+
+			// Apply only if the box actually changed (avoids needless relinks while size is stable).
+			const vec3_t new_sq = { orig_maxs[0] - want_maxs[0], orig_maxs[1] - want_maxs[1], orig_maxs[2] - want_maxs[2] };
+			if (new_sq[0] != sq[0] || new_sq[1] != sq[1] || new_sq[2] != sq[2])
+			{
+				ent->mins = want_mins;
+				ent->maxs = want_maxs;
+				ent->monsterinfo.bbox_squeeze = new_sq;
+				gi.linkentity(ent);
+			}
+		}
+	}
 
 	vec3_t start_up = oldorg + ent->gravityVector * (-1 * stepsize);
 

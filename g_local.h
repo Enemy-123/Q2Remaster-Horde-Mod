@@ -1909,6 +1909,7 @@ struct monsterinfo_t
 	gtime_t corridor_check_time;     // Last time corridor detection was performed (optimization)
 	int corridor_blocked_dirs;       // Cached corridor blocked direction count
 	int corridor_tight_blocked_dirs; // Cached tight corridor blocked direction count (single-file detection)
+	vec3_t bbox_squeeze;             // per-axis inset currently applied to mins/maxs to fit through a tight gap (0 = not squeezed; transient, not saved)
 
 	// NOTE: if adding new elements, make sure to add them
 	// in g_save.cpp too!
@@ -2266,6 +2267,8 @@ extern cvar_t* ai_damage_scale;
 extern cvar_t* ai_model_scale;
 extern cvar_t* ai_allow_dm_spawn;
 extern cvar_t* ai_movement_disabled;
+extern cvar_t* g_monster_squeeze;        // target half-WIDTH a blocked monster shrinks its box down to, to fit a tight gap (0 = off; smaller = squeezes tighter)
+extern cvar_t* g_monster_squeeze_height; // target total HEIGHT a blocked monster shrinks its box down to (0 = don't shrink height)
 
 extern cvar_t* g_nolag; // Network optimization: convert gibs to temp entities
 
