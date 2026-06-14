@@ -118,10 +118,19 @@ void Player_UpdateState(edict_t* player) {
 	player_skinnum_t pl_skinnum;
 	pl_skinnum.skinnum = player->s.skinnum;
 
-	// Special handling for morphed players - they should maintain their team
+	// Special handling for morphed players - they should maintain their team.
+	// The morph zeroes s.skinnum and swaps the model, so the packed skinnum team
+	// can't be reused (and P_AssignClientSkinnum stops repacking once modelindex
+	// != 255). Recompute the team the exact way P_AssignClientSkinnum would, so a
+	// morphed player publishes the same sv.team as a normal player/bot and bots
+	// don't treat them as an enemy.
 	if (IsMorphed(player)) {
-		// Morphed player - use their stored team from monsterinfo
-		player->sv.team = player->monsterinfo.team;
+		if (G_IsCooperative())
+			player->sv.team = 1; // all players are teamed in coop
+		else if (G_TeamplayEnabled())
+			player->sv.team = player->client->resp.ctf_team;
+		else
+			player->sv.team = 0;
 	} else {
 		// Normal player - use team from skinnum
 		player->sv.team = pl_skinnum.team_index;

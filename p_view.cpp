@@ -3,6 +3,7 @@
 
 #include "g_local.h"
 #include "horde/g_horde_benefits.h"
+#include "horde/p_flyer_morph.h"
 #include "m_player.h"
 #include "bots/bot_includes.h"
 
@@ -929,6 +930,16 @@ static void G_SetClientEffects(edict_t* ent)
 
 	if (ent->health <= 0 || level.intermissiontime)
 		return;
+
+	// Morphed players (flyer/brain) look like monsters; give them a persistent
+	// blue color shell so other players can tell they're friendly. This must be
+	// re-applied here every frame because the s.effects/s.renderfx reset above
+	// wipes the shell the morph set once at morph time. Only the friendly shell
+	// is forced; EF_QUAD stays driven by the real quad powerup below.
+	if (IsMorphed(ent)) {
+		ent->s.effects |= EF_COLOR_SHELL;
+		ent->s.renderfx |= RF_SHELL_BLUE;
+	}
 
 	if (ent->flags & FL_FLASHLIGHT)
 		ent->s.effects |= EF_FLASHLIGHT;
