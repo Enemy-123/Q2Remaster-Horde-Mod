@@ -1666,14 +1666,20 @@ void soldier_do_jump(edict_t* self, float forward_vel, float up_vel)
     vec3_t forward, up;
 
     AngleVectors(self->s.angles, forward, nullptr, up);
-    
+
     // Clear vertical velocity before applying new jump force to prevent "double jumps" in mid-air
-    self->velocity[2] = 0; 
-    
+    self->velocity[2] = 0;
+
     self->velocity += (forward * forward_vel);
     self->velocity += (up * up_vel);
-    
+
     self->groundentity = nullptr; // We are now airborne
+
+    // Landing deadline: also doubles as a jump cooldown (blocked_checkjump honors jump_time).
+    // soldier_jump_wait_land uses this to bail out of the airborne frame-hold if we never
+    // re-ground (pit, wedged on geometry, landed on a moving/removed entity) so we don't
+    // freeze forever in the prone/crouch jump frame.
+    self->monsterinfo.jump_time = level.time + 2_sec;
 }
 
 // The jump functions now just call the generic one with different profiles
@@ -1692,13 +1698,18 @@ void soldier_jump2_now(edict_t* self)
 // The wait function can now use our custom gravity
 void soldier_jump_wait_land(edict_t* self)
 {
+    // Safety: if we've been airborne too long (fell into a pit, wedged on a geometry
+    // edge, or lost our ground entity), stop holding the prone/crouch jump frame and
+    // let the animation finish so the soldier recovers instead of freezing prone.
+    bool const timed_out = self->monsterinfo.jump_time && level.time > self->monsterinfo.jump_time;
+
     // Apply custom gravity while in the air
-    if (self->groundentity == nullptr)
+    if (self->groundentity == nullptr && !timed_out)
     {
         self->monsterinfo.nextframe = self->s.frame; // Hold animation frame
         soldier_apply_jump_gravity(self); // Apply our smart gravity
     }
-    else // We've landed
+    else // We've landed (or timed out) - continue the animation so it can recover
     {
         self->gravity = 1.0f; // Reset to default gravity multiplier
         self->monsterinfo.nextframe = self->s.frame + 1; // Continue animation
@@ -1734,6 +1745,13 @@ void soldier_jump(edict_t* self, blocked_jump_result_t result)
         return;
 
     monster_done_dodge(self);
+
+    // The jump moves share frame ranges with the duck/prone moves (attak5xx / duckxx)
+    // and never call monster_duck_up. M_SetAnimation keeps the current frame, so a jump
+    // started while ducked could finish still ducked (shrunken bbox = stuck "prone").
+    // Clear any leftover duck before launching.
+    if (self->monsterinfo.aiflags & AI_DUCKED)
+        monster_duck_up(self);
 
     // Choose jump type based on the kind of obstacle
     if (result == blocked_jump_result_t::JUMP_JUMP_UP)

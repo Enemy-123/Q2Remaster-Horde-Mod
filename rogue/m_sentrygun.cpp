@@ -1162,21 +1162,16 @@ static void TurretFireFlechette(edict_t* self, const vec3_t& start, const vec3_t
     sentry_state_t* state = self->monsterinfo.sentry_state;
     if (!state) return;
 
-	// If grenade is ready to fire, don't fire flechettes
-	if (state->grenade_ready) {
+	// Rate-limit by TIME, not by tick. The turret runs with AI_HIGH_TICK_RATE, so this fn runs
+	// at the full server tick (40hz on the remaster) - "fire every call" sprayed ~40 shots/sec.
+	// A fixed time interval keeps the rate identical regardless of server tick rate. ~12.5hz
+	// reads as a fast flechette brrt; adjust the interval to taste.
+	if (level.time < state->last_flechette_burst_time + 80_ms)
 		return;
-	}
+	state->last_flechette_burst_time = level.time;
 
-	// BRRT burst timing - extremely fast
-	if (state->flechette_burst_count == 0) {
-		// Starting new burst - 12-16 flechettes per burst
-		state->flechette_burst_target = 12 + (rand() % 5);
-		state->last_flechette_burst_time = level.time;
-	}
-	else if (level.time < state->last_flechette_burst_time + 10_ms) {
-		// 10ms between shots - near instant brrt
-		return;
-	}
+	// Drives the two-flash sound alternation in the muzzle flash below.
+	state->flechette_burst_count++;
 
 	// Calculate muzzle position
 	vec3_t forward, right, up;
@@ -1207,10 +1202,10 @@ static void TurretFireFlechette(edict_t* self, const vec3_t& start, const vec3_t
 	aim_dir += up * (crandom() * 0.01f);
 	aim_dir.normalize();
 
-	// Damage - halved because we fire twice as many projectiles
+	// Damage per pellet kept low: two pellets per shot at a fast (but sub-tick-capped) rate.
 	int base_damage = g_config.sentrygun.initial_flechette +
 	                  (self->monsterinfo.pvm_level * g_config.sentrygun.addon_flechette);
-	const int damage = static_cast<int>(CalculateDamage(self, base_damage)) / 2;
+	const int damage = static_cast<int>(CalculateDamage(self, base_damage)) / 3;
 
 	// Fire main flechette
 	monster_fire_flechette(self, muzzle_pos, aim_dir, damage, speed, MZ2_UNUSED_0);
@@ -1220,21 +1215,13 @@ static void TurretFireFlechette(edict_t* self, const vec3_t& start, const vec3_t
 	aim_dir2.normalize();
 	monster_fire_flechette(self, muzzle_pos, aim_dir2, damage, speed, MZ2_UNUSED_0);
 
-	// Muzzle flash
+	// Muzzle flash - alternate the ETF rifle's two flashes (MZ_ETF_RIFLE / MZ_ETF_RIFLE_2)
+	// so it gets the rifle's two-sound variation instead of repeating one sound every shot,
+	// the same way weapon_etf_rifle_fire toggles them.
 	gi.WriteByte(svc_muzzleflash);
 	gi.WriteEntity(self);
-	gi.WriteByte(MZ_ETF_RIFLE);
+	gi.WriteByte((state->flechette_burst_count & 1) ? MZ_ETF_RIFLE : MZ_ETF_RIFLE_2);
 	gi.multicast(self->s.origin, MULTICAST_PVS, false);
-
-	// Update burst state
-	state->flechette_burst_count++;
-	state->last_flechette_burst_time = level.time;
-
-	// Burst complete - trigger grenade
-	if (state->flechette_burst_count >= state->flechette_burst_target) {
-		state->flechette_burst_count = 0;
-		state->grenade_ready = true;
-	}
 }
 // Grenade fire function needs to use the state
 static void TurretFireGrenade(edict_t* self, const vec3_t& start, const vec3_t& dir, float dist) {
@@ -1243,21 +1230,22 @@ static void TurretFireGrenade(edict_t* self, const vec3_t& start, const vec3_t& 
 		return;
 	}
 
-    sentry_state_t* state = self->monsterinfo.sentry_state;
-    if (!state) return;
+	sentry_state_t* state = self->monsterinfo.sentry_state;
+	if (!state) return;
 
-	// Only fire grenade when ready (after flechette burst)
-	if (!state->grenade_ready) {
+	// Grenades fire in bursts of 3 - one every 0.2s - then a 0.7-1.2s random cooldown before
+	// the next burst. last_grenade_burst_time holds the "next allowed shot" time; it is stale
+	// on a fresh engagement so the first grenade goes out immediately.
+	if (level.time < state->last_grenade_burst_time)
 		return;
-	}
 
 	// Calculate muzzle position
 	vec3_t forward, right, up;
 	vec3_t muzzle_pos = CalculateTurretMuzzlePosition(self, &forward, &right, &up);
 
-	const vec3_t offset = { 20.f, 0.f, 0.f };
-	if (!M_CheckClearShot(self, offset, muzzle_pos))
-		return;
+	// NOTE: do NOT gate the grenade on M_CheckClearShot here. That does a straight-line
+	// trace to the enemy, which fails exactly when the grenade should arc over cover.
+	// The angle/LOS was already validated in turret2Fire, and radius damage is team-safe.
 
 	const float speed = self->monsterinfo.quadfire_time > level.time ? 2000.0f : 1720.0f;
 	vec3_t fire_dir, aimpoint;
@@ -1294,8 +1282,14 @@ static void TurretFireGrenade(edict_t* self, const vec3_t& start, const vec3_t& 
 
 	gi.sound(self, CHAN_VOICE, sound_grenade_launcher, 1, ATTN_NORM, 0);
 
-	// Grenade fired, ready for next flechette burst
-	state->grenade_ready = false;
+	// Advance the burst: 0.2s between the 3 shots, then a 0.7-1.2s cooldown and reset.
+	if (++state->grenade_burst_count >= 3) {
+		state->grenade_burst_count = 0;
+		state->last_grenade_burst_time = level.time + random_time(0.7_sec, 1.2_sec);
+	}
+	else {
+		state->last_grenade_burst_time = level.time + 0.2_sec;
+	}
 }
 void turret2Fire(edict_t* self) {
 
@@ -1465,10 +1459,20 @@ void turret2Fire(edict_t* self) {
 	}
 	// NEW: Flechette launcher option
 	else if (self->spawnflags.has(SPAWNFLAG_TURRET2_FLECHETTE)) {
-		// Fire flechettes as primary attack
-		TurretFireFlechette(self, start, dir);
+		// Hold the fire frame (like the machinegun turret) so turret2Fire runs every tick.
+		// Without this, turret2Fire only runs on two adjacent animation frames per cycle, so
+		// flechettes come out in bursty pairs and the grenade timer lands once per pair - a
+		// grenade thump welded to every flechette burst. Holding the frame turns the
+		// flechettes into a smooth stream and lets the grenade keep its own independent beat.
+		if (!(self->monsterinfo.aiflags & AI_HOLD_FRAME)) {
+			self->monsterinfo.aiflags |= AI_HOLD_FRAME;
+			self->monsterinfo.duck_wait_time = level.time +
+				(self->monsterinfo.quadfire_time > level.time ? 3_sec : 5_sec);
+			self->monsterinfo.next_duck_time = level.time + 0.1_sec;
+		}
 
-		// Always fire grenades when possible, just like rockets
+		// Flechettes = fast light primary stream; grenades = slower secondary beat.
+		TurretFireFlechette(self, start, dir);
 		TurretFireGrenade(self, start, dir, dist);
 	}
 }
@@ -1830,6 +1834,25 @@ DIE(turret2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dama
 		gi.multicast(self->s.origin, MULTICAST_PHS, false);
 	}
 
+	// Flechette turret: scatter a burst of cluster grenades on death if a monster is close.
+	// Done before the teamchain is torn down so self->teammaster is still self - the grenades
+	// are owned by the turret, so GetRealAttacker forwards kill credit to the deploying player,
+	// exactly like the turret's normal bullets/projectiles.
+	if (self->spawnflags.has(SPAWNFLAG_TURRET2_FLECHETTE))
+	{
+		auto monster_close = [&](edict_t* e) {
+			return e && e->inuse && !e->deadflag && (e->svflags & SVF_MONSTER) &&
+				range_to(self, e) <= 300.0f;
+		};
+
+		if (monster_close(self->enemy) || monster_close(attacker))
+		{
+			int base_damage = g_config.sentrygun.initial_grenade +
+				(self->monsterinfo.pvm_level * g_config.sentrygun.addon_grenade);
+			SpawnClusterGrenades(self, self->s.origin, base_damage);
+		}
+	}
+
 	if (self->teamchain)
 	{
 		base = self->teamchain;
@@ -2082,8 +2105,12 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 	vec3_t spot1 = self->s.origin;
 	spot1[2] += self->viewheight;
 	vec3_t spot2 = self->enemy->s.origin;
+	// NOTE: maxs/mins are already scaled at spawn (g_monster.cpp: mins/maxs *= s.scale)
+	// and further adjusted by the squeeze-to-fit code, so they are the real bounds.
+	// Do NOT multiply by s.scale again here - that double-scales and makes the turret
+	// aim far above big monsters' heads, so the LOS trace hits geometry and it never fires.
 	spot2[2] += self->enemy->client ? self->enemy->viewheight :
-		(self->enemy->maxs[2] - self->enemy->mins[2]) * 0.5f * self->enemy->s.scale;
+		(self->enemy->maxs[2] - self->enemy->mins[2]) * 0.5f;
 
 	// Check line of sight with more thorough mask
 	trace_t const tr = gi.traceline(spot1, spot2, self,
