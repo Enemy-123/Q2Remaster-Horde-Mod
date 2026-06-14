@@ -55,6 +55,68 @@ static inline void ValidateCommandEntity(edict_t*& ent) {
 }
 
 //============================================================================
+// Horde target distribution helpers
+//
+// These give hostile monsters a "nearest-biased random with light
+// load-balancing" target choice instead of everyone locking onto the same
+// (or merely the geometrically closest) player. Closest players are still
+// the most likely pick, but monsters fan out across multiple players/bots
+// instead of dogpiling one.
+//============================================================================
+
+// Upper bound for the per-client attacker tally. Client edicts are numbered
+// 1..maxclients, so this comfortably covers any sane server.
+static constexpr size_t HORDE_MAX_CLIENT_SLOTS = 256;
+
+// Returns a table (indexed by client entity number) of how many hostile
+// monsters are currently targeting each player. Rebuilt at most once per
+// server frame and shared by every caller, so the cost is O(monsters) per
+// frame total rather than per monster.
+static const int* GetPlayerAttackerCounts()
+{
+	static int counts[HORDE_MAX_CLIENT_SLOTS];
+	static gtime_t last_build = -1_ms;
+
+	if (last_build != level.time)
+	{
+		last_build = level.time;
+		memset(counts, 0, sizeof(counts));
+
+		for (edict_t* m : active_monsters())
+		{
+			// Friendly spawns hunt monsters, not players, so they don't
+			// contribute to player aggro pressure.
+			if (m->monsterinfo.isfriendlyspawn)
+				continue;
+
+			edict_t* e = m->enemy;
+			if (e && e->inuse && e->client)
+			{
+				const int idx = e->s.number;
+				if (idx >= 1 && idx < (int)HORDE_MAX_CLIENT_SLOTS)
+					counts[idx]++;
+			}
+		}
+	}
+
+	return counts;
+}
+
+// Weight a candidate player for selection: inverse-square distance (closer =
+// higher) divided by current attacker load (busier player = lower). Always
+// returns a strictly positive value so every reachable player keeps a chance.
+static float HordeTargetWeight(edict_t* self, const edict_t* client, const int* attacker_counts)
+{
+	const float dist_sq = DistanceSquared(self->s.origin, client->s.origin);
+	float weight = 1000000.0f / (dist_sq + 1.0f);
+
+	const int idx = client->s.number;
+	const int attackers = (idx >= 1 && idx < (int)HORDE_MAX_CLIENT_SLOTS) ? attacker_counts[idx] : 0;
+
+	return weight / (1.0f + (float)attackers);
+}
+
+//============================================================================
 
 /*
 =================
@@ -120,10 +182,49 @@ edict_t* AI_GetSightClient(edict_t* self)
 		visible_players[num_visible++] = player;
 	}
 
-	// Select random visible player
+	// Choose among the visible players.
 	edict_t* chosen_player = nullptr;
-	if (num_visible > 0)
-		chosen_player = visible_players[irandom(num_visible)];
+	if (num_visible == 1)
+	{
+		chosen_player = visible_players[0];
+	}
+	else if (num_visible > 1)
+	{
+		// Horde: nearest-biased weighted random with load-balancing so a
+		// crowd of monsters doesn't all snap onto the same player on sight.
+		if (g_horde->integer)
+		{
+			const int* attacker_counts = GetPlayerAttackerCounts();
+			float weights[MAX_PLAYERS];
+			float total_weight = 0.0f;
+
+			for (size_t i = 0; i < num_visible; i++)
+			{
+				weights[i] = HordeTargetWeight(self, visible_players[i], attacker_counts);
+				total_weight += weights[i];
+			}
+
+			float r = frandom() * total_weight;
+			for (size_t i = 0; i < num_visible; i++)
+			{
+				r -= weights[i];
+				if (r <= 0.0f)
+				{
+					chosen_player = visible_players[i];
+					break;
+				}
+			}
+
+			// Floating-point guard: always end up with a valid pick.
+			if (!chosen_player)
+				chosen_player = visible_players[num_visible - 1];
+		}
+		else
+		{
+			// Vanilla coop behavior: uniform random visible player.
+			chosen_player = visible_players[irandom(num_visible)];
+		}
+	}
 
 	return chosen_player;
 }
@@ -205,23 +306,32 @@ static edict_t* FindNearestValidPlayer(edict_t* self)
 		}
 	}
 
-	// Cache expired or invalid, perform expensive search
-	edict_t* nearest_player = nullptr;
-	float nearest_distance_sq = FLT_MAX;
-	
-	// Distance culling: Skip search if monster is extremely far from all players
-	// This is a coarse optimization - we check a simple max distance threshold
+	// Cache expired or invalid, perform expensive search.
+	//
+	// Instead of a pure "closest player wins" pick (which made every monster
+	// in a cluster lock onto the same player, and whose old early-out break
+	// could even return a non-nearest player), gather every reachable player
+	// and do a nearest-biased weighted random draw with load-balancing. The
+	// closest/least-pressured player is still the most likely target, but the
+	// crowd naturally fans out across players and bots.
+
+	// Distance culling: skip players that are extremely far away.
 	constexpr float MAX_SEARCH_DISTANCE = 4096.0f; // 4096 units
 	constexpr float MAX_SEARCH_DISTANCE_SQ = MAX_SEARCH_DISTANCE * MAX_SEARCH_DISTANCE;
-	
-	// Early exit threshold: If we find a player within this distance, stop searching
-	// This assumes "close enough" is good enough for targeting
-	constexpr float CLOSE_ENOUGH_DISTANCE = 512.0f; // About 512 units
-	constexpr float CLOSE_ENOUGH_DISTANCE_SQ = CLOSE_ENOUGH_DISTANCE * CLOSE_ENOUGH_DISTANCE;
 
-	// Find the nearest player that's alive, not a spectator, and targetable
+	edict_t* candidates[HORDE_MAX_CLIENT_SLOTS];
+	float    weights[HORDE_MAX_CLIENT_SLOTS];
+	size_t   num_candidates = 0;
+	float    total_weight = 0.0f;
+
+	const int* attacker_counts = GetPlayerAttackerCounts();
+
+	// Gather every player that's alive, not a spectator, and targetable.
 	for (auto client : active_players_no_spect())
 	{
+		if (num_candidates >= HORDE_MAX_CLIENT_SLOTS)
+			break;
+
 		if (client->client) {
 			// Skip fully invisible players
 			if (client->client->invisible_time > level.time &&
@@ -240,32 +350,51 @@ static edict_t* FindNearestValidPlayer(edict_t* self)
 		if (client->inuse && client->health > 0)
 		{
 			const float dist_squared = DistanceSquared(self->s.origin, client->s.origin);
-			
+
 			// Distance culling: Skip if beyond max search distance
 			if (dist_squared > MAX_SEARCH_DISTANCE_SQ) {
 				continue;
 			}
-			
-			if (dist_squared < nearest_distance_sq)
-			{
-				nearest_player = client;
-				nearest_distance_sq = dist_squared;
-				
-				// Early exit: If player is close enough, stop searching
-				if (dist_squared < CLOSE_ENOUGH_DISTANCE_SQ) {
-					break;
-				}
-			}
+
+			const float weight = HordeTargetWeight(self, client, attacker_counts);
+			candidates[num_candidates] = client;
+			weights[num_candidates] = weight;
+			total_weight += weight;
+			num_candidates++;
 		}
 	}
 
-	// Cache the result for 500ms (0.5 seconds)
-	// This means up to 5 ticks (at 10 Hz) will reuse this result
-	// Balances responsiveness (players can move ~400 units in 0.5s) with performance
-	self->monsterinfo.cached_nearest_player = nearest_player;
+	// Weighted random draw among reachable players.
+	edict_t* chosen_player = nullptr;
+	if (num_candidates == 1)
+	{
+		chosen_player = candidates[0];
+	}
+	else if (num_candidates > 1)
+	{
+		float r = frandom() * total_weight;
+		for (size_t i = 0; i < num_candidates; i++)
+		{
+			r -= weights[i];
+			if (r <= 0.0f)
+			{
+				chosen_player = candidates[i];
+				break;
+			}
+		}
+
+		// Floating-point guard: always end up with a valid pick.
+		if (!chosen_player)
+			chosen_player = candidates[num_candidates - 1];
+	}
+
+	// Cache the result for 500ms (0.5 seconds). This both saves the repeated
+	// search and keeps the monster committed to its weighted choice instead of
+	// re-rolling (and flip-flopping) every frame.
+	self->monsterinfo.cached_nearest_player = chosen_player;
 	self->monsterinfo.next_target_search_time = level.time + 500_ms;
 
-	return nearest_player;
+	return chosen_player;
 }
 
 void ai_stand(edict_t* self, float dist)
@@ -395,10 +524,27 @@ void ai_stand(edict_t* self, float dist)
 
 	if (level.time > self->monsterinfo.pausetime)
 	{
-		if (g_horde->integer && self->monsterinfo.isfriendlyspawn) 
-		self->monsterinfo.run(self);
-		else 
-			self->monsterinfo.walk(self);
+		if (g_horde->integer && self->monsterinfo.isfriendlyspawn)
+		{
+			self->monsterinfo.run(self);
+			return;
+		}
+
+		// Horde: rather than idly walking the patrol beat, a hostile monster
+		// whose pause expired should acquire the nearest reachable player and
+		// RUN at them. Only fall back to walking if nobody is in range.
+		if (g_horde->integer)
+		{
+			edict_t* nearest_player = FindNearestValidPlayer(self);
+			if (nearest_player)
+			{
+				self->enemy = nearest_player;
+				FoundTarget(self);
+				return;
+			}
+		}
+
+		self->monsterinfo.walk(self);
 		return;
 	}
 
@@ -2532,8 +2678,20 @@ void ai_run(edict_t* self, float dist)
 		{
 			if (!FindTarget(self))
 			{
-				if (self->monsterinfo.stand) self->monsterinfo.stand(self);
-				return;
+				// Horde: don't drop back to standing just because we lost line
+				// of sight. Re-acquire the nearest reachable player and keep
+				// running; only stand if there's genuinely nobody in range.
+				edict_t* nearest_player = g_horde->integer ? FindNearestValidPlayer(self) : nullptr;
+				if (nearest_player)
+				{
+					self->enemy = nearest_player;
+					FoundTarget(self);
+				}
+				else
+				{
+					if (self->monsterinfo.stand) self->monsterinfo.stand(self);
+					return;
+				}
 			}
 		}
 	}

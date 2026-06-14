@@ -50,7 +50,7 @@
     <TargetName>$(ProjectName)_x64</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>C:\Program Files (x86)\Steam\steamapps\common\Quake 2\rerelease\horde</OutDir>
+    <OutDir>C:\Program Files (x86)\Steam\steamapps\common\Quake 2\rerelease\baseq2</OutDir>
     <TargetName>$(ProjectName)_x64</TargetName>
   </PropertyGroup>
   <!-- CHANGE 1: Tell vcpkg to use static libraries for both configurations -->
