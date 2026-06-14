@@ -26,7 +26,7 @@ constexpr float REPULSION_STRENGTH_BOSS = 0.1f;
 constexpr float REPULSION_STRENGTH_COMBAT = 0.5f;
 constexpr float REPULSION_STRENGTH_CORRIDOR = 0.1f;       // Reduced from 0.3 to 0.1
 constexpr float REPULSION_STRENGTH_TIGHT_CORRIDOR = 0.0f; // New: completely disable in very tight spaces
-constexpr float REPULSION_BACKWARD_KEEP = 0.25f;          // keep only 25% of goal-opposing repulsion (don't push monsters back out of doorways)
+constexpr float REPULSION_LATERAL_MAX_FRACTION = 0.5f;    // cap sideways nudge to this fraction of the step length (keeps goal dominant)
 constexpr float REPULSION_MIN_THRESHOLD_SQ = 1.0f;
 constexpr int REPULSION_MAX_NEARBY_MONSTERS = 8;
 constexpr int REPULSION_CROWDING_THRESHOLD = 4;
@@ -59,8 +59,6 @@ constexpr float FLY_PITCH_LERP_SPEED = 4.0f;
 constexpr float MOVEMENT_MIN_DELTA = 1.0f;
 constexpr float MOVEMENT_MIN_DELTA_THRESHOLD = 10.0f;
 constexpr float MOVEMENT_PROGRESS_THRESHOLD = 0.05f;
-constexpr float MOVEMENT_MOMENTUM_MIN = 0.25f;
-constexpr float MOVEMENT_MOMENTUM_PRESERVE = 0.5f;
 
 // Direction search constants
 constexpr float DIRECTION_ANGLE_STEP = 45.0f;
@@ -275,26 +273,30 @@ static void ApplyMonsterRepulsion(edict_t* ent, vec3_t& move, bool in_combat)
 		repulsion_strength *= REPULSION_STRENGTH_CORRIDOR;
 	}
 
-	// Blend repulsion with intended movement
 	const vec3_t original_move = move;
 
-	// Prioritize the goal direction: don't let repulsion shove monsters away from where
-	// they're trying to go (fixes doorway deadlocks where a crowd pushes each other back
-	// out of the opening). Lateral (perpendicular) spread is preserved; only the
-	// goal-opposing component is stripped.
 	if (original_move.lengthSquared() > 1.0f)
 	{
+		// Lateral-only repulsion: keep ONLY the component perpendicular to the goal
+		// direction and ADD it, so separation never slows (or speeds) travel along the
+		// path. A fast monster behind a slow one keeps full forward speed and, being
+		// non-solid in horde, flows past instead of being held back. The sideways nudge
+		// is what spreads the pack so they don't stack on one spot.
 		const vec3_t move_dir = original_move.normalized();
-		const float backward = repulsion.dot(move_dir); // <0 means repulsion opposes the goal
-		if (backward < 0.f)
-			repulsion -= move_dir * (backward * (1.0f - REPULSION_BACKWARD_KEEP));
+		vec3_t lateral = repulsion - move_dir * repulsion.dot(move_dir);
+
+		// Keep the goal dominant: cap the sideways nudge to a fraction of the step length.
+		const float max_lat = original_move.length() * REPULSION_LATERAL_MAX_FRACTION;
+		if (lateral.lengthSquared() > max_lat * max_lat)
+			lateral = lateral.normalized() * max_lat;
+
+		move = original_move + lateral * repulsion_strength;
 	}
-
-	move = original_move * (1.0f - repulsion_strength) + repulsion * repulsion_strength;
-
-	// Maintain some minimum forward progress
-	if (move.lengthSquared() < original_move.lengthSquared() * MOVEMENT_MOMENTUM_MIN)
-		move = original_move * MOVEMENT_MOMENTUM_PRESERVE + repulsion * MOVEMENT_MOMENTUM_PRESERVE;
+	else
+	{
+		// No goal direction (idle/standing): plain nudge so a pile on one spot still spreads.
+		move = original_move + repulsion * repulsion_strength;
+	}
 }
 
 // Initialize anti-stacking for a monster
@@ -1061,44 +1063,73 @@ if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::
 		}
 		else
 		{
-			// Desired box this step = full size, unless the full box is blocked along the move;
-			// then shrink the LEAST amount that clears the opening about as well as the smallest
-			// allowed box would.
+			// Two-stage sizing each step:
+			//  (1) Grow target (t_fit): the LARGEST box that isn't startsolid at our current
+			//      spot, regardless of where we're heading. This lets a monster that squeezed
+			//      into a gap and then stopped grow back the instant it has room, instead of
+			//      sitting shrunk with its model clipped into the wall.
+			//  (2) Shrink below t_fit ONLY if that box is blocked along the move AND the
+			//      smallest allowed box clears the gap meaningfully (a real pinch, not a flat
+			//      wall we're merely sliding against).
 			vec3_t want_mins = orig_mins, want_maxs = orig_maxs;
-			trace_t full = gi.trace(oldorg, orig_mins, orig_maxs, oldorg + move, ent, mask);
-			if (full.startsolid || full.allsolid || full.fraction < 1.0f)
+
+			const float wtarget = (g_monster_squeeze->value > 0.f) ? std::max(4.f, g_monster_squeeze->value) : 0.f;
+			const float htarget = g_monster_squeeze_height->value;
+			const float half_x = (orig_maxs[0] - orig_mins[0]) * 0.5f;
+			const float half_y = (orig_maxs[1] - orig_mins[1]) * 0.5f;
+			const float total_h = orig_maxs[2] - orig_mins[2];
+			const float max_ins_x = (wtarget > 0.f) ? std::max(0.f, half_x - wtarget) : 0.f;
+			const float max_ins_y = (wtarget > 0.f) ? std::max(0.f, half_y - wtarget) : 0.f;
+			const float max_ins_z = (htarget > 0.f && total_h > htarget) ? std::min(total_h - htarget, std::max(0.f, total_h - 24.f)) : 0.f;
+
+			if (max_ins_x > 0.f || max_ins_y > 0.f || max_ins_z > 0.f)
 			{
-				const float wtarget = (g_monster_squeeze->value > 0.f) ? std::max(4.f, g_monster_squeeze->value) : 0.f;
-				const float htarget = g_monster_squeeze_height->value;
-				const float half_x = (orig_maxs[0] - orig_mins[0]) * 0.5f;
-				const float half_y = (orig_maxs[1] - orig_mins[1]) * 0.5f;
-				const float total_h = orig_maxs[2] - orig_mins[2];
-				const float max_ins_x = (wtarget > 0.f) ? std::max(0.f, half_x - wtarget) : 0.f;
-				const float max_ins_y = (wtarget > 0.f) ? std::max(0.f, half_y - wtarget) : 0.f;
-				const float max_ins_z = (htarget > 0.f && total_h > htarget) ? std::min(total_h - htarget, std::max(0.f, total_h - 24.f)) : 0.f;
-
-				if (max_ins_x > 0.f || max_ins_y > 0.f || max_ins_z > 0.f)
+				// Box for a given uniform shrink fraction t in [0,1] (0 = full, 1 = minimum).
+				auto box_at = [&](float t, vec3_t& bmins, vec3_t& bmaxs)
 				{
-					// Box for a given uniform shrink fraction t in [0,1] (0 = full, 1 = minimum).
-					auto box_at = [&](float t, vec3_t& bmins, vec3_t& bmaxs)
-					{
-						bmins = orig_mins; bmaxs = orig_maxs;
-						bmins[0] += max_ins_x * t; bmaxs[0] -= max_ins_x * t;
-						bmins[1] += max_ins_y * t; bmaxs[1] -= max_ins_y * t;
-						bmaxs[2] -= max_ins_z * t;
-					};
+					bmins = orig_mins; bmaxs = orig_maxs;
+					bmins[0] += max_ins_x * t; bmaxs[0] -= max_ins_x * t;
+					bmins[1] += max_ins_y * t; bmaxs[1] -= max_ins_y * t;
+					bmaxs[2] -= max_ins_z * t;
+				};
 
-					// Does even the smallest allowed box help? If not, a solid wall blocks us
-					// regardless of size - don't shrink at all.
-					vec3_t tmin, tmax;
+				vec3_t tmin, tmax;
+
+				// (1) Grow target. Only search when we're currently shrunk and might grow back;
+				// a full-size monster is already at t_fit = 0 (no extra trace in the common case).
+				float t_fit = 0.f;
+				const bool currently_squeezed = (sq[0] != 0.f || sq[1] != 0.f || sq[2] != 0.f);
+				if (currently_squeezed && gi.trace(oldorg, orig_mins, orig_maxs, oldorg, ent, mask).startsolid)
+				{
+					// Full box is wedged here - find the LEAST shrink that fits at this spot.
+					float lo = 0.f, hi = 1.f;
+					for (int i = 0; i < 5; i++)
+					{
+						const float midt = (lo + hi) * 0.5f;
+						box_at(midt, tmin, tmax);
+						if (gi.trace(oldorg, tmin, tmax, oldorg, ent, mask).startsolid)
+							lo = midt; // still stuck here - shrink more
+						else
+							hi = midt; // fits here - try keeping more size
+					}
+					t_fit = hi;
+				}
+
+				// (2) Shrink below t_fit only if the grow box is blocked along the move and a
+				// smaller box clears the gap meaningfully (otherwise it's a wall, not a pinch).
+				float t_final = t_fit;
+				box_at(t_fit, tmin, tmax);
+				trace_t fit_move = gi.trace(oldorg, tmin, tmax, oldorg + move, ent, mask);
+				if (fit_move.startsolid || fit_move.allsolid || fit_move.fraction < 1.0f)
+				{
 					box_at(1.0f, tmin, tmax);
 					trace_t tight = gi.trace(oldorg, tmin, tmax, oldorg + move, ent, mask);
-					const float full_frac = (full.startsolid || full.allsolid) ? 0.f : full.fraction;
-					if (!tight.startsolid && !tight.allsolid && tight.fraction > full_frac + 0.1f)
+					const float fit_frac = (fit_move.startsolid || fit_move.allsolid) ? 0.f : fit_move.fraction;
+					if (!tight.startsolid && !tight.allsolid && tight.fraction > fit_frac + 0.1f)
 					{
 						// Binary-search the least shrink that clears about as well as the smallest box.
 						const float goal = tight.fraction - 0.02f;
-						float lo = 0.f, hi = 1.f;
+						float lo = t_fit, hi = 1.f;
 						for (int i = 0; i < 5; i++)
 						{
 							const float midt = (lo + hi) * 0.5f;
@@ -1109,9 +1140,11 @@ if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::
 							else
 								lo = midt; // not enough - shrink more
 						}
-						box_at(hi, want_mins, want_maxs);
+						t_final = hi;
 					}
 				}
+
+				box_at(t_final, want_mins, want_maxs);
 			}
 
 			// Apply only if the box actually changed (avoids needless relinks while size is stable).
@@ -1216,8 +1249,14 @@ if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::
 	{
 		ent->monsterinfo.bad_move_time = level.time + BAD_MOVE_TIME_PENALTY;
 
+		// If we're wedged while squeezed, react immediately instead of waiting out the
+		// bump cooldown - otherwise a shrunk monster grinds into the wall (model clipping)
+		// instead of turning / backing out.
+		const vec3_t& bsq = ent->monsterinfo.bbox_squeeze;
+		const bool squeezed = (bsq[0] != 0.f || bsq[1] != 0.f || bsq[2] != 0.f);
+
 		// Improved collision recovery with smooth yaw interpolation
-		if (ent->monsterinfo.bump_time < level.time && chosen_forward.fraction < 1.0f)
+		if ((ent->monsterinfo.bump_time < level.time || squeezed) && chosen_forward.fraction < 1.0f)
 		{
 			// Calculate slide velocity
 			vec3_t slide_dir = SlideClipVelocity(AngleVectors(vec3_t{ 0.f, ent->ideal_yaw, 0.f }).forward, chosen_forward.plane.normal, 1.0f);
@@ -1413,10 +1452,24 @@ bool ai_check_move(edict_t* self, float dist)
 
 	vec3_t const old_origin = self->s.origin;
 
+	// This is a pure probe - SV_movestep's squeeze logic may resize the box, so save and
+	// restore the real box (not just the origin) so a trial move can't leave us shrunk.
+	vec3_t const old_mins = self->mins, old_maxs = self->maxs;
+	vec3_t const old_squeeze = self->monsterinfo.bbox_squeeze;
+
 	if (!SV_movestep(self, move, false))
+	{
+		self->mins = old_mins;
+		self->maxs = old_maxs;
+		self->monsterinfo.bbox_squeeze = old_squeeze;
+		gi.linkentity(self);
 		return false;
+	}
 
 	self->s.origin = old_origin;
+	self->mins = old_mins;
+	self->maxs = old_maxs;
+	self->monsterinfo.bbox_squeeze = old_squeeze;
 	gi.linkentity(self);
 	return true;
 }
@@ -2082,22 +2135,35 @@ void M_MoveToGoal(edict_t* ent, float dist)
 	// straight instead of trying to stick to invisible guide lines
 	if ((ent->monsterinfo.bad_move_time <= level.time || (ent->monsterinfo.aiflags & AI_CHARGING)) && goal)
 	{
+		// Aim at the goal first, then check facing against THAT direction. If we just need
+		// to turn (>45 deg), rotate and return without penalty - a needed turn is not a block.
+		// (Previously the facing check used the old ideal_yaw, so SV_StepDirection below would
+		// reset ideal_yaw to the goal, fail the re-check, and we'd wrongly slap on the 5s
+		// bad_move penalty - the cause of lone monsters stuttering when tracking a target.)
+		const float goal_yaw = vectoyaw((goal->s.origin - ent->s.origin).normalized());
+		ent->ideal_yaw = goal_yaw;
 		if (!FacingIdeal(ent))
 		{
 			M_ChangeYaw(ent);
 			return;
 		}
 
-		trace_t const tr = gi.traceline(ent->s.origin, goal->s.origin, ent, MASK_MONSTERSOLID);
+		// Monsters are non-solid to each other for movement in horde, so don't let a crowd
+		// of them block the line-of-sight test and disable the fast straight path.
+		contents_t los_mask = MASK_MONSTERSOLID;
+		if (g_horde->integer)
+			los_mask &= ~CONTENTS_MONSTER;
+
+		trace_t const tr = gi.traceline(ent->s.origin, goal->s.origin, ent, los_mask);
 
 		if (tr.fraction == 1.0f || tr.ent == goal)
 		{
-			if (SV_StepDirection(ent, vectoyaw((goal->s.origin - ent->s.origin).normalized()), dist, false))
+			if (SV_StepDirection(ent, goal_yaw, dist, false))
 				return;
 		}
 
-		// we didn't make a step, so don't try this for a while
-		// *unless* we're going to a path corner
+		// We're facing the goal with a clear-ish shot but still couldn't step - a real block.
+		// Don't try this for a while, *unless* we're going to a path corner.
 		if (goal->classname && strcmp(goal->classname, "path_corner") && strcmp(goal->classname, "point_combat"))
 		{
 			ent->monsterinfo.bad_move_time = level.time + 5_sec;
