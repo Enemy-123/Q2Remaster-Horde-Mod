@@ -55,6 +55,8 @@ extern bool IsFlying(horde::MonsterTypeID typeId);
 extern void MarkPositionAsRecentlyUsed(const vec3_t& position);
 extern bool IsPositionTooCloseToRecentSpawn(const vec3_t& position, const horde::MapSize& mapSize);
 extern PositionValidationResult IsPositionPhysicallyValid(const vec3_t& position, const vec3_t& monster_mins, const vec3_t& monster_maxs, bool is_flying);
+extern bool ShouldUseFallbackGrid();
+extern cvar_t* g_horde_spawn_dist_cap;
 extern bool Horde_TeleportMonster(edict_t* self, const vec3_t& dest, const vec3_t& angles, bool force_teleport, bool ignore_visibility);
 extern edict_t* FindSafeTeleportDestination(edict_t* self);
 extern bool Horde_AttemptToUnstickMonster(edict_t* self);
@@ -284,6 +286,29 @@ static bool CheckSpawnPointPlayerProximity(const vec3_t& spawn_pos, bool emergen
     for (const auto* player : active_players_no_spect())
     {
         if (DistanceSquared(spawn_pos, player->s.origin) < MIN_DIST_SQ)
+            return false;
+    }
+
+    // Maximum-distance cap: reject spawn points stranded far from every player (distant or
+    // sealed-off wings on big maps). Relaxed in recovery/emergency so spawning is never
+    // fully starved; toggle via g_horde_spawn_dist_cap.
+    if (g_horde_spawn_dist_cap && g_horde_spawn_dist_cap->integer)
+    {
+        float max_dist = HordeConstants::GetMaxPlayerDistSpawnpoint(g_horde_local.current_map_size);
+        if (recovery_mode)  max_dist *= 1.5f;
+        if (emergency_mode) max_dist *= 2.0f;
+        const float MAX_DIST_SQ = max_dist * max_dist;
+
+        bool within_range_of_any = false;
+        for (const auto* player : active_players_no_spect())
+        {
+            if (DistanceSquared(spawn_pos, player->s.origin) <= MAX_DIST_SQ)
+            {
+                within_range_of_any = true;
+                break;
+            }
+        }
+        if (!within_range_of_any)
             return false;
     }
 
@@ -605,7 +630,7 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID type
     // Phase 2: If radial search failed, try spawn grid positions near this spawn point.
     // Exception: for flying monsters on dedicated style-1 lanes, keep them on-lane and
     // do not fall back to generic grid points.
-    if (HordePhys::g_spawn_grid.IsGenerated() && !(is_flying && is_flying_only_lane))
+    if (ShouldUseFallbackGrid() && !(is_flying && is_flying_only_lane))
     {
         constexpr int GRID_ATTEMPTS = 32;
         constexpr float GRID_MIN_DIST = 64.0f;

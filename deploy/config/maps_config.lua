@@ -72,7 +72,7 @@ MAP_XDM2_ENABLE_GRID                             = true
 
 -- RBOSS
 MAP_RBOSS_MONSTER_CAP                            = -1
-MAP_RBOSS_ENABLE_GRID                            = true
+MAP_RBOSS_ENABLE_GRID                            = false
 
 -- MGDM1
 MAP_MGDM1_MONSTER_CAP                            = 24

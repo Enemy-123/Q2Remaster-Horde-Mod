@@ -132,6 +132,20 @@ namespace HordeConstants
 		}
 	}
 
+	// Maximum distance a spawn point may be from the nearest player. Stops monsters from
+	// spawning in distant/closed-off wings (especially big maps that were sealed with
+	// entities). Generous so normal play isn't starved; the caller relaxes it further in
+	// recovery/emergency mode. Tunable; gated by g_horde_spawn_dist_cap.
+	inline float GetMaxPlayerDistSpawnpoint(const horde::MapSize& mapSize) {
+		if (mapSize.isSmallMap) {
+			return 1400.0f;
+		} else if (mapSize.isMediumMap) {
+			return 2200.0f;
+		} else {
+			return 3500.0f;
+		}
+	}
+
 	// Helper function for min recent spawn distance based on map size
 	inline float GetMinRecentSpawnDist(const horde::MapSize& mapSize) {
 		if (mapSize.isSmallMap) {

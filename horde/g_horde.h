@@ -28,7 +28,18 @@ struct PlayerStats;
 extern cvar_t* g_horde;
 extern cvar_t* g_horde_grid_first;  // Test cvar: prioritize grid spawning
 extern cvar_t* g_horde_force_fog_wave;  // Test cvar: force the next wave to be a fog (Gekk/Berserk) wave
+extern cvar_t* g_horde_nav_spawn_check;  // 1 = reject ground spawns the navmesh can't reach (anti unreachable-spawn)
+extern cvar_t* g_horde_spawn_dist_cap;  // 1 = cap how far from players a spawn point may be (anti far/closed-wing spawn)
 extern cvar_t* pvm;  // PvM mode (Player vs Monster with character persistence)
+
+// True when the spawn grid is allowed as a fallback spawn source: only when grid is
+// enabled for the map, or when there are no usable spawn points at all. Stops emergency/
+// alternative spawns from forcing grid positions on grid-disabled maps.
+bool ShouldUseFallbackGrid();
+
+// Rebuild the spawn-point map now (call at the end of SpawnEntities, once the real spawn
+// entities exist). Fixes the premature worldspawn-time build that runs before spawns parse.
+void Horde_RebuildSpawnPointMapNow();
 void Horde_PreInit();
 void Horde_Init();
 void Horde_RunFrame();

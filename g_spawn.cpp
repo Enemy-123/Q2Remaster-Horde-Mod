@@ -1941,6 +1941,14 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 
 	level.is_spawning = false;
 
+	// All entities now exist, including the real info_player_deathmatch (which on override
+	// maps are loaded from the .ent file). The spawn-point map was first built during
+	// SP_worldspawn - before any spawn point was parsed - so rebuild it now against the real
+	// spawns. Without this the map keeps the premature view and fabricates grid-based virtual
+	// spawn points that both players and monsters end up using.
+	if (g_horde->integer)
+		Horde_RebuildSpawnPointMapNow();
+
 	//     // Calculate the world bounds based on the entities that were just spawned.
     // // (Your existing logic for this is good)
     // vec3_t world_mins{}, world_maxs{};

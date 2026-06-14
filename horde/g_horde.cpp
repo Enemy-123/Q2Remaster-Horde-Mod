@@ -51,6 +51,20 @@ boost::container::small_vector<edict_t*, 64> g_spawn_point_list;
 // The actual number of spawn points found on the map
 size_t g_num_spawn_points = 0;
 
+// Set in BuildSpawnPointMap: true when the map has no real info_player_deathmatch, so the
+// grid (and grid-derived virtual spawns) is the only legitimate spawn source. Used by
+// ShouldUseFallbackGrid so grid-only maps keep working while grid-disabled maps that DO
+// have real spawn points don't get grid-forced.
+static bool g_spawn_no_classic_points = false;
+
+// Gate for virtual grid spawn fabrication. Only true during the deliberate end-of-SpawnEntities
+// rebuild (Horde_RebuildSpawnPointMapNow), when all real spawn points actually exist. The
+// premature build during SP_worldspawn runs with this false, so it can never fabricate grid
+// spawns before the real info_player_deathmatch have been parsed. NOTE: we can't use
+// level.is_spawning for this - SpawnEntities does `level = {}` right after setting it, so it's
+// false for the whole parse loop.
+static bool g_horde_allow_virtual_spawns = false;
+
 // Cached playable bounds for spawn validation (computed in BuildSpawnPointMap).
 static vec3_t g_spawn_world_mins{};
 static vec3_t g_spawn_world_maxs{};
@@ -1077,7 +1091,14 @@ void BuildSpawnPointMap()
 	// This keeps style-1 behavior anchored to real info_player_deathmatch entities.
 	const bool grid_available = HordePhys::g_spawn_grid.IsGenerated() && HordePhys::g_spawn_grid.GetNodeCount() > 0;
 	const bool no_classic_spawns = (g_num_spawn_points == 0);
-	if (grid_available && no_classic_spawns)
+	// CRITICAL: SP_worldspawn (the very first entity spawned) calls Horde_Init ->
+	// BuildSpawnPointMap before the real info_player_deathmatch entities have been parsed,
+	// so a 0 count here is premature. Only fabricate grid-based virtual spawns from the
+	// deliberate end-of-SpawnEntities rebuild (g_horde_allow_virtual_spawns), when all real
+	// spawns exist AND the map genuinely has none - otherwise we create grid-positioned
+	// info_player_deathmatch on every map, polluting the player AND monster spawn pool.
+	const bool fabricate_virtual_spawns = grid_available && no_classic_spawns && g_horde_allow_virtual_spawns;
+	if (fabricate_virtual_spawns)
 	{
 		const int grid_node_count = HordePhys::g_spawn_grid.GetNodeCount();
 		const int available_slots = std::max(0, static_cast<int>(MAX_SPAWN_POINTS) - static_cast<int>(g_spawn_point_list.size()));
@@ -1175,6 +1196,59 @@ void BuildSpawnPointMap()
 				gi.Com_PrintFmt("Created {} virtual spawn points from grid nodes.\n", virtual_spawns_created);
 		}
 	}
+
+	// Remember whether this map genuinely has no real spawn points so ShouldUseFallbackGrid
+	// keeps the grid usable on grid-only maps while still gating it off on grid-disabled maps
+	// that have real spawn points. The end-of-SpawnEntities rebuild (allow_virtual=1) writes
+	// the authoritative value; the premature worldspawn pass (allow_virtual=0) does not.
+	if (g_horde_allow_virtual_spawns)
+		g_spawn_no_classic_points = no_classic_spawns;
+
+	// Diagnostic summary of how this map will source spawns. allow_virtual=0 is the premature
+	// SP_worldspawn-time pass (before real spawns exist, must NOT fabricate); allow_virtual=1
+	// is the deliberate post-SpawnEntities rebuild with the real spawn_points count.
+	if (developer->integer)
+	{
+		gi.Com_PrintFmt("HORDE SPAWN SRC: map='{}' allow_virtual={} spawn_points={} grid_enabled={} grid_generated={} grid_nodes={} boss_origin_fallback={} virtual_spawns_made={}\n",
+			level.mapname,
+			g_horde_allow_virtual_spawns ? 1 : 0,
+			g_num_spawn_points,
+			grid_enabled_for_map ? 1 : 0,
+			HordePhys::g_spawn_grid.IsGenerated() ? 1 : 0,
+			HordePhys::g_spawn_grid.GetNodeCount(),
+			needs_boss_grid_fallback ? 1 : 0,
+			fabricate_virtual_spawns ? 1 : 0);
+	}
+}
+
+// True when the spawn grid is allowed as a fallback spawn source. The grid is only used
+// when it is actually enabled for the map, or when there are no usable spawn points at all
+// (so a map that genuinely lacks classic/virtual spawns is never starved). This keeps
+// emergency/alternative spawns from forcing grid positions on grid-disabled maps.
+bool ShouldUseFallbackGrid()
+{
+	if (!HordePhys::g_spawn_grid.IsGenerated())
+		return false;
+	if (g_horde_grid_first && g_horde_grid_first->integer)
+		return true;
+	// Grid-derived virtual spawns are the only spawn source on maps with no real
+	// info_player_deathmatch; keep the grid usable there.
+	return g_spawn_no_classic_points;
+}
+
+// Force a fresh spawn-point map build now. Called at the true end of SpawnEntities, once all
+// entities (including the real info_player_deathmatch - which on override maps come from the
+// .ent file) exist, so the map reflects real spawns instead of the premature worldspawn-time
+// view. Safe to call repeatedly: BuildSpawnPointMap clears and rebuilds its state.
+void Horde_RebuildSpawnPointMapNow()
+{
+	// This is the only context allowed to fabricate grid virtual spawns: all real spawn
+	// entities exist now, so a 0 count genuinely means the map has none.
+	g_horde_allow_virtual_spawns = true;
+	g_spawn_system.spawn_map_needs_build = true;
+	BuildSpawnPointMap();
+	g_spawn_system.spawn_map_needs_build = false;
+	g_horde_allow_virtual_spawns = false;
 }
 
 // A dedicated struct to pass data to our unified BoxEdicts lambda.
@@ -1531,6 +1605,8 @@ static float CalculateCooldownScale(int32_t lvl, const horde::MapSize& mapSize)
 cvar_t* g_horde;
 cvar_t* g_horde_grid_first;  // Test cvar: prioritize grid spawning
 cvar_t* g_horde_force_fog_wave;  // Test cvar: force the next wave to be a fog (Gekk/Berserk) wave
+cvar_t* g_horde_nav_spawn_check;  // 1 = reject ground spawns the navmesh can't reach (anti unreachable-spawn)
+cvar_t* g_horde_spawn_dist_cap;  // 1 = cap how far from players a spawn point may be (anti far/closed-wing spawn)
 
 // NOTE: horde_state_t enum and HordeState struct moved to g_horde.h
 
@@ -3826,6 +3902,8 @@ void Horde_PreInit()
 
 	g_horde = gi.cvar("horde", "0", CVAR_LATCH);
 	g_horde_grid_first = gi.cvar("g_horde_grid_first", "0", CVAR_NOFLAGS);
+	g_horde_nav_spawn_check = gi.cvar("g_horde_nav_spawn_check", "1", CVAR_NOFLAGS);
+	g_horde_spawn_dist_cap = gi.cvar("g_horde_spawn_dist_cap", "1", CVAR_NOFLAGS);
 	g_horde_force_fog_wave = gi.cvar("g_horde_force_fog_wave", "0", CVAR_NOFLAGS);
 	pvm = gi.cvar("pvm", "0", CVAR_LATCH);
 	// gi.Com_Print("After starting a normal server type: starthorde to start a game.\n");
@@ -5840,6 +5918,104 @@ static inline bool IsPositionWithinSpawnBounds(const vec3_t& position, const vec
 		(abs_min.z >= min_bound.z && abs_max.z <= max_bound.z);
 }
 
+// Reachability gate: returns true if a ground monster could path from `position` to the
+// playable area, anchored to the nearest real spawn point(s) via the engine bot navmesh
+// (gi.GetPathToGoal). On maps with no nav data, or when there are no spawn points to
+// anchor against, it returns true (no-op) so those maps keep their current behavior.
+// This is what stops monsters from spawning in sealed/disconnected pockets that pass the
+// physics + line-of-sight checks but are unreachable.
+static bool IsPositionNavReachable(const vec3_t& position)
+{
+	// No real spawn points to anchor against (grid-only / virtual-spawn maps) -> don't block.
+	if (g_spawn_point_list.empty())
+		return true;
+
+	// Find the nearest and second-nearest in-use spawn points to use as path goals.
+	edict_t* nearest = nullptr;
+	edict_t* second = nullptr;
+	float nearest_dist_sq = std::numeric_limits<float>::max();
+	float second_dist_sq = std::numeric_limits<float>::max();
+	for (edict_t* sp : g_spawn_point_list)
+	{
+		if (!sp || !sp->inuse)
+			continue;
+		const float d = (sp->s.origin - position).lengthSquared();
+		if (d < nearest_dist_sq)
+		{
+			second = nearest;
+			second_dist_sq = nearest_dist_sq;
+			nearest = sp;
+			nearest_dist_sq = d;
+		}
+		else if (d < second_dist_sq)
+		{
+			second = sp;
+			second_dist_sq = d;
+		}
+	}
+
+	if (!nearest)
+		return true; // no usable anchor
+
+	constexpr size_t MAX_PATH_POINTS = 64;
+	static vec3_t path_points[MAX_PATH_POINTS];
+
+	const auto query = [&](const vec3_t& goal) -> PathReturnCode {
+		PathRequest request;
+		request.start = position;
+		request.goal = goal;
+		// Lenient ground traversal so positions needing a small step/drop aren't falsely
+		// rejected; truly sealed pockets still fail to produce a path.
+		request.pathFlags = PathFlags::Walk | PathFlags::WalkOffLedge | PathFlags::BarrierJump;
+		request.pathPoints.array = path_points;
+		request.pathPoints.count = MAX_PATH_POINTS;
+
+		PathInfo info;
+		gi.GetPathToGoal(request, info);
+		return info.returnCode;
+	};
+
+	switch (query(nearest->s.origin))
+	{
+	case PathReturnCode::NoNavAvailable:
+	case PathReturnCode::NoGoalNode:
+	case PathReturnCode::InvalidGoal:
+		// No nav data on this map, or the anchor (not the candidate) is the problem:
+		// don't penalize the spawn position.
+		return true;
+
+	case PathReturnCode::NoStartNode:
+	case PathReturnCode::InvalidStart:
+		// The candidate itself is not on/near the navmesh -> reject (the core fix).
+		return false;
+
+	case PathReturnCode::NoPathFound:
+		// On the navmesh but couldn't reach the nearest anchor. Retry against the
+		// second-nearest anchor before declaring it a sealed/disconnected pocket.
+		if (second)
+		{
+			switch (query(second->s.origin))
+			{
+			case PathReturnCode::NoNavAvailable:
+			case PathReturnCode::NoGoalNode:
+			case PathReturnCode::InvalidGoal:
+				return true;
+			case PathReturnCode::NoStartNode:
+			case PathReturnCode::InvalidStart:
+			case PathReturnCode::NoPathFound:
+				return false;
+			default:
+				return true; // a path was found to the second anchor
+			}
+		}
+		return false;
+
+	default:
+		// ReachedGoal / ReachedPathEnd / RawPathFound / TraversalPending / InProgress
+		return true;
+	}
+}
+
 [[nodiscard]] // FIXED: Clean implementation without historical comments, clear return struct
 PositionValidationResult IsPositionPhysicallyValid(const vec3_t& position, const vec3_t& monster_mins, const vec3_t& monster_maxs, const bool is_flying)
 {
@@ -5935,6 +6111,16 @@ PositionValidationResult IsPositionPhysicallyValid(const vec3_t& position, const
 		{
 			return result;
 		}
+	}
+
+	// Reachability gate (ground monsters only): reject positions the navmesh can't reach
+	// from the playable area, preventing spawns in sealed/disconnected pockets that pass
+	// the physics + LOS checks above. Flyers are exempt (they don't use the ground
+	// navmesh); the gate no-ops on nav-less maps and is toggleable via g_horde_nav_spawn_check.
+	if (!is_flying && g_horde_nav_spawn_check && g_horde_nav_spawn_check->integer &&
+		!IsPositionNavReachable(final_pos))
+	{
+		return result;
 	}
 
 	result.is_valid = true;
@@ -7638,8 +7824,10 @@ private:
 		// 25% chance to prefer out-of-visibility positions for this spawn batch
 		const bool prefer_out_of_visibility = frandom() < HordeConstants::OUT_OF_VISIBILITY_CHANCE;
 
-		// OPTIMIZATION: Try to use spawn grid positions first (guaranteed in-map)
-		if (HordePhys::g_spawn_grid.IsGenerated()) {
+		// OPTIMIZATION: Try to use spawn grid positions first (guaranteed in-map).
+		// Gated so grid-disabled maps don't force grid spawns (only used when enabled or
+		// when there are no real spawn points to fall back on).
+		if (ShouldUseFallbackGrid()) {
 			constexpr int MAX_GRID_ATTEMPTS = 64;  // Try more grid positions than we need
 
 			for (int attempt = 0; attempt < MAX_GRID_ATTEMPTS && candidates.valid_count < NUM_CANDIDATES; ++attempt) {
@@ -7736,8 +7924,8 @@ public:
 			}
 		}
 
-		// Final fallback: Try spawn grid if available
-		if (HordePhys::g_spawn_grid.IsGenerated()) {
+		// Final fallback: Try spawn grid if available (and allowed for this map)
+		if (ShouldUseFallbackGrid()) {
 			vec3_t grid_pos;
 
 			// Use tactical spawning if enabled (final fallback)
