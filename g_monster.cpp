@@ -76,8 +76,8 @@ void monster_fire_bullet(edict_t* self, const vec3_t& start, const vec3_t& dir, 
 	int vspread, monster_muzzleflash_id_t flashtype)
 {
 	// Don't shoot backwards (redundant safety check)
-	// Bosses and blindfire are exempt from this check
-	if (self->enemy && !infront(self, self->enemy) &&
+	// Bosses, blindfire, and dying monsters (death-spray animations) are exempt
+	if (self->enemy && self->health > 0 && !infront(self, self->enemy) &&
 	    !self->monsterinfo.IS_BOSS &&
 	    !(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
 	{

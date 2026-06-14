@@ -6293,6 +6293,12 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 
 	// --- 3. Determine if Teleport is Needed ---
 	bool needs_teleport = false;
+	// "Soft" reasons are activity/timeout based (monster works fine, it's just idle or
+	// can't see its enemy). These get suppressed if a client can currently damage the
+	// monster, so it won't vanish while a player is shooting it. "Hard" reasons
+	// (stuck in geometry, sky, drowning) mean the monster is physically broken and
+	// must teleport regardless of who's watching.
+	bool soft_reason = false;
 	const char* reason_str = "Unknown";
 
 	// Critical: Stuck in solid geometry
@@ -6440,6 +6446,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 			if (level.time > self->monsterinfo.no_enemy_timeout_start_time + no_enemy_timeout)
 			{
 				needs_teleport = true;
+				soft_reason = true;
 				reason_str = "No Enemy Timeout";
 			}
 		}
@@ -6477,6 +6484,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 				if (level.time > self->monsterinfo.last_activity_time + timeout_duration)
 				{
 					needs_teleport = true;
+					soft_reason = true;
 					reason_str = timeout_reason;
 				}
 			}
@@ -6485,6 +6493,29 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 
 	if (!needs_teleport)
 		return false;
+
+	// --- Don't teleport a monster a player is actively fighting ---
+	// For soft (timeout/inactivity) reasons only: if any client has a clear line of
+	// fire to this monster, it can be damaged right now, so yanking it away feels
+	// broken. Suppress the teleport and reset the cooldown to max. Hard reasons
+	// (stuck in geometry / sky / drowning) ignore this and teleport regardless.
+	if (soft_reason)
+	{
+		for (auto* player : active_players_no_spect())
+		{
+			if (!player || !player->inuse || player->health <= 0)
+				continue;
+
+			trace_t damage_trace = gi.traceline(player->s.origin, self->s.origin, player, MASK_SHOT);
+			if (damage_trace.ent == self || damage_trace.fraction >= 0.99f)
+			{
+				self->monsterinfo.last_activity_time = level.time;
+				self->monsterinfo.no_enemy_timeout_start_time = 0_sec;
+				self->teleport_time = level.time + HordeConstants::MAX_TELEPORT_COOLDOWN_MONSTER;
+				return false;
+			}
+		}
+	}
 
 	// --- Check per-monster failsafe teleport limit ---
 	// If this monster has been teleported too many times due to failsafe, kill it instead
@@ -8607,10 +8638,18 @@ bool Horde_TeleportMonster(edict_t* self, const vec3_t& destination_origin, cons
 		return false;
 	}
 
-	if (self->monsterinfo.isfriendlyspawn ||
-		(!force_despite_visibility && (self->enemy && self->enemy->inuse && visible(self, self->enemy, false))))
+	if (self->monsterinfo.isfriendlyspawn)
 	{
 		self->teleport_time = level.time + 1.5_sec;
+		return false;
+	}
+
+	// The monster can still see and engage its enemy: don't yank it away mid-fight.
+	// Push the cooldown back to the full max so we stop re-evaluating it for a while
+	// instead of retrying every 1.5s.
+	if (!force_despite_visibility && self->enemy && self->enemy->inuse && visible(self, self->enemy, false))
+	{
+		self->teleport_time = level.time + HordeConstants::MAX_TELEPORT_COOLDOWN_MONSTER;
 		return false;
 	}
 
@@ -8675,6 +8714,26 @@ bool Horde_TeleportMonster(edict_t* self, const vec3_t& destination_origin, cons
 	self->monsterinfo.stuck_check_time = level.time + random_time(12.0_sec, 17.0_sec);
 	self->monsterinfo.last_activity_time = level.time;
 	self->teleport_time = level.time + random_time(HordeConstants::MIN_TELEPORT_COOLDOWN_MONSTER, HordeConstants::MAX_TELEPORT_COOLDOWN_MONSTER);
+
+	// Break out of any in-progress attack animation so the monster doesn't fire at
+	// a wall from its new position. We re-enter run/stand so it re-acquires the
+	// enemy and re-aims before attacking again. (Same idiom as ai_checkattack's
+	// "stop dry-firing" path in g_ai.cpp.)
+	if (self->health > 0 && !self->deadflag)
+	{
+		self->monsterinfo.attack_state = AS_STRAIGHT;
+		self->monsterinfo.aiflags &= ~AI_HOLD_FRAME;
+		self->monsterinfo.nextframe = 0;
+		self->monsterinfo.next_move_time = level.time;
+		self->monsterinfo.attack_finished = level.time;
+		// Forget the stale blindfire target aimed at the old location.
+		self->monsterinfo.blind_fire_delay = 0_ms;
+
+		if ((self->monsterinfo.aiflags & AI_STAND_GROUND) && self->monsterinfo.stand)
+			self->monsterinfo.stand(self);
+		else if (self->monsterinfo.run)
+			self->monsterinfo.run(self);
+	}
 
 	return true;
 }
