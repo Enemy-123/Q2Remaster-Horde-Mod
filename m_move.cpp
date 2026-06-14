@@ -316,7 +316,7 @@ void InitMonsterAntiStack(edict_t* ent)
 	ent->monsterinfo.corridor_check_time = 0_sec;
 	ent->monsterinfo.corridor_blocked_dirs = 0;
 	ent->monsterinfo.corridor_tight_blocked_dirs = 0;
-	ent->monsterinfo.bbox_squeeze = {};
+	SetMonsterSqueeze(ent, {});
 
 	// Set preferred combat range based on monster type
 	if (ent->monsterinfo.melee)
@@ -335,6 +335,23 @@ void InitMonsterAntiStack(edict_t* ent)
 		ent->teleport_time = level.time + random_time(8_sec, 12_sec);
 		ent->monsterinfo.no_enemy_timeout_start_time = 0_sec;
 	}
+}
+
+// [Horde] Single point of truth for writing monsterinfo.bbox_squeeze, so the global count of
+// currently-squeezed monsters stays accurate. That count is the fast-path gate for
+// G_TraceSqueezeAware (g_phys.cpp) - while it's 0, incoming projectile/hitscan traces stay free.
+void SetMonsterSqueeze(edict_t* ent, const vec3_t& new_sq)
+{
+	const vec3_t& old = ent->monsterinfo.bbox_squeeze;
+	const bool was = (old[0] != 0.f || old[1] != 0.f || old[2] != 0.f);
+	const bool now = (new_sq[0] != 0.f || new_sq[1] != 0.f || new_sq[2] != 0.f);
+
+	if (was && !now)
+		g_num_squeezed_monsters--;
+	else if (!was && now)
+		g_num_squeezed_monsters++;
+
+	ent->monsterinfo.bbox_squeeze = new_sq;
 }
 
 // Helper function to determine if triggers should be enabled for this entity
@@ -1057,7 +1074,7 @@ if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::
 			{
 				ent->mins[0] = orig_mins[0]; ent->maxs[0] = orig_maxs[0];
 				ent->mins[1] = orig_mins[1]; ent->maxs[1] = orig_maxs[1];
-				ent->monsterinfo.bbox_squeeze = {};
+				SetMonsterSqueeze(ent, {});
 				gi.linkentity(ent);
 			}
 		}
@@ -1153,7 +1170,7 @@ if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::
 			{
 				ent->mins = want_mins;
 				ent->maxs = want_maxs;
-				ent->monsterinfo.bbox_squeeze = new_sq;
+				SetMonsterSqueeze(ent, new_sq);
 				gi.linkentity(ent);
 			}
 		}
@@ -1461,7 +1478,7 @@ bool ai_check_move(edict_t* self, float dist)
 	{
 		self->mins = old_mins;
 		self->maxs = old_maxs;
-		self->monsterinfo.bbox_squeeze = old_squeeze;
+		SetMonsterSqueeze(self, old_squeeze); // SV_movestep may have re-squeezed; restore counter too
 		gi.linkentity(self);
 		return false;
 	}
@@ -1469,7 +1486,7 @@ bool ai_check_move(edict_t* self, float dist)
 	self->s.origin = old_origin;
 	self->mins = old_mins;
 	self->maxs = old_maxs;
-	self->monsterinfo.bbox_squeeze = old_squeeze;
+	SetMonsterSqueeze(self, old_squeeze); // SV_movestep may have re-squeezed; restore counter too
 	gi.linkentity(self);
 	return true;
 }

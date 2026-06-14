@@ -2851,12 +2851,20 @@ bool M_MonsterBlocked(edict_t* self, float dist);
 void M_ChangeYaw(edict_t* ent);
 bool ai_check_move(edict_t* self, float dist);
 void InitMonsterAntiStack(edict_t* ent);
+// [Horde] write monsterinfo.bbox_squeeze through this so g_num_squeezed_monsters stays accurate.
+void SetMonsterSqueeze(edict_t* ent, const vec3_t& new_sq);
 
 //
 // g_phys.c
 //
 constexpr float sv_friction = 6;
 constexpr float sv_waterfriction = 1;
+
+// [Horde] count of monsters currently shrunk by squeeze-to-fit; fast-path gate for G_TraceSqueezeAware.
+extern int g_num_squeezed_monsters;
+// gi.trace that also clips against the original (pre-squeeze) box of squeezed monsters.
+trace_t G_TraceSqueezeAware(const vec3_t& start, const vec3_t& mins, const vec3_t& maxs,
+	const vec3_t& end, edict_t* ignore, contents_t mask);
 
 void G_RunEntity(edict_t* ent);
 bool SV_RunThink(edict_t* ent);

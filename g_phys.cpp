@@ -123,6 +123,109 @@ contents_t G_GetClipMask(edict_t* ent)
 
     return mask;
 }
+
+// [Horde] Number of monsters currently shrunk by squeeze-to-fit (m_move.cpp). Maintained by
+// SetMonsterSqueeze(); when 0 (the overwhelmingly common case) G_TraceSqueezeAware is a no-op.
+int g_num_squeezed_monsters = 0;
+
+// Entry fraction + face normal of the segment p0->p1 against AABB [bmin,bmax].
+// Returns false on a clean miss. Used only as a cheap pre-filter before an authoritative gi.clip.
+static bool RaySegmentVsBox(const vec3_t& p0, const vec3_t& p1, const vec3_t& bmin,
+	const vec3_t& bmax, float& out_frac)
+{
+	const vec3_t d = p1 - p0;
+	float tmin = 0.f, tmax = 1.f;
+
+	for (int a = 0; a < 3; a++)
+	{
+		if (std::fabs(d[a]) < 1e-6f)
+		{
+			if (p0[a] < bmin[a] || p0[a] > bmax[a])
+				return false; // parallel to this slab and outside it
+		}
+		else
+		{
+			const float inv = 1.f / d[a];
+			float t1 = (bmin[a] - p0[a]) * inv;
+			float t2 = (bmax[a] - p0[a]) * inv;
+			if (t1 > t2)
+				std::swap(t1, t2);
+			if (t1 > tmin)
+				tmin = t1;
+			if (t2 < tmax)
+				tmax = t2;
+			if (tmin > tmax)
+				return false;
+		}
+	}
+
+	out_frac = tmin;
+	return true;
+}
+
+// [Horde] Like gi.trace, but also clips the swept box against the *original* (pre-squeeze) box of
+// any monster currently shrunk by squeeze-to-fit. The monster's movement/physics box stays shrunk
+// (so stepping is untouched) while incoming projectiles/hitscan land where the unscaled model
+// actually is. Only overrides the engine result when a squeezed box is hit strictly closer, so a
+// wall in front of the monster always shadows it (no tunneling).
+trace_t G_TraceSqueezeAware(const vec3_t& start, const vec3_t& mins, const vec3_t& maxs,
+	const vec3_t& end, edict_t* ignore, contents_t mask)
+{
+	trace_t tr = gi.trace(start, mins, maxs, end, ignore, mask);
+
+	// Fast out: nothing squeezed, or this trace doesn't care about monsters.
+	if (g_num_squeezed_monsters <= 0 || !(mask & CONTENTS_MONSTER))
+		return tr;
+
+	for (uint32_t i = 1; i < globals.num_edicts; i++)
+	{
+		edict_t* m = &g_edicts[i];
+
+		if (!m->inuse || !(m->svflags & SVF_MONSTER) || (m->svflags & SVF_DEADMONSTER) ||
+			m == ignore || m->solid == SOLID_NOT || !m->takedamage)
+			continue;
+
+		const vec3_t& sq = m->monsterinfo.bbox_squeeze;
+		if (sq[0] == 0.f && sq[1] == 0.f && sq[2] == 0.f)
+			continue;
+
+		// Don't let a squeezed shooter detonate its own projectile on itself.
+		if (ignore && (ignore->svflags & SVF_PROJECTILE) && m == ignore->owner)
+			continue;
+
+		// Recover the monster's real (unsqueezed) box from the stored inset (mirror of m_move.cpp).
+		vec3_t orig_mins = m->mins, orig_maxs = m->maxs;
+		orig_mins[0] -= sq[0]; orig_maxs[0] += sq[0];
+		orig_mins[1] -= sq[1]; orig_maxs[1] += sq[1];
+		orig_maxs[2] += sq[2];
+
+		// Cheap pre-filter: Minkowski-expand the original box by the moving box, then ray-test.
+		const vec3_t emin = (m->s.origin + orig_mins) - maxs;
+		const vec3_t emax = (m->s.origin + orig_maxs) - mins;
+		float frac;
+		if (!RaySegmentVsBox(start, end, emin, emax, frac) || frac >= tr.fraction)
+			continue;
+
+		// Promising hit: clip against the original box for an authoritative trace (correct
+		// surface/plane/contents). Resize + relink transiently, then restore exactly.
+		const vec3_t saved_mins = m->mins, saved_maxs = m->maxs;
+		m->mins = orig_mins;
+		m->maxs = orig_maxs;
+		gi.linkentity(m);
+
+		trace_t ctr = gi.clip(m, start, mins, maxs, end, mask);
+
+		m->mins = saved_mins;
+		m->maxs = saved_maxs;
+		gi.linkentity(m);
+
+		if (ctr.ent == m && ctr.fraction < tr.fraction)
+			tr = ctr;
+	}
+
+	return tr;
+}
+
 /*
 ============
 SV_TestEntityPosition
@@ -304,7 +407,12 @@ trace_t SV_PushEntity(edict_t* ent, const vec3_t& push)
 	vec3_t start = ent->s.origin;
 	vec3_t end = start + push;
 
-	trace_t trace = gi.trace(start, ent->mins, ent->maxs, end, ent, G_GetClipMask(ent));
+	const contents_t mask = G_GetClipMask(ent);
+	// [Horde] projectiles also hit a squeezed monster's original (model-sized) box; other tossed
+	// entities (gibs, items, debris) keep the plain engine trace.
+	trace_t trace = (ent->svflags & SVF_PROJECTILE)
+		? G_TraceSqueezeAware(start, ent->mins, ent->maxs, end, ent, mask)
+		: gi.trace(start, ent->mins, ent->maxs, end, ent, mask);
 
 	ent->s.origin = trace.endpos + (trace.plane.normal * .5f);
 	gi.linkentity(ent);

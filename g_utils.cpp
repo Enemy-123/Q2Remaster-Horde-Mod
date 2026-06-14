@@ -627,6 +627,13 @@ THINK(G_FreeEdict) (edict_t* ed) -> void {
     // Unregister from bot system
     gi.Bot_UnRegisterEdict(ed);
 
+    // [Horde] keep the squeezed-monster count honest if a shrunk monster is freed mid-squeeze,
+    // otherwise the G_TraceSqueezeAware fast-path gate would slowly leak high.
+    if ((ed->svflags & SVF_MONSTER) &&
+        (ed->monsterinfo.bbox_squeeze[0] != 0.f || ed->monsterinfo.bbox_squeeze[1] != 0.f ||
+         ed->monsterinfo.bbox_squeeze[2] != 0.f))
+        SetMonsterSqueeze(ed, {});
+
     // Preserve and increment spawn count
     int32_t id = ed->spawn_count + 1;
 

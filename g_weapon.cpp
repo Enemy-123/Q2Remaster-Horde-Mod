@@ -102,7 +102,9 @@ void pierce_trace(const vec3_t& start, const vec3_t& end, edict_t* ignore, pierc
 	while (--loop_count)
 	{
 		//  Use 'own_start' which is updated each loop, not the original 'start'.
-		pierce.tr = gi.traceline(own_start, own_end, ignore, mask);
+		// [Horde] squeeze-aware: hitscan also hits a squeezed monster's original (model-sized) box.
+		// Point trace (zero extents) == traceline; note the (start, mins, maxs, end, ...) arg order.
+		pierce.tr = G_TraceSqueezeAware(own_start, vec3_origin, vec3_origin, own_end, ignore, mask);
 
 		// didn't hit anything, so we're done
 		if (!pierce.tr.ent || pierce.tr.fraction == 1.0f)

@@ -13,7 +13,7 @@
 #include <boost/container/small_vector.hpp>  // For small_vector optimization
 #include <boost/unordered/unordered_flat_set.hpp>  // Cache-friendly hash sets
 
-constexpr const char* HORDE_MOD_VERSION_STRING = "*Horde BETA MOD v0.00999b";
+constexpr const char* HORDE_MOD_VERSION_STRING = "*Horde BETA MOD v0.01000";
 
 extern boost::container::small_vector<edict_t*, 64> g_spawn_point_list;
 extern size_t g_num_spawn_points;
