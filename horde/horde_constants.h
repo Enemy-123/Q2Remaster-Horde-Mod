@@ -105,6 +105,13 @@ namespace HordeConstants
 	// Teleport flying monsters that remain wall-blocked beyond this threshold.
 	inline constexpr gtime_t FLY_WALL_STUCK_TELEPORT_TIME = 3_sec;
 
+	// --- Ground Monster Stuck Handling ---
+	// Teleport non-boss ground monsters that have been continuously grinding a wall beyond this
+	// threshold (monsterinfo.wall_stuck_time, set in SV_movestep). This is the failsafe behind the
+	// "turn and try another way" escape: a grinder fools the inactivity timeout because it keeps
+	// bumping bad_move_time, so without this it could grind a wall forever.
+	inline constexpr gtime_t GROUND_WALL_STUCK_TELEPORT_TIME = 3_sec;
+
 	// --- Grid Spawn Cooldown Settings ---
 	inline constexpr gtime_t GRID_POSITION_COOLDOWN = 4.0_sec;        // Cooldown before same grid area can be used again
 	inline constexpr float GRID_COOLDOWN_RADIUS = 200.0f;             // Radius around used position that's on cooldown

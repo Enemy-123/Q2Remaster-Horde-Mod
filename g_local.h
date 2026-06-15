@@ -1909,6 +1909,8 @@ struct monsterinfo_t
 	gtime_t corridor_check_time;     // Last time corridor detection was performed (optimization)
 	int corridor_blocked_dirs;       // Cached corridor blocked direction count
 	int corridor_tight_blocked_dirs; // Cached tight corridor blocked direction count (single-file detection)
+	vec3_t corridor_wall_push;       // Cached push-off-walls vector from cardinal corridor traces (transient, not saved)
+	gtime_t wall_stuck_time;         // [Horde] ground monster: when continuous wall-grinding started (0 = not grinding; transient, not saved). Drives the "turn and try another way" escape for non-boss monsters that don't squeeze.
 	vec3_t bbox_squeeze;             // per-axis inset currently applied to mins/maxs to fit through a tight gap (0 = not squeezed; transient, not saved)
 
 	// NOTE: if adding new elements, make sure to add them

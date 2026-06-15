@@ -6542,6 +6542,18 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 			reason_str = "Flyer Wall-Stuck";
 		}
 	}
+	// Critical: Ground monster grinding a wall too long. Like the flyer case this otherwise reads
+	// as "movement" - the wedged step keeps bumping bad_move_time, which the inactivity timeout
+	// below treats as activity - so a wall-grinder needs its own hard reason to get unstuck.
+	if (!needs_teleport && !(self->flags & (FL_FLY | FL_SWIM)))
+	{
+		if (self->monsterinfo.wall_stuck_time > 0_ms &&
+			level.time > self->monsterinfo.wall_stuck_time + HordeConstants::GROUND_WALL_STUCK_TELEPORT_TIME)
+		{
+			needs_teleport = true;
+			reason_str = "Ground Wall-Stuck";
+		}
+	}
 	// Critical: Too close to sky (unreachable position) - check ALL monsters, not just flying
 	if (!needs_teleport)
 	{
@@ -6797,6 +6809,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 		self->monsterinfo.failsafe_teleport_count++; // Track per-monster teleport count
 		self->monsterinfo.was_stuck = false;
 		self->monsterinfo.fly_wall_stuck_time = 0_ms;
+		self->monsterinfo.wall_stuck_time = 0_ms;
 		// Reset check interval for next stuck check
 		self->monsterinfo.stuck_check_time = level.time + random_time(4.0_sec, 6.0_sec);
 		self->monsterinfo.no_enemy_timeout_start_time = 0_sec;

@@ -28,6 +28,24 @@ constexpr float REPULSION_STRENGTH_CORRIDOR = 0.1f;       // Reduced from 0.3 to
 constexpr float REPULSION_STRENGTH_TIGHT_CORRIDOR = 0.0f; // New: completely disable in very tight spaces
 constexpr float REPULSION_LATERAL_MAX_FRACTION = 0.5f;    // cap sideways nudge to this fraction of the step length (keeps goal dominant)
 constexpr float REPULSION_MIN_THRESHOLD_SQ = 1.0f;
+
+// Wall repulsion constants - keeps monsters off walls so squeezed boxes don't park their
+// (full-size) model inside geometry. Lateral-only vs. the goal direction, so it never blocks
+// pathing through an intentional gap ("unless a nav point is in the way"). Reuses the cardinal
+// corridor traces, and unlike monster repulsion it stays ON in tight corridors (centering them).
+constexpr float WALL_REPULSION_FORCE = 24.0f;          // per-wall push magnitude at zero distance
+constexpr float WALL_REPULSION_STRENGTH = 0.35f;       // how much of the lateral push is applied to the move
+constexpr float WALL_REPULSION_STRENGTH_COMBAT = 0.6f; // slightly reduced while engaging so corner-peeking still works
+constexpr float WALL_REPULSION_MIN_THRESHOLD_SQ = 0.25f;
+
+// Squeeze gating: a monster only WIDTH-shrinks for a real two-sided gap (doorway/corridor). We
+// test this by casting two FORWARD probes at the body's left/right edges - if both flanks are
+// walled ahead, the opening is narrower than the body and it must squeeze; a single or diagonal
+// wall leaves one flank open, so it slides at full size instead of burying its model. Probing
+// forward (not sideways at the center) catches the pinch while the monster is still approaching
+// the gap, not only once its center is already between the jambs. This is the extra forward reach
+// of those probes, past the body's leading edge.
+constexpr float SQUEEZE_PINCH_LOOKAHEAD = 8.0f;
 constexpr int REPULSION_MAX_NEARBY_MONSTERS = 8;
 constexpr int REPULSION_CROWDING_THRESHOLD = 4;
 constexpr gtime_t REPULSION_CACHE_TIME = 150_ms;
@@ -81,6 +99,12 @@ constexpr gtime_t REACT_DAMAGE_MAX = 5_sec;
 // Flying monster wall stuck recovery constants
 constexpr gtime_t FLY_WALL_STUCK_THRESHOLD = 1500_ms; // Time before forcing descent
 constexpr float FLY_DESCENT_SPEED_MULTIPLIER = 0.6f;  // How fast to descend when stuck
+
+// Ground monster wall-stuck recovery (non-boss). Bosses squeeze their box / push off walls to
+// thread tight gaps; normal monsters can't afford that (cost + model burying with many of them),
+// so instead they notice they've been grinding the same wall for a while and deliberately turn to
+// look another way before trying again. This is how long to keep grinding before forcing that turn.
+constexpr gtime_t WALL_STUCK_TURN_THRESHOLD = 600_ms;
 
 // Path progress detection constants - for dynamic recalculation when stuck
 constexpr float PATH_PROGRESS_MIN_DISTANCE = 16.0f;    // Must move at least this far toward goal
@@ -210,15 +234,9 @@ static void ApplyMonsterRepulsion(edict_t* ent, vec3_t& move, bool in_combat)
 	if (in_combat && ent->enemy && ent->enemy->inuse)
 		repulsion_strength *= REPULSION_STRENGTH_COMBAT;
 
-	// Get repulsion vector
-	vec3_t repulsion = CalculateMonsterRepulsion(ent);
-
-	// Skip if no repulsion needed (use squared comparison for performance)
-	if (repulsion.lengthSquared() < REPULSION_MIN_THRESHOLD_SQ)
-		return;
-
-	// Cache corridor detection to reduce expensive trace calls
-	// Only recheck corridors if we've moved significantly or time expired
+	// Cache corridor detection (and the push-off-walls vector) to reduce expensive trace calls.
+	// This runs regardless of nearby-monster repulsion: wall repulsion has to work in empty
+	// corners too, so it can't sit behind the monster-repulsion early-out.
 	static constexpr gtime_t CORRIDOR_CACHE_TIME = 200_ms;
 	const bool needs_corridor_check = (ent->monsterinfo.corridor_check_time <= level.time);
 
@@ -229,16 +247,26 @@ static void ApplyMonsterRepulsion(edict_t* ent, vec3_t& move, bool in_combat)
 		int blocked_dirs = 0;
 		int tight_blocked_dirs = 0;
 
-		// Use simpler line traces instead of full bbox traces for better performance
-		// Check all 4 cardinal directions at two distances (normal and tight)
-		if (gi.traceline(origin, origin + vec3_t{-CORRIDOR_CHECK_DISTANCE, 0, 0}, ent, MASK_SOLID).fraction < 1.0f)
-			blocked_dirs++;
-		if (gi.traceline(origin, origin + vec3_t{CORRIDOR_CHECK_DISTANCE, 0, 0}, ent, MASK_SOLID).fraction < 1.0f)
-			blocked_dirs++;
-		if (gi.traceline(origin, origin + vec3_t{0, -CORRIDOR_CHECK_DISTANCE, 0}, ent, MASK_SOLID).fraction < 1.0f)
-			blocked_dirs++;
-		if (gi.traceline(origin, origin + vec3_t{0, CORRIDOR_CHECK_DISTANCE, 0}, ent, MASK_SOLID).fraction < 1.0f)
-			blocked_dirs++;
+		// Cardinal probes (line traces instead of bbox traces for performance). Keep each
+		// fraction so we can build a wall-centering push from the same casts.
+		const float fx_neg = gi.traceline(origin, origin + vec3_t{-CORRIDOR_CHECK_DISTANCE, 0, 0}, ent, MASK_SOLID).fraction;
+		const float fx_pos = gi.traceline(origin, origin + vec3_t{ CORRIDOR_CHECK_DISTANCE, 0, 0}, ent, MASK_SOLID).fraction;
+		const float fy_neg = gi.traceline(origin, origin + vec3_t{0, -CORRIDOR_CHECK_DISTANCE, 0}, ent, MASK_SOLID).fraction;
+		const float fy_pos = gi.traceline(origin, origin + vec3_t{0,  CORRIDOR_CHECK_DISTANCE, 0}, ent, MASK_SOLID).fraction;
+
+		if (fx_neg < 1.0f) blocked_dirs++;
+		if (fx_pos < 1.0f) blocked_dirs++;
+		if (fy_neg < 1.0f) blocked_dirs++;
+		if (fy_pos < 1.0f) blocked_dirs++;
+
+		// Push away from each near wall (closer wall -> stronger push the opposite way). Opposite
+		// walls cancel, so a monster centered in a corridor gets ~no push, while an off-center or
+		// corner-wedged one is steered toward open space.
+		const vec3_t wall_push = {
+			((1.0f - fx_neg) - (1.0f - fx_pos)) * WALL_REPULSION_FORCE, // wall on -x pushes +x
+			((1.0f - fy_neg) - (1.0f - fy_pos)) * WALL_REPULSION_FORCE,
+			0.0f
+		};
 
 		// Additional check for VERY tight corridors (single monster width)
 		if (blocked_dirs >= CORRIDOR_BLOCKED_THRESHOLD)
@@ -256,46 +284,81 @@ static void ApplyMonsterRepulsion(edict_t* ent, vec3_t& move, bool in_combat)
 		// Cache the result
 		ent->monsterinfo.corridor_blocked_dirs = blocked_dirs;
 		ent->monsterinfo.corridor_tight_blocked_dirs = tight_blocked_dirs;
+		ent->monsterinfo.corridor_wall_push = wall_push;
 		ent->monsterinfo.corridor_check_time = level.time + CORRIDOR_CACHE_TIME;
 	}
 
-	// PERFORMANCE FIX: Better corridor handling to prevent traffic jams
-	// In very tight spaces (3-4 directions blocked at close range), completely disable lateral repulsion
-	// This allows monsters to pass each other in single-file corridors without getting stuck
-	if (ent->monsterinfo.corridor_tight_blocked_dirs >= CORRIDOR_BLOCKED_TIGHT_THRESHOLD)
-	{
-		// Tight corridor detected - disable repulsion completely to allow passage
-		repulsion_strength = REPULSION_STRENGTH_TIGHT_CORRIDOR;
-	}
-	else if (ent->monsterinfo.corridor_blocked_dirs >= CORRIDOR_BLOCKED_THRESHOLD)
-	{
-		// Regular corridor - reduce repulsion significantly
-		repulsion_strength *= REPULSION_STRENGTH_CORRIDOR;
-	}
-
+	// Goal direction reference, captured before any push is added.
 	const vec3_t original_move = move;
 
-	if (original_move.lengthSquared() > 1.0f)
+	// --- Monster-vs-monster repulsion (lateral, skipped when nothing is nearby) ---
+	vec3_t repulsion = CalculateMonsterRepulsion(ent);
+	if (repulsion.lengthSquared() >= REPULSION_MIN_THRESHOLD_SQ)
 	{
-		// Lateral-only repulsion: keep ONLY the component perpendicular to the goal
-		// direction and ADD it, so separation never slows (or speeds) travel along the
-		// path. A fast monster behind a slow one keeps full forward speed and, being
-		// non-solid in horde, flows past instead of being held back. The sideways nudge
-		// is what spreads the pack so they don't stack on one spot.
-		const vec3_t move_dir = original_move.normalized();
-		vec3_t lateral = repulsion - move_dir * repulsion.dot(move_dir);
+		// PERFORMANCE FIX: Better corridor handling to prevent traffic jams. In very tight spaces
+		// (3-4 directions blocked at close range), completely disable lateral repulsion so monsters
+		// can file through single-file. Wall repulsion below is intentionally exempt from this.
+		if (ent->monsterinfo.corridor_tight_blocked_dirs >= CORRIDOR_BLOCKED_TIGHT_THRESHOLD)
+			repulsion_strength = REPULSION_STRENGTH_TIGHT_CORRIDOR;
+		else if (ent->monsterinfo.corridor_blocked_dirs >= CORRIDOR_BLOCKED_THRESHOLD)
+			repulsion_strength *= REPULSION_STRENGTH_CORRIDOR;
 
-		// Keep the goal dominant: cap the sideways nudge to a fraction of the step length.
-		const float max_lat = original_move.length() * REPULSION_LATERAL_MAX_FRACTION;
-		if (lateral.lengthSquared() > max_lat * max_lat)
-			lateral = lateral.normalized() * max_lat;
+		if (original_move.lengthSquared() > 1.0f)
+		{
+			// Lateral-only repulsion: keep ONLY the component perpendicular to the goal
+			// direction and ADD it, so separation never slows (or speeds) travel along the
+			// path. A fast monster behind a slow one keeps full forward speed and, being
+			// non-solid in horde, flows past instead of being held back. The sideways nudge
+			// is what spreads the pack so they don't stack on one spot.
+			const vec3_t move_dir = original_move.normalized();
+			vec3_t lateral = repulsion - move_dir * repulsion.dot(move_dir);
 
-		move = original_move + lateral * repulsion_strength;
+			// Keep the goal dominant: cap the sideways nudge to a fraction of the step length.
+			const float max_lat = original_move.length() * REPULSION_LATERAL_MAX_FRACTION;
+			if (lateral.lengthSquared() > max_lat * max_lat)
+				lateral = lateral.normalized() * max_lat;
+
+			move += lateral * repulsion_strength;
+		}
+		else
+		{
+			// No goal direction (idle/standing): plain nudge so a pile on one spot still spreads.
+			move += repulsion * repulsion_strength;
+		}
 	}
-	else
+
+	// --- Wall repulsion (lateral, bosses only) ---
+	// Steers the monster off nearby walls so a squeezed (shrunk-box) monster doesn't park its
+	// full-size model inside geometry. Paired with squeeze-to-fit, which is also boss-only now:
+	// normal monsters keep full size and instead turn away from walls they grind on (see the
+	// wall-stuck handling in SV_movestep), so they don't need this centering nudge. Lateral-only
+	// vs. the goal: the along-goal component is stripped, so a path that genuinely runs through a
+	// gap is never blocked ("unless a nav point is in the way") - only sideways centering remains.
+	// Unlike monster repulsion this stays active in tight corridors, where walls are close.
+	const vec3_t wall_push = ent->monsterinfo.corridor_wall_push;
+	if (ent->monsterinfo.IS_BOSS && wall_push.lengthSquared() >= WALL_REPULSION_MIN_THRESHOLD_SQ)
 	{
-		// No goal direction (idle/standing): plain nudge so a pile on one spot still spreads.
-		move = original_move + repulsion * repulsion_strength;
+		float wall_strength = WALL_REPULSION_STRENGTH;
+		if (in_combat && ent->enemy && ent->enemy->inuse)
+			wall_strength *= WALL_REPULSION_STRENGTH_COMBAT;
+
+		if (original_move.lengthSquared() > 1.0f)
+		{
+			const vec3_t move_dir = original_move.normalized();
+			vec3_t lateral = wall_push - move_dir * wall_push.dot(move_dir);
+
+			const float max_lat = original_move.length() * REPULSION_LATERAL_MAX_FRACTION;
+			if (lateral.lengthSquared() > max_lat * max_lat)
+				lateral = lateral.normalized() * max_lat;
+
+			move += lateral * wall_strength;
+		}
+		else
+		{
+			// Idle/standing with no goal: apply the full push so a monster wedged into a corner
+			// still works its way back out to where its real box fits.
+			move += wall_push * wall_strength;
+		}
 	}
 }
 
@@ -316,6 +379,8 @@ void InitMonsterAntiStack(edict_t* ent)
 	ent->monsterinfo.corridor_check_time = 0_sec;
 	ent->monsterinfo.corridor_blocked_dirs = 0;
 	ent->monsterinfo.corridor_tight_blocked_dirs = 0;
+	ent->monsterinfo.corridor_wall_push = vec3_t{0, 0, 0};
+	ent->monsterinfo.wall_stuck_time = 0_ms;
 	SetMonsterSqueeze(ent, {});
 
 	// Set preferred combat range based on monster type
@@ -1055,8 +1120,11 @@ if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::
 	// (total). The whole entity is resized + relinked, so all stepping/ground logic stays
 	// consistent (this is what makes stairs/crates work). bbox_squeeze stores the per-axis inset
 	// so the real size is always recoverable. Trace-based; works for func_door openings and bare
-	// door-sized gaps alike. Ground monsters only.
-	if (g_horde->integer && (ent->svflags & SVF_MONSTER) && !(ent->flags & (FL_SWIM | FL_FLY)) &&
+	// door-sized gaps alike. Bosses only: they're big, few, and important enough to justify the
+	// per-step traces and the rare model-into-wall clipping. Normal monsters keep full size and
+	// instead turn away when they grind a wall too long (see the wedged branch below).
+	if (g_horde->integer && (ent->svflags & SVF_MONSTER) && ent->monsterinfo.IS_BOSS &&
+		!(ent->flags & (FL_SWIM | FL_FLY)) &&
 		(g_monster_squeeze->value > 0.f || g_monster_squeeze_height->value > 0.f))
 	{
 		const vec3_t sq = ent->monsterinfo.bbox_squeeze;
@@ -1101,19 +1169,23 @@ if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::
 
 			if (max_ins_x > 0.f || max_ins_y > 0.f || max_ins_z > 0.f)
 			{
-				// Box for a given uniform shrink fraction t in [0,1] (0 = full, 1 = minimum).
-				auto box_at = [&](float t, vec3_t& bmins, vec3_t& bmaxs)
+				// Box for given shrink fractions: txy narrows width (x/y), tz lowers height (z).
+				// 0 = full, 1 = minimum footprint. Width and height are independent so a monster can
+				// duck a low ceiling without needlessly narrowing, and narrow a doorway without
+				// needlessly ducking.
+				auto box_at = [&](float txy, float tz, vec3_t& bmins, vec3_t& bmaxs)
 				{
 					bmins = orig_mins; bmaxs = orig_maxs;
-					bmins[0] += max_ins_x * t; bmaxs[0] -= max_ins_x * t;
-					bmins[1] += max_ins_y * t; bmaxs[1] -= max_ins_y * t;
-					bmaxs[2] -= max_ins_z * t;
+					bmins[0] += max_ins_x * txy; bmaxs[0] -= max_ins_x * txy;
+					bmins[1] += max_ins_y * txy; bmaxs[1] -= max_ins_y * txy;
+					bmaxs[2] -= max_ins_z * tz;
 				};
 
 				vec3_t tmin, tmax;
 
-				// (1) Grow target. Only search when we're currently shrunk and might grow back;
-				// a full-size monster is already at t_fit = 0 (no extra trace in the common case).
+				// (1) Grow target / in-place fit. Only search when we're currently shrunk and might
+				// grow back; a full-size monster is already at t_fit = 0 (no extra trace usually).
+				// Uniform here - this is just the least shrink so we don't overlap where we stand.
 				float t_fit = 0.f;
 				const bool currently_squeezed = (sq[0] != 0.f || sq[1] != 0.f || sq[2] != 0.f);
 				if (currently_squeezed && gi.trace(oldorg, orig_mins, orig_maxs, oldorg, ent, mask).startsolid)
@@ -1123,7 +1195,7 @@ if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::
 					for (int i = 0; i < 5; i++)
 					{
 						const float midt = (lo + hi) * 0.5f;
-						box_at(midt, tmin, tmax);
+						box_at(midt, midt, tmin, tmax);
 						if (gi.trace(oldorg, tmin, tmax, oldorg, ent, mask).startsolid)
 							lo = midt; // still stuck here - shrink more
 						else
@@ -1132,36 +1204,94 @@ if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::
 					t_fit = hi;
 				}
 
-				// (2) Shrink below t_fit only if the grow box is blocked along the move and a
-				// smaller box clears the gap meaningfully (otherwise it's a wall, not a pinch).
-				float t_final = t_fit;
-				box_at(t_fit, tmin, tmax);
+				// (2) Shrink below t_fit for the move. Width and height are decided separately so
+				// each axis only gives up size when that axis is actually what's blocking us.
+				float txy_final = t_fit;
+				float tz_final = t_fit;
+				box_at(t_fit, t_fit, tmin, tmax);
 				trace_t fit_move = gi.trace(oldorg, tmin, tmax, oldorg + move, ent, mask);
 				if (fit_move.startsolid || fit_move.allsolid || fit_move.fraction < 1.0f)
 				{
-					box_at(1.0f, tmin, tmax);
-					trace_t tight = gi.trace(oldorg, tmin, tmax, oldorg + move, ent, mask);
 					const float fit_frac = (fit_move.startsolid || fit_move.allsolid) ? 0.f : fit_move.fraction;
-					if (!tight.startsolid && !tight.allsolid && tight.fraction > fit_frac + 0.1f)
+
+					// WIDTH: only narrow for a real two-sided gap. Cast two FORWARD probes at the
+					// body's left/right edges: if BOTH flanks are walled ahead, the opening is
+					// narrower than the body and it must squeeze. A single or diagonal "/" wall
+					// leaves one flank open, so we keep full width and let normal wall-sliding handle
+					// it (narrowing there would just bury the model). Probing forward (not sideways
+					// at the center) detects the pinch while still approaching the gap - the previous
+					// center-probe missed it because the center is in open space until it's already
+					// between the jambs, which is why squeeze had stopped engaging.
+					bool lateral_pinched = false;
 					{
-						// Binary-search the least shrink that clears about as well as the smallest box.
-						const float goal = tight.fraction - 0.02f;
-						float lo = t_fit, hi = 1.f;
-						for (int i = 0; i < 5; i++)
+						vec3_t mdir = { move[0], move[1], 0.f };
+						const float mlen = std::sqrt(mdir[0] * mdir[0] + mdir[1] * mdir[1]);
+						if (mlen > 0.01f)
 						{
-							const float midt = (lo + hi) * 0.5f;
-							box_at(midt, tmin, tmax);
-							trace_t mt = gi.trace(oldorg, tmin, tmax, oldorg + move, ent, mask);
-							if (!mt.startsolid && !mt.allsolid && mt.fraction >= goal)
-								hi = midt; // this much shrink is enough - try keeping more size
-							else
-								lo = midt; // not enough - shrink more
+							mdir[0] /= mlen; mdir[1] /= mlen;
+							const vec3_t perp = { -mdir[1], mdir[0], 0.f };
+							const float side = std::abs(perp[0]) * half_x + std::abs(perp[1]) * half_y; // real half-width across travel
+							const float fwd  = std::abs(mdir[0]) * half_x + std::abs(mdir[1]) * half_y; // real half-length along travel
+							const vec3_t lateral = perp * side;                                          // out to each body edge
+							const vec3_t ahead   = mdir * (fwd + mlen + SQUEEZE_PINCH_LOOKAHEAD);         // forward past the leading edge / this step
+							const bool left_blocked  = gi.traceline(oldorg + lateral, oldorg + lateral + ahead, ent, mask).fraction < 1.0f;
+							const bool right_blocked = gi.traceline(oldorg - lateral, oldorg - lateral + ahead, ent, mask).fraction < 1.0f;
+							lateral_pinched = left_blocked && right_blocked;
 						}
-						t_final = hi;
+					}
+
+					if (lateral_pinched && (max_ins_x > 0.f || max_ins_y > 0.f))
+					{
+						// Does narrowing (at current height) help meaningfully? Only then narrow.
+						box_at(1.0f, t_fit, tmin, tmax);
+						trace_t wmin = gi.trace(oldorg, tmin, tmax, oldorg + move, ent, mask);
+						if (!wmin.startsolid && !wmin.allsolid && wmin.fraction > fit_frac + 0.1f)
+						{
+							const float wgoal = wmin.fraction - 0.02f;
+							float lo = t_fit, hi = 1.f;
+							for (int i = 0; i < 5; i++)
+							{
+								const float midt = (lo + hi) * 0.5f;
+								box_at(midt, t_fit, tmin, tmax);
+								trace_t mt = gi.trace(oldorg, tmin, tmax, oldorg + move, ent, mask);
+								if (!mt.startsolid && !mt.allsolid && mt.fraction >= wgoal)
+									hi = midt; // enough narrowing - keep more width
+								else
+									lo = midt; // not enough - narrow more
+							}
+							txy_final = hi;
+						}
+					}
+
+					// HEIGHT: duck whenever lowering (at the chosen width) clears the way - a low
+					// ceiling / overhang needs no side walls, so this is NOT gated on the pinch test.
+					if (max_ins_z > 0.f)
+					{
+						box_at(txy_final, t_fit, tmin, tmax);
+						trace_t hcur = gi.trace(oldorg, tmin, tmax, oldorg + move, ent, mask);
+						const float hcur_frac = (hcur.startsolid || hcur.allsolid) ? 0.f : hcur.fraction;
+						box_at(txy_final, 1.0f, tmin, tmax);
+						trace_t hmin = gi.trace(oldorg, tmin, tmax, oldorg + move, ent, mask);
+						if (!hmin.startsolid && !hmin.allsolid && hmin.fraction > hcur_frac + 0.1f)
+						{
+							const float hgoal = hmin.fraction - 0.02f;
+							float lo = t_fit, hi = 1.f;
+							for (int i = 0; i < 5; i++)
+							{
+								const float midt = (lo + hi) * 0.5f;
+								box_at(txy_final, midt, tmin, tmax);
+								trace_t mt = gi.trace(oldorg, tmin, tmax, oldorg + move, ent, mask);
+								if (!mt.startsolid && !mt.allsolid && mt.fraction >= hgoal)
+									hi = midt; // enough ducking - keep more height
+								else
+									lo = midt; // not enough - duck more
+							}
+							tz_final = hi;
+						}
 					}
 				}
 
-				box_at(t_final, want_mins, want_maxs);
+				box_at(txy_final, tz_final, want_mins, want_maxs);
 			}
 
 			// Apply only if the box actually changed (avoids needless relinks while size is stable).
@@ -1266,11 +1396,39 @@ if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::
 	{
 		ent->monsterinfo.bad_move_time = level.time + BAD_MOVE_TIME_PENALTY;
 
-		// If we're wedged while squeezed, react immediately instead of waiting out the
-		// bump cooldown - otherwise a shrunk monster grinds into the wall (model clipping)
+		// If we're wedged while squeezed (bosses only), react immediately instead of waiting out
+		// the bump cooldown - otherwise a shrunk monster grinds into the wall (model clipping)
 		// instead of turning / backing out.
 		const vec3_t& bsq = ent->monsterinfo.bbox_squeeze;
 		const bool squeezed = (bsq[0] != 0.f || bsq[1] != 0.f || bsq[2] != 0.f);
+
+		// [Horde] Smart wall-stuck escape for normal (non-boss) ground monsters. They don't squeeze
+		// or get pushed off walls, so instead they remember how long they've been grinding this
+		// wall. Once that passes WALL_STUCK_TURN_THRESHOLD, commit to a deliberate turn: slide fully
+		// toward the open side, or - if nose-on with nowhere to slide - just look the other way.
+		// We return true so the new heading sticks: SV_StepDirection keeps a turned ideal_yaw on a
+		// true return but restores the old one on false, and the caller then won't immediately
+		// re-aim at the goal and march us straight back into the same wall. The gentle per-frame
+		// slide below still handles short grinds; this only escalates the persistent ones.
+		if ((ent->svflags & SVF_MONSTER) && !ent->monsterinfo.IS_BOSS && ent->health > 0 &&
+			chosen_forward.fraction < 1.0f)
+		{
+			if (ent->monsterinfo.wall_stuck_time == 0_ms)
+				ent->monsterinfo.wall_stuck_time = level.time; // start of a fresh grind
+			else if (level.time - ent->monsterinfo.wall_stuck_time >= WALL_STUCK_TURN_THRESHOLD)
+			{
+				vec3_t turn_dir = SlideClipVelocity(AngleVectors(vec3_t{ 0.f, ent->ideal_yaw, 0.f }).forward, chosen_forward.plane.normal, 1.0f);
+				if (turn_dir.lengthSquared() > 0.1f)
+					ent->ideal_yaw = vectoyaw(turn_dir);                // commit fully along the wall
+				else
+					ent->ideal_yaw = anglemod(ent->ideal_yaw + 180.f);  // dead-on: turn around
+
+				ent->monsterinfo.wall_stuck_time = level.time;          // re-arm; turn again only if still stuck
+				ent->monsterinfo.bump_time = level.time + BUMP_TIME_DELAY;
+				ent->monsterinfo.random_change_time = level.time + RANDOM_CHANGE_BASE;
+				return true;
+			}
+		}
 
 		// Improved collision recovery with smooth yaw interpolation
 		if ((ent->monsterinfo.bump_time < level.time || squeezed) && chosen_forward.fraction < 1.0f)
@@ -1318,6 +1476,11 @@ if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::
 
 		return false;
 	}
+
+	// Made real forward progress this step, so we're no longer grinding a wall - clear the
+	// non-boss wall-stuck timer. (Passing the "barely moved" test above is the truest signal.)
+	if (ent->svflags & SVF_MONSTER)
+		ent->monsterinfo.wall_stuck_time = 0_ms;
 
 	// check point traces down for dangling corners
 	ent->s.origin = trace.endpos;
@@ -1734,10 +1897,17 @@ bool SV_NewChaseDir(edict_t *actor, vec3_t pos, float dist)
 	if (turnaround != DI_NODIR && SV_StepDirection(actor, turnaround, dist, false))
 		return true;
 
-	actor->ideal_yaw = frandom(0, 360); // can't move; pick a random yaw...
+	// Every direction failed - we're boxed in (typically wedged into a corner). Don't re-roll a
+	// brand-new random yaw: doing that every think makes a cornered monster pirouette in place
+	// ("moving in circles"). Instead retreat the way we came (turnaround) and lock that heading
+	// for a beat via random_change_time, so M_MoveToGoal / M_NavPathToGoal hold ideal_yaw instead
+	// of immediately re-aiming at the (still-blocked) goal and walking us straight back in. The
+	// monster ends up facing a stable escape direction; if it stays wedged, the wall-stuck timer
+	// (SV_movestep) and the teleport failsafe take over rather than a frantic spin.
+	actor->ideal_yaw = (turnaround != DI_NODIR) ? turnaround : anglemod(actor->ideal_yaw + 180.f);
 
-	// All directions blocked - add pause to prevent stuttering from rapid retries
-	// This prevents the monster from trying and failing every frame
+	// Add a pause so we don't try-and-fail (or re-search all 8 dirs) every single frame.
+	actor->monsterinfo.random_change_time = level.time + random_time(RANDOM_CHANGE_MIN, RANDOM_CHANGE_MAX);
 	actor->monsterinfo.bump_time = level.time + BUMP_TIME_FALLBACK;
 	actor->monsterinfo.bad_move_time = level.time + BAD_MOVE_TIME_PENALTY;
 
