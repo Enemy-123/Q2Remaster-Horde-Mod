@@ -474,7 +474,7 @@ void turret2Aim(edict_t* self)
 	//
 	// Adjust angles using helper function
 	//
-	float base_speed = self->yaw_speed / (gi.tick_rate / 10);
+	float base_speed = self->yaw_speed / (gi.tick_rate / 10.0f);
 	self->s.angles[PITCH] = AdjustAngle(self->s.angles[PITCH], idealPitch, base_speed);
 	self->s.angles[YAW] = AdjustAngle(self->s.angles[YAW], idealYaw, base_speed);
 

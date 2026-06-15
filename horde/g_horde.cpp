@@ -4806,7 +4806,7 @@ void AppendHordeMessage_impl(std::string_view message, gtime_t duration)
 		}
 	}
 	else {
-		char msg_buffer[MAX_STRING_CHARS];
+		char msg_buffer[MAX_STRING_CHARS]{};
 		char* write_ptr = msg_buffer;
 
 		if (current_len > 0) {

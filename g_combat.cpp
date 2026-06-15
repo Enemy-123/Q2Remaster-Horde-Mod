@@ -1121,6 +1121,16 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		damage = static_cast<int>(round(damage * M_DamageModifier(attacker)));
 	}
 
+	// Dopplegangers are fragile decoys: any monster on a different team tears through
+	// them, dealing triple damage. (Player-summoned monsters get redirected to their
+	// owner above, so this only triggers for hostile monsters.)
+	if (attacker && (attacker->svflags & SVF_MONSTER) &&
+		horde::IsSpecialType(targ, horde::SpecialEntityTypeID::DOPPLEGANGER) &&
+		!OnSameTeam(targ, attacker))
+	{
+		damage *= 3;
+	}
+
 	if (g_instagib->integer && !g_horde->integer && attacker && attacker->client && targ->client) {
 		// [Kex] always kill no matter what on instagib
 		damage = 9999;

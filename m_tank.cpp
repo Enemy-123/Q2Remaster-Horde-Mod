@@ -1633,7 +1633,10 @@ MONSTERINFO_ATTACK(tank_attack) (edict_t* self) -> void
 		M_SetAnimation(self, &tank_move_punch);
 	}
 
-	if (range_to(self, self->enemy) <= RANGE_MELEE * 2.0f)
+	// Don't melee sentryguns; fall through to ranged attacks instead (like the brain's laser).
+	const bool avoid_melee = horde::IsSpecialType(target, horde::SpecialEntityTypeID::SENTRY_GUN);
+
+	if (!avoid_melee && range_to(self, self->enemy) <= RANGE_MELEE * 2.0f)
 	{
 		// Ataque melee (punch)
 		M_SetAnimation(self, &tank_move_punch);
@@ -2244,7 +2247,7 @@ void tank_vanillaMachineGun(edict_t* self)
 	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, horde::WeaponID::MACHINEGUN);
 	if (damage <= 0) damage = 6;
 
-	vec3_t					 dir;
+	vec3_t					 dir{};
 	vec3_t					 vec;
 	vec3_t					 start;
 	vec3_t					 forward, right;
@@ -2759,7 +2762,10 @@ MONSTERINFO_ATTACK(tank_vanilla_attack) (edict_t* self) -> void
 	const int to_enemy = range_to(self, self->enemy);
 	const float range = to_enemy;
 
-	if (self && self->enemy && range <= RANGE_MELEE * 2)
+	// Don't melee sentryguns; fall through to ranged attacks instead (like the brain's laser).
+	const bool avoid_melee = horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::SENTRY_GUN);
+
+	if (!avoid_melee && self && self->enemy && range <= RANGE_MELEE * 2)
 	{
 		M_SetAnimation(self, &tank_vanilla_move_punch);
 		return;

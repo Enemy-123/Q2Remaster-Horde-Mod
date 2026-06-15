@@ -258,7 +258,7 @@ bool M_CheckClearShot(edict_t* self, const vec3_t& offset)
 
 void M_CheckGround(edict_t* ent, contents_t mask)
 {
-	vec3_t	point;
+	vec3_t	point{};
 	trace_t trace;
 
 	// [Paril-KEX]
@@ -312,7 +312,7 @@ void M_CheckGround(edict_t* ent, contents_t mask)
 
 void M_CatagorizePosition(edict_t* self, const vec3_t& in_point, water_level_t& waterlevel, contents_t& watertype)
 {
-	vec3_t	   point;
+	vec3_t	   point{};
 	contents_t cont;
 
 	//
@@ -866,7 +866,7 @@ void M_MoveFrame(edict_t* self)
 		if (!(self->monsterinfo.aiflags & AI_HOLD_FRAME))
 		{
 			float dist = move->frame[index].dist * self->monsterinfo.scale;
-			dist /= gi.tick_rate / 10;
+			dist /= gi.tick_rate / 10.0f;
 			move->frame[index].aifunc(self, dist);
 		}
 		else
