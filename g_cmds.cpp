@@ -767,6 +767,28 @@ void Cmd_Novisible_f(edict_t* ent)
 
 /*
 ==================
+Cmd_BBox_f
+
+Toggles a debug overlay that draws a red box around every countable monster's
+bounding box (absmin/absmax) for this client. Replaces the old developer + IR
+goggles workflow. Boxes render on the host (server-side Draw_Bounds).
+
+argv(0) bbox
+==================
+*/
+void Cmd_BBox_f(edict_t* ent)
+{
+	if (!G_CheatCheck(ent))
+		return;
+
+	ent->client->ir_tracking_active = !ent->client->ir_tracking_active;
+
+	gi.LocClient_Print(ent, PRINT_HIGH,
+		ent->client->ir_tracking_active ? "monster bbox overlay ON\n" : "monster bbox overlay OFF\n");
+}
+
+/*
+==================
 Cmd_Summon_f
 
 Summons a monster at crosshair location for testing
@@ -2270,6 +2292,8 @@ void ClientCommand(edict_t* ent)
 		Cmd_Notarget_f(ent);
 	else if (Q_strcasecmp(cmd, "novisible") == 0)
 		Cmd_Novisible_f(ent);
+	else if (Q_strcasecmp(cmd, "bbox") == 0)
+		Cmd_BBox_f(ent);
 //for horde debug
 	else if (Q_strcasecmp(cmd, "novis") == 0) {
 		Cmd_Notarget_f(ent);

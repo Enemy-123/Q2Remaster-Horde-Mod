@@ -1603,8 +1603,8 @@ static float CalculateCooldownScale(int32_t lvl, const horde::MapSize& mapSize)
 	return std::min(scale * multiplier, maxScale);
 }
 cvar_t* g_horde;
-cvar_t* g_horde_grid_first;  // Test cvar: prioritize grid spawning
 cvar_t* g_horde_force_fog_wave;  // Test cvar: force the next wave to be a fog (Gekk/Berserk) wave
+cvar_t* g_horde_grid_first;  // Test cvar: prioritize grid spawning
 cvar_t* g_horde_nav_spawn_check;  // 1 = reject ground spawns the navmesh can't reach (anti unreachable-spawn)
 cvar_t* g_horde_spawn_dist_cap;  // 1 = cap how far from players a spawn point may be (anti far/closed-wing spawn)
 

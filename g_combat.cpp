@@ -415,6 +415,18 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
         {
             new_tesla = MarkTeslaArea(targ, threat_source); // Assuming this function marks the area around any deployable.
 
+            // Doppleganger is a decoy whose entire job is to pull aggro: the instant it
+            // damages a monster, that monster locks onto it deterministically. Skip the
+            // random/cooldown gate the other deployables use (and switch even off another
+            // deployable) so the decoy reliably grabs attention the moment it deals damage.
+            if (horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::DOPPLEGANGER))
+            {
+                if (targ->enemy != threat_source)
+                    TargetTesla(targ, threat_source);
+                targ->monsterinfo.last_reacttodamage_target_time = level.time;
+                return;
+            }
+
             // Summoned entities, morphed players, Laser Emitter, Barrel, or Trap logic
             // Note: Tesla mines have separate handling below, so exclude them here
             if (!horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::TESLA_MINE) &&

@@ -3804,8 +3804,7 @@ struct gclient_t
 
 	//int ctf_lasttechmsg_count;
 	gtime_t		ammoregentime;
-	bool ir_tracking_active; //horde tracking
-	uint8_t ir_frame_count;
+	bool ir_tracking_active; // "bbox" debug overlay toggle (draws monster bounds)
 
 	// Vortex-style blaster ammo system
 	uint8_t blaster_ammo;           // Current blaster ammo (0-50)

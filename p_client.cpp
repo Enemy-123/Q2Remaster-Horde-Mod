@@ -4264,37 +4264,31 @@ void UpdateClientHealth(edict_t* ent, gclient_t* client)
 	}
 }
 
+// Debug overlay: draws a box around every countable monster for this client.
+// Toggled by the "bbox" console command via client->ir_tracking_active.
+// NOTE: gi.Draw_Bounds is a server-side debug primitive (renders on the host),
+// it does NOT use the unicast message buffer -- do not call gi.unicast here, or
+// the engine logs "PF_Unicast with empty data".
 void UpdateIRTracking(edict_t* ent, gclient_t* client)
 {
-	if (!developer->integer)
-		return;
-	// Si no está activo el IR o el cliente no es válido, salir
-	if (!client || !client->ir_tracking_active || client->ir_time <= level.time)
-	{
-		if (client)
-			client->ir_tracking_active = false;
-		return;
-	}
-
-	// Solo buscar monstruos cada X frames para mejorar rendimiento
-	client->ir_frame_count = (client->ir_frame_count + 1) % 3;
-	if (client->ir_frame_count != 0)
+	if (!client || !client->ir_tracking_active)
 		return;
 
-	static uint32_t ir_dupe_key = 0;  // Clave única para el IR
+	// Draw_Bounds renders host-side only, so the boxes only need to be emitted
+	// once per server frame no matter how many clients have the overlay enabled.
+	static gtime_t last_draw_time = 0_ms;
+	if (last_draw_time == level.time)
+		return;
+	last_draw_time = level.time;
 
-	// Usar el iterador de monstruos activos
+	// Redraw every frame with a one-frame lifetime (same as g_debug_monster_kills)
+	// so each box sits exactly on its monster instead of lagging then flickering.
 	for (const auto* const monster : active_monsters())
 	{
 		// Solo dibujar si es un monstruo "contable"
 		if (!(monster->monsterinfo.aiflags & AI_DO_NOT_COUNT))
-		{
-			gi.unicast(ent, false, ir_dupe_key);  // Primero indicamos que el mensaje es solo para este cliente
-			gi.Draw_Bounds(monster->absmin, monster->absmax, rgba_red, 0.1f, false);
-		}
+			gi.Draw_Bounds(monster->absmin, monster->absmax, rgba_red, gi.frame_time_s, false);
 	}
-
-	ir_dupe_key++;  // Increment key for next frame
 }
 
 // Handle menu movement input
