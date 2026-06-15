@@ -326,6 +326,7 @@ static void ParseFlatMapGlobal(Json::Value& root, std::string_view name, const J
 		{"MONSTER_CAP", "monster_cap"},
 		{"ENABLE_LOADENT", "enable_loadent"},
 		{"ENABLE_GRID", "enable_grid"},
+		{"BOSS_SIZE", "boss_size"},  // must precede SIZE: "..._BOSS_SIZE" also ends with "_SIZE"
 		{"SIZE", "map_size"},
 	};
 
@@ -965,6 +966,38 @@ void Config_LoadMaps(const char* basedir)
 				}
 			}
 
+			// Load boss size override (decoupled from map_size). Controls which boss
+			// pool a map draws from without affecting monster spawning/caps.
+			if (map_data.isMember("boss_size") && map_data["boss_size"].isString())
+			{
+				std::string boss_size_str = map_data["boss_size"].asString();
+				if (boss_size_str == "small")
+				{
+					override_config.boss_size_override_is_small = true;
+					override_config.boss_size_override_is_big = false;
+					override_config.boss_size_override_is_medium = false;
+					override_config.has_boss_size_override = true;
+				}
+				else if (boss_size_str == "big" || boss_size_str == "large")
+				{
+					override_config.boss_size_override_is_small = false;
+					override_config.boss_size_override_is_big = true;
+					override_config.boss_size_override_is_medium = false;
+					override_config.has_boss_size_override = true;
+				}
+				else if (boss_size_str == "medium")
+				{
+					override_config.boss_size_override_is_small = false;
+					override_config.boss_size_override_is_big = false;
+					override_config.boss_size_override_is_medium = true;
+					override_config.has_boss_size_override = true;
+				}
+				else
+				{
+					gi.Com_PrintFmt("Config: WARNING - Invalid boss_size '{}' for map '{}', ignoring\n", boss_size_str, map_name);
+				}
+			}
+
 			// Store in array using MapID as index
 			const size_t index = static_cast<size_t>(mapId);
 			g_config.maps.map_overrides[index] = override_config;
@@ -982,13 +1015,26 @@ void Config_LoadMaps(const char* basedir)
 					size_str = "medium";
 			}
 
-			gi.Com_PrintFmt("Config: Map '{}' (ID: {}) - cap: {}, grid: {}, loadent: {}, size: {}\n",
+			// Determine boss size string for logging
+			std::string boss_size_str = "default";
+			if (override_config.has_boss_size_override)
+			{
+				if (override_config.boss_size_override_is_small)
+					boss_size_str = "small";
+				else if (override_config.boss_size_override_is_big)
+					boss_size_str = "big";
+				else
+					boss_size_str = "medium";
+			}
+
+			gi.Com_PrintFmt("Config: Map '{}' (ID: {}) - cap: {}, grid: {}, loadent: {}, size: {}, boss_size: {}\n",
 				map_name,
 				static_cast<int>(mapId),
 				override_config.monster_cap >= 0 ? std::to_string(override_config.monster_cap) : "default",
 				override_config.has_grid_override ? (override_config.enable_grid ? "true" : "false") : "default",
 				override_config.has_loadent_override ? (override_config.enable_loadent ? "true" : "false") : "default",
-				size_str);
+				size_str,
+				boss_size_str);
 		}
 
 		if (loaded_count > 0)

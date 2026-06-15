@@ -134,6 +134,9 @@ extern thread_local bool g_use_quiet_deployable_removal;
 
 extern void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, float push_strength, float horizontal_push_strength, float vertical_push_strength);
 extern horde::MapSize GetMapSize(const char* mapname) noexcept;
+// Map size to use for boss-pool selection; honors a per-map boss_size override.
+// out_isOverride is set true when an explicit override is active (hard-restrict the pool).
+extern horde::MapSize GetBossMapSize(const char* mapname, bool& out_isOverride) noexcept;
 extern void InvalidateMapSizeCache() noexcept;  // Call when config is reloaded
 extern gtime_t GetWaveTimer();
 extern int32_t GetStroggsNum() noexcept;

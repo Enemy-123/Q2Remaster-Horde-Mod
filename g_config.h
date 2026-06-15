@@ -544,6 +544,12 @@ struct MapOverrideConfig
 	bool size_override_is_big = false;
 	bool size_override_is_medium = true;
 	bool has_size_override = false;  // Whether map_size was explicitly set
+	// Boss size override - decoupled from map_size so a map can keep, e.g., medium
+	// monster spawning while drawing bosses from a different (smaller) pool.
+	bool boss_size_override_is_small = false;
+	bool boss_size_override_is_big = false;
+	bool boss_size_override_is_medium = false;
+	bool has_boss_size_override = false;  // Whether boss_size was explicitly set
 };
 
 // Maps configuration - default caps and per-map overrides

@@ -228,6 +228,34 @@ void InvalidateMapSizeCache() noexcept {
     g_mapsize_cache.fill(std::nullopt);
 }
 
+// Returns the map size to use for BOSS POOL selection, which may differ from the
+// gameplay map size (GetMapSize) when a map sets a boss_size override. This lets a
+// map keep, e.g., medium monster spawning while drawing bosses from the small pool.
+// out_isOverride is set true when an explicit boss_size override is active, signalling
+// the caller to hard-restrict the candidate pool to this size's list.
+[[nodiscard]] horde::MapSize GetBossMapSize(const char* mapname, bool& out_isOverride) noexcept {
+    out_isOverride = false;
+
+    const horde::MapID mapId = horde::MapOriginRegistry::GetMapID(mapname);
+    if (mapId != horde::MapID::UNKNOWN) {
+        const size_t index = static_cast<size_t>(mapId);
+        if (index < g_config.maps.map_overrides.size()) {
+            const MapOverrideConfig& override_config = g_config.maps.map_overrides[index];
+            if (override_config.has_boss_size_override) {
+                horde::MapSize size;
+                size.isSmallMap = override_config.boss_size_override_is_small;
+                size.isBigMap = override_config.boss_size_override_is_big;
+                size.isMediumMap = override_config.boss_size_override_is_medium;
+                out_isOverride = true;
+                return size;
+            }
+        }
+    }
+
+    // No boss-size override: bosses follow the regular gameplay map size.
+    return GetMapSize(mapname);
+}
+
 // 4: Batch entity removal with memory pooling
 void RemovePlayerOwnedEntities(edict_t* player) {
     if (!player || !player->client) {

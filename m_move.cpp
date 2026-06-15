@@ -1214,14 +1214,16 @@ if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::
 				{
 					const float fit_frac = (fit_move.startsolid || fit_move.allsolid) ? 0.f : fit_move.fraction;
 
-					// WIDTH: only narrow for a real two-sided gap. Cast two FORWARD probes at the
-					// body's left/right edges: if BOTH flanks are walled ahead, the opening is
-					// narrower than the body and it must squeeze. A single or diagonal "/" wall
-					// leaves one flank open, so we keep full width and let normal wall-sliding handle
-					// it (narrowing there would just bury the model). Probing forward (not sideways
-					// at the center) detects the pinch while still approaching the gap - the previous
-					// center-probe missed it because the center is in open space until it's already
-					// between the jambs, which is why squeeze had stopped engaging.
+					// WIDTH: detect whether a clean two-sided gap is dead ahead. Cast two FORWARD
+					// probes at the body's left/right edges: if BOTH flanks are walled ahead, the
+					// opening is narrower than the body - a head-on pinch we must thread. This is now
+					// only a HINT (a "fast-path"): when set it lets even a small progress gain trigger
+					// the squeeze below. It is NOT required - a gap met at an angle leaves one flank
+					// open and won't set it, but the progress fallback below still narrows there.
+					// Gating narrowing on the pinch ALONE was the regression: bosses refused to
+					// squeeze unless aimed dead-straight at the opening. Probing forward (not sideways
+					// at the center) detects the pinch while still approaching the gap, before the
+					// center is between the jambs.
 					bool lateral_pinched = false;
 					{
 						vec3_t mdir = { move[0], move[1], 0.f };
@@ -1240,12 +1242,19 @@ if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::
 						}
 					}
 
-					if (lateral_pinched && (max_ins_x > 0.f || max_ins_y > 0.f))
+					if (max_ins_x > 0.f || max_ins_y > 0.f)
 					{
-						// Does narrowing (at current height) help meaningfully? Only then narrow.
+						// Does narrowing (at current height) help clear more of the move? Trace the
+						// fully-narrow box and compare against the full-width fit. Narrow when it gains:
+						//   - pinch fast-path: a clean head-on gap was detected, so even a small gain
+						//     (>0.02) counts - we know we have to thread it;
+						//   - progress fallback (the original test): require a clear >0.1 gain. This is
+						//     what catches angled / asymmetric gaps the head-on probe misses, and is the
+						//     behavior that was lost when narrowing got gated on the pinch alone.
 						box_at(1.0f, t_fit, tmin, tmax);
 						trace_t wmin = gi.trace(oldorg, tmin, tmax, oldorg + move, ent, mask);
-						if (!wmin.startsolid && !wmin.allsolid && wmin.fraction > fit_frac + 0.1f)
+						const float min_gain = lateral_pinched ? 0.02f : 0.1f;
+						if (!wmin.startsolid && !wmin.allsolid && wmin.fraction > fit_frac + min_gain)
 						{
 							const float wgoal = wmin.fraction - 0.02f;
 							float lo = t_fit, hi = 1.f;

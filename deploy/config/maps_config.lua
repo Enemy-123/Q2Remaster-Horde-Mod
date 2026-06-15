@@ -3,8 +3,8 @@
 
 -- Default Caps
 MAP_CAP_BIG                                      = 26
-MAP_CAP_MEDIUM                                   = 14
-MAP_CAP_SMALL                                    = 12
+MAP_CAP_MEDIUM                                   = 15
+MAP_CAP_SMALL                                    = 13
 MAP_CAP_CUSTOM                                   = 20
 
 -- Default Settings
@@ -133,6 +133,7 @@ MAP_EC_SLASH_BASE_EC_MONSTER_CAP                 = -1
 MAP_EC_SLASH_BASE_EC_ENABLE_GRID                 = false
 MAP_EC_SLASH_BASE_EC_ENABLE_LOADENT              = true
 MAP_EC_SLASH_BASE_EC_SIZE                        = "medium"
+MAP_EC_SLASH_BASE_EC_BOSS_SIZE                   = "small"
 
 -- OLD/BASEOLD
 MAP_OLD_SLASH_BASEOLD_MONSTER_CAP                = -1
@@ -144,3 +145,8 @@ MAP_OLD_SLASH_BASEOLD_SIZE                       = "big"
 MAP_Q64_SLASH_COMMAND_MONSTER_CAP                = -1
 MAP_Q64_SLASH_COMMAND_ENABLE_GRID                = false
 MAP_Q64_SLASH_COMMAND_SIZE                       = "medium"
+
+-- MGU4TRIAL (medium for monster spawning, but bosses drawn from the small pool)
+MAP_MGU4TRIAL_MONSTER_CAP                        = -1
+MAP_MGU4TRIAL_SIZE                               = "medium"
+MAP_MGU4TRIAL_BOSS_SIZE                          = "small"

@@ -92,7 +92,10 @@ extern const BossDataSoA g_mediumBossData;
 extern const BossDataSoA g_largeBossData;
 
 // Boss selection and spawning
-BossPickResult G_HordePickBOSSType(const horde::MapSize& mapSize, std::string_view mapname, int32_t waveNumber);
+// When restrictToMapSizePool is true, the candidate pool is hard-restricted to the
+// single boss list matching mapSize (used by maps with a boss_size override) instead
+// of weighting across all size pools.
+BossPickResult G_HordePickBOSSType(const horde::MapSize& mapSize, std::string_view mapname, int32_t waveNumber, bool restrictToMapSizePool = false);
 void SpawnBossAutomatically();
 void BossSpawnThink(edict_t *self);
 

@@ -816,7 +816,7 @@ static size_t BuildWeightedBossCandidates(const std::array<const BossDataSoA *, 
 }
 
 // Boss selection function
-BossPickResult G_HordePickBOSSType(const horde::MapSize& mapSize, std::string_view mapname, int32_t waveNumber)
+BossPickResult G_HordePickBOSSType(const horde::MapSize& mapSize, std::string_view mapname, int32_t waveNumber, bool restrictToMapSizePool)
 {
 	// Ensure cache is initialized (call InitializeBossWaveTypes which handles the one-time init)
 	if (!g_bossWaveTypeArray[0].announcement)
@@ -824,7 +824,11 @@ BossPickResult G_HordePickBOSSType(const horde::MapSize& mapSize, std::string_vi
 
 	const std::string map_name_storage(mapname);
 	const char *map_name = map_name_storage.c_str();
-	const std::array<const BossDataSoA *, 3> all_boss_lists = { &g_smallBossData, &g_mediumBossData, &g_largeBossData };
+	// Maps with a boss_size override hard-restrict the pool to the single matching list
+	// so their bosses (and resulting s.scale) never come from a larger pool.
+	const std::array<const BossDataSoA *, 3> all_boss_lists = restrictToMapSizePool
+		? std::array<const BossDataSoA *, 3>{ GetBossListSoA(mapSize), nullptr, nullptr }
+		: std::array<const BossDataSoA *, 3>{ &g_smallBossData, &g_mediumBossData, &g_largeBossData };
 	const size_t eligible_entry_count = CountEligibleBossEntries(all_boss_lists, waveNumber);
 	if (eligible_entry_count == 0)
 	{
@@ -1273,7 +1277,12 @@ void SpawnBossAutomatically()
 	const char *map_name = GetCurrentMapName();
 	if (!map_name)
 		map_name = "";
-	BossPickResult boss_pick_result = G_HordePickBOSSType(GetCurrentMapSize(), map_name, current_wave_level);
+	// Bosses use the boss-pool map size, which honors a per-map boss_size override so a
+	// map can keep its gameplay size (monster caps/spawning) while drawing bosses from a
+	// different pool. When overridden, hard-restrict the pool to that size's list.
+	bool boss_size_is_override = false;
+	const horde::MapSize boss_map_size = GetBossMapSize(map_name, boss_size_is_override);
+	BossPickResult boss_pick_result = G_HordePickBOSSType(boss_map_size, map_name, current_wave_level, boss_size_is_override);
 
 	if (boss_pick_result.typeId == horde::MonsterTypeID::UNKNOWN) {
 		if (developer->integer)
