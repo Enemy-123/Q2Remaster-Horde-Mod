@@ -321,13 +321,16 @@ void RemovePlayerOwnedEntities(edict_t* player) {
 [[nodiscard]] bool IsPlayerDefense(const edict_t* ent) {
     if (!ent) return false;
 
-    // Validate special_type_id is within valid range to prevent undefined behavior
+    auto id = static_cast<horde::SpecialEntityTypeID>(ent->special_type_id);
+
+    // UNKNOWN (255) is the default G_Spawn() gives every non-special entity - benign, not corrupt.
+    // Check it BEFORE the range check below (255 >= COUNT would otherwise swallow this normal case).
+    if (id == horde::SpecialEntityTypeID::UNKNOWN) return false;
+
+    // Any OTHER out-of-range value (COUNT..254) is genuinely corrupt - reject to prevent UB.
     if (ent->special_type_id >= static_cast<uint8_t>(horde::SpecialEntityTypeID::COUNT)) {
         return false;
     }
-
-    auto id = static_cast<horde::SpecialEntityTypeID>(ent->special_type_id);
-    if (id == horde::SpecialEntityTypeID::UNKNOWN) return false;
 
     static constexpr uint64_t DEFENSE_MASK =
         (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::SENTRY_GUN)) |
@@ -344,16 +347,12 @@ void RemovePlayerOwnedEntities(edict_t* player) {
 [[nodiscard]] bool IsRemovableEntity(const edict_t* ent) {
     if (!ent) return false;
 
-    // Validate special_type_id is within valid range to prevent undefined behavior
-    if (ent->special_type_id >= static_cast<uint8_t>(horde::SpecialEntityTypeID::COUNT)) {
-        if (developer && developer->integer) {
-            gi.Com_PrintFmt("ERROR: Entity has invalid special_type_id {} (classname: {})\n",
-                ent->special_type_id, ent->classname ? ent->classname : "NULL");
-        }
-        return false;
-    }
-
     auto id = static_cast<horde::SpecialEntityTypeID>(ent->special_type_id);
+
+    // UNKNOWN (255) is the default G_Spawn() gives EVERY non-special entity - it is a benign "not a
+    // special entity" sentinel, NOT a corrupt value. Check it BEFORE the range check below: 255 >= COUNT
+    // is true, so checking the range first would misreport this normal state as an invalid id. Optionally
+    // warn (once per classname per map) when a classname that SHOULD be special forgot to set its id.
     if (id == horde::SpecialEntityTypeID::UNKNOWN) {
         if (developer && developer->integer) {
             thread_local boost::unordered::unordered_flat_set<std::string_view> reported_classnames;
@@ -370,6 +369,15 @@ void RemovePlayerOwnedEntities(edict_t* player) {
                     reported_classnames.insert(ent->classname);
                 }
             }
+        }
+        return false;
+    }
+
+    // Any OTHER out-of-range value (COUNT..254) really is corrupt - keep the error to catch UB.
+    if (ent->special_type_id >= static_cast<uint8_t>(horde::SpecialEntityTypeID::COUNT)) {
+        if (developer && developer->integer) {
+            gi.Com_PrintFmt("ERROR: Entity has invalid special_type_id {} (classname: {})\n",
+                ent->special_type_id, ent->classname ? ent->classname : "NULL");
         }
         return false;
     }
@@ -1562,47 +1570,67 @@ bool IsMonsterJumping(const edict_t* self) {
 
 bool horde_fog_active = false;  // Tracks if boss fog is currently active
 
-// Boss spawning functions
-// Apply temporary fog effect to all players for boss spawn
-void ApplyFogEffect()
+// Tracks which clients had their flashlight forced ON by the fog system, keyed by client
+// index (player->client - game.clients). RestoreFog only switches the flashlight back off
+// for these players, so anyone who already had it on by choice keeps it. Cleared on the
+// rising edge of each fog wave and again as each player is restored.
+static std::array<bool, MAX_CLIENTS> fog_forced_flashlight{};
+
+// Turn the flashlight on for fog visibility if it's off, and remember that the fog system
+// forced it -- so RestoreFog can switch it back off without disturbing players who already
+// had it on by choice. Shared by ApplyFogEffect and the client-spawn fog path
+// (SetupPlayerFog), so mid-wave joiners are tracked the same as players present at start.
+void ForceFlashlightForFog(edict_t* player)
 {
-	// Mark fog as active
-	horde_fog_active = true;
+	if (!player || !player->client)
+		return;
 
-// 	// PRESET PURPLE FOG = for gekk and berserker special waves
-// 	  constexpr float BOSS_FOG_DENSITY = 0.16f;  // Thicker
-//   constexpr float BOSS_FOG_RED = 0.3f;       // Light gray/white
-//   constexpr float BOSS_FOG_GREEN = 0.0f;
-//   constexpr float BOSS_FOG_BLUE = 0.2f;     // Slight blue tint
-
-
-	// Reduced fog density to avoid near-blindness at spawn zone
-  constexpr float BOSS_FOG_DENSITY = 0.16f;  // Thicker
-  constexpr float BOSS_FOG_RED = 0.3f;       // Light gray/white
-  constexpr float BOSS_FOG_GREEN = 0.0f;
-  constexpr float BOSS_FOG_BLUE = 0.2f;     // Slight blue tint
-//0,13, 0.02, 0.02, 0.04 f for night
-
-	for (uint32_t i = 0; i < game.maxclients; i++)
+	if (!(player->flags & FL_FLASHLIGHT))
 	{
-		edict_t* player = &g_edicts[i + 1];
-		if (!player->inuse || !player->client)
-			continue;
+		P_ToggleFlashlight(player, true);
+		fog_forced_flashlight[player->client - game.clients] = true;
+	}
+}
 
-		// Quick transition to boss fog
+// Clear all fog/flashlight tracking. Called from ResetGame() so a reset that happens mid
+// fog-wave can't leak boss fog or a forced flashlight into the next map.
+void ResetFogState() noexcept
+{
+	horde_fog_active = false;
+	fog_forced_flashlight.fill(false);
+}
+
+// Boss spawning functions
+// Apply a temporary, wave-themed fog to all players for special-wave spawns.
+// Colors are chosen per wave type so the two special waves read differently,
+// matching the per-wave sound/name theming in ApplySpecialWaveEffects().
+// Called every frame while the wave is active, which also covers mid-wave joiners
+// (P_ForceFogTransition early-outs once a client has reached the target fog).
+void ApplyFogEffect(MonsterWaveType waveType)
+{
+	// Rising edge: the first frame a fog wave activates, forget any stale "we forced the
+	// flashlight" flags from a previous wave so each player's pre-wave state starts clean.
+	const bool fog_starting = !horde_fog_active;
+	horde_fog_active = true;
+	if (fog_starting)
+		fog_forced_flashlight.fill(false);
+
+	// Fog values are 0..1: { density, red, green, blue, sky-darken factor }.
+	// Gekk ("Inferno Gekk")  -> sickly toxic-green swamp haze (default).
+	// Berserk ("Trespasser") -> deep blood/ember red.
+	std::array<float, 5> fog = { 0.15f, 0.10f, 0.22f, 0.06f, 0.85f }; // Gekk: toxic green
+	if (HasWaveType(waveType, MonsterWaveType::Berserk))
+		fog = { 0.15f, 0.34f, 0.05f, 0.10f, 0.85f }; // Berserk: blood red
+
+	for (auto player : active_players_no_spect())
+	{
+		// Quick transition into the wave fog (also drives mid-wave joiners).
 		player->client->pers.fog_transition_time = 4000_ms;
-		player->client->pers.wanted_fog = {
-			BOSS_FOG_DENSITY,
-			BOSS_FOG_RED,
-			BOSS_FOG_GREEN,
-			BOSS_FOG_BLUE,
-			0.8f // Darken sky too wth 0.8f
-		};
+		player->client->pers.wanted_fog = fog;
 
-		if (!(player->flags & FL_FLASHLIGHT))
-		{
-			P_ToggleFlashlight(player, true);
-		}
+		// Force the flashlight on so players can see through the fog (records that we did,
+		// and won't re-toggle a player who already has it on).
+		ForceFlashlightForFog(player);
 	}
 }
 
@@ -1622,7 +1650,7 @@ void ApplySpecialWaveEffects(MonsterWaveType waveType)
 		// Random Gekk sound
 		sound_index = brandom()
 			? gi.soundindex("gek/gek_low.wav")
-			: gi.soundindex("gek/gek_amb.wav");
+			: gi.soundindex("gk/gek_amb.wav");
 	}
 	else // Berserk wave
 	{
@@ -1657,19 +1685,20 @@ void ApplySpecialWaveEffects(MonsterWaveType waveType)
 	}
 }
 
-// Restore normal fog after boss death and turn off flashlights
+// Restore the map's original fog after the special wave ends, and switch the flashlight
+// back off only for players whose flashlight the fog system turned on.
 void RestoreFog()
 {
 	// Mark fog as inactive
 	horde_fog_active = false;
 
-	for (uint32_t i = 0; i < game.maxclients; i++)
-	{
-		edict_t* player = &g_edicts[i + 1];
-		if (!player->inuse || !player->client)
-			continue;
+	// mgu4trial needs the flashlight on continuously, so never auto-disable it there.
+	const bool keep_flashlight_map =
+		horde::MapOriginRegistry::GetMapID(level.mapname) == horde::MapID::MGU4TRIAL;
 
-		// Slow transition back to normal
+	for (auto player : active_players_no_spect())
+	{
+		// Slow transition back to the map's original (worldspawn) fog.
 		player->client->pers.fog_transition_time = 2000_ms;
 		player->client->pers.wanted_fog = {
 			world->fog.density,
@@ -1679,12 +1708,13 @@ void RestoreFog()
 			world->fog.sky_factor
 		};
 
-		// For mgu4trial, don't remove flashlight (map needs it on continuously)
-		if (horde::MapOriginRegistry::GetMapID(level.mapname) == horde::MapID::MGU4TRIAL)
-			continue;
+		// Only undo the flashlight if WE forced it on; players who had it on by choice keep
+		// it. Clear the flag either way so it doesn't leak into the next wave.
+		const ptrdiff_t cn = player->client - game.clients;
+		const bool we_forced_it = fog_forced_flashlight[cn];
+		fog_forced_flashlight[cn] = false;
 
-		// Turn off flashlight
-		if (player->flags & FL_FLASHLIGHT)
+		if (we_forced_it && !keep_flashlight_map && (player->flags & FL_FLASHLIGHT))
 		{
 			P_ToggleFlashlight(player, false);
 		}

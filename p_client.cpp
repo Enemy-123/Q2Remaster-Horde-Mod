@@ -2900,11 +2900,10 @@ static void SetupPlayerFog(edict_t* ent)
 			0.0f // Darken sky
 		};
 
-		// Enable flashlight if not already on
-		if (!(ent->flags & FL_FLASHLIGHT))
-		{
-			P_ToggleFlashlight(ent, true);
-		}
+		// Enable flashlight if not already on, recording that the fog system forced it so
+		// RestoreFog can undo it for this mid-wave joiner without disturbing players who
+		// had it on by choice.
+		ForceFlashlightForFog(ent);
 	}
 	else
 	{

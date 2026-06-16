@@ -222,6 +222,12 @@ int32_t initial_total_monsters_for_spawning_phase_timeout = 0;
 
 static bool g_special_high_level_monster_spawned_this_wave = false;
 
+// The specific elite monster precached for this wave (UNKNOWN until an elite attempt picks one).
+// The picker spawns exactly this candidate -- it's chosen by weighted-random among above-wave
+// monsters (so it varies) and is guaranteed >= currentWave + buffer -- instead of letting it
+// lose the diluted weighted cache draw against the common pool. Reset each wave in ResetWaveState.
+static horde::MonsterTypeID g_wave_elite_pick = horde::MonsterTypeID::UNKNOWN;
+
 // Recovery mode (local to g_horde.cpp)
 bool g_recovery_mode_active = false;
 
@@ -2747,7 +2753,17 @@ void InitializeWaveType(int32_t waveLevel)
 	// consumes the request so it only affects this one wave.
 	if (g_horde_force_fog_wave && g_horde_force_fog_wave->integer)
 	{
-		current_wave_type = (frandom() < 0.5f) ? MonsterWaveType::Gekk : MonsterWaveType::Berserk;
+		// Alternate Gekk <-> Berserk off the last fog wave so forced fog waves don't repeat
+		// the same type (random only for the very first one). Update the shared tracker so the
+		// natural GetWaveComposition path keeps alternating from here on too.
+		if (HasWaveType(last_gekk_or_berserk_special, MonsterWaveType::Gekk))
+			current_wave_type = MonsterWaveType::Berserk;
+		else if (HasWaveType(last_gekk_or_berserk_special, MonsterWaveType::Berserk))
+			current_wave_type = MonsterWaveType::Gekk;
+		else
+			current_wave_type = (frandom() < 0.5f) ? MonsterWaveType::Gekk : MonsterWaveType::Berserk;
+
+		last_gekk_or_berserk_special = current_wave_type;
 		gi.cvar_set("g_horde_force_fog_wave", "0");
 		forced_fog = true;
 	}
@@ -2760,7 +2776,7 @@ void InitializeWaveType(int32_t waveLevel)
 	// or whenever a fog wave was explicitly forced via the cvar.
 	if (IsLimitBreakWave(current_wave_type) && (forced_fog || waveLevel >= 15))
 	{
-		ApplyFogEffect();
+		ApplyFogEffect(current_wave_type);
 		ApplySpecialWaveEffects(current_wave_type);
 	}
 }
@@ -3609,6 +3625,11 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 					candidate.selected_type, candidate.selected_array_index, mutable_ctx);
 				if (elite_spawn_family != AssetFamilyID::UNKNOWN_FAMILY && candidate_model_path)
 					elite_spawn_model_path = candidate_model_path;
+
+				// Remember the exact elite so the picker spawns it directly this wave (only if it
+				// actually precached -- family could be blocked on this map).
+				if (elite_spawn_family != AssetFamilyID::UNKNOWN_FAMILY)
+					g_wave_elite_pick = candidate.selected_type;
 			}
 			else
 			{
@@ -3829,7 +3850,7 @@ horde::MonsterTypeID G_HordePickMonsterType(
 	{
 		// Elite already spawned this wave, force normal spawning
 		attemptHigherLevel = false;
-		if (developer->integer)
+		if (developer->integer > 1)
 		{
 			gi.Com_PrintFmt("ELITE ALREADY SPAWNED: Forcing normal spawn for remaining monsters.\n");
 		}
@@ -3840,53 +3861,36 @@ horde::MonsterTypeID G_HordePickMonsterType(
 	}
 	ctx.effectiveLevel = CalculateEffectiveMonsterLevel(ctx.currentActualLevel, attemptHigherLevel, ctx.waveTypeForFiltering);
 
-	// --- 3. Build Cache and Select Monster (no changes) ---
+	// --- 3. Build cache (also precaches + records this wave's elite pick when attempting one) ---
 	BuildMonsterCache(g_monster_picker_internal_cache, ctx);
-	horde::MonsterTypeID chosen_monster_id = SelectFromCache(g_monster_picker_internal_cache);
 
-	if (chosen_monster_id == horde::MonsterTypeID::UNKNOWN)
+	// If an elite was precached for this wave and it suits this spawn point, spawn THAT exact
+	// candidate. It is chosen by weighted-random among above-wave monsters (so it varies) and is
+	// guaranteed >= currentWave + buffer, which both ensures an elite actually appears and stops
+	// it from losing the diluted weighted draw against the common pool. One elite per wave.
+	const bool elite_fits_point = (g_wave_elite_pick != horde::MonsterTypeID::UNKNOWN) &&
+		!(ctx.isSpawnPointFlying && !IsFlying(g_wave_elite_pick));
+
+	horde::MonsterTypeID chosen_monster_id;
+	if (!g_special_high_level_monster_spawned_this_wave && elite_fits_point)
 	{
-		chosen_monster_id = EmergencyFallbackSelection(ctx);
-	}
+		chosen_monster_id = g_wave_elite_pick;
+		g_special_high_level_monster_spawned_this_wave = true;
 
-	// =======================================================================
-	// --- FINAL CHECK AND FLAG SET ---
-	// If we successfully picked a monster AND it was an elite spawn, set the flag.
-	// IMPORTANT: Use same wave buffer as elite candidate filtering (current wave + next 3 waves)
-	// =======================================================================
-	if (chosen_monster_id != horde::MonsterTypeID::UNKNOWN && ctx.effectiveLevel > ctx.currentActualLevel)
-	{
-		const size_t index = static_cast<size_t>(chosen_monster_id);
-
-		// Dynamic elite buffer: Lower for early waves to ensure elites spawn
-		// Waves 1-6: +2 buffer (more lenient, guarantees elites available)
-		// Waves 7+: +3 buffer (stricter, ensures clear elite distinction)
-		const int32_t ELITE_WAVE_BUFFER = (ctx.currentActualLevel < 7) ? 2 : 3;
-
-		if (index < g_monsterData.MONSTER_ARRAY_SIZE && g_monsterData.minWaves[index] >= ctx.currentActualLevel + ELITE_WAVE_BUFFER)
+		if (developer->integer > 1)
 		{
-			// CRITICAL: Only set flag when we successfully select a valid elite
-			// This prevents multiple elites in the same batch while allowing retries if elite selection fails
-			g_special_high_level_monster_spawned_this_wave = true;
-
-			if (developer->integer)
-			{
-				gi.Com_PrintFmt("ELITE SPAWN SUCCESS: '{}' (minWave {}) spawned in wave {} (buffer={}). Flag set.\n",
-					horde::MonsterTypeRegistry::GetClassname(chosen_monster_id),
-					g_monsterData.minWaves[index],
-					ctx.currentActualLevel,
-					ELITE_WAVE_BUFFER);
-			}
-		}
-		else if (attemptHigherLevel && developer->integer)
-		{
-			// Elite attempt but didn't meet buffer requirement - allow retry
-			gi.Com_PrintFmt("ELITE ATTEMPT FAILED: '{}' (minWave {}) doesn't meet +{} buffer (need >= {}). Flag NOT set, allowing retry.\n",
+			const size_t index = static_cast<size_t>(chosen_monster_id);
+			gi.Com_PrintFmt("ELITE SPAWN SUCCESS: '{}' (minWave {}) spawned in wave {}. Flag set.\n",
 				horde::MonsterTypeRegistry::GetClassname(chosen_monster_id),
-				g_monsterData.minWaves[index],
-				ELITE_WAVE_BUFFER,
-				ctx.currentActualLevel + ELITE_WAVE_BUFFER);
+				(index < g_monsterData.MONSTER_ARRAY_SIZE) ? g_monsterData.minWaves[index] : 0,
+				ctx.currentActualLevel);
 		}
+	}
+	else
+	{
+		chosen_monster_id = SelectFromCache(g_monster_picker_internal_cache);
+		if (chosen_monster_id == horde::MonsterTypeID::UNKNOWN)
+			chosen_monster_id = EmergencyFallbackSelection(ctx);
 	}
 
 	return chosen_monster_id;
@@ -4191,7 +4195,7 @@ static void PrecacheWaveSounds()
 
 	// Precache special wave sounds (Gekk and Berserk waves)
 	gi.soundindex("gek/gek_low.wav");
-	gi.soundindex("gek/gek_amb.wav");
+	gi.soundindex("gek/gk_amb.wav");
 	gi.soundindex("world/radio3.wav");
 
 	// Use std::span for safe iteration
@@ -5138,6 +5142,13 @@ void ResetGame()
 	next_wave_message_sent = false;
 	allowWaveAdvance = false;
 
+	// Clear special-wave fog/flashlight tracking so a reset mid fog-wave can't leak boss
+	// fog or a forced flashlight into the next map (SetupPlayerFog keys off horde_fog_active).
+	// Also clear the wave type so Horde_RunFrame's per-frame fog check doesn't re-apply fog
+	// during the next map's warmup before wave 1 reassigns it.
+	current_wave_type = MonsterWaveType::None;
+	ResetFogState();
+
 	ResetBenefits();
 	ResetWaveAdvanceState();
 
@@ -5548,8 +5559,13 @@ static void UpdateTimeAcceleration(const WaveConditionContext& ctx)
 // Helper to apply the aggressive time reduction when few monsters are left.
 static void ApplyAggressiveTimeReduction(const WaveConditionContext& ctx)
 {
-	// This logic only applies if few monsters are left alive and in the queue.
-	if (ctx.liveMonsters > HordeConstants::MONSTERS_FOR_AGGRESSIVE_REDUCTION || g_horde_local.queued_monsters >= 3)
+	// This logic only applies if few monsters are left alive. Normally we also require the queue
+	// to be nearly drained (queued < 3) so we don't rush a wave that's still ramping up -- but
+	// when players are clearly in control (few alive yet lots still pending), we DO want to rush
+	// so others aren't left waiting on one player mopping up.
+	const bool controlled_rush = IsControlledRushActive();
+	if (ctx.liveMonsters > HordeConstants::MONSTERS_FOR_AGGRESSIVE_REDUCTION ||
+		(g_horde_local.queued_monsters >= 3 && !controlled_rush))
 	{
 		// Reset acceleration if conditions no longer met
 		if (g_horde_local.targetTimeAcceleration > 1.0f)
@@ -5590,6 +5606,11 @@ static void ApplyAggressiveTimeReduction(const WaveConditionContext& ctx)
 	else if (ctx.mapSize.isMediumMap)
 		target_acceleration *= 0.92f;
 
+	// Controlled-map rush: keep acceleration strong even after the small/medium-map reductions,
+	// so a dominated wave refills quickly for everyone.
+	if (controlled_rush)
+		target_acceleration = std::max(target_acceleration, 2.5f);
+
 	// Cap maximum acceleration
 	target_acceleration = std::min(target_acceleration, 3.0f);
 
@@ -5601,23 +5622,28 @@ static void ApplyAggressiveTimeReduction(const WaveConditionContext& ctx)
 		g_horde_local.accelerationDuration = 2_sec; // 2 second smooth transition
 	}
 
-	// --- Optional: Also apply gentle timer reduction (hybrid approach) ---
-	// Calculate a reasonable time limit
-	float base_time = 8.0f + (ctx.liveMonsters * 1.5f);
-
-	if (ctx.isBossWaveActive && boss_spawned_for_wave)
-		base_time *= 1.5f;
-
-	// Gentle reduction over time (30% reduction interpolated over 2 seconds)
-	const gtime_t remaining = (g_horde_local.waveEndTime > ctx.currentTime) ? (g_horde_local.waveEndTime - ctx.currentTime) : 0_sec;
-	const gtime_t desired_time = gtime_t::from_sec(std::max(5.0f, base_time));
-
-	if (remaining > desired_time && remaining > 5_sec)
+	// --- Optional: gentle wave-timer reduction (hybrid) -- only near the END of a wave (queue
+	// nearly drained). Skipped during a controlled-map rush so refilling a still-queued wave
+	// doesn't also shorten the wave timer.
+	if (g_horde_local.queued_monsters < 3)
 	{
-		// Smoothly reduce timer by interpolating toward desired time
-		const float reduction_rate = 0.7f; // 70% of the difference per second
-		const gtime_t reduction_amount = (remaining - desired_time) * (reduction_rate * gi.frame_time_s);
-		g_horde_local.waveEndTime -= reduction_amount;
+		// Calculate a reasonable time limit
+		float base_time = 8.0f + (ctx.liveMonsters * 1.5f);
+
+		if (ctx.isBossWaveActive && boss_spawned_for_wave)
+			base_time *= 1.5f;
+
+		// Gentle reduction over time (30% reduction interpolated over 2 seconds)
+		const gtime_t remaining = (g_horde_local.waveEndTime > ctx.currentTime) ? (g_horde_local.waveEndTime - ctx.currentTime) : 0_sec;
+		const gtime_t desired_time = gtime_t::from_sec(std::max(5.0f, base_time));
+
+		if (remaining > desired_time && remaining > 5_sec)
+		{
+			// Smoothly reduce timer by interpolating toward desired time
+			const float reduction_rate = 0.7f; // 70% of the difference per second
+			const gtime_t reduction_amount = (remaining - desired_time) * (reduction_rate * gi.frame_time_s);
+			g_horde_local.waveEndTime -= reduction_amount;
+		}
 	}
 }
 
@@ -7135,16 +7161,15 @@ void TriggerAmbush(const horde::MapSize& mapSize, int32_t waveLevel)
 
 	// Pick a random player to be the target - ambush will follow this player
 	edict_t* target_player = nullptr;
-	for (uint32_t i = 0; i < game.maxclients; i++) {
-		edict_t* player = g_edicts + 1 + i;
-		if (player->inuse && player->client && player->health > 0) {
-			if (!target_player || frandom() < 0.5f) {
-				target_player = player;
-			}
+	for (auto player : active_players_no_spect()) {
+		if (player->health <= 0)
+			continue;
+		if (!target_player || frandom() < 0.5f) {
+			target_player = player;
 		}
 	}
 
-	if (developer->integer) {
+	if (developer->integer > 1) {
 		gi.Com_PrintFmt("HORDE: PLANNING Ambush (Size: {}) targeting {}. Spawning will be time-sliced.\n",
 			ambushSize, target_player ? GetPlayerName(target_player) : "random");
 	}
@@ -7172,8 +7197,10 @@ static void ExecuteNextSpecialSpawn()
 	{
 		// Success
 	}
-	else if (developer->integer)
+	else if (developer->integer > 1)
 	{
+		// Redundant with the detailed "EMERGENCY SPAWN FAILED" line inside EmergencySpawnMonster
+		// (kept at level 1); demoted so a struggling spawn doesn't double-log every frame.
 		gi.Com_PrintFmt("Special Spawn FAILED: EmergencySpawnMonster returned false.\n");
 	}
 
@@ -7277,6 +7304,15 @@ bool CheckHardCapAndLog(int32_t activeMonsters, int32_t hardCap, int32_t softCap
 	return false; // Hard cap not reached
 }
 
+bool IsControlledRushActive() noexcept
+{
+	// Few enough monsters alive that players are clearing them faster than the wave deploys,
+	// while there are still monsters to spawn/queue. No player-health check -- the low live
+	// count IS the "players are in control" signal. GetStroggsNum() is frame-cached.
+	return GetStroggsNum() < HordeConstants::CONTROLLED_RUSH_THRESHOLD &&
+		(g_horde_local.num_to_spawn > 0 || g_horde_local.queued_monsters > 0);
+}
+
 int32_t ManageSpawnCountsAndQueue(const horde::MapSize& mapSize, int32_t availableSpace)
 {
 	if (g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters > 0)
@@ -7285,6 +7321,9 @@ int32_t ManageSpawnCountsAndQueue(const horde::MapSize& mapSize, int32_t availab
 		// Fog / limit-break waves drain the queue faster so the swarm ramps up to the cap.
 		if (IsLimitBreakWave(current_wave_type))
 			base_transfer *= 2;
+		// Controlled-map rush: pull more from the queue so the arena refills fast for everyone.
+		if (IsControlledRushActive())
+			base_transfer += (base_transfer + 1) / 2;  // +50% (rounded up)
 		const int32_t transfer_amount = std::min({ g_horde_local.queued_monsters, availableSpace, base_transfer });
 		if (transfer_amount > 0)
 		{
@@ -7500,14 +7539,20 @@ static void ApplySuccessfulAlternativeCooldown(edict_t* spawn_point)
 	if (index == 0xFFFF) [[unlikely]]
 		return;
 
+	// Fog/limit-break waves re-fire alternatives of the (farthest) point quickly so the swarm
+	// keeps pouring from the far edge; normal waves keep the longer anti-cluster cooldown.
+	const gtime_t alt_cooldown = IsLimitBreakWave(current_wave_type)
+		? LimitBreakWave::ALT_SUCCESS_COOLDOWN_FOG
+		: std::max(3.0_sec, HordeConstants::MIN_ALT_SUCCESS_COOLDOWN);
+
 	// FIX: Cast the signed 'index' to the unsigned 'size_t' for each array access.
 	g_spawn_system.spawn_points_data.alternative_attempts[static_cast<size_t>(index)] = 0;
 	g_spawn_system.spawn_points_data.needs_long_alternative_cooldown[static_cast<size_t>(index)] = false;
-	g_spawn_system.spawn_points_data.alternative_cooldown[static_cast<size_t>(index)] = level.time + std::max(3.0_sec, HordeConstants::MIN_ALT_SUCCESS_COOLDOWN);
+	g_spawn_system.spawn_points_data.alternative_cooldown[static_cast<size_t>(index)] = level.time + alt_cooldown;
 	ApplyLongFlyingLaneCooldown(spawn_point);
 
 	if (developer->integer > 1)
-		gi.Com_PrintFmt("Success cooldown applied to spawn at {}: {:.1f}s\n", spawn_point->s.origin, std::max(3.0_sec, HordeConstants::MIN_ALT_SUCCESS_COOLDOWN).seconds());
+		gi.Com_PrintFmt("Success cooldown applied to spawn at {}: {:.1f}s\n", spawn_point->s.origin, alt_cooldown.seconds());
 }
 
 static void SetMonsterArmor(edict_t* monster)
@@ -7717,6 +7762,18 @@ private:
 		float line_of_sight_tolerance = 0.0f;
 	};
 
+	// Diagnostics: per-call tally of why emergency candidates were rejected. Reset at the
+	// start of each FindOptimalPosition() and dumped (developer, throttled) when the whole
+	// search fails, so we can see WHICH gate starves spawning. Applies to all monster types.
+	struct RejectStats {
+		int considered = 0;  // candidate positions generated
+		int los = 0;         // rejected: no line-of-sight to any spawn point
+		int dist = 0;        // rejected: grid position outside the min/max radius band
+		int too_close = 0;   // rejected: within EMERGENCY_MIN_DIST of a player
+		int phys = 0;        // rejected: IsPositionPhysicallyValid (solid/sky/no-ground/...)
+		void reset() { considered = los = dist = too_close = phys = 0; }
+	} m_reject;
+
 	ScaledDistances GetScaledDistances(const horde::MapSize& mapSize, int fallback_level = 0) const {
 		ScaledDistances distances;
 
@@ -7787,18 +7844,21 @@ private:
 	// Iterates through a player's cached candidates to find a valid spawn location.
 	bool TryPlayerCandidatesFromCache(const PlayerSpawnCandidates& candidates,
 		const vec3_t& mins, const vec3_t& maxs, bool is_flying,
-		vec3_t& out_pos, vec3_t& out_angles) {
-		// Use increased minimum distance from HordeConstants (250 units instead of 120)
-		const float min_player_dist_sq = HordeConstants::EMERGENCY_MIN_DIST_FROM_PLAYER * HordeConstants::EMERGENCY_MIN_DIST_FROM_PLAYER;
+		vec3_t& out_pos, vec3_t& out_angles, float min_player_dist) {
+		// Reject only candidates that would spawn on top of a player. This MUST stay below the
+		// candidate generation radius (GetScaledDistances min_radius): the old fixed
+		// EMERGENCY_MIN_DIST_FROM_PLAYER (700) exceeded the spawn ring on small/medium maps, so
+		// every candidate generated around the target got rejected as "too close" to that same
+		// target -- the dominant cause of emergency/ambush spawn starvation (SPAWN DIAG too_close).
+		const float min_player_dist_sq = min_player_dist * min_player_dist;
 
 		for (size_t i = 0; i < candidates.valid_count; ++i) {
 			vec3_t test_pos = candidates.positions[i];
 
 			// Check distance to all players to avoid spawning too close
 			bool too_close_to_player = false;
-			for (uint32_t p = 0; p < game.maxclients; p++) {
-				edict_t* player = g_edicts + 1 + p;
-				if (!player->inuse || !player->client || player->health <= 0)
+			for (auto player : active_players_no_spect()) {
+				if (player->health <= 0)
 					continue;
 
 				float dist_sq = (test_pos - player->s.origin).lengthSquared();
@@ -7817,6 +7877,11 @@ private:
 				out_angles[PITCH] = 0;
 				return true;
 			}
+
+			if (too_close_to_player)
+				m_reject.too_close++;
+			else if (!validation.is_valid)
+				m_reject.phys++;
 		}
 		return false;
 	}
@@ -7858,14 +7923,20 @@ private:
 				if (!got_position)
 					break;
 
+				m_reject.considered++;
+
 				// Check if position is within desired distance range from player
 				const float dist = (grid_pos - player_origin).length();
-				if (dist < distances.min_radius || dist > distances.max_radius)
+				if (dist < distances.min_radius || dist > distances.max_radius) {
+					m_reject.dist++;
 					continue;
+				}
 
 				// Map-size-aware line-of-sight validation
-				if (!HasLineOfSightToSpawnPoint(grid_pos, distances.line_of_sight_tolerance))
+				if (!HasLineOfSightToSpawnPoint(grid_pos, distances.line_of_sight_tolerance)) {
+					m_reject.los++;
 					continue;
+				}
 
 				// Grid position is valid, add it
 				float base_score = 1.0f / (1.0f + dist * 0.001f);
@@ -7880,6 +7951,7 @@ private:
 
 		if (candidates.valid_count < NUM_CANDIDATES / 2) {  // Need at least half candidates
 			for (size_t i = candidates.valid_count; i < NUM_CANDIDATES; ++i) {
+				m_reject.considered++;
 				const float radius = frandom(distances.min_radius, distances.max_radius);
 				const float angle_rad = (2.0f * PIf * static_cast<float>(i)) / NUM_CANDIDATES + frandom(-0.2f, 0.2f);
 
@@ -7890,8 +7962,10 @@ private:
 				};
 
 				// Map-size-aware line-of-sight validation
-				if (!HasLineOfSightToSpawnPoint(candidate_pos, distances.line_of_sight_tolerance))
+				if (!HasLineOfSightToSpawnPoint(candidate_pos, distances.line_of_sight_tolerance)) {
+					m_reject.los++;
 					continue;
+				}
 
 				// Basic validation and scoring
 				float base_score = 1.0f / (1.0f + radius * 0.001f);
@@ -7901,7 +7975,7 @@ private:
 				candidates.valid_count++;
 			}
 
-			if (developer->integer && grid_candidates_found < NUM_CANDIDATES / 4) {
+			if (developer->integer > 1 && grid_candidates_found < NUM_CANDIDATES / 4) {
 				gi.Com_PrintFmt("Emergency spawn: Grid provided {} candidates, procedural added {}\n",
 					grid_candidates_found, candidates.valid_count - grid_candidates_found);
 			}
@@ -7919,6 +7993,8 @@ public:
 		GetPredictedScaledBounds(typeId, predicted_mins, predicted_maxs);
 		const bool is_flying = IsFlying(typeId);
 
+		m_reject.reset();
+
 		// Try with map-size-scaled distances
 		for (int fallback_level = 0; fallback_level < 4; ++fallback_level) {
 			ScaledDistances distances = GetScaledDistances(mapSize, fallback_level);
@@ -7926,7 +8002,7 @@ public:
 			edict_t* used_player = nullptr;
 			if (TryFindPositionWithDistances(out_position, out_angles, typeId, specific_target,
 				predicted_mins, predicted_maxs, is_flying, distances, &used_player)) {
-				if (developer->integer && fallback_level > 0) {
+				if (developer->integer > 1 && fallback_level > 0) {
 					gi.Com_PrintFmt("EMERGENCY SPAWN: Used fallback level {} ({:.0f}-{:.0f}) for TypeID {}.\n",
 						fallback_level, distances.min_radius, distances.max_radius, static_cast<int>(typeId));
 				}
@@ -7973,6 +8049,44 @@ public:
 			}
 		}
 
+		// The tactical + grid search couldn't place this monster. Report which gate starved
+		// it (throttled to ~1/sec so a sustained starve doesn't flood the console).
+		if (developer->integer)
+		{
+			static gtime_t last_diag = 0_sec;
+			if (level.time >= last_diag + 1_sec)
+			{
+				last_diag = level.time;
+				gi.Com_PrintFmt("SPAWN DIAG (TypeID {}, flying={}): generated={} rejected[los={} dist={} too_close={} phys={}] grid={}\n",
+					static_cast<int>(typeId), is_flying, m_reject.considered, m_reject.los,
+					m_reject.dist, m_reject.too_close, m_reject.phys,
+					ShouldUseFallbackGrid() ? "on" : "off");
+			}
+		}
+
+		// LAST RESORT: use any physically-valid classic spawn point, ignoring distance/LOS
+		// preferences, so the wave isn't starved when the tactical search fails. Accepts an
+		// occasionally distant or in-view spawn over no spawn at all (mirrors the grid
+		// final-fallback's physical-validity-only policy above). Only reached after every
+		// tactical level and the grid fallback failed, so it never affects normal spawning.
+		for (edict_t* sp : g_spawn_point_list)
+		{
+			if (!sp || !sp->inuse)
+				continue;
+			const auto validation = IsPositionPhysicallyValid(sp->s.origin, predicted_mins, predicted_maxs, is_flying);
+			if (validation.is_valid)
+			{
+				out_position = validation.adjusted_position;
+				out_angles = sp->s.angles;
+				if (developer->integer > 1)
+					gi.Com_PrintFmt("EMERGENCY SPAWN: classic spawn-point last resort for TypeID {}.\n",
+						static_cast<int>(typeId));
+				if (out_used_player)
+					*out_used_player = nullptr;
+				return true;
+			}
+		}
+
 		return false;
 	}
 
@@ -7983,11 +8097,16 @@ private:
 		const vec3_t& predicted_mins, const vec3_t& predicted_maxs,
 		bool is_flying, const ScaledDistances& distances, edict_t** out_used_player = nullptr) {
 
+		// Keep the "don't spawn on a player" gap safely below the generation ring, so candidates
+		// generated around the target aren't rejected for being near that same target. Scales
+		// with map size (min_radius is ~120 small .. 700 big).
+		const float min_player_gap = distances.min_radius * 0.6f;
+
 		// If a specific player is targeted, generate and check candidates for them first.
 		if (specific_target && specific_target->inuse && specific_target->health > 0) {
 			PlayerSpawnCandidates temp_candidates;
 			UpdatePlayerCandidatesWithRange(specific_target, temp_candidates, distances);
-			if (TryPlayerCandidatesFromCache(temp_candidates, predicted_mins, predicted_maxs, is_flying, out_position, out_angles)) {
+			if (TryPlayerCandidatesFromCache(temp_candidates, predicted_mins, predicted_maxs, is_flying, out_position, out_angles, min_player_gap)) {
 				if (out_used_player) {
 					*out_used_player = specific_target;
 				}
@@ -7996,15 +8115,14 @@ private:
 		}
 
 		// Try all active players with custom distance range
-		for (uint32_t p = 0; p < game.maxclients; p++) {
-			edict_t* player = g_edicts + 1 + p;
-			if (!player->inuse || !player->client || player->health <= 0)
+		for (auto player : active_players_no_spect()) {
+			if (player->health <= 0)
 				continue;
 			if (player == specific_target) continue; // Skip if already checked
 
 			PlayerSpawnCandidates temp_candidates;
 			UpdatePlayerCandidatesWithRange(player, temp_candidates, distances);
-			if (TryPlayerCandidatesFromCache(temp_candidates, predicted_mins, predicted_maxs, is_flying, out_position, out_angles)) {
+			if (TryPlayerCandidatesFromCache(temp_candidates, predicted_mins, predicted_maxs, is_flying, out_position, out_angles, min_player_gap)) {
 				if (out_used_player) {
 					*out_used_player = player;
 				}
@@ -8539,7 +8657,7 @@ void Horde_RunFrame()
 	if (HasWaveType(current_wave_type, MonsterWaveType::Gekk) ||
 		HasWaveType(current_wave_type, MonsterWaveType::Berserk))
 	{
-		ApplyFogEffect();
+		ApplyFogEffect(current_wave_type);
 	}
 
 	CleanupSpawnPointCache();
@@ -9428,6 +9546,7 @@ static void ResetWaveState(int32_t lvl)
 	g_last_dynamic_precache_wave = lvl;
 	g_dynamic_precache_count_this_wave = 0;
 	g_special_high_level_monster_spawned_this_wave = false;
+	g_wave_elite_pick = horde::MonsterTypeID::UNKNOWN;
 
 	if (developer->integer)
 	{
@@ -9437,6 +9556,20 @@ static void ResetWaveState(int32_t lvl)
 
 	g_spawn_system.spawn_plan.clear();
 	g_spawn_system.special_spawn_state.clear();
+
+	// Give each wave a clean spawn-failure/recovery slate. Recovery mode (see
+	// DetermineSpawnStrategy) strips Gekk/Berserk off current_wave_type to relax spawn
+	// filtering when spawns fail -- and Horde_RunFrame keys the special-wave fog off
+	// current_wave_type. If a recovery from a previous wave leaked across the boundary, it
+	// would either restore a stale wave type over a new fog wave's Gekk/Berserk, or a
+	// carried-over failure count would immediately re-trigger recovery and strip the flag
+	// again -- both of which silently disable the fog for that wave. Reset here, before
+	// InitializeWaveType() sets this wave's (possibly fog) type, so nothing stale clobbers it.
+	g_recovery_mode_active = false;
+	g_spawn_system.original_wave_type_before_recovery = MonsterWaveType::None;
+	g_spawn_system.consecutive_spawn_failures = 0;
+	g_spawn_system.consecutive_emergency_failures = 0;
+
 	g_horde_local.zero_monster_deployment_start = 0_sec;
 	g_horde_retaliation_end_time = 0_sec;
 	g_horde_retaliation_last_trigger_time = 0_sec;

@@ -156,9 +156,11 @@ void AllowReset() noexcept;
 
 // Fog effects for special waves
 extern bool horde_fog_active;
-void ApplyFogEffect();
+void ApplyFogEffect(MonsterWaveType waveType);
 void ApplySpecialWaveEffects(MonsterWaveType waveType);
 void RestoreFog();
+void ForceFlashlightForFog(edict_t* player);
+void ResetFogState() noexcept;
 
 bool CheckAndTeleportStuckMonster(edict_t* self);
 bool G_IsClearPath(const edict_t* ignore, contents_t mask, const vec3_t& spot1, const vec3_t& spot2);

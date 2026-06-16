@@ -274,6 +274,14 @@ static float MinDistSqToActivePlayer(const vec3_t& pos) noexcept
 /// UPDATED: Now includes 25% chance to require out-of-visibility spawning
 static bool CheckSpawnPointPlayerProximity(const vec3_t& spawn_pos, bool emergency_mode, bool recovery_mode) noexcept
 {
+    // No active players to measure against (all spectating, or a no-player test). The distance
+    // gates are meaningless without a reference point, and the max-distance cap below would
+    // otherwise reject EVERY spawn point ("no player within range"), stalling the whole wave.
+    bool any_active_player = false;
+    for (const auto* player : active_players_no_spect()) { (void)player; any_active_player = true; break; }
+    if (!any_active_player)
+        return true;
+
     float min_dist = HordeConstants::GetMinPlayerDistSpawnpoint(g_horde_local.current_map_size);
 
     if (recovery_mode)
@@ -375,6 +383,13 @@ static void UpdateSpawnValidationCache(
 
 /// Checks and validates an alternative spawn position candidate
 /// Returns true if position is valid and sets final_origin and final_angles
+// Diagnostics for why alternative-spawn candidates get rejected (dumped by TryAlternativeSpawnPosition
+// when it fails). Reset at the start of each TryAlternativeSpawnPosition call.
+static int g_alt_diag_considered = 0;
+static int g_alt_diag_los = 0;
+static int g_alt_diag_phys = 0;
+static int g_alt_diag_recent = 0;
+
 static bool CheckAndSetAlternativePosition(
     const vec3_t& base_origin,
     const vec3_t& base_angles,
@@ -385,21 +400,36 @@ static bool CheckAndSetAlternativePosition(
     bool is_flying,
     edict_t* spawn_point,
     vec3_t& final_origin,
-    vec3_t& final_angles)
+    vec3_t& final_angles,
+    bool ignore_recent_spawn = false)
 {
+    g_alt_diag_considered++;
+
     // Check line of sight from base origin
     trace_t los_trace = gi.traceline(base_origin, candidate_pos, spawn_point, MASK_SOLID);
     if (los_trace.fraction < 1.0f)
+    {
+        g_alt_diag_los++;
         return false;
+    }
 
     // Validate position physically
     const auto validation = IsPositionPhysicallyValid(candidate_pos, predicted_mins, predicted_maxs, is_flying);
     if (!validation.is_valid)
+    {
+        g_alt_diag_phys++;
         return false;
+    }
 
-    // Check if too close to recent spawns
-    if (IsPositionTooCloseToRecentSpawn(validation.adjusted_position, g_horde_local.current_map_size))
+    // Check if too close to recent spawns. Skipped in the relaxed fallback pass so a wave can
+    // still deploy around limited/congested spawn points instead of stalling into emergency --
+    // the radial offset already spaces the candidate away from the base point.
+    if (!ignore_recent_spawn &&
+        IsPositionTooCloseToRecentSpawn(validation.adjusted_position, g_horde_local.current_map_size))
+    {
+        g_alt_diag_recent++;
         return false;
+    }
 
     // Position is valid - set output parameters
     final_origin = validation.adjusted_position;
@@ -567,7 +597,7 @@ bool EmergencySpawnMonster(const int32_t levelNum,
         }
     }
 
-    if (developer->integer)
+    if (developer->integer > 1)
     {
         const char* spawn_type_str = (special_spawn_type == 2) ? "RETALIATION" : (special_spawn_type == 1) ? "AMBUSH" : "EMERGENCY";
         gi.Com_PrintFmt("{} SPAWN SUCCESSFUL: Spawned '{}' (Additional: {}).\n",
@@ -606,6 +636,8 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID type
     vec3_t predicted_maxs = {16.0f, 16.0f, 32.0f};
     GetPredictedScaledBounds(typeId, predicted_mins, predicted_maxs);
 
+    g_alt_diag_considered = g_alt_diag_los = g_alt_diag_phys = g_alt_diag_recent = 0;
+
     // Phase 1: Use radial attempts to find alternative spawn positions
     for (int i = 0; i < HordeConstants::ALTERNATIVE_RADIAL_ATTEMPTS; ++i)
     {
@@ -622,6 +654,31 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID type
         if (CheckAndSetAlternativePosition(base_origin, base_angles, candidate_pos, offset,
                                            predicted_mins, predicted_maxs, is_flying, spawn_point,
                                            final_origin, final_angles))
+        {
+            return true;
+        }
+    }
+
+    // Phase 1b: Relaxed retry -- same radial search but ignore the global recent-spawn spacing
+    // gate. On maps with few spawn points (or when monsters don't disperse), every nearby
+    // position reads as "too close to a recent spawn", which would otherwise stall deployment
+    // and escalate to emergency mode. The radial offset still spaces each candidate from the
+    // point, so this lets the wave finish deploying around the available points.
+    for (int i = 0; i < HordeConstants::ALTERNATIVE_RADIAL_ATTEMPTS; ++i)
+    {
+        const float radius = frandom(HordeConstants::ALTERNATIVE_MIN_RADIUS, HordeConstants::ALTERNATIVE_MAX_RADIUS);
+        const float angle_rad = frandom() * 2.0f * PIf;
+        const vec3_t offset = {
+            cosf(angle_rad) * radius,
+            sinf(angle_rad) * radius,
+            frandom(HordeConstants::ALTERNATIVE_MIN_Z_OFFSET, HordeConstants::ALTERNATIVE_MAX_Z_OFFSET)
+        };
+
+        const vec3_t candidate_pos = base_origin + offset;
+
+        if (CheckAndSetAlternativePosition(base_origin, base_angles, candidate_pos, offset,
+                                           predicted_mins, predicted_maxs, is_flying, spawn_point,
+                                           final_origin, final_angles, /*ignore_recent_spawn=*/true))
         {
             return true;
         }
@@ -673,6 +730,20 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID type
 
                 return true;
             }
+        }
+    }
+
+    // Both radial passes (strict + relaxed) and the grid fallback failed for this point. Report
+    // the rejection breakdown so we can see which gate is starving alternatives (throttled).
+    if (developer->integer)
+    {
+        static gtime_t last_alt_diag = 0_sec;
+        if (level.time >= last_alt_diag + 1_sec)
+        {
+            last_alt_diag = level.time;
+            gi.Com_PrintFmt("ALT DIAG (TypeID {}): considered={} rejected[los={} phys={} recent={}] near point {}\n",
+                static_cast<int>(typeId), g_alt_diag_considered, g_alt_diag_los,
+                g_alt_diag_phys, g_alt_diag_recent, base_origin);
         }
     }
 
@@ -732,7 +803,7 @@ void PlanMonsterSpawnBatch(
         // horde appears to come from nowhere. We scan a short run of valid candidates and keep
         // the one farthest from the nearest player instead of taking the first valid one.
         const bool prefer_farthest = IsLimitBreakWave(current_wave_type) &&
-                                     frandom() < LimitBreakWave::FARTHEST_SPAWN_CHANCE;
+                                     frandom() < LimitBreakWave::FARTHEST_SPAWN_CHANCE_FOG;
         edict_t* farthest_point = nullptr;
         float farthest_dist_sq = -1.0f;
         int candidates_seen = 0;
@@ -1015,6 +1086,10 @@ void DetermineSpawnStrategy(const horde::MapSize& mapSize, int32_t& out_spawnabl
     // Fog / limit-break waves spawn in bigger batches so the swarm ramps up to the raised cap.
     if (IsLimitBreakWave(current_wave_type))
         base_batch *= 2;
+    // Controlled-map rush: bigger batches so the arena refills fast when players are dominating.
+    // (Still clamped by availableSpace below, which respects the live cap.)
+    if (IsControlledRushActive())
+        base_batch += (base_batch + 1) / 2;  // +50% (rounded up)
     out_spawnable_this_call = std::min({g_horde_local.num_to_spawn, base_batch, availableSpace});
 
     if (developer->integer >= 2 && out_spawnable_this_call < g_horde_local.num_to_spawn)
@@ -1027,7 +1102,7 @@ void DetermineSpawnStrategy(const horde::MapSize& mapSize, int32_t& out_spawnabl
     out_use_emergency_spawn = false;
     if (g_spawn_system.consecutive_spawn_failures >= HordeConstants::MAX_CONSECUTIVE_FAILURES_BEFORE_EMERGENCY)
     {
-        if (developer->integer)
+        if (developer->integer > 1)
             gi.Com_PrintFmt("EMERGENCY SPAWN TRIGGERED: Failures={}.\n", g_spawn_system.consecutive_spawn_failures);
         out_use_emergency_spawn = true;
     }
@@ -1068,7 +1143,7 @@ int ExecuteEmergencySpawnProcedure(int32_t spawnable_this_call,
         vec3_t emergency_origin, emergency_angles;
         if (!FindSpacedEmergencyPosition(emergency_origin, emergency_angles, emergency_type, batch_spawn_positions, batch_position_count))
         {
-            if (developer->integer)
+            if (developer->integer > 1)
                 gi.Com_PrintFmt("EMERGENCY SPAWN FAILED for type {}. (From ExecuteEmergencySpawnProcedure)\n",
                                 static_cast<int>(emergency_type));
             break; // Stop trying if position finding fails

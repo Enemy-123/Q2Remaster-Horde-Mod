@@ -29,6 +29,18 @@ constexpr float REPULSION_STRENGTH_TIGHT_CORRIDOR = 0.0f; // New: completely dis
 constexpr float REPULSION_LATERAL_MAX_FRACTION = 0.5f;    // cap sideways nudge to this fraction of the step length (keeps goal dominant)
 constexpr float REPULSION_MIN_THRESHOLD_SQ = 1.0f;
 
+// --- Hard separation: summoned Stroggs deeply overlapping a DIFFERENT-team monster ---
+// Lateral repulsion can't separate two mutual enemies (the push is anti-parallel to the goal, so
+// its lateral component is ~0 and gets stripped). This adds a FULL (non-lateral) un-stacking push,
+// gated to summoned stroggs only and only at DEEP overlap, so they un-pile yet can still close to
+// melee. One-sided (only the strogg accumulates it) -> no symmetric ping-pong, normal crowd untouched.
+constexpr float HARD_SEPARATION_DEEP_OVERLAP_FRACTION = 0.5f; // engage only when dist < personal_space * this (or boxes intersect)
+constexpr float HARD_SEPARATION_MAX_FORCE             = 24.0f; // peak per-neighbor push (matches REPULSION_MAX_FORCE)
+constexpr float HARD_SEPARATION_STRENGTH              = 0.6f;  // applied fraction (stronger than lateral so it actually un-stacks)
+constexpr float HARD_SEPARATION_STRENGTH_COMBAT       = 0.5f;  // scale vs a live enemy (don't shove past melee range)
+constexpr float HARD_SEPARATION_MIN_DIST              = 4.0f;  // floor in falloff denominator (anti force-spike at near-zero distance)
+constexpr float HARD_SEPARATION_STEP_CAP_FRACTION     = 1.0f;  // cap total hard push to this * step length (anti-jitter)
+
 // Wall repulsion constants - keeps monsters off walls so squeezed boxes don't park their
 // (full-size) model inside geometry. Lateral-only vs. the goal direction, so it never blocks
 // pathing through an intentional gap ("unless a nav point is in the way"). Reuses the cardinal
@@ -141,6 +153,7 @@ static float GetMonsterPersonalSpace(edict_t* ent)
 static vec3_t CalculateMonsterRepulsion(edict_t* ent)
 {
 	vec3_t repulsion = { 0, 0, 0 };
+	vec3_t hard_separation = { 0, 0, 0 }; // full (non-lateral) un-stack push, summoned strogg vs different-team only
 
 	if (!ent || !(ent->svflags & SVF_MONSTER))
 		return repulsion;
@@ -206,6 +219,36 @@ static vec3_t CalculateMonsterRepulsion(edict_t* ent)
 		repulsion += push;
 		nearby_count++;
 
+		// --- Hard separation: only when WE are a summoned strogg and the neighbor is a different-team
+		// monster (normal monsters are NOTEAM; OnSameTeam(team1, NOTEAM) == false). Two summoned stroggs
+		// were already skipped above, so this never fights a teammate. Deep overlap only -> melee still
+		// works. This is the un-stack fix: applied FULL (not lateral) in ApplyMonsterRepulsion, so the
+		// along-goal separating component survives when a strogg and its enemy point goals at each other.
+		if (ent->monsterinfo.issummoned && !OnSameTeam(ent, other))
+		{
+			const float deep_dist = personal_space * HARD_SEPARATION_DEEP_OVERLAP_FRACTION;
+			const bool deeply_overlapping =
+				(dist < deep_dist) ||
+				boxes_intersect(ent->absmin, ent->absmax, other->absmin, other->absmax);
+
+			if (deeply_overlapping)
+			{
+				// Falloff: 0 at the deep-overlap edge, ~1 at contact. Floor the distance so a near-zero
+				// separation can't spike the force (direction stays well-defined; outer loop already
+				// skipped dist_sq < REPULSION_MIN_THRESHOLD_SQ, so dist >= 1).
+				const float clamped = std::max(dist, HARD_SEPARATION_MIN_DIST);
+				const float hs = std::clamp((deep_dist - clamped) / deep_dist, 0.0f, 1.0f);
+
+				vec3_t hard_push = diff * (1.0f / dist); // unit vector AWAY from the enemy (diff = ent - other)
+				hard_push *= hs * HARD_SEPARATION_MAX_FORCE;
+
+				if (!(ent->flags & (FL_FLY | FL_SWIM)))
+					hard_push.z *= REPULSION_VERTICAL_DAMPING;
+
+				hard_separation += hard_push;
+			}
+		}
+
 		// Limit total monsters considered for performance
 		if (nearby_count >= REPULSION_MAX_NEARBY_MONSTERS)
 			break;
@@ -217,6 +260,7 @@ static vec3_t CalculateMonsterRepulsion(edict_t* ent)
 
 	// Store calculated repulsion
 	ent->monsterinfo.repulsion_vector = repulsion;
+	ent->monsterinfo.hard_separation_vector = hard_separation;
 
 	return repulsion;
 }
@@ -324,6 +368,43 @@ static void ApplyMonsterRepulsion(edict_t* ent, vec3_t& move, bool in_combat)
 		{
 			// No goal direction (idle/standing): plain nudge so a pile on one spot still spreads.
 			move += repulsion * repulsion_strength;
+		}
+	}
+
+	// --- Hard separation (FULL push, summoned strogg deep-overlap only) ---
+	// Not projected to lateral, so the along-goal separating component (the one the lateral block
+	// strips) survives - that's what un-stacks a strogg from an enemy whose goal points back at it.
+	// Only non-zero at deep overlap (see CalculateMonsterRepulsion), so it never fires at normal
+	// adjacency and never stops the strogg from closing to melee.
+	const vec3_t hard_sep = ent->monsterinfo.hard_separation_vector;
+	if (hard_sep.lengthSquared() >= REPULSION_MIN_THRESHOLD_SQ)
+	{
+		float hard_strength = HARD_SEPARATION_STRENGTH;
+
+		// Live enemy: scale down so it un-stacks without shoving the strogg back out of melee range.
+		if (in_combat && ent->enemy && ent->enemy->inuse)
+			hard_strength *= HARD_SEPARATION_STRENGTH_COMBAT;
+
+		// Respect corridors like the lateral path does (don't fight through walls).
+		if (ent->monsterinfo.corridor_tight_blocked_dirs >= CORRIDOR_BLOCKED_TIGHT_THRESHOLD)
+			hard_strength = 0.0f;
+		else if (ent->monsterinfo.corridor_blocked_dirs >= CORRIDOR_BLOCKED_THRESHOLD)
+			hard_strength *= REPULSION_STRENGTH_CORRIDOR;
+
+		if (hard_strength > 0.0f)
+		{
+			vec3_t hard_move = hard_sep * hard_strength;
+
+			// Anti-jitter: when a goal exists, cap the total hard push to a fraction of the step
+			// length so the strogg can't be flung across the enemy in a single frame.
+			if (original_move.lengthSquared() > 1.0f)
+			{
+				const float max_push = original_move.length() * HARD_SEPARATION_STEP_CAP_FRACTION;
+				if (hard_move.lengthSquared() > max_push * max_push)
+					hard_move = hard_move.normalized() * max_push;
+			}
+
+			move += hard_move;
 		}
 	}
 

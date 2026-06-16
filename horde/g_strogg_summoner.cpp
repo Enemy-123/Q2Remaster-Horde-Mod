@@ -10,7 +10,7 @@
 
 // Forward declarations for monster spawning
 void SP_monster_soldier(edict_t* self);
-void SP_monster_chick(edict_t* self);
+void SP_monster_chick_heat(edict_t* self);
 void SP_monster_gunner(edict_t* self);
 void SP_monster_tank(edict_t* self);
 void SP_monster_gladiator(edict_t* self);
@@ -205,7 +205,7 @@ static edict_t* spawn_strogg_monster(edict_t* player, const vec3_t& origin, cons
 		if (g_precached_monster_types_flags[static_cast<size_t>(horde::MonsterTypeID::GUNNER)] && available_count < MAX_SUMMONABLE_MONSTERS)
 			available_monsters[available_count++] = {horde::MonsterTypeID::GUNNER, SP_monster_gunner, 13};
 		if (g_precached_monster_types_flags[static_cast<size_t>(horde::MonsterTypeID::CHICK)] && available_count < MAX_SUMMONABLE_MONSTERS)
-			available_monsters[available_count++] = {horde::MonsterTypeID::CHICK, SP_monster_chick, 13};
+			available_monsters[available_count++] = {horde::MonsterTypeID::CHICK_HEAT, SP_monster_chick_heat, 13};
 		if (g_precached_monster_types_flags[static_cast<size_t>(horde::MonsterTypeID::DAEDALUS_BOMBER)] && available_count < MAX_SUMMONABLE_MONSTERS)
 			available_monsters[available_count++] = {horde::MonsterTypeID::DAEDALUS_BOMBER, SP_monster_daedalus_bomber, 13};
 		if (g_precached_monster_types_flags[static_cast<size_t>(horde::MonsterTypeID::SPIDER)] && available_count < MAX_SUMMONABLE_MONSTERS)
@@ -223,7 +223,7 @@ static edict_t* spawn_strogg_monster(edict_t* player, const vec3_t& origin, cons
 		if (available_count == 0) {
 			available_monsters = {{
 				{horde::MonsterTypeID::GUNNER, SP_monster_gunner, 13},
-				{horde::MonsterTypeID::CHICK, SP_monster_chick, 13},
+				{horde::MonsterTypeID::CHICK_HEAT, SP_monster_chick_heat, 13},
 				{horde::MonsterTypeID::DAEDALUS_BOMBER, SP_monster_daedalus_bomber, 13},
 				{horde::MonsterTypeID::SPIDER, SP_monster_spider, 13},
 				{horde::MonsterTypeID::SHAMBLER_SMALL, SP_monster_shambler_small, 13},
@@ -237,7 +237,7 @@ static edict_t* spawn_strogg_monster(edict_t* player, const vec3_t& origin, cons
 		// Non-horde mode: use all monsters
 		available_monsters = {{
 			{horde::MonsterTypeID::GUNNER, SP_monster_gunner, 13},
-			{horde::MonsterTypeID::CHICK, SP_monster_chick, 13},
+			{horde::MonsterTypeID::CHICK_HEAT, SP_monster_chick_heat, 13},
 			{horde::MonsterTypeID::DAEDALUS_BOMBER, SP_monster_daedalus_bomber, 13},
 			{horde::MonsterTypeID::SPIDER, SP_monster_spider, 13},
 			{horde::MonsterTypeID::SHAMBLER_SMALL, SP_monster_shambler_small, 13},
@@ -270,6 +270,10 @@ static edict_t* spawn_strogg_monster(edict_t* player, const vec3_t& origin, cons
 		cumulative += m.weight;
 		if (roll < cumulative) {
 			selected_type = m.type;
+			// Set the real classname BEFORE the spawn func (mirrors SpawnMonsterByTypeID). Without this
+			// the monster keeps G_Spawn()'s "noclass", which the bot engine reports as an unknown monster
+			// and which breaks any classname-derived categorization (e.g. monster_type_id in G_GetClipMask).
+			monster->classname = horde::MonsterTypeRegistry::GetClassname(m.type);
 			m.spawn_func(monster);
 			break;
 		}

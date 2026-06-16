@@ -97,6 +97,10 @@ namespace HordeConstants
 	// When spawning is done and few monsters remain, start a cleanup timer
 	// After timeout, force-kill stuck monsters instead of ending wave early
 	inline constexpr int32_t STROGG_THRESHOLD = 4;              // Start cleanup when this many or fewer remain
+	// "Controlled map" rush: when fewer than this many monsters are alive while the wave still
+	// has monsters to deploy/queue, players are clearing the arena faster than it fills -- rush
+	// spawn cadence + throughput so other players aren't left waiting on one player mopping up.
+	inline constexpr int32_t CONTROLLED_RUSH_THRESHOLD = 6;
 	inline constexpr gtime_t STROGG_GRACE_PERIOD = 20_sec;      // Time to let players find stroggs naturally
 	inline constexpr gtime_t STROGG_FORCE_KILL_INTERVAL = 2_sec; // Kill one stuck monster every N seconds after grace
 	inline constexpr float VOID_Z_THRESHOLD = -4096.0f;            // Monsters below this Z are considered in the void
@@ -218,6 +222,12 @@ namespace LimitBreakWave {
 	// nowhere"), and how many valid candidates to consider when that bias is active.
 	inline constexpr float FARTHEST_SPAWN_CHANCE     = 0.5f;
 	inline constexpr int   FARTHEST_SPAWN_CANDIDATES = 6;
+
+	// Fog waves bias even harder toward the farthest point, and re-fire its alternatives quickly
+	// (vs the normal >=3s success cooldown) so the swarm keeps pouring from the far edge and
+	// reads as a fresh, enraged push rather than trickling from the same nearby spots.
+	inline constexpr float   FARTHEST_SPAWN_CHANCE_FOG = 0.9f;
+	inline constexpr gtime_t ALT_SUCCESS_COOLDOWN_FOG  = 0.75_sec;
 
 	// Weight multiplier so chickkl spawns far more often than other monsters where eligible.
 	inline constexpr float CHICKKL_WEIGHT_BOOST = 3.0f;

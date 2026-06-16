@@ -13,7 +13,7 @@
 #include <boost/container/small_vector.hpp>  // For small_vector optimization
 #include <boost/unordered/unordered_flat_set.hpp>  // Cache-friendly hash sets
 
-constexpr const char* HORDE_MOD_VERSION_STRING = "*Horde BETA MOD v0.01001";
+constexpr const char* HORDE_MOD_VERSION_STRING = "*Horde BETA MOD v0.01002";
 
 extern boost::container::small_vector<edict_t*, 64> g_spawn_point_list;
 extern size_t g_num_spawn_points;
@@ -304,6 +304,11 @@ inline bool HasWaveType(MonsterWaveType entityTypes, MonsterWaveType typeToCheck
 inline bool IsLimitBreakWave(MonsterWaveType t) noexcept {
 	return HasWaveType(t, MonsterWaveType::Gekk) || HasWaveType(t, MonsterWaveType::Berserk);
 }
+
+// True when players are clearing the arena faster than it fills (very few alive while the wave
+// still has monsters to deploy/queue). Drives a temporary rush of spawn cadence + throughput.
+// Defined in g_horde.cpp (needs the live-monster count and wave spawn state).
+bool IsControlledRushActive() noexcept;
 
 // --- Horde Module Includes (after MonsterWaveType is defined) ---
 #include "horde_monster_data.h"  // Monster type definitions and queries

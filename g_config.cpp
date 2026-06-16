@@ -1343,12 +1343,12 @@ void Config_Load(const char* basedir)
 		if (deployables.isMember("sentrygun") && deployables["sentrygun"].isObject())
 		{
 			const Json::Value& s = deployables["sentrygun"];
-			g_config.sentrygun.initial_health = GetJsonInt(s, "initial_health", 50);
+			g_config.sentrygun.initial_health = GetJsonInt(s, "initial_health", 70);
 			g_config.sentrygun.addon_health = GetJsonInt(s, "addon_health", 15);
 			g_config.sentrygun.initial_armor = GetJsonInt(s, "initial_armor", 50);
-			g_config.sentrygun.addon_armor = GetJsonInt(s, "addon_armor", 30);
-			g_config.sentrygun.max_health = GetJsonInt(s, "max_health", 200);
-			g_config.sentrygun.max_armor = GetJsonInt(s, "max_armor", 350);
+			g_config.sentrygun.addon_armor = GetJsonInt(s, "addon_armor", 25);
+			g_config.sentrygun.max_health = GetJsonInt(s, "max_health", 185);
+			g_config.sentrygun.max_armor = GetJsonInt(s, "max_armor", 225);
 			// Weapon damage configs
 			g_config.sentrygun.initial_bullet = GetJsonInt(s, "initial_bullet", 10);
 			g_config.sentrygun.addon_bullet = GetJsonInt(s, "addon_bullet", 1);
