@@ -3,6 +3,7 @@
 // g_utils.c -- misc utility functions for game module
 
 #include "g_local.h"
+#include "shared.h"
 #include "memory_safety.h"
 #include <boost/container/small_vector.hpp>
 
@@ -823,6 +824,13 @@ bool KillBox(edict_t* ent, bool from_spawning, mod_id_t mod, bool bsp_clipping, 
 
 			if (clip.fraction == 1.0f)
 				continue;
+		}
+
+		// Bosses are never telefragged: try to teleport them clear, and spare them either way.
+		if (g_horde->integer && hit->monsterinfo.IS_BOSS)
+		{
+			CheckAndTeleportBoss(hit, BossTeleportReason::TELEFRAG);
+			continue;
 		}
 
 		// [Paril-KEX] don't allow telefragging of friends in coop.

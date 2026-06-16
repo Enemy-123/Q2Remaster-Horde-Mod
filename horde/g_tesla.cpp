@@ -567,7 +567,10 @@ THINK(tesla_activate)(edict_t *self)->void
 	self->nextthink = HordePerf::GetTeslaThinkTimeWithJitter();
 	// Calculate tesla lifetime with adrenaline bonus
 	gtime_t tesla_lifetime = CalculateDeployableLifetime(TeslaConstants::TIME_TO_LIVE, self->teammaster ? self->teammaster->client : nullptr);
-	self->air_finished = level.time + tesla_lifetime;
+	// Respect a fuse already shortened before activation (e.g. a boss shockwave during arming);
+	// otherwise set the normal full lifetime.
+	if (!(self->flags & FL_BOSS_SHORTENED))
+		self->air_finished = level.time + tesla_lifetime;
 
 	self->monsterinfo.attack_finished = level.time;
 	self->monsterinfo.medicTries = 0;

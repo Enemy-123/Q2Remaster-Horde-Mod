@@ -428,6 +428,45 @@ void RemoveEntity(edict_t* ent) {
     BecomeTE(ent);
 }
 
+// Cut the remaining time on an expiry field by a random 80-95% (keeps 5-20%).
+static void BossReduceRemainingTime(gtime_t& expiry) {
+	const gtime_t remaining = expiry - level.time;
+	if (remaining <= 0_ms) return;
+	expiry = level.time + random_time(remaining * 0.05f, remaining * 0.20f);
+}
+
+// Boss "shockwave": hurt a deployable/summon for ~75% of current health instead of deleting it.
+void WeakenEntityForBoss(edict_t* ent) {
+	if (!ent || !ent->inuse) return;
+
+	const auto id = static_cast<horde::SpecialEntityTypeID>(ent->special_type_id);
+
+	// Lasers relay through the emitter; the meaningful health is on the beam (emitter->chain).
+	edict_t* health_target = ent;
+	if (id == horde::SpecialEntityTypeID::LASER_EMITTER && ent->chain && ent->chain->inuse)
+		health_target = ent->chain;
+
+	if (health_target->health > 1)
+		health_target->health = std::max(1, health_target->health / 4); // leave ~25%, never 0
+
+	// Tesla: cut the deployed "expires -> explodes" timer (air_finished) down to 3-8 seconds.
+	// air_finished is the real expiry (tesla_think_active); the ID-view HUD reads it too.
+	// Apply even while the tesla is still arming (air_finished not set yet, <= level.time).
+	// FL_BOSS_SHORTENED stops tesla_activate and the adrenaline refresh (UpdatePlayerTeslaMines)
+	// from restoring the full lifetime. Never extend a tesla that already has less time left.
+	if (id == horde::SpecialEntityTypeID::TESLA_MINE) {
+		const gtime_t new_expiry = level.time + random_time(3_sec, 8_sec);
+		if (ent->air_finished <= level.time || ent->air_finished > new_expiry) {
+			ent->air_finished = new_expiry;
+			ent->wait = new_expiry.seconds();
+			ent->flags |= FL_BOSS_SHORTENED;
+		}
+	}
+	// Trap: slash remaining lifetime by 80-95%.
+	else if (id == horde::SpecialEntityTypeID::FOOD_CUBE_TRAP)
+		BossReduceRemainingTime(ent->timestamp);        // trap expiry field
+}
+
 // 7:  power-up time updates
 void UpdatePowerUpTimes(edict_t* monster) noexcept {
 	if (!monster) return;
@@ -1292,7 +1331,7 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, fl
 			continue;
 		}
 
-		// Summoned monsters should be removed cleanly
+		// Summoned monsters get weakened along with the deployables
 		if (monster->monsterinfo.isfriendlyspawn) {
 			if (removable_count < MAX_PUSHABLE_ENTITIES) {
 				removable_entities[removable_count++] = monster;
@@ -1303,16 +1342,10 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, fl
 		}
 	}
 
-	// If removing many entities, use BecomeTE for some to reduce visual clutter
-	const bool use_mixed_effects = removable_count > 20;
-
+	// Weaken (instead of destroy) every collected removable entity.
 	for (size_t i = 0; i < removable_count; ++i) {
-		if (removable_entities[i] && removable_entities[i]->inuse) {
-			// Use BecomeTE for every other entity when there are many
-			g_use_quiet_deployable_removal = use_mixed_effects && (i % 2 == 0);
-			RemoveEntity(removable_entities[i]);
-			g_use_quiet_deployable_removal = false;
-		}
+		if (removable_entities[i] && removable_entities[i]->inuse)
+			WeakenEntityForBoss(removable_entities[i]);
 	}
 
 	for (int wave = 0; wave < num_waves; wave++) {
@@ -1622,7 +1655,9 @@ void ApplyFogEffect(MonsterWaveType waveType)
 	if (HasWaveType(waveType, MonsterWaveType::Berserk))
 		fog = { 0.15f, 0.34f, 0.05f, 0.10f, 0.85f }; // Berserk: blood red
 
-	for (auto player : active_players_no_spect())
+	// active_players() (NOT _no_spect): spectators must see the boss fog too -- they follow the
+	// action and fog is per-client. ForceFlashlightForFog is a no-op for anyone already lit.
+	for (auto player : active_players())
 	{
 		// Quick transition into the wave fog (also drives mid-wave joiners).
 		player->client->pers.fog_transition_time = 4000_ms;
@@ -1650,11 +1685,13 @@ void ApplySpecialWaveEffects(MonsterWaveType waveType)
 		// Random Gekk sound
 		sound_index = brandom()
 			? gi.soundindex("gek/gek_low.wav")
-			: gi.soundindex("gk/gek_amb.wav");
+			: gi.soundindex("gek/gek_amb.wav");
 	}
 	else // Berserk wave
 	{
-		sound_index = gi.soundindex("world/radio3.wav");
+	sound_index = brandom()
+		? sound_index = gi.soundindex("world/radio3.wav")
+		: sound_index = gi.soundindex("world/amb20.wav");
 	}
 
 	// Play sound globally
@@ -1696,7 +1733,8 @@ void RestoreFog()
 	const bool keep_flashlight_map =
 		horde::MapOriginRegistry::GetMapID(level.mapname) == horde::MapID::MGU4TRIAL;
 
-	for (auto player : active_players_no_spect())
+	// active_players() so spectators are transitioned back too (they got the fog above).
+	for (auto player : active_players())
 	{
 		// Slow transition back to the map's original (worldspawn) fog.
 		player->client->pers.fog_transition_time = 2000_ms;

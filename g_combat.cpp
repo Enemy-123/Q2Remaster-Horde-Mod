@@ -1073,8 +1073,8 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	// Boss protection against one-shot attacks from nukes, doppelgangers, and spheres
 	if ((targ->svflags & SVF_MONSTER) && targ->monsterinfo.IS_BOSS &&
 		(mod.id == MOD_NUKE || mod.id == MOD_DOPPLE_EXPLODE || mod.id == MOD_DOPPLE_VENGEANCE ||
-		 mod.id == MOD_DOPPLE_HUNTER || mod.id == MOD_VENGEANCE_SPHERE || mod.id == MOD_HUNTER_SPHERE ||
-		 mod.id == MOD_DEFENDER_SPHERE))
+			mod.id == MOD_DOPPLE_HUNTER || mod.id == MOD_VENGEANCE_SPHERE || mod.id == MOD_HUNTER_SPHERE ||
+			mod.id == MOD_DEFENDER_SPHERE))
 	{
 		// Cap damage at 33% of boss max health to prevent one-shots
 		int max_damage = static_cast<int>(targ->max_health * 0.33f);
@@ -1103,13 +1103,13 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	if (attacker && (attacker->svflags & SVF_MONSTER) && attacker->monsterinfo.isfriendlyspawn && attacker->teammaster) {
 		// Store the original attacker for reference
 		edict_t* original_attacker = attacker;
-		
+
 		// Redirect attacker to the owner (player who summoned the monster)
 		attacker = attacker->teammaster;
-		
+
 		// Change the mod to indicate this was from a summoned monster
 		mod.id = MOD_SUMMONED_MONSTER;
-		
+
 		// If the inflictor was the same as the original attacker, update it too
 		if (inflictor == original_attacker) {
 			inflictor = attacker;
@@ -1125,8 +1125,18 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	// them, dealing triple damage. (Player-summoned monsters get redirected to their
 	// owner above, so this only triggers for hostile monsters.)
 	if (attacker && (attacker->svflags & SVF_MONSTER) &&
-		horde::IsSpecialType(targ, horde::SpecialEntityTypeID::DOPPLEGANGER) &&
-		!OnSameTeam(targ, attacker))
+		horde::IsSpecialType(targ, horde::SpecialEntityTypeID::DOPPLEGANGER) && !OnSameTeam(targ, attacker) ||
+		horde::IsSpecialType(targ, horde::SpecialEntityTypeID::BARREL) && !OnSameTeam(targ, attacker))
+	{
+		damage *= 3;
+	}
+
+	// Bosses smash through player defenses: triple damage against sentryguns, teslas,
+	// traps and barrels.
+	if (attacker && attacker->monsterinfo.IS_BOSS &&
+		(horde::IsSpecialType(targ, horde::SpecialEntityTypeID::SENTRY_GUN) ||
+		 horde::IsSpecialType(targ, horde::SpecialEntityTypeID::TESLA_MINE) ||
+		 horde::IsSpecialType(targ, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP)))
 	{
 		damage *= 3;
 	}

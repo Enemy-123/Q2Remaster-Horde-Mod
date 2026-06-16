@@ -107,6 +107,7 @@ gtime_t CalculateDeployableLifetime(gtime_t base_lifetime, gclient_t* owner_clie
 enum class BossTeleportReason {
     DROWNING,
     TRIGGER_HURT,
+    TELEFRAG,
 //    STUCK
 };
 bool M_AdjustBlindfireTarget(edict_t* self, const vec3_t& start, const vec3_t& target, const vec3_t& right, vec3_t& out_dir);

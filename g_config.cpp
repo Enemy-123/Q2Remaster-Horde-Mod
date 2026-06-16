@@ -1343,18 +1343,18 @@ void Config_Load(const char* basedir)
 		if (deployables.isMember("sentrygun") && deployables["sentrygun"].isObject())
 		{
 			const Json::Value& s = deployables["sentrygun"];
-			g_config.sentrygun.initial_health = GetJsonInt(s, "initial_health", 70);
-			g_config.sentrygun.addon_health = GetJsonInt(s, "addon_health", 15);
+			g_config.sentrygun.initial_health = GetJsonInt(s, "initial_health", 40);
+			g_config.sentrygun.addon_health = GetJsonInt(s, "addon_health", 5);
 			g_config.sentrygun.initial_armor = GetJsonInt(s, "initial_armor", 50);
 			g_config.sentrygun.addon_armor = GetJsonInt(s, "addon_armor", 25);
-			g_config.sentrygun.max_health = GetJsonInt(s, "max_health", 185);
-			g_config.sentrygun.max_armor = GetJsonInt(s, "max_armor", 225);
+			g_config.sentrygun.max_health = GetJsonInt(s, "max_health", 125);
+			g_config.sentrygun.max_armor = GetJsonInt(s, "max_armor", 175);
 			// Weapon damage configs
-			g_config.sentrygun.initial_bullet = GetJsonInt(s, "initial_bullet", 10);
+			g_config.sentrygun.initial_bullet = GetJsonInt(s, "initial_bullet", 9);
 			g_config.sentrygun.addon_bullet = GetJsonInt(s, "addon_bullet", 1);
 			g_config.sentrygun.initial_heatbeam = GetJsonInt(s, "initial_heatbeam", 10);
 			g_config.sentrygun.addon_heatbeam = GetJsonInt(s, "addon_heatbeam", 1);
-			g_config.sentrygun.initial_flechette = GetJsonInt(s, "initial_flechette", 10);
+			g_config.sentrygun.initial_flechette = GetJsonInt(s, "initial_flechette", 8);
 			g_config.sentrygun.addon_flechette = GetJsonInt(s, "addon_flechette", 1);
 			g_config.sentrygun.initial_rocket = GetJsonInt(s, "initial_rocket", 50);
 			g_config.sentrygun.addon_rocket = GetJsonInt(s, "addon_rocket", 15);

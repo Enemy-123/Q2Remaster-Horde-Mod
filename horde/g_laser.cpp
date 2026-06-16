@@ -174,6 +174,10 @@ static void UpdatePlayerTeslaMines(const edict_t* player)
         if (!tesla || !tesla->inuse)
             continue;
 
+        // A boss shockwave shortened this tesla's fuse - don't restore its lifetime.
+        if (tesla->flags & FL_BOSS_SHORTENED)
+            continue;
+
         // Calculate new lifetime with current adrenaline count
         gtime_t tesla_lifetime = CalculateDeployableLifetime(TeslaConstants::TIME_TO_LIVE, player->client);
         gtime_t new_end_time = tesla->timestamp + tesla_lifetime;

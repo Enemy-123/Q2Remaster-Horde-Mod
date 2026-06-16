@@ -163,11 +163,17 @@ const char* FormatEntityInfo_Fast(edict_t* ent, char* buffer, size_t buffer_size
         
         switch (special_id) {
             case horde::SpecialEntityTypeID::TESLA_MINE: {
-                // Use the actual tesla lifetime (which includes adrenaline bonus) instead of the base constant
-                gtime_t const tesla_total_lifetime = gtime_t::from_sec(stats_source->wait) - stats_source->timestamp;
-                gtime_t const time_active = level.time - stats_source->timestamp;
-                gtime_t const time_remaining = tesla_total_lifetime - time_active;
-                
+                // air_finished is the live "expires -> explodes" timer (tesla_think_active). It is
+                // the authoritative remaining time. While the tesla is still arming it isn't set yet,
+                // so fall back to the spawn-time estimate derived from `wait`.
+                gtime_t time_remaining;
+                if (stats_source->air_finished > 0_ms) {
+                    time_remaining = (stats_source->air_finished > level.time) ? (stats_source->air_finished - level.time) : 0_sec;
+                } else {
+                    gtime_t const tesla_total_lifetime = gtime_t::from_sec(stats_source->wait) - stats_source->timestamp;
+                    time_remaining = tesla_total_lifetime - (level.time - stats_source->timestamp);
+                }
+
                 out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {} T: {}s", name, stats_source->health, GetRemainingTime(gtime_t{}, time_remaining)).out;
                 break;
             }

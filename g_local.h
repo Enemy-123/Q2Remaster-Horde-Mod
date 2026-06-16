@@ -905,7 +905,8 @@ enum ent_flags_t : uint64_t {
 	FL_RESPAWN = bit_v<31>, // used for item respawning
 	FL_TRAP = bit_v<32>, // entity is a trap of some kind
 	FL_TRAP_LASER_FIELD = bit_v<33>, // enough of a special case to get it's own flag...
-	FL_IMMORTAL = bit_v<34>  // never go below 1hp
+	FL_IMMORTAL = bit_v<34>, // never go below 1hp
+	FL_BOSS_SHORTENED = bit_v<35> // deployable's lifetime was cut by a boss; don't refresh/restore it
 };
 MAKE_ENUM_BITFLAGS(ent_flags_t);
 

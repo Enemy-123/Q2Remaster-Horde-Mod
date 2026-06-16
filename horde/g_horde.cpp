@@ -1049,11 +1049,26 @@ void BuildSpawnPointMap()
 			gi.Com_PrintFmt("Calculated bounds from {} spawn points\n", bounds_source_count);
 	}
 
+	// Unconditionally fold in every known spawn point so the in-map bounds can NEVER exclude a
+	// position a monster legitimately spawns at. (.ent-derived bounds can miss tall/far points --
+	// this map has spawn points up to z~728 and x~-2368 that a small box wrongly rejected, so
+	// IsPositionWithinSpawnBounds failed every alternative candidate there -> ALT DIAG phys=70.)
+	for (edict_t* sp : g_spawn_point_list) {
+		if (sp && sp->inuse && is_valid_vector(sp->s.origin)) {
+			AddPointToBounds(sp->s.origin, world_mins, world_maxs);
+			bounds_source_count++;
+		}
+	}
+
 	// Safety check
 	if (bounds_source_count == 0) {
-		gi.Com_Print("ERROR: Failed to calculate world bounds - using default\n");
-		world_mins = { -2048, -2048, -512 };
-		world_maxs = { 2048, 2048, 512 };
+		gi.Com_Print("ERROR: Failed to calculate world bounds - using generous default\n");
+		// The old default (+-2048 / +-512) wrongly excludes large/tall maps and breaks spawn
+		// validation there. The fine checks in IsPositionPhysicallyValid (solid / ground-below /
+		// sky-above) still reject true void positions, so a generous box here only drops the
+		// coarse early-out -- far safer than rejecting real geometry.
+		world_mins = { -8192, -8192, -4096 };
+		world_maxs = { 8192, 8192, 4096 };
 	}
 	else {
 		// Add padding to ensure grid covers entire playable area
@@ -1841,11 +1856,11 @@ static int32_t CalculateQueuedMonsters(const horde::MapSize& mapSize, int32_t lv
 	float mapSizeMultiplier = 1.0f;
 	if (mapSize.isSmallMap)
 	{
-		mapSizeMultiplier = 1.0f; // Reduced from 1.1 - small maps get base queue
+		mapSizeMultiplier = 1.35f; // Longer small-map waves: bigger reinforcement queue (was 1.0)
 	}
 	else if (mapSize.isMediumMap)
 	{
-		mapSizeMultiplier = 1.1f; // Reduced from 1.2
+		mapSizeMultiplier = 1.35f; // Longer medium-map waves: bigger reinforcement queue (was 1.1)
 	}
 	else if (mapSize.isBigMap)
 	{
@@ -1864,7 +1879,10 @@ static int32_t CalculateQueuedMonsters(const horde::MapSize& mapSize, int32_t lv
 	}
 	baseQueued *= mapSizeMultiplier;
 
-	const int32_t maxQueuedBase = mapSize.isSmallMap ? 15 : (mapSize.isBigMap ? 28 : 20); // Reduced maxes
+	// Small/medium reinforcement ceilings raised so their waves last longer (slower pace). The
+	// queue -- not num_to_spawn -- is what extends a wave, since num_to_spawn is capped by the
+	// live monster cap. Big maps already swarm, so leave them.
+	const int32_t maxQueuedBase = mapSize.isSmallMap ? 24 : (mapSize.isBigMap ? 28 : 30);
 	// Further reduce max queue for very early waves
 	int32_t maxQueued = maxQueuedBase;
 	if (lvl <= 7)
