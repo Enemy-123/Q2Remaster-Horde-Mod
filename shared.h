@@ -119,6 +119,9 @@ extern void SetHealthBarName(const edict_t* boss);
 //DMG & POWERUP
 void ApplyMonsterBonusFlags(edict_t* monster);
 void ApplyBossEffects(edict_t* boss);
+// Apply ONLY the cosmetic + timed-buff effects of a single bonus flag (no health/armor scaling),
+// for special encounters that set their own fixed stats (e.g. the Hell Maidens).
+void ApplyBonusFlagVisuals(edict_t* ent, bonus_flags_t flag);
 //extern [[nodiscard]] constexpr float M_DamageModifier(edict_t* monster) noexcept;
 void UpdatePowerUpTimes(edict_t* monster) noexcept;
 

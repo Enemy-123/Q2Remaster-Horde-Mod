@@ -974,6 +974,40 @@ void ConfigureBossArmor(edict_t* self) {
 	}
 }
 
+// Apply ONLY the cosmetic + timed-buff effects of a single bonus flag (effects/renderfx/alpha
+// and any double/quad/invincible timers), with NO health/armor scaling. Used by special boss
+// encounters that set their own fixed stats but still want each member visually distinct
+// (e.g. the Hell Maidens, where each of the three carries a different BF_ modifier).
+void ApplyBonusFlagVisuals(edict_t* ent, bonus_flags_t flag)
+{
+	if (!ent || !ent->inuse)
+		return;
+
+	ent->monsterinfo.bonus_flags = flag;
+
+	const size_t effect_index = GetBonusEffectIndex(flag);
+	if (effect_index == 0)
+		return;
+
+	const BonusEffectData& data = g_bonus_effects_array[effect_index];
+
+	ent->s.effects |= data.effects;
+	ent->s.renderfx |= data.renderfx | RF_IR_VISIBLE;
+	if (data.alpha > 0.0f)
+		ent->s.alpha = data.alpha;
+
+	if (data.double_time_add > 0_sec)
+		ent->monsterinfo.double_time = std::max(level.time, ent->monsterinfo.double_time) + data.double_time_add;
+	if (data.quad_time_add > 0_sec)
+		ent->monsterinfo.quad_time = std::max(level.time, ent->monsterinfo.quad_time) + data.quad_time_add;
+	if (data.invincible_time_add > 0_sec)
+		ent->monsterinfo.invincible_time = std::max(level.time, ent->monsterinfo.invincible_time) + data.invincible_time_add;
+	if (data.attack_state != AS_NONE)
+		ent->monsterinfo.attack_state = data.attack_state;
+
+	gi.linkentity(ent);
+}
+
 // 14:  boss effects with compile-time lookup
 void ApplyBossEffects(edict_t* boss)
 {

@@ -118,6 +118,12 @@ void ResetBosses();
 void ResetRecentBosses();
 void HandleForcedBossRemoval(edict_t *boss);
 
+// Hell Maidens — "Reverse Horde" alternative boss encounter: instead of one big boss, spawn a
+// 3-monster mini-raid of heavily buffed chicks that share a single aggregate health bar and fully
+// heal each other whenever one of them dies.
+void SpawnHellMaidens();
+bool IsHellMaiden(const edict_t *ent) noexcept;
+
 // Helper functions
 template<size_t N>
 constexpr BossDataSoA create_boss_soa(const std::array<boss_t, N> &boss_list);

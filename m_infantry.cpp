@@ -1061,6 +1061,13 @@ MONSTERINFO_ATTACK(infantry_attack) (edict_t* self) -> void
 {
 	monster_done_dodge(self);
 
+	if (horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::TESLA_MINE) ||
+		horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN))
+	{
+		M_SetAnimation(self, &infantry_move_attack1);
+		return;
+	}
+
 	// handle blindfire grenade
 	if (self->monsterinfo.attack_state == AS_BLIND)
 	{

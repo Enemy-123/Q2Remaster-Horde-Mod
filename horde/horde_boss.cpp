@@ -198,6 +198,11 @@ extern void OnEntityRemoved(edict_t *ent);
 extern MonsterWaveType GetMonsterWaveTypes(horde::MonsterTypeID typeId);
 extern bool HasWaveType(MonsterWaveType entityTypes, MonsterWaveType typeToCheck) noexcept;
 
+// Hell Maidens helpers (defined further below, before SpawnBossAutomatically). Forward-declared
+// here so boss_die() can react when a maiden dies.
+static void HealHellMaidenSurvivors(const edict_t *dead_maiden);
+static bool RecentlyUsedHellMaidens() noexcept;
+
 // Boss spawning constants
 namespace {
 	// Wave configuration
@@ -1125,6 +1130,13 @@ void boss_die(edict_t *boss) noexcept
 		return;
 	}
 
+	// Hell Maidens: when one sister falls, the survivors are fully restored (health + power shield),
+	// so the encounter resets unless the players burn all three down quickly. The shared aggregate
+	// health bar belongs to the invisible aggregator (not this maiden), so ClearBossHealthBar below
+	// only tears down this maiden's (nonexistent) individual bar, not the group's bar.
+	if (IsHellMaiden(boss))
+		HealHellMaidenSurvivors(boss);
+
 	BossDeathHandler(boss);
 	ClearBossHealthBar(boss);
 }
@@ -1242,6 +1254,350 @@ void HandleForcedBossRemoval(edict_t *boss)
 	OnEntityRemoved(boss);
 }
 
+// ============================================================================================
+// Hell Maidens — "Reverse Horde" alternative boss encounter
+// ============================================================================================
+// Instead of a single big boss, spawn a 3-monster mini-raid of heavily buffed chicks. Each maiden
+// carries a different (non-friendly) BF_ modifier for visual/buff variety. They share ONE aggregate
+// health bar (driven by an invisible aggregator entity whose health is the live sum of the maidens),
+// and whenever a maiden dies the survivors are fully healed — so the group must be burned down fast.
+
+namespace {
+	constexpr int32_t  HELL_MAIDEN_COUNT       = 3;
+	constexpr int32_t  HELL_MAIDEN_HEALTH      = 2500;
+	constexpr int32_t  HELL_MAIDEN_SHIELD      = 1750;
+	constexpr float    HELL_MAIDEN_SCALE       = 1.35f;   // "bit bigger"; tunable
+	constexpr int32_t  HELL_MAIDEN_MIN_WAVE    = 15;      // chicks are appropriate by here; tunable
+	constexpr float    HELL_MAIDEN_BASE_CHANCE = 0.25f;   // chance per eligible boss wave; tunable
+	constexpr const char *HELL_MAIDEN_NAME     = "Hell Sisters";
+
+	// Three visually distinct, non-friendly modifiers (red fiery shell / green / dark tracker).
+	constexpr std::array<bonus_flags_t, HELL_MAIDEN_COUNT> HELL_MAIDEN_FLAGS = {
+		BF_CHAMPION, BF_POSSESSED, BF_RAGEQUITTER
+	};
+
+	// Spread the three maidens around the chosen anchor point.
+	constexpr std::array<vec3_t, HELL_MAIDEN_COUNT> HELL_MAIDEN_OFFSETS = {{
+		{  96.0f,   0.0f, 0.0f},
+		{ -64.0f,  96.0f, 0.0f},
+		{ -64.0f, -96.0f, 0.0f}
+	}};
+}
+
+struct HellMaidenGroup {
+	std::array<edict_t *, HELL_MAIDEN_COUNT> members{};
+	edict_t *aggregator = nullptr;   // invisible entity that owns the shared health bar
+	int32_t  spawned = 0;            // how many maidens actually spawned (group size)
+	int32_t  alive = 0;
+	bool     active = false;
+};
+static HellMaidenGroup g_hellMaidens;
+
+// Keep maiden encounters from repeating back-to-back across boss waves.
+static int32_t g_lastHellMaidenWave = -1000;
+
+bool IsHellMaiden(const edict_t *ent) noexcept
+{
+	if (!g_hellMaidens.active || !ent)
+		return false;
+	for (const edict_t *m : g_hellMaidens.members)
+		if (m == ent)
+			return true;
+	return false;
+}
+
+static bool RecentlyUsedHellMaidens() noexcept
+{
+	// Require at least two boss-wave intervals between maiden encounters.
+	return (current_wave_level - g_lastHellMaidenWave) < (BOSS_WAVE_INTERVAL * 2);
+}
+
+// Free the shared bar (the misc_health_bar entity) and the aggregator, and clear the HUD name.
+static void ClearHellMaidensBar()
+{
+	if (g_hellMaidens.aggregator)
+	{
+		if (g_hellMaidens.aggregator->inuse)
+		{
+			ClearBossHealthBar(g_hellMaidens.aggregator); // frees the misc_health_bar slot
+			G_FreeEdict(g_hellMaidens.aggregator);
+		}
+		g_hellMaidens.aggregator = nullptr;
+	}
+
+	// The aggregator's display name doesn't round-trip through GetDisplayName, so clear it directly.
+	if (strcmp(gi.get_configstring(CONFIG_HEALTH_BAR_NAME), HELL_MAIDEN_NAME) == 0)
+		gi.configstring(CONFIG_HEALTH_BAR_NAME, "");
+}
+
+static void HealHellMaidenSurvivors(const edict_t *dead_maiden)
+{
+	int32_t alive = 0;
+	for (edict_t *&m : g_hellMaidens.members)
+	{
+		// Drop the dead maiden from the group so a later corpse free/reuse can't dangle.
+		if (m == dead_maiden)
+		{
+			m = nullptr;
+			continue;
+		}
+
+		if (!m || !m->inuse || m->deadflag || m->health <= 0)
+			continue;
+
+		// Full restore: health and power shield.
+		m->health = m->max_health;
+		m->monsterinfo.power_armor_power = m->monsterinfo.max_power_armor_power;
+		++alive;
+
+		// Visible "renewed" sparkle at each survivor.
+		SpawnGrow_Spawn(m->s.origin, 60.0f, 6.0f);
+	}
+
+	g_hellMaidens.alive = alive;
+
+	if (alive > 0)
+		AppendHordeMessage("A Hell Maiden falls - her sisters are restored!", 3_sec);
+}
+
+// Per-frame think on the invisible aggregator: drive the shared bar as a dynamic aggregate of the
+// living maidens' health, and clean everything up once all maidens are dead.
+void HellMaidensAggregatorThink(edict_t *self);
+THINK(HellMaidensAggregatorThink)(edict_t *self) -> void
+{
+	if (!g_hellMaidens.active || g_hellMaidens.aggregator != self)
+		return;
+
+	int32_t alive = 0;
+	int32_t total_health = 0;
+	for (edict_t *m : g_hellMaidens.members)
+	{
+		if (m && m->inuse && !m->deadflag && m->health > 0)
+		{
+			++alive;
+			total_health += m->health;
+		}
+	}
+	g_hellMaidens.alive = alive;
+
+	if (alive == 0)
+	{
+		ClearHellMaidensBar();        // frees the bar AND this aggregator entity (self)
+		g_hellMaidens = HellMaidenGroup{};
+		return;                       // self freed; do not reschedule
+	}
+
+	self->health = total_health;      // HUD shows total_health / max_health (= group size * per-maiden)
+	self->nextthink = level.time + FRAME_TIME_S;
+}
+
+// Deferred spawn: runs BOSS_SPAWN_DELAY after SpawnHellMaidens so the maidens pop in with the same
+// short delay + grow effect as a normal boss (see BossSpawnThink). The controller stores the anchor
+// in its origin, then frees itself once the maidens and shared bar are set up.
+void HellMaidensSpawnThink(edict_t *self);
+THINK(HellMaidensSpawnThink)(edict_t *self) -> void
+{
+	const vec3_t anchor = self->s.origin;
+
+	// Use the (scaled) chick bounds for per-slot validation.
+	vec3_t predicted_mins, predicted_maxs;
+	GetPredictedScaledBounds(horde::MonsterTypeID::CHICKKL, predicted_mins, predicted_maxs);
+	predicted_mins *= HELL_MAIDEN_SCALE;
+	predicted_maxs *= HELL_MAIDEN_SCALE;
+
+	constexpr bool is_flying = false;
+
+	// Announce now — like BossSpawnThink, the announcement lands when the boss actually appears.
+	current_wave_type = MonsterWaveType::Boss;
+	StoreWaveType(current_wave_type);
+	gi.LocBroadcast_Print(PRINT_CHAT, "{}", "The Hell Maidens descend - slay them as one!\n");
+	AppendHordeMessage("\nBOSS: The Hell Maidens descend!", BOSS_ANNOUNCEMENT_DURATION);
+
+	int32_t spawned = 0;
+	for (int32_t i = 0; i < HELL_MAIDEN_COUNT; ++i)
+	{
+		// Pick this maiden's spot; fall back to the anchor if the offset doesn't validate.
+		vec3_t slot = anchor + HELL_MAIDEN_OFFSETS[i];
+		const auto slot_validation = IsPositionPhysicallyValidForBoss(slot, predicted_mins, predicted_maxs, is_flying);
+		if (slot_validation.is_valid)
+			slot = slot_validation.adjusted_position;
+		else
+			slot = anchor;
+
+		edict_t *maiden = G_Spawn();
+		if (!maiden)
+			continue;
+
+		maiden->classname = "monster_chickkl";
+		maiden->s.origin = slot;
+		maiden->s.angles = vec3_origin;
+
+		// Set IS_BOSS BEFORE spawning so SP_monster_chick's internal ApplyMonsterBonusFlags is skipped
+		// (same trick BossSpawnThink uses); we apply our own distinct modifier afterward.
+		maiden->monsterinfo.IS_BOSS = true;
+		maiden->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
+		maiden->monsterinfo.last_reacttodamage_target_time = 0_ms;
+		maiden->solid = SOLID_NOT;
+
+		ED_CallSpawnMonsterByID(maiden, horde::MonsterTypeID::CHICKKL);
+		if (!maiden->inuse)
+		{
+			if (developer->integer)
+				gi.Com_PrintFmt("SpawnHellMaidens: ED_CallSpawn failed for maiden {}.\n", i);
+			continue;
+		}
+
+		// Bot-targetable enemy monster (mirror BossSpawnThink).
+		maiden->svflags |= SVF_MONSTER;
+		maiden->monsterinfo.team = CTF_TEAM2;
+		maiden->sv.init = false;
+
+		// Distinct visible/buff modifier (sets bonus_flags + effects, no stat scaling).
+		ApplyBonusFlagVisuals(maiden, HELL_MAIDEN_FLAGS[i]);
+
+		// Fixed boss-grade stats.
+		maiden->health = maiden->max_health = HELL_MAIDEN_HEALTH;
+		maiden->monsterinfo.base_health = HELL_MAIDEN_HEALTH;
+		maiden->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
+		maiden->monsterinfo.power_armor_power = HELL_MAIDEN_SHIELD;
+		maiden->monsterinfo.max_power_armor_power = HELL_MAIDEN_SHIELD;
+
+		// "Bit bigger" — scale model + collision box (same approach as ApplyBossEffects).
+		const float original_mins_z = maiden->mins[2];
+		maiden->s.scale *= HELL_MAIDEN_SCALE;
+		maiden->mins *= HELL_MAIDEN_SCALE;
+		maiden->maxs *= HELL_MAIDEN_SCALE;
+		maiden->mass = static_cast<int>(maiden->mass * HELL_MAIDEN_SCALE);
+		maiden->s.origin[2] -= (original_mins_z * HELL_MAIDEN_SCALE - original_mins_z);
+
+		// Extra loot: each maiden drops a horde item (BossDeathHandler also drops on death).
+		maiden->item = G_HordePickItem();
+		maiden->spawnflags &= ~SPAWNFLAG_MONSTER_NO_DROP;
+
+		maiden->solid = SOLID_BBOX;
+		gi.linkentity(maiden);
+
+		// Spawn-in FX.
+		const float base_size = std::max(SPAWN_GROW_MIN_BASE_SIZE, slot.length() * SPAWN_GROW_BASE_SIZE_MULTIPLIER);
+		ImprovedSpawnGrow(slot, base_size, base_size * SPAWN_GROW_END_SIZE_MULTIPLIER, maiden);
+		SpawnGrow_Spawn(slot, base_size, base_size * SPAWN_GROW_END_SIZE_MULTIPLIER);
+
+		auto_spawned_bosses.insert(maiden);
+		g_hellMaidens.members[spawned] = maiden;
+		++spawned;
+	}
+
+	if (spawned == 0)
+	{
+		if (developer->integer)
+			gi.Com_PrintFmt("HellMaidensSpawnThink: failed to spawn any maidens on wave {}.\n", current_wave_level);
+		boss_spawned_for_wave = false;   // allow a normal boss to spawn next tick instead
+		G_FreeEdict(self);
+		return;
+	}
+
+	if (sound_spawn1)
+		gi.sound(g_hellMaidens.members[0], CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
+
+	// Create the invisible aggregator that owns the shared "Hell Maidens" health bar.
+	edict_t *agg = G_Spawn();
+	agg->classname = "hell_maidens_bar";
+	agg->s.origin = anchor + vec3_t{0.0f, 0.0f, 40.0f};
+	agg->movetype = MOVETYPE_NONE;
+	agg->solid = SOLID_NOT;
+	agg->takedamage = false;
+	agg->svflags |= SVF_NOCLIENT;
+	agg->max_health = spawned * HELL_MAIDEN_HEALTH;
+	agg->health = agg->max_health;
+	agg->think = HellMaidensAggregatorThink;
+	agg->nextthink = level.time + FRAME_TIME_S;
+	gi.linkentity(agg);
+
+	g_hellMaidens.aggregator = agg;
+	g_hellMaidens.spawned = spawned;
+	g_hellMaidens.alive = spawned;
+	g_hellMaidens.active = true;
+
+	AttachHealthBar(agg);
+	gi.configstring(CONFIG_HEALTH_BAR_NAME, HELL_MAIDEN_NAME);
+
+	if (developer->integer)
+		gi.Com_PrintFmt("HellMaidensSpawnThink: spawned {} maidens on wave {} at {}.\n", spawned, current_wave_level, anchor);
+
+	G_FreeEdict(self);   // controller no longer needed
+}
+
+void SpawnHellMaidens()
+{
+	// Tear down any stale group first (defensive — only one encounter is ever active at a time),
+	// then start from a fully cleared group so no stale member pointers can linger.
+	if (g_hellMaidens.active)
+		ClearHellMaidensBar();
+	g_hellMaidens = HellMaidenGroup{};
+
+	// Chicks are ground monsters; use chick bounds scaled up for placement validation.
+	vec3_t predicted_mins, predicted_maxs;
+	GetPredictedScaledBounds(horde::MonsterTypeID::CHICKKL, predicted_mins, predicted_maxs);
+	predicted_mins *= HELL_MAIDEN_SCALE;
+	predicted_maxs *= HELL_MAIDEN_SCALE;
+
+	const char *map_name = GetCurrentMapName();
+	if (!map_name)
+		map_name = "";
+
+	constexpr bool is_flying = false;
+
+	// Find an anchor: prefer the map's registered boss origin, else the validated spawn grid.
+	vec3_t anchor;
+	bool has_anchor = false;
+
+	vec3_t spawn_origin;
+	const horde::MapID mapId = horde::MapOriginRegistry::GetMapID(map_name);
+	if (horde::MapOriginRegistry::GetOrigin(mapId, spawn_origin))
+	{
+		ClearSpawnArea(spawn_origin, predicted_mins, predicted_maxs);
+		const auto validation = IsPositionPhysicallyValidForBoss(spawn_origin, predicted_mins, predicted_maxs, is_flying);
+		if (validation.is_valid)
+		{
+			anchor = validation.adjusted_position;
+			has_anchor = true;
+		}
+	}
+
+	if (!has_anchor)
+		has_anchor = TryBossGridFallbackPosition(predicted_mins, predicted_maxs, is_flying, true, "hell maidens", anchor);
+
+	if (!has_anchor)
+	{
+		if (developer->integer)
+			gi.Com_PrintFmt("SpawnHellMaidens: No valid anchor position for wave {}. Will retry next frame.\n", current_wave_level);
+		boss_spawned_for_wave = false;
+		return;
+	}
+
+	PushEntitiesAway(anchor, PUSH_ITERATIONS, PUSH_BASE_RADIUS, PUSH_BASE_STRENGTH, PUSH_PLAYER_STRENGTH, PUSH_MONSTER_STRENGTH);
+
+	// Defer the actual spawn so the maidens appear after the same short delay + grow effect as a
+	// normal boss (BossSpawnThink runs BOSS_SPAWN_DELAY after the boss entity is created). The
+	// controller carries the anchor in its origin and spawns the trio when it fires.
+	edict_t *controller = G_Spawn();
+	controller->classname = "hell_maidens_spawner";
+	controller->s.origin = anchor;
+	controller->svflags |= SVF_NOCLIENT;
+	controller->solid = SOLID_NOT;
+	controller->movetype = MOVETYPE_NONE;
+	controller->think = HellMaidensSpawnThink;
+	controller->nextthink = level.time + BOSS_SPAWN_DELAY;
+	gi.linkentity(controller);
+
+	// Commit the encounter now (mirrors how SpawnBossAutomatically reserves the wave before the delay).
+	boss_spawned_for_wave = true;
+	g_lastHellMaidenWave = current_wave_level;
+
+	if (developer->integer)
+		gi.Com_PrintFmt("SpawnHellMaidens: anchor reserved for wave {} at {}; maidens arrive after spawn delay.\n", current_wave_level, anchor);
+}
+
 void SpawnBossAutomatically()
 {
 	// Immediate guard against re-entry
@@ -1270,6 +1626,15 @@ void SpawnBossAutomatically()
 	// Basic wave check
 	if (current_wave_level < MIN_BOSS_WAVE || current_wave_level % BOSS_WAVE_INTERVAL != 0) {
 		boss_spawned_for_wave = false;
+		return;
+	}
+
+	// Alternative encounter: occasionally replace the single boss with the Hell Maidens mini-raid.
+	if (current_wave_level >= HELL_MAIDEN_MIN_WAVE &&
+		!RecentlyUsedHellMaidens() &&
+		frandom() < HELL_MAIDEN_BASE_CHANCE)
+	{
+		SpawnHellMaidens();
 		return;
 	}
 
@@ -1716,6 +2081,13 @@ void ResetBosses()
 			G_FreeEdict(boss);
 		}
 		it = auto_spawned_bosses.erase(it);
+	}
+
+	// Tear down any active Hell Maidens encounter (the aggregator isn't tracked in auto_spawned_bosses).
+	if (g_hellMaidens.active || g_hellMaidens.aggregator)
+	{
+		ClearHellMaidensBar();
+		g_hellMaidens = HellMaidenGroup{};
 	}
 }
 
