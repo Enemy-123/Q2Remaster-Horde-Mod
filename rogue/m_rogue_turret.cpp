@@ -266,10 +266,6 @@ void TurretAim(edict_t* self)
 		self->target_ent->solid = SOLID_NOT;
 		self->target_ent->owner = self;
 		self->target_ent->s.origin = self->s.origin;
-
-		if (developer->integer > 1)
-			gi.Com_PrintFmt("turret #{}: spawned lasersight beam @ {} {} {}\n",
-				self->s.number, self->s.origin[0], self->s.origin[1], self->s.origin[2]);
 	}
 
 	vec3_t forward;
@@ -295,16 +291,6 @@ void TurretAim(edict_t* self)
 	self->target_ent->s.origin = self->s.origin;
 	self->target_ent->s.old_origin = tr.endpos;
 	gi.linkentity(self->target_ent);
-
-	if (developer->integer > 1 && level.time > self->target_ent->timestamp)
-	{
-		self->target_ent->timestamp = level.time + 1_sec;
-		gi.Com_PrintFmt("turret #{}: lasersight inuse={} start({} {} {}) end({} {} {}) rfx={} skin={}\n",
-			self->s.number, self->target_ent->inuse,
-			self->target_ent->s.origin[0], self->target_ent->s.origin[1], self->target_ent->s.origin[2],
-			self->target_ent->s.old_origin[0], self->target_ent->s.old_origin[1], self->target_ent->s.old_origin[2],
-			(int) self->target_ent->s.renderfx, self->target_ent->s.skinnum);
-	}
 }
 
 MONSTERINFO_SIGHT(turret_sight) (edict_t* self, edict_t* other) -> void
