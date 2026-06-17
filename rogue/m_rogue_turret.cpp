@@ -20,7 +20,8 @@ constexpr spawnflags_t SPAWNFLAG_TURRET_ROCKET = 0x0020_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_TURRET_HEATBEAM = 0x0040_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_TURRET_WEAPONCHOICE = SPAWNFLAG_TURRET_HEATBEAM | SPAWNFLAG_TURRET_ROCKET | SPAWNFLAG_TURRET_MACHINEGUN | SPAWNFLAG_TURRET_BLASTER;
 constexpr spawnflags_t SPAWNFLAG_TURRET_WALL_UNIT = 0x0080_spawnflag;
-constexpr spawnflags_t SPAWNFLAG_TURRET_NO_LASERSIGHT = 18_spawnflag_bit;
+// bit 18 collides with SPAWNFLAG_MONSTER_NO_DROP (set on summoned monsters); use bit 21.
+constexpr spawnflags_t SPAWNFLAG_TURRET_NO_LASERSIGHT = 21_spawnflag_bit;
 
 bool FindTarget(edict_t* self);
 
@@ -261,7 +262,14 @@ void TurretAim(edict_t* self)
 		self->target_ent->s.frame = 1;
 		self->target_ent->s.skinnum = 0xf0f0f0f0;
 		self->target_ent->classname = "turret_lasersight";
+		self->target_ent->movetype = MOVETYPE_NONE;
+		self->target_ent->solid = SOLID_NOT;
+		self->target_ent->owner = self;
 		self->target_ent->s.origin = self->s.origin;
+
+		if (developer->integer > 1)
+			gi.Com_PrintFmt("turret #{}: spawned lasersight beam @ {} {} {}\n",
+				self->s.number, self->s.origin[0], self->s.origin[1], self->s.origin[2]);
 	}
 
 	vec3_t forward;
@@ -284,8 +292,19 @@ void TurretAim(edict_t* self)
 	end = self->s.origin + (forward * 8192);
 	tr = gi.traceline(self->s.origin, end, self, MASK_SOLID);
 
+	self->target_ent->s.origin = self->s.origin;
 	self->target_ent->s.old_origin = tr.endpos;
 	gi.linkentity(self->target_ent);
+
+	if (developer->integer > 1 && level.time > self->target_ent->timestamp)
+	{
+		self->target_ent->timestamp = level.time + 1_sec;
+		gi.Com_PrintFmt("turret #{}: lasersight inuse={} start({} {} {}) end({} {} {}) rfx={} skin={}\n",
+			self->s.number, self->target_ent->inuse,
+			self->target_ent->s.origin[0], self->target_ent->s.origin[1], self->target_ent->s.origin[2],
+			self->target_ent->s.old_origin[0], self->target_ent->s.old_origin[1], self->target_ent->s.old_origin[2],
+			(int) self->target_ent->s.renderfx, self->target_ent->s.skinnum);
+	}
 }
 
 MONSTERINFO_SIGHT(turret_sight) (edict_t* self, edict_t* other) -> void

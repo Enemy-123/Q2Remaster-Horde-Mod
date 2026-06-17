@@ -26,7 +26,10 @@ constexpr spawnflags_t SPAWNFLAG_TURRET2_ROCKET = spawnflags_t(0x0020); // Keep 
 constexpr spawnflags_t SPAWNFLAG_TURRET2_FLECHETTE = spawnflags_t(0x0100); // New unique valuef
 constexpr spawnflags_t SPAWNFLAG_TURRET2_HEATBEAM = SPAWNFLAG_TURRET2_BLASTER; // Same as blaster
 constexpr spawnflags_t SPAWNFLAG_TURRET2_WEAPONCHOICE = SPAWNFLAG_TURRET2_HEATBEAM | SPAWNFLAG_TURRET2_MACHINEGUN | SPAWNFLAG_TURRET2_ROCKET | SPAWNFLAG_TURRET2_FLECHETTE;
-constexpr spawnflags_t SPAWNFLAG_TURRET2_NO_LASERSIGHT = spawnflags_t(1 << 18);
+// NOTE: bit 18 collides with the engine's SPAWNFLAG_MONSTER_NO_DROP, which is set on
+// summoned/deployed sentries so they don't drop items - that made every deployed sentry
+// read as "no lasersight". Use bit 21 (above the reserved monster spawnflag range 16-20).
+constexpr spawnflags_t SPAWNFLAG_TURRET2_NO_LASERSIGHT = spawnflags_t(1 << 21);
 
 void turret2_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
 void turret2Aim(edict_t* self);
@@ -222,8 +225,19 @@ static inline bool ValidateAndUpdateTarget(edict_t* self, sentry_state_t* state)
 // Helper function to update the turret's laser sight visual effect
 static inline void UpdateLaserSight(edict_t* self)
 {
-	if (self->spawnflags.has(SPAWNFLAG_TURRET2_NO_LASERSIGHT))
+	// Heatbeam (== blaster) is an instant beam attack and gets no laser sight; every
+	// other turret/sentry variant does. Drop any stale beam so a no-laser variant
+	// never keeps one lingering.
+	if (self->spawnflags.has(SPAWNFLAG_TURRET2_NO_LASERSIGHT) ||
+		self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
+	{
+		if (self->target_ent)
+		{
+			G_FreeEdict(self->target_ent);
+			self->target_ent = nullptr;
+		}
 		return;
+	}
 
 	// Create laser sight entity if it doesn't exist
 	if (!self->target_ent)
@@ -234,8 +248,14 @@ static inline void UpdateLaserSight(edict_t* self)
 		self->target_ent->s.frame = 1;
 		self->target_ent->s.skinnum = 0xf0f0f0f0;
 		self->target_ent->classname = "turret_lasersight";
-		self->target_ent->s.effects = EF_BOB;
+		self->target_ent->movetype = MOVETYPE_NONE;
+		self->target_ent->solid = SOLID_NOT;
+		self->target_ent->owner = self;
 		self->target_ent->s.origin = self->s.origin;
+
+		if (developer->integer > 1)
+			gi.Com_PrintFmt("sentry #{}: spawned lasersight beam @ {} {} {}\n",
+				self->s.number, self->s.origin[0], self->s.origin[1], self->s.origin[2]);
 	}
 
 	// Calculate laser direction and trace
@@ -270,8 +290,19 @@ static inline void UpdateLaserSight(edict_t* self)
 	end = self->s.origin + (forward * 8192);
 	tr = gi.traceline(self->s.origin, end, self, MASK_SOLID);
 
+	self->target_ent->s.origin = self->s.origin;
 	self->target_ent->s.old_origin = tr.endpos;
 	gi.linkentity(self->target_ent);
+
+	if (developer->integer > 1 && level.time > self->target_ent->timestamp)
+	{
+		self->target_ent->timestamp = level.time + 1_sec;
+		gi.Com_PrintFmt("sentry #{}: lasersight inuse={} start({} {} {}) end({} {} {}) rfx={} skin={}\n",
+			self->s.number, self->target_ent->inuse,
+			self->target_ent->s.origin[0], self->target_ent->s.origin[1], self->target_ent->s.origin[2],
+			self->target_ent->s.old_origin[0], self->target_ent->s.old_origin[1], self->target_ent->s.old_origin[2],
+			(int) self->target_ent->s.renderfx, self->target_ent->s.skinnum);
+	}
 }
 
 // Helper function to adjust a single angle (pitch or yaw) with dynamic speed and slowdown

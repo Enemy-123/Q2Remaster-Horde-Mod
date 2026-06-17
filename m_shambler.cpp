@@ -128,8 +128,9 @@ static void shambler_fireball_update(edict_t* self)
 	const gtime_t current_time = level.time;
 	const float pulse = sinf(current_time.seconds<float>() * 0.01f * PIf) * 0.2f + 0.8f; // Consider making 0.01f a named const or relate to game speed
 
-	// Apply pulse to scale
-	fireball_effect->s.scale *= pulse;
+	// Apply pulse to scale, and track the monster's own scale so the charge ball
+	// matches a resized/boss shambler (the midpoint already scales via M_ProjectFlashSource).
+	fireball_effect->s.scale *= pulse * (self->s.scale ? self->s.scale : 1.0f);
 
 	// Add SpawnGrow-like effect
 	if (frandom() < 0.3f) { // 30% chance each frame to spawn a particle
@@ -487,6 +488,47 @@ mframe_t shambler_frames_magic[] = {
 
 MMOVE_T(shambler_attack_magic) = { FRAME_magic01, FRAME_magic12, shambler_frames_magic, shambler_run };
 
+// Like FindShamblerOffset, but for the two-handed fireball cast: returns the midpoint
+// between the shambler's hands, stepped down until it clears solid so fireballs never
+// spawn inside a low ceiling. Hand offsets are projected through M_ProjectFlashSource so
+// the result already respects self->s.scale.
+static vec3_t FindShamblerFireballOrigin(edict_t* self, const vec3_t& forward, const vec3_t& right)
+{
+	constexpr int charge_end_index = q_countof(lightning_left_hand) - 1;
+
+	const float scale = self->s.scale ? self->s.scale : 1.0f;
+
+	// reference point near the shambler's chest to trace from
+	vec3_t chest = self->s.origin;
+	chest[2] += 32.f * scale;
+
+	vec3_t mid;
+	trace_t tr;
+
+	for (int i = 0; i < 8; i++)
+	{
+		const float z_off = FIREBALL_HAND_Z_OFFSET - (i * 8.f);
+
+		vec3_t left = lightning_left_hand[charge_end_index];
+		left[2] += z_off;
+		vec3_t right_hand = lightning_right_hand[charge_end_index];
+		right_hand[2] += z_off;
+
+		mid = (M_ProjectFlashSource(self, left, forward, right) +
+			M_ProjectFlashSource(self, right_hand, forward, right)) * 0.5f;
+
+		tr = gi.traceline(chest, mid, self, MASK_SOLID);
+		if (!tr.startsolid && tr.fraction == 1.0f)
+			return mid;
+	}
+
+	// Still blocked at every height: use the last clear point along the trace,
+	// nudged back toward the shambler so the projectile spawns in open space.
+	vec3_t back = mid - chest;
+	back.normalize();
+	return tr.endpos - (back * 8.f);
+}
+
 void ShamblerCastFireballs(edict_t* self)
 {
 	if (!M_HasEnemy(self))
@@ -497,23 +539,9 @@ void ShamblerCastFireballs(edict_t* self)
 	vec3_t f, r;
 	AngleVectors(self->s.angles, f, r, nullptr);
 
-    // Indexing based on FRAME_smash01 for consistency if needed, though here it's for projectile origin
-    // For projectile origin, we might want the *last* charge positions or specific casting positions.
-    // The original code used self->s.frame - FRAME_smash01 for fireball_left_hand.
-    // Since the charge animation (smash01-smash05) is distinct from casting (smash10-smash12),
-    // we should use the positions from the *end* of the charge or specific points for casting.
-    // Let's assume the last point of the charge animation is suitable.
-    constexpr int charge_end_index = q_countof(lightning_left_hand) - 1;
-
-	vec3_t temp_left_hand_pos = lightning_left_hand[charge_end_index];
-	temp_left_hand_pos[2] += FIREBALL_HAND_Z_OFFSET;
-	const vec3_t left_pos = M_ProjectFlashSource(self, temp_left_hand_pos, f, r);
-
-	vec3_t temp_right_hand_pos = lightning_right_hand[charge_end_index];
-	temp_right_hand_pos[2] += FIREBALL_HAND_Z_OFFSET;
-	const vec3_t right_pos = M_ProjectFlashSource(self, temp_right_hand_pos, f, r);
-
-	const vec3_t start = (left_pos + right_pos) * 0.5f;
+	// Ceiling-aware firing origin: like FindShamblerOffset, step the hand midpoint down
+	// until it clears solid so fireballs never spawn inside a low ceiling.
+	const vec3_t start = FindShamblerFireballOrigin(self, f, r);
 
 	vec3_t dir;
 	vec3_t target;
