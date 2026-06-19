@@ -71,6 +71,10 @@ struct EmitterState
     int last_beam_frame = -1;
     int last_emitter_renderfx = -1;
 
+    // Self-repair (sentry-style, but faster): regen out of combat
+    gtime_t last_damage_time = 0_ms;   // last time the beam dealt damage to an enemy
+    gtime_t last_repair_time = 0_ms;   // throttle for the regen tick
+
     // Add a clear() method for convenience
     void clear() {
         is_warning_phase = false;
@@ -80,6 +84,8 @@ struct EmitterState
         last_flare_skinnum = 0;
         last_beam_frame = -1;
         last_emitter_renderfx = -1;
+        last_damage_time = 0_ms;
+        last_repair_time = 0_ms;
     }
 };
 

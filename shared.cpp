@@ -447,8 +447,14 @@ void WeakenEntityForBoss(edict_t* ent) {
 	if (id == horde::SpecialEntityTypeID::LASER_EMITTER && ent->chain && ent->chain->inuse)
 		health_target = ent->chain;
 
-	if (health_target->health > 1)
-		health_target->health = std::max(1, health_target->health / 4); // leave ~25%, never 0
+	if (health_target->health > 1) {
+		// Lasers carry much more health now (base 150, +100/wave), so the boss takes a
+		// bigger bite (leave ~1/6) to keep the post-shockwave value in line with the old
+		// 1/4 of weaker lasers. Other deployables (sentry/turret) stay at the old ~1/4.
+		const bool is_laser = (id == horde::SpecialEntityTypeID::LASER_EMITTER);
+		const int divisor = is_laser ? 6 : 4;
+		health_target->health = std::max(1, health_target->health / divisor); // never 0
+	}
 
 	// Tesla: cut the deployed "expires -> explodes" timer (air_finished) down to 3-8 seconds.
 	// air_finished is the real expiry (tesla_think_active); the ID-view HUD reads it too.

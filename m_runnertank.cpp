@@ -533,7 +533,7 @@ void runnertankStrike(edict_t* self)
 		gi.WritePosition(tr.endpos);
 		gi.WriteDir({ 0.f, 0.f, 1.f });
 		gi.multicast(tr.endpos, MULTICAST_PHS, false);
-		int damage = M_GET_DMG_OR(self, SLAM, 45);
+		int damage = self->monsterinfo.IS_BOSS ? irandom(60, 80) : irandom(30, 55);
 		void T_SlamRadiusDamage(vec3_t point, edict_t * inflictor, edict_t * attacker, float damage, float kick, edict_t * ignore, float radius, mod_t mod);
 		// Daño radial
 		T_SlamRadiusDamage(tr.endpos, self, self, damage, 450.f, self, 165, MOD_TANK_PUNCH);

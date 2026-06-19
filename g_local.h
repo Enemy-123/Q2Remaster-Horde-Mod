@@ -3080,9 +3080,9 @@ namespace BarrelConstants {
 namespace LaserConstants {
     constexpr int32_t MAX_LASERS_ARRAY_SIZE = 16;
     inline int32_t MAX_LASERS_PER_PLAYER() { return g_config.entity_limits.max_lasers; }
-    constexpr int32_t MAX_LASER_HEALTH = 3200;
+    constexpr int32_t MAX_LASER_HEALTH = 4250;
     constexpr gtime_t LASER_SPAWN_DELAY = 1_sec;
-    constexpr gtime_t LASER_TIMEOUT_DELAY = 180_sec;
+    constexpr gtime_t LASER_TIMEOUT_DELAY = 240_sec;
     constexpr gtime_t BLINK_INTERVAL = 500_ms;
     constexpr gtime_t WARNING_TIME = 10_sec;
     // Visual appearance constants

@@ -334,6 +334,14 @@ static edict_t* spawn_strogg_monster(edict_t* player, const vec3_t& origin, cons
 	// Set touch function to allow owner to push the monster
 	monster->touch = strogg_summoned_touch;
 
+	// Strogg-summoned monsters are tankier than their base type (1.5x health).
+	// Runs after the SP_monster_* spawn func (which already applied PvM/bonus scaling
+	// and synced max_health), and co-op scaling early-returns on BF_FRIENDLY, so this
+	// final value sticks.
+	monster->health = static_cast<int>(monster->health * 1.5f);
+	monster->max_health = monster->health;
+	monster->monsterinfo.base_health = monster->health;
+
 	gi.linkentity(monster);
 
 	return monster;

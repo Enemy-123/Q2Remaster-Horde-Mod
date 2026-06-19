@@ -1104,6 +1104,12 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		// Store the original attacker for reference
 		edict_t* original_attacker = attacker;
 
+		// Strogg-summoned monsters deal 2x damage. Applied here (before the redirect
+		// reassigns attacker to the player) because the M_DamageModifier block below
+		// only fires for monster attackers, which this no longer is after redirect.
+		if (attacker->monsterinfo.issummoned)
+			damage = static_cast<int>(round(damage * 2.0f));
+
 		// Redirect attacker to the owner (player who summoned the monster)
 		attacker = attacker->teammaster;
 

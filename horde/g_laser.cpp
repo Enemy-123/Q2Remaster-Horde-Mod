@@ -84,8 +84,8 @@ static int CalculateWaveBasedLaserMaxHealth(int wave_level)
 {
     int effective_wave_level = std::max(1, wave_level);
     // Classic Mode uses different base values than RPG mode config
-    constexpr int CLASSIC_BASE_HEALTH = 100;     // Base health at wave 1
-    constexpr int CLASSIC_HEALTH_PER_WAVE = 50;  // Health increase per wave
+    constexpr int CLASSIC_BASE_HEALTH = 150;     // Base health at wave 1
+    constexpr int CLASSIC_HEALTH_PER_WAVE = 100; // Health increase per wave
     return std::min(CLASSIC_BASE_HEALTH + (CLASSIC_HEALTH_PER_WAVE * (effective_wave_level - 1)), LaserConstants::MAX_LASER_HEALTH);
 }
 
@@ -347,6 +347,10 @@ struct player_laser_pierce_t : pierce_args_t
 
             T_Damage(tr.ent, self, self->teammaster, forward, tr.endpos, vec3_origin, damage_to_deal, 0, DAMAGE_ENERGY, MOD_PLAYER_LASER);
 
+            // Beam is actively dealing damage: suppress self-repair for the next few seconds.
+            if (EmitterState* st = GetEmitterState(self->owner))
+                st->last_damage_time = level.time;
+
             // Don't consume laser health when damaging barrels
             bool is_barrel = horde::IsSpecialType(tr.ent, horde::SpecialEntityTypeID::BARREL);
             if (!is_barrel) {
@@ -487,6 +491,19 @@ THINK(laser_beam_think)(edict_t * self)->void
             self->s.origin = end;
         } else {
             self->s.origin = args.tr.endpos;
+        }
+    }
+
+    // Sentry-style self-repair, but faster: 5s after the beam last dealt damage,
+    // regen 4% of max health every 2s up to max. A boss shockwave lowers health
+    // directly (not via hit()), so it does not stamp last_damage_time -> the laser
+    // recovers ~5s after being weakened.
+    if (EmitterState* st = GetEmitterState(emitter)) {
+        if (self->health > 0 && self->health < self->max_health &&
+            level.time >= st->last_damage_time + 3_sec &&
+            level.time >= st->last_repair_time + 1_sec) {
+            self->health = std::min(self->health + std::max(1, static_cast<int>(self->max_health * 0.08f)), self->max_health);
+            st->last_repair_time = level.time;
         }
     }
 
