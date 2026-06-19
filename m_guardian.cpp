@@ -556,6 +556,17 @@ MONSTERINFO_ATTACK(guardian_attack) (edict_t* self) -> void
 
 	const float r = range_to(self, self->enemy);
 
+	// Stationary hazards: never kick; just fire ranged.
+	// Janitor2 fires its ionripper (atk1) at any range; guardian lasers far, blasts close.
+	if (horde::IsRangedOnlyTarget(self->enemy))
+	{
+		if (horde::IsMonsterType(self, horde::MonsterTypeID::JANITOR2))
+			M_SetAnimation(self, &guardian_move_atk1_in);
+		else
+			M_SetAnimation(self, r > RANGE_NEAR ? &guardian_move_atk2_in : &guardian_move_atk1_in);
+		return;
+	}
+
 	if (r > RANGE_NEAR)
 	{
 		M_SetAnimation(self, &guardian_move_atk2_in);

@@ -53,6 +53,100 @@ GLOBAL_RADIUS_PLASMA                             = 140
 GLOBAL_RADIUS_TRACKER                            = 140
 GLOBAL_RADIUS_FIREBALL                           = 140
 
+-- ============================================================================
+-- BOSS-ONLY WEAPON DAMAGE OVERRIDES
+-- Applied ONLY to IS_BOSS instances. Key form: MONSTER_<TYPE>_BOSS_DAMAGE_<WEAPON>.
+-- These are EXACT final values: they ignore DAMAGE_SCALE and the DAMAGE_MAX caps, so a
+-- boss can hit harder than its normal counterpart. A weapon key only has an effect if that
+-- monster's attack actually reads it through the M_*_DMG path -- e.g. the tank family's
+-- heat-seeker reads ROCKET (not HEAT), and supertank rocket/bullet damage is hardcoded.
+-- ============================================================================
+
+-- Tank Commander (blaster attack fires a blaster2 projectile but reads the BLASTER key;
+-- the punch/strike is a SLAM radius hit)
+MONSTER_TANK_COMMANDER_BOSS_DAMAGE_ROCKET        = 110
+MONSTER_TANK_COMMANDER_BOSS_DAMAGE_BLASTER       = 45
+MONSTER_TANK_COMMANDER_BOSS_DAMAGE_SLAM          = 175
+
+-- Tank 64 (heat-seeker reads the ROCKET key; the punch/strike is a SLAM radius hit.
+-- Without this, the boss slam falls back to the global SLAM=30 and feels very weak.)
+MONSTER_TANK_64_BOSS_DAMAGE_ROCKET               = 120
+MONSTER_TANK_64_BOSS_DAMAGE_SLAM                 = 175
+
+-- Runnertank
+MONSTER_RUNNERTANK_BOSS_DAMAGE_ROCKET            = 90
+MONSTER_RUNNERTANK_BOSS_DAMAGE_PLASMA            = 60
+MONSTER_RUNNERTANK_BOSS_DAMAGE_RAILGUN           = 70
+MONSTER_RUNNERTANK_BOSS_DAMAGE_SLAM              = 90
+
+-- Carrier (rockets are heat-seekers -> HEAT key)
+MONSTER_CARRIER_BOSS_DAMAGE_HEAT                 = 80
+MONSTER_CARRIER_BOSS_DAMAGE_GRENADE              = 70
+MONSTER_CARRIER_BOSS_DAMAGE_MACHINEGUN           = 10
+
+-- Carrier Mini
+MONSTER_CARRIER_MINI_BOSS_DAMAGE_HEAT            = 50
+MONSTER_CARRIER_MINI_BOSS_DAMAGE_ROCKET          = 45
+MONSTER_CARRIER_MINI_BOSS_DAMAGE_GRENADE         = 45
+MONSTER_CARRIER_MINI_BOSS_DAMAGE_MACHINEGUN      = 8
+
+-- Widow2
+MONSTER_WIDOW2_BOSS_DAMAGE_TRACKER               = 40
+MONSTER_WIDOW2_BOSS_DAMAGE_HEATBEAM              = 20
+
+-- Boss2
+MONSTER_BOSS2_BOSS_DAMAGE_ROCKET                 = 90
+MONSTER_BOSS2_BOSS_DAMAGE_MACHINEGUN             = 10
+MONSTER_BOSS2_BOSS_DAMAGE_BLASTER_BOLT           = 22
+
+-- Boss2 64
+MONSTER_BOSS2_64_BOSS_DAMAGE_ROCKET              = 90
+MONSTER_BOSS2_64_BOSS_DAMAGE_MACHINEGUN          = 10
+MONSTER_BOSS2_64_BOSS_DAMAGE_BLASTER_BOLT        = 22
+
+-- Boss2 Mini
+MONSTER_BOSS2_MINI_BOSS_DAMAGE_ROCKET            = 70
+MONSTER_BOSS2_MINI_BOSS_DAMAGE_MACHINEGUN        = 9
+MONSTER_BOSS2_MINI_BOSS_DAMAGE_BLASTER_BOLT      = 18
+
+-- Supertank (rocket/bullet are hardcoded; HEAT + GRENADE are configurable)
+MONSTER_SUPERTANK_BOSS_DAMAGE_HEAT               = 90
+MONSTER_SUPERTANK_BOSS_DAMAGE_GRENADE            = 70
+
+-- Supertankkl
+MONSTER_SUPERTANKKL_BOSS_DAMAGE_HEAT             = 110
+MONSTER_SUPERTANKKL_BOSS_DAMAGE_GRENADE          = 85
+
+-- Makron
+MONSTER_MAKRON_BOSS_DAMAGE_BFG                   = 80
+MONSTER_MAKRON_BOSS_DAMAGE_RAILGUN               = 75
+MONSTER_MAKRON_BOSS_DAMAGE_BLASTER               = 40
+
+-- Makronkl
+MONSTER_MAKRONKL_BOSS_DAMAGE_BFG                 = 90
+MONSTER_MAKRONKL_BOSS_DAMAGE_RAILGUN             = 80
+MONSTER_MAKRONKL_BOSS_DAMAGE_BLASTER             = 45
+
+-- Jorg
+MONSTER_JORG_BOSS_DAMAGE_BFG                     = 90
+MONSTER_JORG_BOSS_DAMAGE_PLASMA                  = 70
+
+-- Boss5
+MONSTER_BOSS5_BOSS_DAMAGE_HEAT                   = 90
+
+-- Shambler (lightning beam fires once per cast on 3 cast frames -> per-cast LIGHTNING key)
+MONSTER_SHAMBLER_BOSS_DAMAGE_LIGHTNING           = 25
+MONSTER_SHAMBLERKL_BOSS_DAMAGE_LIGHTNING         = 30
+
+-- Guardian
+MONSTER_GUARDIAN_BOSS_DAMAGE_BLASTER             = 35
+MONSTER_GUARDIAN_BOSS_DAMAGE_DABEAM              = 45
+MONSTER_GUARDIAN_BOSS_DAMAGE_IONRIPPER           = 40
+
+-- PSX Guardian (bypasses the DAMAGE_MAX_BLASTER cap below)
+MONSTER_PSXGUARDIAN_BOSS_DAMAGE_BLASTER          = 30
+MONSTER_PSXGUARDIAN_BOSS_DAMAGE_HEAT             = 70
+
 -- Turret
 MONSTER_TURRET_HEALTH                            = 100
 MONSTER_TURRET_ARMOR_POWER                       = 40

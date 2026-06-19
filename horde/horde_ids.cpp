@@ -613,4 +613,19 @@ namespace horde {
         return ent->special_type_id == static_cast<uint8_t>(type_to_check);
     }
 
+    bool IsRangedOnlyTarget(const edict_t* ent) noexcept {
+        if (!ent) [[unlikely]] {
+            return false;
+        }
+        switch (static_cast<SpecialEntityTypeID>(ent->special_type_id)) {
+        case SpecialEntityTypeID::TESLA_MINE:
+        case SpecialEntityTypeID::SENTRY_GUN:
+        case SpecialEntityTypeID::FOOD_CUBE_TRAP:
+        case SpecialEntityTypeID::LASER_EMITTER:
+            return true;
+        default:
+            return false;
+        }
+    }
+
 } // namespace horde

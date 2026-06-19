@@ -348,4 +348,9 @@ public:
     // Fast type checking functions - defined in cpp to avoid incomplete type issues
     bool IsMonsterType(const edict_t* ent, MonsterTypeID type_to_check) noexcept;
     bool IsSpecialType(const edict_t* ent, SpecialEntityTypeID type_to_check) noexcept;
+
+    // Stationary hazards (sentry guns, tesla mines, food-cube traps, laser emitters)
+    // that melee/grenade monsters must engage with direct fire only - never melee,
+    // grenades, or rockets. Centralized so every monster's attack picker stays in sync.
+    bool IsRangedOnlyTarget(const edict_t* ent) noexcept;
 } // namespace horde

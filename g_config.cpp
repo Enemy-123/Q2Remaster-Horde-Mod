@@ -233,6 +233,8 @@ static bool ParseFlatMonsterWeapon(Json::Value& root, std::string_view body, con
 	};
 
 	static constexpr WeaponInfix kWeaponInfixes[] = {
+		// NOTE: "_BOSS_DAMAGE_" must precede "_DAMAGE_" because the latter is a substring of it.
+		{"_BOSS_DAMAGE_", "boss_weapon_damage", "damage"},
 		{"_ADDON_DAMAGE_", "weapon_damage", "addon_damage"},
 		{"_DAMAGE_MAX_", "weapon_damage", "damage_max"},
 		{"_DAMAGE_", "weapon_damage", "damage"},
@@ -745,6 +747,28 @@ void Config_LoadMonsters(const char* basedir)
 							gi.Com_PrintFmt("Config: WARNING - Unknown weapon '{}' in {} config\n", weapon_name, monster_name);
 						}
 					}
+				}
+			}
+
+			// Load boss-only weapon damage overrides (exact final values for IS_BOSS instances)
+			if (monster_data.isMember("boss_weapon_damage") && monster_data["boss_weapon_damage"].isObject())
+			{
+				const Json::Value& boss_overrides = monster_data["boss_weapon_damage"];
+				for (const auto& weapon_name : boss_overrides.getMemberNames())
+				{
+					horde::WeaponID weapon_id = horde::WeaponRegistry::GetWeaponID(weapon_name.c_str());
+					if (weapon_id == horde::WeaponID::UNKNOWN)
+					{
+						gi.Com_PrintFmt("Config: WARNING - Unknown weapon '{}' in {} boss damage config\n", weapon_name, monster_name);
+						continue;
+					}
+
+					const size_t weapon_index = static_cast<size_t>(weapon_id);
+					const Json::Value& entry = boss_overrides[weapon_name];
+					if (entry.isInt())
+						config.boss_weapon_damage_overrides[weapon_index] = entry.asInt();
+					else if (entry.isObject() && entry.isMember("damage") && entry["damage"].isInt())
+						config.boss_weapon_damage_overrides[weapon_index] = entry["damage"].asInt();
 				}
 			}
 
@@ -1578,13 +1602,19 @@ const MonsterStatsConfig* GetMonsterConfig(uint8_t monster_type_id)
 
 // Get specific weapon damage for a monster - FULLY OPTIMIZED with enum-based O(1) lookups
 // CRITICAL HOT PATH: Called on every monster weapon attack (10-60 times per second)
-int GetMonsterWeaponDamage(uint8_t monster_type_id, horde::WeaponID weapon_id)
+int GetMonsterWeaponDamage(uint8_t monster_type_id, horde::WeaponID weapon_id, bool is_boss)
 {
 	if (weapon_id == horde::WeaponID::UNKNOWN) [[unlikely]]
 		return 0;
 
 	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
 	size_t idx = static_cast<size_t>(weapon_id);
+
+	// Step 0: Boss instances use their exact per-weapon override when set. This is the final
+	// damage value - no damage_scale and no Remaster max clamp - so bosses can hit harder
+	// than their normal counterparts.
+	if (is_boss && config && config->boss_weapon_damage_overrides[idx] > 0) [[unlikely]]
+		return config->boss_weapon_damage_overrides[idx];
 
 	// Step 1: Check for monster-specific override (O(1) array access)
 	bool has_override = false;

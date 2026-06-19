@@ -504,6 +504,11 @@ struct MonsterStatsConfig
 	// Index using horde::WeaponID enum. Value of 0 means "use global damage"
 	std::array<int, 24> weapon_damage_overrides{}; // 24 = horde::WeaponID::MAX_WEAPONS
 	std::array<int, 24> weapon_damage_max{};       // Original Remaster cap, 0 means no clamp
+
+	// Boss-only weapon damage overrides. When the monster instance is IS_BOSS and the entry
+	// is > 0, this exact value is used as the final damage (no damage_scale, no max clamp) -
+	// the whole point is to let bosses exceed the normal Remaster caps. 0 = no boss override.
+	std::array<int, 24> boss_weapon_damage_overrides{}; // 24 = horde::WeaponID::MAX_WEAPONS
 	std::array<int, 24> weapon_addon_damage{};     // Reserved for future level scaling
 	
 	// Weapon speed overrides - OPTIMIZED using array-based lookup (O(1) instead of O(log n))
@@ -667,7 +672,7 @@ void Config_LoadMaps(const char* basedir);
 
 // Monster config helper functions
 const MonsterStatsConfig* GetMonsterConfig(uint8_t monster_type_id);
-int GetMonsterWeaponDamage(uint8_t monster_type_id, horde::WeaponID weapon_id);
+int GetMonsterWeaponDamage(uint8_t monster_type_id, horde::WeaponID weapon_id, bool is_boss = false);
 int GetMonsterWeaponSpeed(uint8_t monster_type_id, horde::WeaponID weapon_id);
 int GetMonsterWeaponRadius(uint8_t monster_type_id, horde::WeaponID weapon_id);
 

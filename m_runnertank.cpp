@@ -296,6 +296,10 @@ MONSTERINFO_MELEE(runnertank_melee) (edict_t* self) -> void
 	if (!visible(self, self->enemy))
 		return;
 
+	// No ground slam while airborne (e.g. levitated by a food-cube trap).
+	if (!self->groundentity)
+		return;
+
 	// Melee is only for close range punch
 	if (range <= MELEE_DISTANCE * 2.4f)
 	{
@@ -1056,6 +1060,25 @@ MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 
 	float const range = range_to(self, self->enemy);
 
+	// Stationary hazards (tesla / sentry / trap / laser emitter): fire plasma from range.
+	// Allow the strong punch only when genuinely in melee reach AND the target isn't a
+	// sentry gun (sentry guns are always engaged from distance, never meleed).
+	if (horde::IsRangedOnlyTarget(self->enemy))
+	{
+		if (!horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::SENTRY_GUN) &&
+			self->groundentity && range <= RANGE_MELEE * 1.5f)
+		{
+			M_SetAnimation(self, &tank_move_punch_attack);
+			self->monsterinfo.attack_finished = level.time + 1.5_sec;
+		}
+		else
+		{
+			M_SetAnimation(self, &runnertank_move_attack_blast);
+			self->monsterinfo.attack_finished = level.time + 3_sec;
+		}
+		return;
+	}
+
 	// Jump attack - check first for medium range leap attack
 	// Range between 150-400 units, visible enemy, on ground
 	if (range > 150.0f && range <= 400.0f &&
@@ -1072,8 +1095,8 @@ MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 		}
 	}
 
-	// Close range attack selection
-	if (range <= RANGE_MELEE * 1.5f)
+	// Close range attack selection (only slam when grounded - food-cube levitation check)
+	if (range <= RANGE_MELEE * 1.5f && self->groundentity)
 	{
 		M_SetAnimation(self, &tank_move_punch_attack);
 		self->monsterinfo.attack_finished = level.time + 1.5_sec;

@@ -27,104 +27,106 @@
 #include "horde/weapon_id.h"
 
 // Forward declarations - OPTIMIZED enum-based signatures (zero string overhead!)
-int GetMonsterWeaponDamage(uint8_t monster_type_id, horde::WeaponID weapon_id);
+// NOTE: the default value for is_boss is declared in g_config.h only (a default argument
+// may be specified in just one declaration per translation unit).
+int GetMonsterWeaponDamage(uint8_t monster_type_id, horde::WeaponID weapon_id, bool is_boss);
 int GetMonsterWeaponSpeed(uint8_t monster_type_id, horde::WeaponID weapon_id);
 int GetMonsterWeaponRadius(uint8_t monster_type_id, horde::WeaponID weapon_id);
 
 // ============================================================================
 // MELEE WEAPONS - OPTIMIZED with compile-time enum selection (zero runtime overhead!)
 // ============================================================================
-#define M_MELEE_DMG(ent)          GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::MELEE)
-#define M_SLAM_DMG(ent)           GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::SLAM)
-#define M_PROBOSCIS_DMG(ent)      GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::PROBOSCIS)
+#define M_MELEE_DMG(ent)          GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::MELEE, (ent)->monsterinfo.IS_BOSS)
+#define M_SLAM_DMG(ent)           GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::SLAM, (ent)->monsterinfo.IS_BOSS)
+#define M_PROBOSCIS_DMG(ent)      GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::PROBOSCIS, (ent)->monsterinfo.IS_BOSS)
 
 // ============================================================================
 // BLASTER VARIANTS
 // ============================================================================
-#define M_BLASTER_DMG(ent)        GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::BLASTER)
+#define M_BLASTER_DMG(ent)        GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::BLASTER, (ent)->monsterinfo.IS_BOSS)
 #define M_BLASTER_SPEED(ent)      GetMonsterWeaponSpeed((ent)->monsterinfo.monster_type_id, horde::WeaponID::BLASTER)
 
-#define M_BLASTER2_DMG(ent)       GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::BLASTER2)
+#define M_BLASTER2_DMG(ent)       GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::BLASTER2, (ent)->monsterinfo.IS_BOSS)
 #define M_BLASTER2_SPEED(ent)     GetMonsterWeaponSpeed((ent)->monsterinfo.monster_type_id, horde::WeaponID::BLASTER2)
 
-#define M_BLASTER_BOLT_DMG(ent)   GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::BLASTER_BOLT)
+#define M_BLASTER_BOLT_DMG(ent)   GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::BLASTER_BOLT, (ent)->monsterinfo.IS_BOSS)
 #define M_BLASTER_BOLT_SPEED(ent) GetMonsterWeaponSpeed((ent)->monsterinfo.monster_type_id, horde::WeaponID::BLASTER_BOLT)
 
-#define M_BLUEBLASTER_DMG(ent)    GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::BLUEBLASTER)
+#define M_BLUEBLASTER_DMG(ent)    GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::BLUEBLASTER, (ent)->monsterinfo.IS_BOSS)
 #define M_BLUEBLASTER_SPEED(ent)  GetMonsterWeaponSpeed((ent)->monsterinfo.monster_type_id, horde::WeaponID::BLUEBLASTER)
 
-#define M_HYPERBLASTER_DMG(ent)   GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::HYPERBLASTER)
+#define M_HYPERBLASTER_DMG(ent)   GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::HYPERBLASTER, (ent)->monsterinfo.IS_BOSS)
 #define M_HYPERBLASTER_SPEED(ent) GetMonsterWeaponSpeed((ent)->monsterinfo.monster_type_id, horde::WeaponID::HYPERBLASTER)
 
 // ============================================================================
 // BULLET WEAPONS (instant hit)
 // ============================================================================
-#define M_SHOTGUN_DMG(ent)        GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::SHOTGUN)
-#define M_MACHINEGUN_DMG(ent)     GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::MACHINEGUN)
+#define M_SHOTGUN_DMG(ent)        GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::SHOTGUN, (ent)->monsterinfo.IS_BOSS)
+#define M_MACHINEGUN_DMG(ent)     GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::MACHINEGUN, (ent)->monsterinfo.IS_BOSS)
 
 // ============================================================================
 // EXPLOSIVE WEAPONS
 // ============================================================================
-#define M_GRENADE_DMG(ent)        GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::GRENADE)
+#define M_GRENADE_DMG(ent)        GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::GRENADE, (ent)->monsterinfo.IS_BOSS)
 #define M_GRENADE_SPEED(ent)      GetMonsterWeaponSpeed((ent)->monsterinfo.monster_type_id, horde::WeaponID::GRENADE)
 #define M_GRENADE_RADIUS(ent)     GetMonsterWeaponRadius((ent)->monsterinfo.monster_type_id, horde::WeaponID::GRENADE)
 
-#define M_ROCKET_DMG(ent)         GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::ROCKET)
+#define M_ROCKET_DMG(ent)         GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::ROCKET, (ent)->monsterinfo.IS_BOSS)
 #define M_ROCKET_SPEED(ent)       GetMonsterWeaponSpeed((ent)->monsterinfo.monster_type_id, horde::WeaponID::ROCKET)
 #define M_ROCKET_RADIUS(ent)      GetMonsterWeaponRadius((ent)->monsterinfo.monster_type_id, horde::WeaponID::ROCKET)
 
 // ============================================================================
 // HEAT SEEKING ROCKETS
 // ============================================================================
-#define M_HEAT_DMG(ent)           GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::HEAT)
+#define M_HEAT_DMG(ent)           GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::HEAT, (ent)->monsterinfo.IS_BOSS)
 #define M_HEAT_SPEED(ent)         GetMonsterWeaponSpeed((ent)->monsterinfo.monster_type_id, horde::WeaponID::HEAT)
 
 // ============================================================================
 // RAILGUN
 // ============================================================================
-#define M_RAILGUN_DMG(ent)        GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::RAILGUN)
+#define M_RAILGUN_DMG(ent)        GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::RAILGUN, (ent)->monsterinfo.IS_BOSS)
 
 // ============================================================================
 // BFG
 // ============================================================================
-#define M_BFG_DMG(ent)            GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::BFG)
+#define M_BFG_DMG(ent)            GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::BFG, (ent)->monsterinfo.IS_BOSS)
 #define M_BFG_SPEED(ent)          GetMonsterWeaponSpeed((ent)->monsterinfo.monster_type_id, horde::WeaponID::BFG)
 #define M_BFG_RADIUS(ent)         GetMonsterWeaponRadius((ent)->monsterinfo.monster_type_id, horde::WeaponID::BFG)
 
 // ============================================================================
 // XATRIX WEAPONS
 // ============================================================================
-#define M_IONRIPPER_DMG(ent)      GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::IONRIPPER)
+#define M_IONRIPPER_DMG(ent)      GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::IONRIPPER, (ent)->monsterinfo.IS_BOSS)
 #define M_IONRIPPER_SPEED(ent)    GetMonsterWeaponSpeed((ent)->monsterinfo.monster_type_id, horde::WeaponID::IONRIPPER)
 
-#define M_FLECHETTE_DMG(ent)      GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::FLECHETTE)
+#define M_FLECHETTE_DMG(ent)      GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::FLECHETTE, (ent)->monsterinfo.IS_BOSS)
 #define M_FLECHETTE_SPEED(ent)    GetMonsterWeaponSpeed((ent)->monsterinfo.monster_type_id, horde::WeaponID::FLECHETTE)
 
 // ============================================================================
 // ROGUE WEAPONS
 // ============================================================================
-#define M_PLASMA_DMG(ent)         GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::PLASMA)
+#define M_PLASMA_DMG(ent)         GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::PLASMA, (ent)->monsterinfo.IS_BOSS)
 #define M_PLASMA_SPEED(ent)       GetMonsterWeaponSpeed((ent)->monsterinfo.monster_type_id, horde::WeaponID::PLASMA)
 #define M_PLASMA_RADIUS(ent)      GetMonsterWeaponRadius((ent)->monsterinfo.monster_type_id, horde::WeaponID::PLASMA)
 
-#define M_TRACKER_DMG(ent)        GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::TRACKER)
+#define M_TRACKER_DMG(ent)        GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::TRACKER, (ent)->monsterinfo.IS_BOSS)
 #define M_TRACKER_SPEED(ent)       GetMonsterWeaponSpeed((ent)->monsterinfo.monster_type_id, horde::WeaponID::TRACKER)
 #define M_TRACKER_RADIUS(ent)     GetMonsterWeaponRadius((ent)->monsterinfo.monster_type_id, horde::WeaponID::TRACKER)
 
-#define M_DABEAM_DMG(ent)         GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::DABEAM)
+#define M_DABEAM_DMG(ent)         GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::DABEAM, (ent)->monsterinfo.IS_BOSS)
 
-#define M_HEATBEAM_DMG(ent)       GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::HEATBEAM)
+#define M_HEATBEAM_DMG(ent)       GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::HEATBEAM, (ent)->monsterinfo.IS_BOSS)
 
 // ============================================================================
 // SPECIAL WEAPONS
 // ============================================================================
-#define M_LIGHTNING_DMG(ent)      GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::LIGHTNING)
+#define M_LIGHTNING_DMG(ent)      GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::LIGHTNING, (ent)->monsterinfo.IS_BOSS)
 
-#define M_FIREBALL_DMG(ent)       GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::FIREBALL)
+#define M_FIREBALL_DMG(ent)       GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::FIREBALL, (ent)->monsterinfo.IS_BOSS)
 #define M_FIREBALL_SPEED(ent)     GetMonsterWeaponSpeed((ent)->monsterinfo.monster_type_id, horde::WeaponID::FIREBALL)
 #define M_FIREBALL_RADIUS(ent)    GetMonsterWeaponRadius((ent)->monsterinfo.monster_type_id, horde::WeaponID::FIREBALL)
 
-#define M_BOLT_DMG(ent)           GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::BOLT)
+#define M_BOLT_DMG(ent)           GetMonsterWeaponDamage((ent)->monsterinfo.monster_type_id, horde::WeaponID::BOLT, (ent)->monsterinfo.IS_BOSS)
 #define M_BOLT_SPEED(ent)         GetMonsterWeaponSpeed((ent)->monsterinfo.monster_type_id, horde::WeaponID::BOLT)
 
 // ============================================================================

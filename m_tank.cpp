@@ -702,7 +702,7 @@ void TankGrenades(edict_t* self)
 		target = self->monsterinfo.blind_fire_target;
 	}
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, horde::WeaponID::GRENADE);
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, horde::WeaponID::GRENADE, self->monsterinfo.IS_BOSS);
 	if (damage <= 0)
 		damage = 50;
 
@@ -864,7 +864,7 @@ void TankBlaster(edict_t* self)
 	}
 	else
 	{
-		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, horde::WeaponID::BLASTER);
+		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, horde::WeaponID::BLASTER, self->monsterinfo.IS_BOSS);
 		if (damage <= 0) damage = 30;
 
 		monster_fire_blaster2(self, start, dir, damage,
@@ -888,7 +888,7 @@ void TankStrike(edict_t* self)
 	gi.WritePosition(tr.endpos);
 	gi.WriteDir({ 0.f, 0.f, 1.f });
 	gi.multicast(tr.endpos, MULTICAST_PHS, false);
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, horde::WeaponID::SLAM);
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, horde::WeaponID::SLAM, self->monsterinfo.IS_BOSS);
 	if (damage <= 0) damage = self->monsterinfo.IS_BOSS ? 175 : 75;
 	void T_SlamRadiusDamage(vec3_t point, edict_t * inflictor, edict_t * attacker, float damage, float kick, edict_t * ignore, float radius, mod_t mod);
 	// Daño radial
@@ -1615,13 +1615,8 @@ MONSTERINFO_ATTACK(tank_attack) (edict_t* self) -> void
 	}
 
 	// Now, check if the resolved target is a deployable we shouldn't use the machine gun on.
-	bool is_restricted_target = false;
-	if (target) {
-		is_restricted_target = horde::IsSpecialType(target, horde::SpecialEntityTypeID::TESLA_MINE) ||
-							   horde::IsSpecialType(target, horde::SpecialEntityTypeID::SENTRY_GUN) ||
-							   horde::IsSpecialType(target, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP) ||
-							   horde::IsSpecialType(target, horde::SpecialEntityTypeID::LASER_EMITTER);
-	}
+	// (blaster2 / rocket / heat are used instead; melee is still allowed up close unless it's a sentry gun.)
+	const bool is_restricted_target = horde::IsRangedOnlyTarget(target);
 	// --- END NEW LOGIC ---
 
 	if (self->enemy->client && self->monsterinfo.IS_BOSS && self->s.skinnum == 2 && frandom() < 0.6f) {
@@ -1636,7 +1631,9 @@ MONSTERINFO_ATTACK(tank_attack) (edict_t* self) -> void
 	// Don't melee sentryguns; fall through to ranged attacks instead (like the brain's laser).
 	const bool avoid_melee = horde::IsSpecialType(target, horde::SpecialEntityTypeID::SENTRY_GUN);
 
-	if (!avoid_melee && range_to(self, self->enemy) <= RANGE_MELEE * 2.0f)
+	// Only melee when grounded: a food-cube trap can levitate the tank to the ceiling,
+	// where the ground-slam would whiff on the floor-bound enemy and look wrong.
+	if (!avoid_melee && self->groundentity && range_to(self, self->enemy) <= RANGE_MELEE * 2.0f)
 	{
 		// Ataque melee (punch)
 		M_SetAnimation(self, &tank_move_punch);
@@ -2244,7 +2241,7 @@ void tank_vanillaMachineGun(edict_t* self)
 		return; // Stop immediately if the target is invalid.
 	}
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, horde::WeaponID::MACHINEGUN);
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, horde::WeaponID::MACHINEGUN, self->monsterinfo.IS_BOSS);
 	if (damage <= 0) damage = 6;
 
 	vec3_t					 dir{};

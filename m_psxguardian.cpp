@@ -563,13 +563,16 @@ THINK(heat_guardianpsx_think) (edict_t* self) -> void
 	}
 
 	edict_t* acquire = self->enemy; // Start with our current target
+	edict_t* fallback = nullptr;    // Nearest live client even without LOS, used when our target died
 	float	 oldlen = FLT_MAX;
 	float	 olddot = -1.0f;
+	float	 fallback_len = FLT_MAX;
 
 	// --- PERFORMANCE MODIFICATION ---
 	// Only search for a new target if the current one is invalid OR the search timer has expired.
 	// self->timestamp is now used as next_search_time.
-	bool search_for_new_target = (!M_HasValidTarget(self) || (level.time > self->timestamp));
+	const bool target_invalid = !M_HasValidTarget(self); // current target dead/gone
+	bool search_for_new_target = (target_invalid || (level.time > self->timestamp));
 
 	if (search_for_new_target)
 	{
@@ -582,10 +585,22 @@ THINK(heat_guardianpsx_think) (edict_t* self) -> void
 		edict_t* target = nullptr;
 		while ((target = findradius(target, self->s.origin, 1024)) != nullptr)
 		{
-			if (self->owner == target || !target->client || !target->inuse || target->health <= 0 || !visible(self, target))
+			if (self->owner == target || !target->client || !target->inuse || target->health <= 0)
 				continue;
 
 			float const dist_to_target = (self->s.origin - target->s.origin).length();
+
+			// Remember the nearest live client regardless of LOS, as a fallback for when
+			// our original target has just died and nothing is currently visible.
+			if (dist_to_target < fallback_len)
+			{
+				fallback = target;
+				fallback_len = dist_to_target;
+			}
+
+			if (!visible(self, target))
+				continue;
+
 			vec3_t vec = heat_guardianpsx_get_dist_vec(self, target, dist_to_target);
 			float const dot = vec.dot(fwd);
 
@@ -599,6 +614,11 @@ THINK(heat_guardianpsx_think) (edict_t* self) -> void
 				olddot = dot;
 			}
 		}
+
+		// Our target died and nothing was visible: curve toward the nearest live player
+		// anyway instead of wasting the rocket on a corpse's last position.
+		if (!acquire && target_invalid)
+			acquire = fallback;
 
 		// If we found a new target that's different from the old one, play a sound.
 		if (acquire && acquire != self->enemy)
@@ -809,6 +829,16 @@ MONSTERINFO_ATTACK(guardianpsx_attack) (edict_t* self) -> void
 {
 	if (!M_HasValidTarget(self))
 		return; // Can't at a non-existent or dead target.
+
+	// Stationary hazards: just fire the blaster, never kick
+	if (horde::IsRangedOnlyTarget(self->enemy))
+	{
+		brandom()
+			? M_SetAnimation(self, &guardianpsx_move_atk1_in)
+			: M_SetAnimation(self, &guardianpsx_move_rocket);
+		self->style = 0;
+		return;
+	}
 
 	if (self->monsterinfo.attack_state == AS_BLIND)
 	{

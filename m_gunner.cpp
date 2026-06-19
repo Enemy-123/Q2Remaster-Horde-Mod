@@ -714,9 +714,9 @@ MONSTERINFO_ATTACK(gunner_attack) (edict_t* self) -> void
 
 	monster_done_dodge(self);
 
-	if (horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::TESLA_MINE) ||
-		horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN))
+	if (horde::IsRangedOnlyTarget(self->enemy))
 	{
+		// Stationary hazards: just chaingun, never grenade or melee
 		M_SetAnimation(self, &gunner_move_attack_chain);
 		return;
 	}

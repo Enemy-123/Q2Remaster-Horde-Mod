@@ -1379,7 +1379,8 @@ MONSTERINFO_ATTACK(guncmdr_attack) (edict_t* self) -> void
 		return;
 	}
 
-	if (horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN)) {
+	if (horde::IsRangedOnlyTarget(self->enemy)) {
+		// Stationary hazards: just chaingun, never grenade or kick
 		M_SetAnimation(self, &guncmdr_move_attack_chain);
 		return;
 	}

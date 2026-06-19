@@ -789,8 +789,7 @@ MONSTERINFO_ATTACK(brain_attack) (edict_t* self) -> void
 	}
 
 	// Contra objetivos especiales siempre usar láser
-	if (horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::TESLA_MINE) ||
-		horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN))
+	if (horde::IsRangedOnlyTarget(self->enemy))
 	{
 		if (!self->spawnflags.has(SPAWNFLAG_BRAIN_NO_LASERS))
 			M_SetAnimation(self, &brain_move_attack4);
