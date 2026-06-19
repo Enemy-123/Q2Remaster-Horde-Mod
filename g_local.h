@@ -2319,6 +2319,7 @@ void	  SetItemNames();
 gitem_t* FindItem(const char* pickup_name);
 gitem_t* FindItemByClassname(const char* classname);
 edict_t* Drop_Item(edict_t* ent, gitem_t* item);
+edict_t* DropHordeClusterItem(edict_t* self, gitem_t* item);
 void	  SetRespawn(edict_t* ent, gtime_t delay, bool hide_self = true);
 void	  ChangeWeapon(edict_t* ent);
 void	  SpawnItem(edict_t* ent, gitem_t* item, const spawn_temp_t& st);

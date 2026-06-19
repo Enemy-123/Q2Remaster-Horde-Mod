@@ -267,8 +267,8 @@ THINK(DoRespawn) (edict_t* ent) -> void
 	// send an effect
 	ent->s.event = EV_ITEM_RESPAWN;
 
-	// ROGUE - Handle random item respawning
-	if (g_dm_random_items->integer)
+	// ROGUE - Handle random item respawning (skip wave-managed weapons: they rotate below instead)
+	if (g_dm_random_items->integer && !IsHordeWaveManagedMapItem(ent))
 	{
 		if (!ent->item) {
 			return; // Can't do random respawn without a base item type.
@@ -284,6 +284,25 @@ THINK(DoRespawn) (edict_t* ent) -> void
 				ent->classname = new_item->classname;
 				ent->s.effects = new_item->world_model_flags;
 				gi.setmodel(ent, new_item->world_model);
+			}
+		}
+	}
+
+	// Horde instagib: rotate this wave-managed weapon pickup to the next unlocked member of its
+	// alternation group (machinegun <-> etf, hyperblaster <-> ion/plasma, etc.) each respawn, so the
+	// mission-pack counterparts appear once their unlock wave is reached. The pickup's current item
+	// carries the rotation state, so the next respawn advances one step from here.
+	if (IsHordeWaveManagedMapItem(ent) && (ent->item->flags & IF_WEAPON))
+	{
+		const item_id_t next_id = Horde_GetNextAlternateWeapon(ent->item->id);
+		if (next_id != IT_NULL && next_id != ent->item->id)
+		{
+			if (gitem_t* next_item = GetItemByIndex(next_id))
+			{
+				ent->item = next_item;
+				ent->classname = next_item->classname;
+				ent->s.effects = next_item->world_model_flags;
+				gi.setmodel(ent, next_item->world_model);
 			}
 		}
 	}
@@ -991,7 +1010,8 @@ bool Pickup_Armor(edict_t* ent, edict_t* other)
 	// handle armor shards specially
 	if (ent->item->id == IT_ARMOR_SHARD)
 	{
-		int shard_amount = 2;
+		// Honor a per-entity override (monster-dropped horde clusters set count=5); default 2.
+		int shard_amount = ent->count ? ent->count : 2;
 		// Apply H/A Pickup skill multiplier to shards
 		if (other->client) {
 			float multiplier = GetHAPickupMultiplier(other);
@@ -1433,6 +1453,38 @@ edict_t* Drop_Item(edict_t* ent, gitem_t* item)
 
 	gi.linkentity(dropped);
 	return dropped;
+}
+
+// Horde: drop a small cluster (3-4) of a minor pickup scattered in a cone instead of a single item,
+// for a more rewarding "pop" when a monster dies. Armor shards in the cluster each grant 5 armor
+// (carried via ent->count, honored by Pickup_Armor); other items keep their default value. Returns
+// the first dropped entity (so the caller can wire itemtarget), or nullptr if nothing dropped.
+edict_t* DropHordeClusterItem(edict_t* self, gitem_t* item)
+{
+	const int pieces = irandom(3, 5); // 3 or 4
+	edict_t* first = nullptr;
+
+	for (int i = 0; i < pieces; i++)
+	{
+		edict_t* dropped = Drop_Item(self, item);
+		if (!dropped)
+			continue;
+
+		if (!first)
+			first = dropped;
+
+		if (item->id == IT_ARMOR_SHARD)
+			dropped->count = 5;
+
+		// Scatter each piece outward so they spread across the floor instead of stacking.
+		const float yaw = frandom(2.0f * PIf);
+		const float horiz = 80.0f + frandom(70.0f);
+		dropped->velocity[0] = cosf(yaw) * horiz;
+		dropped->velocity[1] = sinf(yaw) * horiz;
+		dropped->velocity[2] = 200.0f + frandom(120.0f);
+	}
+
+	return first;
 }
 
 USE(Use_Item) (edict_t* ent, edict_t* other, edict_t* activator) -> void

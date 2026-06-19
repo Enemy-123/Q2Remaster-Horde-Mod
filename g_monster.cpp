@@ -1764,9 +1764,14 @@ void monster_death_use(edict_t* self)
 
 	if (self->item)
 	{
-		edict_t* dropped = Drop_Item(self, self->item);
+		// Horde: shards / small health drop as a scattered cluster (3-4) for a more rewarding pop;
+		// everything else drops a single item as usual.
+		edict_t* dropped = (g_horde->integer &&
+			(self->item->id == IT_ARMOR_SHARD || self->item->id == IT_HEALTH_SMALL))
+			? DropHordeClusterItem(self, self->item)
+			: Drop_Item(self, self->item);
 
-		if (self->itemtarget)
+		if (dropped && self->itemtarget)
 		{
 			dropped->target = self->itemtarget;
 			self->itemtarget = nullptr;

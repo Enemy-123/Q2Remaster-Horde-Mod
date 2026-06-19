@@ -13,7 +13,7 @@
 #include <boost/container/small_vector.hpp>  // For small_vector optimization
 #include <boost/unordered/unordered_flat_set.hpp>  // Cache-friendly hash sets
 
-constexpr const char* HORDE_MOD_VERSION_STRING = "*Horde BETA MOD v0.01004";
+constexpr const char* HORDE_MOD_VERSION_STRING = "*Horde BETA MOD v0.01005";
 
 extern boost::container::small_vector<edict_t*, 64> g_spawn_point_list;
 extern size_t g_num_spawn_points;
@@ -28,6 +28,7 @@ struct PlayerStats;
 extern cvar_t* g_horde;
 extern cvar_t* g_horde_grid_first;  // Test cvar: prioritize grid spawning
 extern cvar_t* g_horde_force_fog_wave;  // Test cvar: force the next wave to be a fog (Gekk/Berserk) wave
+extern cvar_t* g_horde_force_domination;  // Test cvar: force the domination flag to arm on the current wave
 extern cvar_t* g_horde_nav_spawn_check;  // 1 = reject ground spawns the navmesh can't reach (anti unreachable-spawn)
 extern cvar_t* g_horde_spawn_dist_cap;  // 1 = cap how far from players a spawn point may be (anti far/closed-wing spawn)
 extern cvar_t* pvm;  // PvM mode (Player vs Monster with character persistence)
@@ -61,6 +62,10 @@ void ResetQueueMonitorVars();
 // Item selection in Horde mode
 gitem_t* G_HordePickItem();
 int Horde_GetItemMinWave(int32_t item_id) noexcept;
+// Wave-managed map weapons rotate through their alternation group (machinegun <-> etf, etc.) each
+// respawn. Returns the next group member whose unlock wave has been reached, or current_id unchanged
+// if it isn't grouped / no other member is unlocked yet.
+item_id_t Horde_GetNextAlternateWeapon(item_id_t current_id) noexcept;
 
 // Game mode checks
 bool G_IsDeathmatch() noexcept;

@@ -1625,6 +1625,7 @@ static float CalculateCooldownScale(int32_t lvl, const horde::MapSize& mapSize)
 }
 cvar_t* g_horde;
 cvar_t* g_horde_force_fog_wave;  // Test cvar: force the next wave to be a fog (Gekk/Berserk) wave
+cvar_t* g_horde_force_domination;  // Test cvar: force the domination flag to arm on the current wave
 cvar_t* g_horde_grid_first;  // Test cvar: prioritize grid spawning
 cvar_t* g_horde_nav_spawn_check;  // 1 = reject ground spawns the navmesh can't reach (anti unreachable-spawn)
 cvar_t* g_horde_spawn_dist_cap;  // 1 = cap how far from players a spawn point may be (anti far/closed-wing spawn)
@@ -2352,7 +2353,7 @@ static const HordeItemInfo hordeItemData[] = {
 	{IT_WEAPON_CHAINFIST, 0.1f, 1},	   // Melee, niche drop
 	{IT_WEAPON_SHOTGUN, 1.0f, 1},	   // Basic weapon
 	{IT_WEAPON_SSHOTGUN, 0.7f, 3},	   // Strong early/mid weapon
-	{IT_WEAPON_20MM, 1.0f, 6},			// 20MM (vrx)
+	{IT_WEAPON_20MM, 0.8f, 6},			// 20MM (vrx)
 	{IT_WEAPON_MACHINEGUN, 1.0f, 1},   // Basic weapon
 	{IT_WEAPON_ETF_RIFLE, 0.6f, 5},	   // Rogue weapon (mid)
 	{IT_WEAPON_CHAINGUN, 0.5f, 7},	   // Mid-tier DPS
@@ -2397,7 +2398,7 @@ static const HordeItemInfo hordeItemData[] = {
 	{IT_ITEM_ADRENALINE, 0.3f, 3},	// Permanent health boost, good reward
 	{IT_ITEM_BANDOLIER, 0.5f, 4},	// Good ammo capacity boost
 	{IT_ITEM_PACK, 0.25f, 10},		// Excellent ammo capacity boost
-	{IT_ITEM_IR_GOGGLES, 0.15f, 7}, // Situational (Rogue)
+	{IT_ITEM_IR_GOGGLES, 0.09f, 7}, // Situational (Rogue)
 	{IT_ITEM_DOUBLE, 0.15f, 5},		// Damage boost (Rogue)
 	//{ IT_ITEM_SPHERE_VENGEANCE, 0.1f, 15 }, // Powerful sphere (Rogue)
 	{IT_ITEM_SPHERE_HUNTER, 0.1f, 12},	// Powerful sphere (Rogue)
@@ -2435,6 +2436,52 @@ int Horde_GetItemMinWave(int32_t item_id) noexcept
 	}
 
 	return min_wave;
+}
+
+// Weapon alternation groups: a wave-managed map weapon pickup rotates through the unlocked members of
+// its group each time it respawns, so the mission-pack counterparts (ETF, prox, plasma, ion, phalanx,
+// disruptor) appear once their unlock wave is reached (see Horde_GetItemMinWave). The array order is
+// the rotation order; IT_NULL pads two-member groups. Every member maps back to the same group, so the
+// rotation state is just the pickup's current item -- no per-entity bookkeeping needed.
+static constexpr std::array<std::array<item_id_t, 3>, 5> WEAPON_ALTERNATION_GROUPS = { {
+	{ IT_WEAPON_MACHINEGUN,  IT_WEAPON_ETF_RIFLE,   IT_NULL },
+	{ IT_WEAPON_GLAUNCHER,   IT_WEAPON_PROXLAUNCHER, IT_NULL },
+	{ IT_WEAPON_HYPERBLASTER, IT_WEAPON_IONRIPPER,  IT_WEAPON_PLASMABEAM },
+	{ IT_WEAPON_RAILGUN,     IT_WEAPON_PHALANX,     IT_NULL },
+	{ IT_WEAPON_BFG,         IT_WEAPON_DISRUPTOR,   IT_NULL },
+} };
+
+item_id_t Horde_GetNextAlternateWeapon(item_id_t current_id) noexcept
+{
+	for (const auto& group : WEAPON_ALTERNATION_GROUPS)
+	{
+		// Locate current_id within this group and count the group's real (non-IT_NULL) members.
+		int cur_idx = -1;
+		int size = 0;
+		for (int i = 0; i < static_cast<int>(group.size()); ++i)
+		{
+			if (group[i] == IT_NULL)
+				break;
+			if (group[i] == current_id)
+				cur_idx = i;
+			size = i + 1;
+		}
+
+		if (cur_idx < 0)
+			continue; // current_id isn't part of this group
+
+		// Advance to the next member (wrapping) whose unlock wave has been reached. Falls back to
+		// current_id if no other member is unlocked yet (the wrap lands back on itself).
+		for (int step = 1; step <= size; ++step)
+		{
+			const item_id_t candidate = group[(cur_idx + step) % size];
+			if (current_wave_level >= Horde_GetItemMinWave(candidate))
+				return candidate;
+		}
+		return current_id;
+	}
+
+	return current_id; // not a grouped weapon
 }
 
 // First, add these at the top with other global variables
@@ -3936,6 +3983,7 @@ void Horde_PreInit()
 	g_horde_nav_spawn_check = gi.cvar("g_horde_nav_spawn_check", "1", CVAR_NOFLAGS);
 	g_horde_spawn_dist_cap = gi.cvar("g_horde_spawn_dist_cap", "1", CVAR_NOFLAGS);
 	g_horde_force_fog_wave = gi.cvar("g_horde_force_fog_wave", "0", CVAR_NOFLAGS);
+	g_horde_force_domination = gi.cvar("g_horde_force_domination", "0", CVAR_NOFLAGS);
 	pvm = gi.cvar("pvm", "0", CVAR_LATCH);
 	// gi.Com_Print("After starting a normal server type: starthorde to start a game.\n");
 
@@ -7370,16 +7418,48 @@ bool IsControlledRushActive() noexcept
 		(g_horde_local.num_to_spawn > 0 || g_horde_local.queued_monsters > 0);
 }
 
+// Arms the per-wave domination flag: picks a random mode (1=health, 2=cap, 3=both) and tops up the
+// wave budget so there is genuinely more to clear, keeping g_totalMonstersInWave in sync so the
+// opening spawn-phase top-up and progress tracking account for the extra monsters too. The flag
+// randomly applies a health boost and/or a monster-cap raise (see GetAdjustedMonsterCap /
+// ApplyMonsterBonusFlags) and enforces a longer minimum wave duration (see the wave-end checks).
+// Shared by the organic arming path (UpdateDominationState) and the g_horde_force_domination hook.
+static void ArmDomination(bool forced)
+{
+	g_horde_local.domination_flag_active = true;
+	g_horde_local.domination_mode = static_cast<uint8_t>(irandom(1, 4)); // 1=health, 2=cap, 3=both
+
+	const size_t idx = g_horde_local.current_map_size.isSmallMap ? 0
+		: (g_horde_local.current_map_size.isBigMap ? 2 : 1);
+	const int32_t extra = HordeConstants::DOMINATION_EXTRA_MONSTERS[idx];
+	g_horde_local.queued_monsters += extra;
+	g_totalMonstersInWave = static_cast<uint16_t>(
+		std::min<int32_t>(g_totalMonstersInWave + extra, std::numeric_limits<uint16_t>::max()));
+
+	if (developer->integer > 0)
+		gi.Com_PrintFmt("DOMINATION: armed{} (wave {}, mode {}, +{} queued)\n",
+			forced ? " [forced]" : "", current_wave_level, g_horde_local.domination_mode, extra);
+}
+
 // Anti-domination escalation state machine. Called once per frame from Horde_RunFrame while a wave
 // is in progress (spawning / active_wave). Domination signal: players are clearing monsters faster
 // than even the boosted cadence can refill the arena back up to CADENCE_BOOST_THRESHOLD. If the live
 // count stays stuck below that threshold (with monsters still queued) for DOMINATION_SUSTAIN_TIME,
-// it arms a per-wave "domination flag" that randomly applies a health boost and/or a monster-cap
-// raise (see GetAdjustedMonsterCap / ApplyMonsterBonusFlags), and always tops up the wave budget +
-// enforces a minimum wave duration (see the wave-end checks) so a stomped wave can't blow through.
-// The flag latches for the rest of the wave; ResetWaveAdvanceState clears it.
+// it arms the per-wave domination flag (see ArmDomination). The flag latches for the rest of the
+// wave; ResetWaveAdvanceState clears it.
 void UpdateDominationState()
 {
+	// Test hook: g_horde_force_domination arms the flag on the current wave regardless of the usual
+	// gates, then consumes the request so it only affects this one wave. Lets the 30s
+	// DOMINATION_MIN_WAVE_DURATION hold be observed/verified on demand. UpdateDominationState only
+	// runs while a wave is spawning/active, so a request set between waves arms the next wave.
+	if (g_horde_force_domination && g_horde_force_domination->integer)
+	{
+		gi.cvar_set("g_horde_force_domination", "0");
+		if (!g_horde_local.domination_flag_active)
+			ArmDomination(true);
+	}
+
 	const int32_t remaining_budget = g_horde_local.num_to_spawn + g_horde_local.queued_monsters;
 	const bool monsters_left = remaining_budget > 0;
 	const bool below_cadence = monsters_left && GetStroggsNum() < HordeConstants::CADENCE_BOOST_THRESHOLD;
@@ -7402,22 +7482,7 @@ void UpdateDominationState()
 			deployed >= HordeConstants::CADENCE_BOOST_THRESHOLD &&
 			level.time - g_horde_local.domination_since >= HordeConstants::DOMINATION_SUSTAIN_TIME)
 		{
-			g_horde_local.domination_flag_active = true;
-			g_horde_local.domination_mode = static_cast<uint8_t>(irandom(1, 4)); // 1=health, 2=cap, 3=both
-
-			// Always-on-when-armed: top up the wave budget so there is genuinely more to clear.
-			const size_t idx = g_horde_local.current_map_size.isSmallMap ? 0
-				: (g_horde_local.current_map_size.isBigMap ? 2 : 1);
-			const int32_t extra = HordeConstants::DOMINATION_EXTRA_MONSTERS[idx];
-			g_horde_local.queued_monsters += extra;
-			// Keep the wave total in sync so the opening spawn-phase top-up and progress tracking
-			// account for the extra monsters too.
-			g_totalMonstersInWave = static_cast<uint16_t>(
-				std::min<int32_t>(g_totalMonstersInWave + extra, std::numeric_limits<uint16_t>::max()));
-
-			if (developer->integer > 0)
-				gi.Com_PrintFmt("DOMINATION: armed (wave {}, mode {}, +{} queued)\n",
-					current_wave_level, g_horde_local.domination_mode, extra);
+			ArmDomination(false);
 		}
 	}
 	else
@@ -8861,8 +8926,8 @@ void Horde_RunFrame()
 		// Minimum spawn phase: for the first stretch of each wave (longer when domination is armed),
 		// keep the budget topped up to its planned total so normal-batch spawning keeps the arena
 		// populated -- the "real" num_to_spawn/queued is preserved and deploys once this window ends,
-		// so waves can't be deployed and cleared in 3-4s. Fog/limit-break waves swarm on their own.
-		if (!IsLimitBreakWave(current_wave_type))
+		// so waves can't be deployed and cleared in 3-4s. Fog/limit-break waves are included too so
+		// their swarm stays topped up for the full min-duration window (10s, or 30s under domination).
 		{
 			const gtime_t spawn_phase = g_horde_local.domination_flag_active
 				? HordeConstants::DOMINATION_MIN_WAVE_DURATION
