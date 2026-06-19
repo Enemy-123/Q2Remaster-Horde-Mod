@@ -249,10 +249,10 @@ struct TeslaConfig
 
 struct SentryGunConfig
 {
-	int initial_health = 50;
-	int addon_health = 15;
-	int initial_armor = 50;
-	int addon_armor = 30;
+	int initial_health = 40;
+	int addon_health = 5;
+	int initial_armor = 30;
+	int addon_armor = 10;
 	int max_health = 200;
 	int max_armor = 350;
 	// Weapon damage scaling

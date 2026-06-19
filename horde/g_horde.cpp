@@ -1807,6 +1807,15 @@ inline int32_t GetAdjustedMonsterCap(const horde::MapSize& mapSize, int32_t wave
 		finalAdjustedCap = std::max(finalAdjustedCap, GetLimitBreakWaveCaps(mapSize, waveLevel).liveCap);
 	}
 
+	// Anti-domination: non-fog waves get a temporary cap bump (mode 2/3) so a stomped arena refills
+	// harder. Fog/limit-break waves already blow past the cap above, so they are excluded here.
+	if (g_horde_local.domination_flag_active &&
+		(g_horde_local.domination_mode == 2 || g_horde_local.domination_mode == 3) &&
+		!IsLimitBreakWave(current_wave_type))
+	{
+		finalAdjustedCap = static_cast<int32_t>(finalAdjustedCap * HordeConstants::DOMINATION_CAP_MULT);
+	}
+
 	// Ensure the cap doesn't go below a minimum reasonable value (e.g., 6)
 	finalAdjustedCap = std::max(6, finalAdjustedCap);
 
@@ -2028,7 +2037,7 @@ static void UnifiedAdjustSpawnRate(const horde::MapSize& mapSize, int32_t lvl, i
 			: ADDITIONAL_SPAWNS[1];
 
 		// Level-based adjustment for high levels
-		if (safeLevel > 25)
+		if (safeLevel > 23)
 		{
 			additionalSpawn = static_cast<int32_t>(additionalSpawn * 1.6f);
 		}
@@ -2147,7 +2156,7 @@ static constexpr gtime_t calculate_max_wave_time(int32_t wave_level)
 	return base_time;
 }
 // Variables globales
-static gtime_t g_independent_timer_start;
+static gtime_t g_independent_timer_start; // wave-start clock
 static ConditionParams g_lastParams;
 static int32_t g_lastWaveNumber = -1;
 // static int32_t g_lastNumHumanPlayers = -1;
@@ -5139,6 +5148,11 @@ void ResetGame()
 	horde_message_end_time = 0_sec;
 	g_totalMonstersInWave = 0;
 
+	// Anti-domination escalation resets fresh each wave/level.
+	g_horde_local.domination_since = 0_sec;
+	g_horde_local.domination_flag_active = false;
+	g_horde_local.domination_mode = 0;
+
 	CleanupSpawnPointCache();
 
 	ResetAllSpawnPointDataAndTrackers();
@@ -5268,13 +5282,27 @@ static bool CheckRemainingMonstersCondition(const horde::MapSize& mapSize, WaveE
 		.mapSize = mapSize,
 		.params = g_lastParams };
 
+	// Minimum wave duration safeguard: a wave must not advance while it still has monsters queued to
+	// deploy, OR before MIN_WAVE_DURATION has elapsed since wave start (g_independent_timer_start).
+	// Combined with the opening-spawn-phase budget top-up in Horde_RunFrame (which keeps the arena fed
+	// with normal batches during this window), this stops waves from being deployed and cleared in
+	// 3-4s. Armed domination waves hold open longer (DOMINATION_MIN_WAVE_DURATION).
+	const bool spawns_remaining = (g_horde_local.num_to_spawn + g_horde_local.queued_monsters) > 0;
+	const gtime_t min_wave_duration = g_horde_local.domination_flag_active
+		? HordeConstants::DOMINATION_MIN_WAVE_DURATION
+		: HordeConstants::MIN_WAVE_DURATION;
+	const bool hold_wave_open = spawns_remaining ||
+		(ctx.currentTime - g_independent_timer_start) < min_wave_duration;
+
 	// --- 2. Immediate Win Condition (100% Elimination Required) ---
 	// Wave ends ONLY when all monsters are dead (no early advancement)
 	// Reuse the cached count: CalculateRemainingMonsters() == max(0, GetStroggsNum()),
 	// so ctx.liveMonsters == 0 is exactly equivalent to GetStroggsNum() == 0.
 	if (allowWaveAdvance || ctx.liveMonsters == 0)
 	{
-		if (ctx.liveMonsters == 0)
+		// Hold the wave open until its budget is deployed and the minimum duration has passed
+		// (an explicit allowWaveAdvance force-advance still overrides the hold).
+		if (ctx.liveMonsters == 0 && (allowWaveAdvance || !hold_wave_open))
 		{
 			reason = WaveEndReason::AllMonstersDead;
 			ResetWaveAdvanceState();
@@ -5386,6 +5414,9 @@ static bool CheckRemainingMonstersCondition(const horde::MapSize& mapSize, WaveE
 		if (DeveloperSuppressesWaveAutoAdvance())
 			return false;
 
+		if (hold_wave_open)
+			return false; // wave still has budget to deploy or hasn't met its minimum duration
+
 		reason = WaveEndReason::MonstersRemaining;
 		if (developer->integer)
 			// gi.Com_PrintFmt("Wave ended: Conditional timer expired. Live: {}, Queued: {}.\n", ctx.liveMonsters, g_horde_local.queued_monsters);
@@ -5402,6 +5433,9 @@ static bool CheckRemainingMonstersCondition(const horde::MapSize& mapSize, WaveE
 		{
 			if (DeveloperSuppressesWaveAutoAdvance())
 				return false;
+
+			if (hold_wave_open)
+				return false; // wave still has budget to deploy or hasn't met its minimum duration
 
 			reason = WaveEndReason::MonstersRemaining;
 			// if (developer->integer)
@@ -5712,6 +5746,11 @@ void ResetWaveAdvanceState() noexcept
 	g_horde_local.lastPrintTime = 0_sec;
 	g_totalMonstersInWave = 0;
 	boss_spawned_for_wave = false;
+
+	// Anti-domination escalation re-arms fresh each wave.
+	g_horde_local.domination_since = 0_sec;
+	g_horde_local.domination_flag_active = false;
+	g_horde_local.domination_mode = 0;
 
 	g_lastWaveNumber = -1;
 	// g_lastNumHumanPlayers = -1;
@@ -7331,6 +7370,64 @@ bool IsControlledRushActive() noexcept
 		(g_horde_local.num_to_spawn > 0 || g_horde_local.queued_monsters > 0);
 }
 
+// Anti-domination escalation state machine. Called once per frame from Horde_RunFrame while a wave
+// is in progress (spawning / active_wave). Domination signal: players are clearing monsters faster
+// than even the boosted cadence can refill the arena back up to CADENCE_BOOST_THRESHOLD. If the live
+// count stays stuck below that threshold (with monsters still queued) for DOMINATION_SUSTAIN_TIME,
+// it arms a per-wave "domination flag" that randomly applies a health boost and/or a monster-cap
+// raise (see GetAdjustedMonsterCap / ApplyMonsterBonusFlags), and always tops up the wave budget +
+// enforces a minimum wave duration (see the wave-end checks) so a stomped wave can't blow through.
+// The flag latches for the rest of the wave; ResetWaveAdvanceState clears it.
+void UpdateDominationState()
+{
+	const int32_t remaining_budget = g_horde_local.num_to_spawn + g_horde_local.queued_monsters;
+	const bool monsters_left = remaining_budget > 0;
+	const bool below_cadence = monsters_left && GetStroggsNum() < HordeConstants::CADENCE_BOOST_THRESHOLD;
+
+	// Monsters actually deployed so far this wave. Distinguishes the wave-start ramp-up (arena below
+	// the threshold only because monsters haven't spawned yet) from real domination (arena below the
+	// threshold because >= a threshold's worth were deployed and players are killing them). Requiring
+	// enough deployed lets the insta-kill case arm fast (deployed climbs while live stays low) without
+	// false-arming in a wave's opening seconds.
+	const int32_t deployed = static_cast<int32_t>(g_totalMonstersInWave) - remaining_budget;
+
+	if (below_cadence)
+	{
+		if (g_horde_local.domination_since == 0_sec)
+		{
+			g_horde_local.domination_since = level.time;
+		}
+		else if (!g_horde_local.domination_flag_active &&
+			current_wave_level >= HordeConstants::DOMINATION_MIN_WAVE &&
+			deployed >= HordeConstants::CADENCE_BOOST_THRESHOLD &&
+			level.time - g_horde_local.domination_since >= HordeConstants::DOMINATION_SUSTAIN_TIME)
+		{
+			g_horde_local.domination_flag_active = true;
+			g_horde_local.domination_mode = static_cast<uint8_t>(irandom(1, 4)); // 1=health, 2=cap, 3=both
+
+			// Always-on-when-armed: top up the wave budget so there is genuinely more to clear.
+			const size_t idx = g_horde_local.current_map_size.isSmallMap ? 0
+				: (g_horde_local.current_map_size.isBigMap ? 2 : 1);
+			const int32_t extra = HordeConstants::DOMINATION_EXTRA_MONSTERS[idx];
+			g_horde_local.queued_monsters += extra;
+			// Keep the wave total in sync so the opening spawn-phase top-up and progress tracking
+			// account for the extra monsters too.
+			g_totalMonstersInWave = static_cast<uint16_t>(
+				std::min<int32_t>(g_totalMonstersInWave + extra, std::numeric_limits<uint16_t>::max()));
+
+			if (developer->integer > 0)
+				gi.Com_PrintFmt("DOMINATION: armed (wave {}, mode {}, +{} queued)\n",
+					current_wave_level, g_horde_local.domination_mode, extra);
+		}
+	}
+	else
+	{
+		// Arena climbed back to/above the cadence threshold -- reset the sustain timer. The flag
+		// itself stays latched until the wave resets (no mid-wave flicker).
+		g_horde_local.domination_since = 0_sec;
+	}
+}
+
 int32_t ManageSpawnCountsAndQueue(const horde::MapSize& mapSize, int32_t availableSpace)
 {
 	if (g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters > 0)
@@ -7743,6 +7840,18 @@ void SetNextMonsterSpawnTime(const horde::MapSize& mapSize)
 	{
 		final_interval = gtime_t::from_sec(final_interval.seconds() / g_horde_local.timeAcceleration);
 		// Ensure we don't go below minimum
+		final_interval = std::max(final_interval, HordeConstants::MIN_MONSTER_SPAWN_INTERVAL);
+	}
+
+	// Always-on anti-domination cadence: when the arena is drained below the cadence threshold while
+	// monsters still wait to deploy, players are clearing faster than the wave fills -- tighten the
+	// interval so monsters arrive quicker. Independent of the gated domination flag and any wave.
+	const bool boost_cadence =
+		GetStroggsNum() < HordeConstants::CADENCE_BOOST_THRESHOLD &&
+		(g_horde_local.num_to_spawn > 0 || g_horde_local.queued_monsters > 0);
+	if (boost_cadence)
+	{
+		final_interval = gtime_t::from_sec(final_interval.seconds() * HordeConstants::CONTROLLED_RUSH_CADENCE_MULT);
 		final_interval = std::max(final_interval, HordeConstants::MIN_MONSTER_SPAWN_INTERVAL);
 	}
 
@@ -8741,6 +8850,29 @@ void Horde_RunFrame()
 		}
 		else {
 			g_horde_local.last_wave_change_time = currentTime;
+		}
+	}
+
+	// Evaluate domination + sustain the opening spawn phase while a wave is deploying or being fought.
+	if (g_horde_local.state == horde_state_t::spawning || g_horde_local.state == horde_state_t::active_wave)
+	{
+		UpdateDominationState();
+
+		// Minimum spawn phase: for the first stretch of each wave (longer when domination is armed),
+		// keep the budget topped up to its planned total so normal-batch spawning keeps the arena
+		// populated -- the "real" num_to_spawn/queued is preserved and deploys once this window ends,
+		// so waves can't be deployed and cleared in 3-4s. Fog/limit-break waves swarm on their own.
+		if (!IsLimitBreakWave(current_wave_type))
+		{
+			const gtime_t spawn_phase = g_horde_local.domination_flag_active
+				? HordeConstants::DOMINATION_MIN_WAVE_DURATION
+				: HordeConstants::MIN_WAVE_DURATION;
+			if (currentTime - g_independent_timer_start < spawn_phase)
+			{
+				const int32_t live_budget = g_horde_local.num_to_spawn + g_horde_local.queued_monsters;
+				if (live_budget < static_cast<int32_t>(g_totalMonstersInWave))
+					g_horde_local.queued_monsters += static_cast<int32_t>(g_totalMonstersInWave) - live_budget;
+			}
 		}
 	}
 

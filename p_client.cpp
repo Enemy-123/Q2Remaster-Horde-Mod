@@ -1073,17 +1073,17 @@ int CalculateWaveBasedMaxHealth(int base_max_health, gclient_t* client = nullptr
 	int calculated_max_health = base_max_health;
 
 	if (current_wave_level >= 30)
-		calculated_max_health = 250;
-	else if (current_wave_level >= 25)
-		calculated_max_health = 225;
-	else if (current_wave_level >= 20)
 		calculated_max_health = 200;
-	else if (current_wave_level >= 15)
+	else if (current_wave_level >= 25)
 		calculated_max_health = 175;
-	else if (current_wave_level >= 10)
+	else if (current_wave_level >= 20)
 		calculated_max_health = 150;
-	else if (current_wave_level >= 5)
+	else if (current_wave_level >= 10)
 		calculated_max_health = 125;
+	//else if (current_wave_level >= 10)
+	//	calculated_max_health = 100;
+	//else if (current_wave_level >= 5)
+	//	calculated_max_health = 100;
 	else
 		calculated_max_health = 100;
 
@@ -1095,7 +1095,7 @@ int CalculateWaveBasedMaxHealth(int base_max_health, gclient_t* client = nullptr
 
 	// Cap bot health to prevent them from becoming too tanky
 	if (is_bot)
-		calculated_max_health = std::min(calculated_max_health, 200);
+		calculated_max_health = std::min(calculated_max_health, 175);
 
 	return calculated_max_health;
 }
@@ -5178,7 +5178,7 @@ struct RespawnTarget {
 
 inline RespawnTarget G_FindSquadRespawnTarget() {
 	// --- Constants ---
-	static constexpr auto BAD_AREA_TIMEOUT = 3_sec;
+	static constexpr auto BAD_AREA_TIMEOUT = 2_sec;
 	static constexpr auto ZERO_TIME = 0_ms;
 	static constexpr auto MAX_INT64_VAL = std::numeric_limits<int64_t>::max();
 

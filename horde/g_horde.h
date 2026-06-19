@@ -13,7 +13,7 @@
 #include <boost/container/small_vector.hpp>  // For small_vector optimization
 #include <boost/unordered/unordered_flat_set.hpp>  // Cache-friendly hash sets
 
-constexpr const char* HORDE_MOD_VERSION_STRING = "*Horde BETA MOD v0.01003";
+constexpr const char* HORDE_MOD_VERSION_STRING = "*Horde BETA MOD v0.01004";
 
 extern boost::container::small_vector<edict_t*, 64> g_spawn_point_list;
 extern size_t g_num_spawn_points;
@@ -162,6 +162,11 @@ struct HordeState
 	bool stroggCleanupActive = false;     // True when cleanup mode is active
 	gtime_t stroggCleanupStartTime = 0_sec; // When cleanup started
 	gtime_t lastStroggKillTime = 0_sec;   // Last time we force-killed a stuck monster
+
+	// Anti-domination escalation (per-wave; reset on wave/level reset)
+	gtime_t domination_since       = 0_sec; // when current sustained controlled rush began (0 = not dominating)
+	bool    domination_flag_active = false; // heavy escalation flag armed for this wave
+	uint8_t domination_mode        = 0;     // 0=none, 1=health, 2=cap, 3=both (health/cap random pair)
 
 	void update_map_size(const char *mapname);
 	void reset_hud_state();

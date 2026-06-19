@@ -1126,8 +1126,8 @@ static void HORDE_ApplyAmmoRegen(edict_t* ent) {
 	
 	if (is_classic_mode) {
 		// Fixed 5 second regen time, or 2.5s with high spree (15+)
-		if (ent->client->resp.spree >= 15) {
-			regen_time = gtime_t::from_ms(2500); // 2.5 seconds
+		if (ent->client->resp.spree >= 25) {
+			regen_time = gtime_t::from_ms(3000); // 2.5 seconds
 		} else {
 			regen_time = 5_sec; // 5 seconds
 		}
@@ -1151,9 +1151,9 @@ static void HORDE_ApplyAmmoRegen(edict_t* ent) {
 		// Bullets - 50 base, +25 with traced bullets
 		if (client->pers.inventory[IT_WEAPON_MACHINEGUN] > 0 || 
 		    client->pers.inventory[IT_WEAPON_CHAINGUN] > 0) {
-			int bullet_amount = 50;
+			int bullet_amount = 30;
 			if (has_traced_bullets) {
-				bullet_amount += 25;
+				bullet_amount += 20;
 			}
 			client->pers.inventory[IT_AMMO_BULLETS] += bullet_amount;
 			if (client->pers.inventory[IT_AMMO_BULLETS] > client->pers.max_ammo[AMMO_BULLETS]) {
@@ -1164,7 +1164,7 @@ static void HORDE_ApplyAmmoRegen(edict_t* ent) {
 		// Shells - 10 base, +5 with energy shells
 		if (client->pers.inventory[IT_WEAPON_SHOTGUN] > 0 || 
 		    client->pers.inventory[IT_WEAPON_SSHOTGUN] > 0) {
-			int shell_amount = 10;
+			int shell_amount = 7;
 			if (has_energy_shells) {
 				shell_amount += 5;
 			}
@@ -1223,7 +1223,7 @@ static void HORDE_ApplyAmmoRegen(edict_t* ent) {
 
 		// Flechettes (ETF) - 50 always
 		if (client->pers.inventory[IT_WEAPON_ETF_RIFLE] > 0) {
-			client->pers.inventory[IT_AMMO_FLECHETTES] += 50;
+			client->pers.inventory[IT_AMMO_FLECHETTES] += 40;
 			if (client->pers.inventory[IT_AMMO_FLECHETTES] > client->pers.max_ammo[AMMO_FLECHETTES]) {
 				client->pers.inventory[IT_AMMO_FLECHETTES] = client->pers.max_ammo[AMMO_FLECHETTES];
 			}
@@ -1243,7 +1243,7 @@ static void HORDE_ApplyAmmoRegen(edict_t* ent) {
 
 		// Disruptor Rounds - 10 always
 		if (client->pers.inventory[IT_WEAPON_DISRUPTOR] > 0) {
-			client->pers.inventory[IT_AMMO_ROUNDS] += 10;
+			client->pers.inventory[IT_AMMO_ROUNDS] += 7;
 			if (client->pers.inventory[IT_AMMO_ROUNDS] > client->pers.max_ammo[AMMO_DISRUPTOR]) {
 				client->pers.inventory[IT_AMMO_ROUNDS] = client->pers.max_ammo[AMMO_DISRUPTOR];
 			}
@@ -1370,7 +1370,7 @@ static void G_SetClientEvent(edict_t* ent, const step_parameters_t& step)
 
 	if (ent->client->ps.pmove.pm_flags & PMF_ON_LADDER)
 	{
-		if (!deathmatch->integer &&
+		if (/*!deathmatch->integer &&*/
 			client->last_ladder_sound < level.time &&
 			(client->last_ladder_pos - ent->s.origin).length() > 48.f)
 		{

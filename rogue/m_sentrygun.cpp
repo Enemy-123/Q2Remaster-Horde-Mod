@@ -73,11 +73,11 @@ static inline void HandleSentryRegeneration(edict_t* self, sentry_state_t* state
 	if (self->health >= self->max_health)
 		return;
 
-	// Check regeneration timer (every 2 seconds)
-	if (level.time < state->last_regeneration_time + 3_sec)
+	// Check regeneration timer (every 4 seconds)
+	if (level.time < state->last_regeneration_time + 4_sec)
 		return;
 
-	// Regenerate 5% health (minimum 1)
+	// Regenerate 2% health (minimum 1)
 	int health_regen = std::max(1, (int)(self->max_health * 0.02f));
 	self->health += health_regen;
 	// Cap at max_health

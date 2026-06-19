@@ -3568,7 +3568,7 @@ struct damage_indicator_t
 constexpr gtime_t LADDER_SOUND_TIME = 300_ms;
 
 // time after damage that we can't respawn on a player for
-constexpr gtime_t COOP_DAMAGE_RESPAWN_TIME = 4700_ms;
+constexpr gtime_t COOP_DAMAGE_RESPAWN_TIME = 4000_ms;
 
 // time after firing that we can't respawn on a player for
 constexpr gtime_t COOP_DAMAGE_FIRING_TIME = 500_ms;

@@ -8,6 +8,7 @@
 #include "horde/horde_ids.h"
 #include "horde/g_entity_properties.h"
 #include "horde/g_horde_phys.h"
+#include "horde/horde_constants.h"
 #include <optional>
 #include <vector>
 #include <string>
@@ -824,6 +825,18 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 	    !(monster->monsterinfo.bonus_flags & BF_FRIENDLY) &&
 	    frandom() <= 0.15f) {
 		monster->monsterinfo.quad_time = level.time + 475_sec;
+	}
+
+	// Anti-domination escalation (mode 1/3): give non-boss, non-friendly monsters a flat health boost
+	// so a stomped wave is genuinely tougher. Bosses never reach here (early return at the top of this
+	// function), and friendly summons are excluded. Applied last so it stacks atop any bonus-flag
+	// multiplier above; max_health is synced just below.
+	if (g_horde_local.domination_flag_active &&
+		(g_horde_local.domination_mode == 1 || g_horde_local.domination_mode == 3) &&
+		!monster->monsterinfo.isfriendlyspawn &&
+		!(monster->monsterinfo.bonus_flags & BF_FRIENDLY))
+	{
+		monster->health = static_cast<int>(round(monster->health * HordeConstants::DOMINATION_HEALTH_MULT));
 	}
 
 	// Update max_health to match the final health value after all bonus multipliers

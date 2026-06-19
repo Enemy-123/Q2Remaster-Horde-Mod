@@ -1081,8 +1081,9 @@ bool ValidateSpawnPointForMonster(edict_t* spawn_point, gtime_t current_time)
 
 void DetermineSpawnStrategy(const horde::MapSize& mapSize, int32_t& out_spawnable_this_call, bool& out_use_emergency_spawn, bool& out_recovery_mode_active_ref, float& out_champion_chance, int32_t availableSpace)
 {
-    int32_t base_batch = mapSize.isSmallMap ? HordeConstants::SPAWN_BATCH_SMALL_MAP :
-                                (mapSize.isBigMap ? HordeConstants::SPAWN_BATCH_BIG_MAP : HordeConstants::SPAWN_BATCH_MEDIUM_MAP);
+    // Batch size grows with wave: 6 up to wave 10 (calmer early waves), then 8 from wave 11 on to
+    // sustain pressure. Applied uniformly across map sizes per design.
+    int32_t base_batch = (current_wave_level > 10) ? 8 : 6;
     // Fog / limit-break waves spawn in bigger batches so the swarm ramps up to the raised cap.
     if (IsLimitBreakWave(current_wave_type))
         base_batch *= 2;

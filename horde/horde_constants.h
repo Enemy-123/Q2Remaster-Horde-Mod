@@ -18,9 +18,9 @@ namespace HordeConstants
 
 	// RESTORED from 0.995: More aggressive early wave monster counts
 	inline constexpr std::array<std::array<int32_t, 4>, 3> BASE_COUNTS = {{
-		{{4, 6, 8, 9}},    // Small maps (restored from 0.995)
-		{{6, 9, 11, 12}},  // Medium maps (restored from 0.995)
-		{{11, 14, 18, 20}} // Large maps (restored from 0.995)
+		{{4, 7, 9, 10}},    // Small maps (restored from 0.995)
+		{{6, 9, 12, 13}},  // Medium maps (restored from 0.995)
+		{{13, 15, 18, 20}} // Large maps (restored from 0.995)
 	}};
 	inline constexpr std::array<int32_t, 3> ADDITIONAL_SPAWNS = {6, 5, 9};
 
@@ -37,7 +37,7 @@ namespace HordeConstants
 	// --- Spawn Timing ---
 	// RESTORED from 0.995: Faster spawn interval for more intense gameplay
 	inline constexpr gtime_t SPAWN_INTERVAL = 1.5_sec;  // Restored from 0.995 (was 2.0s)
-	inline constexpr gtime_t MIN_MONSTER_SPAWN_INTERVAL = 0.5_sec;  // Reduced from 1.0s for faster spawning
+	inline constexpr gtime_t MIN_MONSTER_SPAWN_INTERVAL = 0.35_sec;  // Reduced from 1.0s for faster spawning
 	inline constexpr gtime_t MIN_WAVE_TIME = 30_sec;
 	inline constexpr gtime_t WAVE_COMPLETE_GRACE_PERIOD = 1_sec;
 	inline constexpr gtime_t FOG_PERSIST_TIME = 30_sec;
@@ -53,9 +53,9 @@ namespace HordeConstants
 
 	// --- Spawn Batch Sizes ---
 	// RESTORED from 0.995: Larger batches for more intense gameplay
-	inline constexpr int32_t SPAWN_BATCH_SMALL_MAP = 4;   // Restored from 0.995
-	inline constexpr int32_t SPAWN_BATCH_MEDIUM_MAP = 5;  // Restored from 0.995
-	inline constexpr int32_t SPAWN_BATCH_BIG_MAP = 6;     // Restored from 0.995
+	inline constexpr int32_t SPAWN_BATCH_SMALL_MAP = 6;   // Restored from 0.995
+	inline constexpr int32_t SPAWN_BATCH_MEDIUM_MAP = 6;  // Restored from 0.995
+	inline constexpr int32_t SPAWN_BATCH_BIG_MAP = 7;     // Restored from 0.995
 
 	// --- Early Wave Warmup (Slower Start) ---
 	// REDUCED: 0.995 had no warmup, keeping minimal warmup for smoother start
@@ -101,6 +101,20 @@ namespace HordeConstants
 	// has monsters to deploy/queue, players are clearing the arena faster than it fills -- rush
 	// spawn cadence + throughput so other players aren't left waiting on one player mopping up.
 	inline constexpr int32_t CONTROLLED_RUSH_THRESHOLD = 6;
+
+	// --- Anti-Domination Escalation ---
+	// When players steamroll a wave (arena drained near-empty), escalate pressure without touching
+	// the normal balance curve. Two layers: an always-on cadence boost, and a gated per-wave flag.
+	inline constexpr int32_t CADENCE_BOOST_THRESHOLD      = 8;      // live < this (with monsters left) -> faster spawn interval
+	inline constexpr float   CONTROLLED_RUSH_CADENCE_MULT = 0.6f;   // interval shrink factor under cadence boost
+	inline constexpr int32_t DOMINATION_MIN_WAVE          = 20;     // heavy flag only at/after this wave
+	inline constexpr gtime_t DOMINATION_SUSTAIN_TIME      = 2_sec;  // live stuck below CADENCE_BOOST_THRESHOLD this long -> arm flag
+	inline constexpr float   DOMINATION_HEALTH_MULT       = 1.5f;   // non-boss/non-friendly health boost (mode 1/3)
+	inline constexpr float   DOMINATION_CAP_MULT          = 1.4f;   // non-fog live-cap raise, 12 -> ~16 small map (mode 2/3)
+	inline constexpr gtime_t MIN_WAVE_DURATION            = 10_sec; // opening spawn phase: budget held/topped so every wave lasts >= this
+	inline constexpr gtime_t DOMINATION_MIN_WAVE_DURATION = 30_sec; // armed wave can't auto-advance before this since wave start
+	inline constexpr std::array<int32_t, 3> DOMINATION_EXTRA_MONSTERS = { 8, 10, 14 }; // budget top-up on arm: small/med/big
+
 	inline constexpr gtime_t STROGG_GRACE_PERIOD = 20_sec;      // Time to let players find stroggs naturally
 	inline constexpr gtime_t STROGG_FORCE_KILL_INTERVAL = 2_sec; // Kill one stuck monster every N seconds after grace
 	inline constexpr float VOID_Z_THRESHOLD = -4096.0f;            // Monsters below this Z are considered in the void
@@ -182,7 +196,7 @@ namespace MonsterUnlockVariance {
 // The weak variants get one-shotted past the early game; this fades their weight to a
 // small floor (and the Light wave category drops them entirely from wave 16+ anyway).
 namespace SoldierPhaseout {
-	inline constexpr int32_t START_WAVE         = 8;     // begin fading weak soldiers
+	inline constexpr int32_t START_WAVE         = 5;     // begin fading weak soldiers
 	inline constexpr float   REDUCTION_PER_WAVE = 0.16f; // ~near-zero by ~wave 14
 	inline constexpr float   MIN_MULTIPLIER     = 0.05f; // never fully zero (keeps fallback safe)
 }
@@ -202,11 +216,11 @@ namespace PrecacheLimits {
 // These can blow far past the normal map monster cap without touching the precache budget,
 // so we let them swarm the map. Live cap + reinforcement queue scale with wave and map size.
 namespace LimitBreakWave {
-	inline constexpr int32_t WAVE_SCALE_START   = 30;   // below this wave, use the floor values
+	inline constexpr int32_t WAVE_SCALE_START   = 24;   // below this wave, use the floor values
 	inline constexpr int32_t LIVE_CAP_FLOOR     = 30;   // ~30 alive on early fog waves
 	inline constexpr int32_t QUEUE_FLOOR        = 30;   // ~30 reinforcements queued on early fog waves
 	inline constexpr float   LIVE_CAP_PER_WAVE  = 2.0f; // ramp after WAVE_SCALE_START
-	inline constexpr float   QUEUE_PER_WAVE     = 1.0f;
+	inline constexpr float   QUEUE_PER_WAVE     = 1.5f;
 
 	// Per-map ceilings for simultaneously-alive monsters.
 	inline constexpr int32_t LIVE_CAP_MAX_SMALL  = 45;

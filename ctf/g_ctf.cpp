@@ -2116,7 +2116,7 @@ int CTFApplyStrength(edict_t* ent, int dmg) {
 
 	if (ent->client && dmg && ent->client->pers.inventory[IT_TECH_STRENGTH]) {
         // Perform the calculation as a float
-		float boosted_dmg = (ent->client->resp.spree >= 10 || current_wave_level >= 20) ? dmg * 2.0f : dmg * 1.5f;
+		float boosted_dmg = (ent->client->resp.spree >= 25 || current_wave_level >= 20) ? dmg * 2.0f : dmg * 1.45f;
         
         // Explicitly round the float result to the nearest integer before returning
 		return static_cast<int>(std::round(boosted_dmg));

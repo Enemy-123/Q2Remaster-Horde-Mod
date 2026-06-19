@@ -1702,6 +1702,12 @@ constexpr float BFG_LASER_LENGTH = 2048.0f;     // Previously hardcoded as -2048
 constexpr float BFG_MIN_VELOCITY = 100.0f;      // Minimum velocity after reflection
 constexpr int BFG_DMG_DEATHMATCH = 5;           // Damage in deathmatch
 constexpr int BFG_DMG_SINGLEPLAYER = 10;        // Damage in singleplayer
+// BFG-pull turns the per-think laser into a wide sustained AoE. These trim that per-frame damage
+// (never the think cadence) so it -- and the strength-tech/quad amplification of it -- stays in
+// check. Applied only while pull is active; multiply together when a power-up is also up.
+constexpr float BFG_PULL_DMG_SCALE      = 0.90f; // a bit less per-frame damage whenever pull is active
+constexpr float BFG_PULL_TECH_DMG_SCALE = 0.80f; // extra trim when strength tech is amplifying the laser
+constexpr float BFG_PULL_QUAD_DMG_SCALE = 0.80f; // extra trim while quad is up (keeps the pull burst in check)
 constexpr int BFG_PULL_FORCE_GROUNDED = 20;     // Pull force when grounded
 constexpr int BFG_PULL_FORCE_AIRBORNE = 10;     // Pull force when in air
 constexpr int BFG_EXPLOSION_DAMAGE = 200;       // Explosion damage
@@ -2112,7 +2118,7 @@ THINK(bfg_think) (edict_t* self) -> void
 	bfg_spawn_laser(self);
 
 	// Calculate damage based on game mode
-	const int dmg = deathmatch->integer ? BFG_DMG_DEATHMATCH : BFG_DMG_SINGLEPLAYER;
+	int dmg = deathmatch->integer ? BFG_DMG_DEATHMATCH : BFG_DMG_SINGLEPLAYER;
 
 	// Calculate range for effects
 	const int bfgrange = calculate_bfg_range(self);
@@ -2120,6 +2126,19 @@ THINK(bfg_think) (edict_t* self) -> void
 
 	// Determine if pulling should be applied
 	const bool should_pull = ClassicPlayerHasBenefitBFGPull(self->owner);
+
+	// With pull the laser hits a wide radius every think; trim its per-frame damage so the sustained
+	// AoE (and the strength-tech / quad amplification of it) doesn't run away. Cadence is untouched.
+	// The same dmg feeds both the radius hit and the pierce below, so one adjustment covers both.
+	if (should_pull && self->owner->client)
+	{
+		float dmg_scale = BFG_PULL_DMG_SCALE;
+		if (self->owner->client->pers.inventory[IT_TECH_STRENGTH])
+			dmg_scale *= BFG_PULL_TECH_DMG_SCALE; // strength tech multiplies this hit in T_Damage (CTFApplyStrength)
+		if (self->owner->client->quad_time > level.time)
+			dmg_scale *= BFG_PULL_QUAD_DMG_SCALE;
+		dmg = std::max(1, static_cast<int>(round(dmg * dmg_scale)));
+	}
 
 	// Cache origin for performance
 	const vec3_t self_origin = self->s.origin;
