@@ -746,44 +746,62 @@ static bool M_HandleStalledAttackRetarget(edict_t* self, float dist)
 		return false;
 	}
 
-	// If we're in melee range, let close-combat behavior proceed.
-	if (range_to(self, self->enemy) <= MELEE_GRACE_RANGE)
-	{
-		self->monsterinfo.no_los_attack_time = 0_ms;
-		return false;
-	}
+	// If the current enemy is dead/invalid, switch *immediately* — no melee grace, no LOS grace.
+	// Dry-firing the attack animation at a corpse while another enemy is in view is exactly the
+	// case we're fixing here.
+	const bool enemy_invalid = (self->enemy->health <= 0 || self->enemy->deadflag);
 
-	if (visible(self, self->enemy, false))
+	if (!enemy_invalid)
 	{
-		self->monsterinfo.no_los_attack_time = 0_ms;
-		return false;
-	}
+		// If we're in melee range, let close-combat behavior proceed.
+		if (range_to(self, self->enemy) <= MELEE_GRACE_RANGE)
+		{
+			self->monsterinfo.no_los_attack_time = 0_ms;
+			return false;
+		}
 
-	if (self->monsterinfo.no_los_attack_time == 0_ms)
-	{
-		self->monsterinfo.no_los_attack_time = level.time;
-		return false;
-	}
+		if (visible(self, self->enemy, false))
+		{
+			self->monsterinfo.no_los_attack_time = 0_ms;
+			return false;
+		}
 
-	if (level.time < self->monsterinfo.no_los_attack_time + LOS_STALL_RETARGET_TIME)
-		return false;
+		if (self->monsterinfo.no_los_attack_time == 0_ms)
+		{
+			self->monsterinfo.no_los_attack_time = level.time;
+			return false;
+		}
+
+		if (level.time < self->monsterinfo.no_los_attack_time + LOS_STALL_RETARGET_TIME)
+			return false;
+	}
 
 	edict_t* const previous_enemy = self->enemy;
-	const bool found_target = g_horde->integer ? FindEnhancedTarget(self) : FindTarget(self);
+	// Use the faction-correct picker: summoned/friendly units hunt monsters via FindMTarget,
+	// horde monsters use the grid-based FindEnhancedTarget, everything else falls back to FindTarget.
+	// All of these filter by OnSameTeam, so this can never cause same-team infighting.
+	const bool found_target =
+		self->monsterinfo.isfriendlyspawn ? FindMTarget(self) :
+		g_horde->integer                  ? FindEnhancedTarget(self) :
+		                                     FindTarget(self);
 
-	// Throttle retries while still stuck without LOS.
+	// Throttle retries while still stuck.
 	self->monsterinfo.no_los_attack_time = level.time;
 
-	// We found a better target; break out of stale attack animation immediately.
+	// Found another visible, valid enemy: keep the current attack animation and just turn to face
+	// the new target, so the remaining attack frames fire at it instead of being wasted.
 	if (found_target && self->enemy && self->enemy != previous_enemy)
 	{
-		self->monsterinfo.attack_state = AS_STRAIGHT;
-		self->monsterinfo.aiflags &= ~AI_HOLD_FRAME;
-		self->monsterinfo.nextframe = 0;
-		self->monsterinfo.next_move_time = level.time;
-		if (self->monsterinfo.run)
-			self->monsterinfo.run(self);
-		return true;
+		self->goalentity = self->enemy;
+
+		// Snap our aim toward the new enemy now; ai_charge keeps rotating us onto it each frame.
+		const vec3_t dir = self->enemy->s.origin - self->s.origin;
+		self->ideal_yaw = vectoyaw(dir);
+		M_ChangeYaw(self);
+
+		self->monsterinfo.no_los_attack_time = 0_ms;
+		// Let ai_charge continue this frame; the frame's fire thinkfunc now targets the new enemy.
+		return false;
 	}
 
 	// No better target available: still stop dry-firing and return to movement/stand logic.
@@ -2418,6 +2436,11 @@ bool ai_checkattack(edict_t* self, float dist)
 		}
 		else // No other enemy available
 		{
+			// Before going idle, try to acquire a fresh visible enemy so the monster keeps hunting
+			// instead of standing around after its target dies (mirrors the entry check above).
+			if (FindTarget(self))
+				return false; // Found a new target; don't attack this frame.
+
 			if (self->movetarget && !(self->monsterinfo.aiflags & AI_STAND_GROUND)) // If has path target and not standing ground
 			{
 				self->goalentity = self->movetarget;
