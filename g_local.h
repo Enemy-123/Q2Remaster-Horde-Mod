@@ -1889,6 +1889,7 @@ struct monsterinfo_t
 
 	gtime_t checkattack_time;
 	gtime_t no_los_attack_time; // how long we've been in attack flow without LOS
+	gtime_t retarget_scan_time; // throttle for proactive "switch to closer visible enemy" scans
 	int32_t start_frame;
 	gtime_t dodge_time;
 	int32_t move_block_counter;

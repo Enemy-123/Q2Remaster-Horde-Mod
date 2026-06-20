@@ -528,6 +528,12 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 	// if attacker is a client, get mad at them because he's good and we're not
 	if (attacker->client)
 	{
+		// Summoned/friendly monsters never turn on players (their own teammates), even via the
+		// owner's friendly splash damage -- which lands precisely because OnSameTeam is false in
+		// CTF_NOTEAM horde. (Medics excepted; they don't target clients anyway.)
+		if (targ->monsterinfo.isfriendlyspawn && !(targ->monsterinfo.aiflags & AI_MEDIC))
+			return;
+
 		targ->monsterinfo.aiflags &= ~AI_SOUND_TARGET;
 
 		// this can only happen in coop (both new and old enemies are clients)
@@ -618,8 +624,10 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 
 			if (targ->enemy && targ->enemy->client)
 				targ->oldenemy = targ->enemy;
-			// Don't target menu protected players
-			if (!attacker->enemy->client || !IsPlayerMenuProtected(attacker->enemy))
+			// Don't target menu protected players, and never let a friendly spawn inherit a client
+			// (teammate) as its enemy when helping a buddy.
+			if ((!attacker->enemy->client || !IsPlayerMenuProtected(attacker->enemy)) &&
+				!(targ->monsterinfo.isfriendlyspawn && !(targ->monsterinfo.aiflags & AI_MEDIC) && attacker->enemy->client))
 			{
 				targ->enemy = attacker->enemy;
 				if (!(targ->monsterinfo.aiflags & AI_DUCKED))

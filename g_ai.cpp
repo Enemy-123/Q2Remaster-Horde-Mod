@@ -743,6 +743,64 @@ static bool M_AttackLaneBlocked(edict_t* self, edict_t* target)
 	return true;
 }
 
+// Switch to the closest visible enemy when the current one is lost or has drifted far away.
+// Extends the targeted retargets in M_HandleStalledAttackRetarget / ai_checkattack to the general
+// pursuit case: a monster chasing an enemy that broke line of sight (or that wandered far while a
+// nearer enemy is in view) should re-acquire whoever it can actually fight. Always routes through
+// the faction-correct picker, so a friendly spawn can only ever land on a monster, never a player.
+// Never drops the current enemy -- it only ever swaps to a strictly better (closer/visible) one.
+// Returns true when the enemy was changed.
+static bool M_RetargetClosestVisibleEnemy(edict_t* self)
+{
+	if (!self || !self->inuse || !self->enemy || !self->enemy->inuse)
+		return false;
+
+	// Never disturb medics mid-heal or units executing a movement/patrol order.
+	if (self->monsterinfo.aiflags & (AI_MEDIC | AI_COMBAT_POINT))
+		return false;
+
+	// Throttle so we don't re-scan (and risk flip-flopping) every frame.
+	if (self->monsterinfo.retarget_scan_time > level.time)
+		return false;
+	self->monsterinfo.retarget_scan_time = level.time + 300_ms;
+
+	// Vanilla (non-horde) regular monsters: preserve the original FindTarget pursuit behavior.
+	if (!self->monsterinfo.isfriendlyspawn && !g_horde->integer)
+		return FindTarget(self);
+
+	edict_t* const prev_enemy = self->enemy;
+	const bool prev_visible = visible(self, prev_enemy, false);
+	const float prev_dist_sq = DistanceSquared(self->s.origin, prev_enemy->s.origin);
+
+	// Faction-correct picker: friendly spawns hunt monsters only (FindMTarget), horde monsters use
+	// the grid search. Both only set self->enemy (no FoundTarget side effects), so we finish the
+	// hand-off ourselves below. They filter by OnSameTeam and reject clients/same-faction units.
+	const bool found = self->monsterinfo.isfriendlyspawn ? FindMTarget(self)
+	                                                     : FindEnhancedTarget(self);
+
+	edict_t* const new_enemy = self->enemy;
+
+	// The picker found nothing better (or only re-confirmed / cleared the current enemy):
+	// keep pursuing the original target so we never drop a chase we were already committed to.
+	if (!found || !new_enemy || !new_enemy->inuse || new_enemy == prev_enemy)
+	{
+		self->enemy = prev_enemy;
+		return false;
+	}
+
+	// Hysteresis: while we can still see the current enemy, only switch to a meaningfully closer
+	// pick; once it's out of sight, take any visible replacement immediately.
+	if (prev_visible &&
+		DistanceSquared(self->s.origin, new_enemy->s.origin) >= prev_dist_sq * 0.6f)
+	{
+		self->enemy = prev_enemy;
+		return false;
+	}
+
+	HuntTarget(self); // engage the closer/visible enemy
+	return true;
+}
+
 static bool M_HandleStalledAttackRetarget(edict_t* self, float dist)
 {
 	static constexpr gtime_t LOS_STALL_RETARGET_TIME = 500_ms;
@@ -1987,7 +2045,9 @@ bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_ch
 	//// Validar enemigo
 	if (!self->enemy || !self->enemy->inuse ||
 		OnSameTeam(self, self->enemy) || self->enemy->deadflag ||
-		(self->monsterinfo.isfriendlyspawn && self->enemy->monsterinfo.isfriendlyspawn))
+		(self->monsterinfo.isfriendlyspawn && self->enemy->monsterinfo.isfriendlyspawn) ||
+		// Friendly spawns never attack players (teammates); OnSameTeam misses this in CTF_NOTEAM horde.
+		(self->monsterinfo.isfriendlyspawn && !(self->monsterinfo.aiflags & AI_MEDIC) && self->enemy->client))
 	{
 		return false;
 	}
@@ -2527,6 +2587,25 @@ bool ai_checkattack(edict_t* self, float dist)
 	}
 	// --- *** END ROBUST CHECK *** ---
 
+	// --- *** FRIENDLY-VS-CLIENT GUARD *** ---
+	// Summoned/friendly units must never attack players (their own teammates). In horde/PvM both
+	// sit on CTF_NOTEAM, so OnSameTeam can't catch this -- guard explicitly here at the single attack
+	// gate, closing every momentary-latch path (AI_DUCKED damage reaction, lost-sight searches, etc).
+	// Medics excepted: they target monsters to heal, never clients (mirrors FoundTarget's exclusion).
+	if (self->monsterinfo.isfriendlyspawn && !(self->monsterinfo.aiflags & AI_MEDIC) &&
+		self->enemy->client)
+	{
+		self->enemy = nullptr;
+		self->goalentity = nullptr;
+		if (!FindMTarget(self))
+		{
+			if (self->monsterinfo.stand) self->monsterinfo.stand(self);
+			return false;
+		}
+		// Fall through with the new monster enemy FindMTarget just acquired.
+	}
+	// --- *** END FRIENDLY-VS-CLIENT GUARD *** ---
+
 	// --- Enemy is currently valid, proceed with checks ---
 
 	// Check knowledge of enemy
@@ -3022,6 +3101,11 @@ void ai_run(edict_t* self, float dist)
 	// PGM - added a little paranoia checking here... 9/22/98
 	if (M_HasValidTarget(self) && enemy_vis)
 	{
+		// Enemy is in view but may have drifted far while a nearer enemy is visible; switch to the
+		// closer one (faction-correct, throttled, with hysteresis so we don't thrash). No-op if the
+		// current enemy is still the best pick.
+		M_RetargetClosestVisibleEnemy(self);
+
 		// PMM - check for alreadyMoved
 		if (!alreadyMoved)
 			M_MoveToGoal(self, dist);
@@ -3071,8 +3155,11 @@ void ai_run(edict_t* self, float dist)
 
 	// PMM - moved down here to allow monsters to get on hint paths
 	// coop will change to another enemy if visible
+	// We've lost sight of the current enemy here, so re-acquire the closest *visible* enemy via the
+	// faction-correct picker (friendly spawns -> monsters only, never players) instead of blindly
+	// pursuing the one we can no longer see. Falls back to continuing the chase if nobody's in view.
 	if (G_IsCooperative() || (G_IsDeathmatch() && g_horde->integer))
-		FindTarget(self);
+		M_RetargetClosestVisibleEnemy(self);
 	// pmm
 
 	if ((self->monsterinfo.search_time) && (level.time > (self->monsterinfo.search_time + 20_sec)))
