@@ -24,6 +24,7 @@ extern horde::MapSize GetCurrentMapSize();
 extern cvar_t *g_horde;
 extern cvar_t *developer;
 extern MonsterWaveType current_wave_type;
+extern horde::MonsterTypeID current_boss_minion_source;  // Boss driving an explicit minion roster (Widow/Widow2/Arachnid)
 extern cached_soundindex sound_spawn1;  // Sound for boss spawn
 
 // FIXED: Return struct for position validation
@@ -781,6 +782,44 @@ static size_t CountEligibleBossEntries(const std::array<const BossDataSoA *, 3> 
 	return eligible_count;
 }
 
+// Distinctive "feel" of a boss's wave, used to space wave TYPES apart (recent_bosses already spaces
+// the same boss). Ground+Heavy is the common majority, so it's lumped as Generic and NOT spaced --
+// spacing it would starve the pool. Flying/Shambler/Spawner/Mutant are the distinctive ones.
+enum class BossWaveSignature { Generic, Flying, Shambler, Spawner, Mutant };
+
+static BossWaveSignature GetBossWaveSignature(horde::MonsterTypeID typeId)
+{
+	const MonsterWaveType wt = GetBossWaveType(typeId).first;
+	if (HasWaveType(wt, MonsterWaveType::Flying))   return BossWaveSignature::Flying;
+	if (HasWaveType(wt, MonsterWaveType::Shambler)) return BossWaveSignature::Shambler;
+	if (HasWaveType(wt, MonsterWaveType::Spawner))  return BossWaveSignature::Spawner;
+	if (HasWaveType(wt, MonsterWaveType::Mutant))   return BossWaveSignature::Mutant;
+	return BossWaveSignature::Generic;
+}
+
+// Soft weight penalty so a distinctive wave type doesn't stack back-to-back across DIFFERENT bosses
+// (recent_bosses only spaces the same boss by id). E.g. fixer -> hornet -> carrier are three
+// different bosses but all Flying; this keeps the 2nd/3rd flying pick from winning unless nothing
+// else is eligible. Compares the candidate against the last few recent bosses' signatures.
+static float GetBossWaveTypeRepeatPenalty(horde::MonsterTypeID candidate)
+{
+	const BossWaveSignature sig = GetBossWaveSignature(candidate);
+	if (sig == BossWaveSignature::Generic)
+		return 1.0f; // ground-heavy majority: don't space it or the pool starves
+
+	constexpr size_t WAVE_TYPE_SPACING_WINDOW = 2;     // avoid the same feel within the last 2 bosses
+	constexpr float  WAVE_TYPE_REPEAT_PENALTY = 0.12f; // strong soft-exclusion (never a hard zero)
+
+	const size_t window = std::min<size_t>(WAVE_TYPE_SPACING_WINDOW, recent_bosses.count);
+	for (size_t k = 0; k < window; ++k)
+	{
+		const horde::MonsterTypeID recent = recent_bosses.items[recent_bosses.count - 1 - k];
+		if (GetBossWaveSignature(recent) == sig)
+			return WAVE_TYPE_REPEAT_PENALTY;
+	}
+	return 1.0f;
+}
+
 static size_t BuildWeightedBossCandidates(const std::array<const BossDataSoA *, 3> &bossLists,
 	const horde::MapSize &mapSize, const char *mapname, int32_t waveNumber, bool excludeRecent, size_t recentLimit,
 	bool requireSpaceValidation, std::array<WeightedBossCandidate, BossDataSoA::MAX_BOSSES * 3> &weightedBosses,
@@ -814,7 +853,10 @@ static size_t BuildWeightedBossCandidates(const std::array<const BossDataSoA *, 
 				continue;
 
 			const float size_preference = GetMapBossSizePreferenceMultiplier(mapSize, sizeCategory);
-			const float weight = boss_list->weights[i] * size_preference * space_multiplier;
+			// Wave-type spacing: deprioritize a boss whose distinctive wave feel (e.g. Flying) matches
+			// a recent boss, so flying/shambler/spawner waves don't run back-to-back.
+			const float wave_type_penalty = GetBossWaveTypeRepeatPenalty(typeId);
+			const float weight = boss_list->weights[i] * size_preference * space_multiplier * wave_type_penalty;
 			if (weight <= 0.0f)
 				continue;
 
@@ -1780,7 +1822,7 @@ THINK(FixersSpawnThink)(edict_t *self) -> void
 
 	const bool is_flying = IsFlying(horde::MonsterTypeID::FIXBOT_KL);
 
-	current_wave_type = MonsterWaveType::Boss;
+	current_wave_type = GetBossWaveType(horde::MonsterTypeID::FIXBOT_KL).first;
 	StoreWaveType(current_wave_type);
 	gi.LocBroadcast_Print(PRINT_CHAT, "{}", "The Fixers deploy - dismantle them before they rebuild!\n");
 	AppendHordeMessage("\nBOSS: The Fixers deploy!", BOSS_ANNOUNCEMENT_DURATION);
@@ -1974,6 +2016,11 @@ void SpawnFixerTrio(BossSizeCategory sizeCategory)
 	boss_spawned_for_wave = true;
 	recent_bosses.add(horde::MonsterTypeID::FIXBOT_KL);
 
+	// Commit the Fixer's flying wave type now (mirrors the normal-boss path in
+	// SpawnBossAutomatically) so minions spawning during the deferred-spawn window are
+	// flying-filtered. FixersSpawnThink re-affirms it + StoreWaveType + announces on arrival.
+	current_wave_type = GetBossWaveType(horde::MonsterTypeID::FIXBOT_KL).first;
+
 	if (developer->integer)
 		gi.Com_PrintFmt("SpawnFixerTrio: anchor reserved for wave {} at {}; fixers arrive after spawn delay.\n", current_wave_level, anchor);
 }
@@ -2126,6 +2173,17 @@ void SpawnBossAutomatically()
 	boss->s.origin = final_spawn_origin;
 	boss->s.angles = vec3_origin;
 	boss->bossSizeCategory = boss_pick_result.sizeCategory;
+
+	// Commit the boss's wave type NOW, not in the deferred BossSpawnThink (which runs
+	// BOSS_SPAWN_DELAY later). SpawnBossAutomatically fires on the boss wave's first spawn
+	// tick, ahead of any PlanNextSpawnBatch, so setting it here guarantees the flying/themed
+	// minion filter (BossMinionExcludesMonster) is active for EVERY minion in the wave.
+	// Otherwise the first ~750ms of minions would spawn while current_wave_type is still None.
+	// StoreWaveType + the announcement stay in BossSpawnThink so they land with the boss visual.
+	current_wave_type = GetBossWaveType(boss_pick_result.typeId).first;
+	// Bosses with an explicit minion roster (Widow/Widow2/Arachnid) are filtered by boss identity,
+	// not wave type; record which boss is driving the wave (UNKNOWN/no-roster bosses are unaffected).
+	current_boss_minion_source = boss_pick_result.typeId;
 
 	// Set the think function to run after spawn delay
 	boss->nextthink = level.time + BOSS_SPAWN_DELAY;
@@ -2424,7 +2482,7 @@ void InitializeBossWaveTypes()
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::PSX_ARACHNID)] =
 		{MonsterWaveType::Ground | MonsterWaveType::Medium, "The Arachnid hunts its prey!\n"};
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::REDMUTANT)] =
-		{MonsterWaveType::Ground | MonsterWaveType::Medium, "The Red Mutant seeks vengeance!\n"};
+		{MonsterWaveType::Mutant | MonsterWaveType::Shambler | MonsterWaveType::Ground, "The Red Mutant seeks vengeance!\n"};
 }
 
 std::pair<MonsterWaveType, const char *> GetBossWaveType(horde::MonsterTypeID typeId)

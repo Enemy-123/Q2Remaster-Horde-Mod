@@ -795,6 +795,27 @@ void PlanMonsterSpawnBatch(
     int failed_monster_pick = 0;
     bool plan_capacity_exhausted = false;
 
+    // Points already assigned within THIS planning batch. The round-robin prefers points not yet
+    // used so a batch of N monsters spreads across N distinct points instead of piling several onto
+    // one (which then alternative-spawns them into a visible cluster). Point cooldowns are only
+    // applied at execution (OnSuccessfulSpawn), so without this the same valid point could be handed
+    // to multiple monsters in one batch before any cooldown takes effect.
+    boost::container::small_vector<edict_t*, 64> used_spawn_points_this_batch;
+    auto used_this_batch = [&](const edict_t* sp) -> bool
+    {
+        for (const edict_t* p : used_spawn_points_this_batch)
+            if (p == sp) return true;
+        return false;
+    };
+    // "Oldest cooldown" = the point whose cooldown ends soonest (i.e. has been waiting longest).
+    auto effective_cooldown_end = [](edict_t* sp) -> gtime_t
+    {
+        const uint16_t idx = GetSpawnPointIndexSafe(sp);
+        if (idx == 0xFFFF) return gtime_t::from_sec(1e9f); // never prefer an unmapped point
+        const auto& d = g_spawn_system.spawn_points_data;
+        return std::max(d.cooldownEndsAt[idx], d.alternative_cooldown[idx]);
+    };
+
     auto find_spawn_point_for_monster = [&](horde::MonsterTypeID monster_type_id) -> edict_t*
     {
         const bool monster_is_flying = IsFlying(monster_type_id);
@@ -807,6 +828,13 @@ void PlanMonsterSpawnBatch(
         edict_t* farthest_point = nullptr;
         float farthest_dist_sq = -1.0f;
         int candidates_seen = 0;
+
+        // Keep-flowing fallbacks: when every style-compatible point is on cooldown/occupied we still
+        // spawn (so domination/fog waves never stall) by reusing the point whose cooldown is oldest.
+        // Prefer one not used this batch (better spread); else the global oldest, so a batch larger
+        // than the point count still deploys. A relaxed proximity gate keeps us off players' heads.
+        edict_t* oldest_unused = nullptr; gtime_t oldest_unused_end = gtime_t::from_sec(1e9f);
+        edict_t* oldest_any = nullptr;    gtime_t oldest_any_end = gtime_t::from_sec(1e9f);
 
         for (size_t i = 0; i < total_potential_points; ++i)
         {
@@ -830,6 +858,23 @@ void PlanMonsterSpawnBatch(
                 continue;
             }
 
+            // Remember this style-compatible point as an oldest-cooldown fallback candidate, but
+            // only if it isn't right on top of a player (cooldown is the gate we want to bypass,
+            // not player proximity). Flying-only lanes skip the proximity test, as elsewhere.
+            const bool already_used = used_this_batch(spawn_point);
+            const bool proximity_ok = (spawn_point->style == 1) ||
+                                      CheckSpawnPointPlayerProximity(spawn_point->s.origin, true, true);
+            if (proximity_ok)
+            {
+                const gtime_t cd_end = effective_cooldown_end(spawn_point);
+                if (cd_end < oldest_any_end) { oldest_any_end = cd_end; oldest_any = spawn_point; }
+                if (!already_used && cd_end < oldest_unused_end) { oldest_unused_end = cd_end; oldest_unused = spawn_point; }
+            }
+
+            // Prefer points not yet used this batch so the batch disperses across distinct points.
+            if (already_used)
+                continue;
+
             if (!ValidateSpawnPointForMonster(spawn_point, level.time))
             {
                 failed_validation++;
@@ -844,7 +889,10 @@ void PlanMonsterSpawnBatch(
             }
 
             if (!prefer_farthest)
+            {
+                used_spawn_points_this_batch.push_back(spawn_point);
                 return spawn_point;
+            }
 
             const float dist_sq = MinDistSqToActivePlayer(spawn_point->s.origin);
             if (dist_sq > farthest_dist_sq)
@@ -853,12 +901,37 @@ void PlanMonsterSpawnBatch(
                 farthest_point = spawn_point;
             }
             if (++candidates_seen >= LimitBreakWave::FARTHEST_SPAWN_CANDIDATES)
+            {
+                used_spawn_points_this_batch.push_back(farthest_point);
                 return farthest_point;
+            }
         }
 
-        // prefer_farthest with fewer than FARTHEST_SPAWN_CANDIDATES valid points returns the best
-        // found (or nullptr if none were valid).
-        return farthest_point;
+        // Fog: best valid & unused farthest point found in the full scan.
+        if (prefer_farthest && farthest_point)
+        {
+            used_spawn_points_this_batch.push_back(farthest_point);
+            return farthest_point;
+        }
+
+        // No valid unused point this scan. Keep the wave flowing by reusing the oldest-cooldown
+        // point. Execution ignores cooldown, so the monster still deploys and OnSuccessfulSpawn
+        // then refreshes that point's cooldown for the next batch.
+        edict_t* fallback = oldest_unused;
+        if (!fallback)
+        {
+            // Every style-compatible point has already been used this batch (batch larger than the
+            // point count). Start a fresh round so the overflow distributes across the points again
+            // via the round-robin instead of all piling onto the single global-oldest point.
+            used_spawn_points_this_batch.clear();
+            fallback = oldest_any;
+        }
+        if (fallback)
+        {
+            used_spawn_points_this_batch.push_back(fallback);
+            return fallback;
+        }
+        return nullptr;
     };
 
     auto try_plan_next_monster = [&]() -> bool
@@ -892,7 +965,9 @@ void PlanMonsterSpawnBatch(
         return true;
     };
 
-    const size_t max_points_to_check = total_potential_points * std::max<size_t>(2, static_cast<size_t>(num_to_plan));
+    // Headroom: a dispersing batch may scan the full point list once per monster (no early return
+    // when it has to fall back to the oldest-cooldown point), so budget one extra full scan.
+    const size_t max_points_to_check = total_potential_points * (std::max<size_t>(2, static_cast<size_t>(num_to_plan)) + 1);
     const size_t max_monster_pick_attempts = std::max<size_t>(static_cast<size_t>(num_to_plan) * 4, 4);
     while (!plan_capacity_exhausted &&
            planned_count < num_to_plan &&

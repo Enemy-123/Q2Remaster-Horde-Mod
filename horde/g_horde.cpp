@@ -85,6 +85,11 @@ static bool g_full_precache_done = false;
 
 static bool monsters_precached = false;
 MonsterWaveType current_wave_type = MonsterWaveType::None;
+// Boss whose wave is currently active, for bosses that use an EXPLICIT minion roster
+// (Widow/Widow2/Arachnid) rather than the movement/theme/heavy filter. Set when the boss
+// commits its wave (horde_boss.cpp), reset to UNKNOWN at each wave start. UNKNOWN means
+// "no explicit roster" and BossMinionExcludesMonster falls back to the type-based filter.
+horde::MonsterTypeID current_boss_minion_source = horde::MonsterTypeID::UNKNOWN;
 // Using small_vector - typically < 32 entries per wave, avoids heap allocation in common case
 boost::container::small_vector<const MonsterTypeInfo*, 32> g_eligible_monsters_for_wave;
 boost::container::small_vector<size_t, 32> g_eligible_item_indices_for_wave;
@@ -3571,6 +3576,108 @@ static float ApplyMonsterWeightModifiers(
 	return weight;
 }
 
+// Explicit per-boss minion rosters. A few bosses want a hand-picked minion mix that movement/
+// theme/heavy bits can't express (e.g. the Arachnid boss blends arachnids with gunners and
+// gladiators). When current_boss_minion_source names one of these, ONLY the listed monsters may
+// spawn as minions, overriding the type-based filter. Bosses not listed here use the type-based
+// filter (flying/themed/heavy) instead. current_boss_minion_source is defined near the top of
+// this file and set/reset alongside the boss's wave type (see horde_boss.cpp).
+// Relative spawn-weight multiplier for `minion` within `boss`'s explicit roster; 0 means the minion
+// isn't part of the roster (excluded). >1 prioritizes a minion, <1 deprioritizes it. Applied on top
+// of the normal weight only when BossHasExplicitRoster(boss) is true.
+static float BossExplicitRosterWeight(horde::MonsterTypeID boss, horde::MonsterTypeID minion)
+{
+	using ID = horde::MonsterTypeID;
+	switch (boss)
+	{
+	// Widow / Widow2: stalker-led, backed by arachnids/parasites and the chick family. Stalkers
+	// dominate; the plain chick is pushed down (it was previously the most common minion).
+	case ID::WIDOW:
+	case ID::WIDOW2:
+		switch (minion)
+		{
+		case ID::STALKER:                                          return 3.0f;
+		case ID::SPIDER: case ID::GM_ARACHNID: case ID::ARACHNID2: return 1.3f;
+		case ID::PARASITE:                                         return 1.0f;
+		case ID::CHICK_HEAT:                                       return 0.7f;
+		case ID::CHICKKL:                                          return 0.6f;
+		case ID::CHICK:                                            return 0.5f;
+		default:                                                   return 0.0f;
+		}
+	// Arachnid boss: stalkers and arachnids lead, backed by tank-spawners, gunners, gladiators
+	// and parasites.
+	case ID::PSX_ARACHNID:
+		switch (minion)
+		{
+		case ID::STALKER:                                          return 2.5f;
+		case ID::SPIDER: case ID::GM_ARACHNID: case ID::ARACHNID2: return 2.5f;
+		case ID::PARASITE:                                         return 1.0f;
+		case ID::TANK_SPAWNER:                                     return 0.9f;
+		case ID::GUNNER: case ID::GUNNER_VANILLA:                  return 0.7f;
+		case ID::GUNCMDR: case ID::GUNCMDR_VANILLA:                return 0.7f;
+		case ID::GLADIATOR: case ID::GLADIATOR_B: case ID::GLADIATOR_C: return 0.7f;
+		default:                                                   return 0.0f;
+		}
+	default:
+		return 0.0f;
+	}
+}
+
+static bool BossHasExplicitRoster(horde::MonsterTypeID boss)
+{
+	using ID = horde::MonsterTypeID;
+	return boss == ID::WIDOW || boss == ID::WIDOW2 || boss == ID::PSX_ARACHNID;
+}
+
+// During a boss-wave minion phase, returns true when a monster should be EXCLUDED because it
+// doesn't fit the boss's wave. Boss waves build the eligible pool typeless, so this is where the
+// boss's character is actually enforced on the minions. No-op outside the minion phase or before
+// the boss commits its type. Applied in the main cache build AND every low-variety fallback pass
+// so the fallback can't leak a non-matching minion back in.
+//
+// Precedence:
+//  1. Explicit per-boss roster (Widow/Widow2/Arachnid) -- see BossExplicitRosterWeight.
+//  2. Otherwise, rules derived from the boss's wave type:
+//     - Movement: flying boss -> flying minions, ground boss -> ground minions.
+//     - Theme: if the boss wave carries Shambler/Mutant, minions must carry at least one of those
+//       (union) -- e.g. the Redmutant wave blends Mutant + Shambler, the Shambler boss its
+//       Shambler family. Spawner/Arachnophobic are intentionally NOT themed here (too few
+//       monsters to fill a wave). A themed wave ignores the Heavy rule below.
+//     - Heavy: a ground boss tagged Heavy with no theme (e.g. Tank 64) gets a heavy-units wave.
+//       Flying bosses' incidental Heavy bit is ignored (movement already restricts them).
+static bool BossMinionExcludesMonster(const MonsterSelectionContext& ctx, horde::MonsterTypeID typeId, bool monster_is_flying)
+{
+	if (!ctx.isBossWaveMinionPhase)
+		return false;
+
+	// Explicit roster (Widow/Widow2/Arachnid) takes precedence over the type-based filter.
+	if (BossHasExplicitRoster(current_boss_minion_source))
+		return BossExplicitRosterWeight(current_boss_minion_source, typeId) <= 0.0f;
+
+	const MonsterWaveType wave = ctx.waveTypeForFiltering;
+	const MonsterWaveType monster = g_monsterData.waveTypes[static_cast<size_t>(typeId)];
+
+	// Movement: match the boss's domain.
+	const bool wave_wants_flying = HasWaveType(wave, MonsterWaveType::Flying);
+	const bool wave_wants_ground = HasWaveType(wave, MonsterWaveType::Ground);
+	if (wave_wants_flying && !wave_wants_ground && !monster_is_flying)
+		return true;
+	if (wave_wants_ground && !wave_wants_flying && monster_is_flying)
+		return true;
+
+	// Theme (Shambler/Mutant): minion must carry at least one requested theme (union).
+	constexpr MonsterWaveType boss_minion_themes = MonsterWaveType::Shambler | MonsterWaveType::Mutant;
+	const MonsterWaveType requested_themes = wave & boss_minion_themes;
+	if (requested_themes != MonsterWaveType::None)
+		return (monster & requested_themes) == MonsterWaveType::None;
+
+	// Heavy-units wave (e.g. Tank 64): ground+heavy boss with no theme.
+	if (wave_wants_ground && HasWaveType(wave, MonsterWaveType::Heavy) && !HasWaveType(monster, MonsterWaveType::Heavy))
+		return true;
+
+	return false;
+}
+
 // Add monsters with relaxed wave type filter (used in low variety fallback)
 static void AddMonstersWithRelaxedFilter(
 	MonsterCache& cache_ref,
@@ -3588,6 +3695,7 @@ static void AddMonstersWithRelaxedFilter(
 
 		const bool monster_is_flying = IsFlying(monster_info->typeId);
 		if (ctx.isSpawnPointFlying && !monster_is_flying) continue;
+		if (BossMinionExcludesMonster(ctx, monster_info->typeId, monster_is_flying)) continue;
 
 		MonsterWaveType monster_types = g_monsterData.waveTypes[i];
 		if ((monster_types & relaxed_wave_type) == MonsterWaveType::None) continue;
@@ -3651,6 +3759,7 @@ static void HandleLowVarietyFallback(
 
 			const bool monster_is_flying = IsFlying(monster_info->typeId);
 			if (ctx.isSpawnPointFlying && !monster_is_flying) continue;
+			if (BossMinionExcludesMonster(ctx, monster_info->typeId, monster_is_flying)) continue;
 
 			float weight = CalculateBaseWeight(i, ctx) * 0.2f;
 			cache_ref.addMonster(monster_info->typeId, weight);
@@ -3763,10 +3872,22 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 		if (mutable_ctx.isSpawnPointFlying && !monster_is_flying)
 			continue;
 
+		// Boss-wave minion filter: flying bosses (Hornet/Carrier) get a flying wave, themed
+		// bosses (Shambler/Redmutant) a themed wave, Tank 64 a heavy wave. See
+		// BossMinionExcludesMonster.
+		if (BossMinionExcludesMonster(mutable_ctx, monster_info->typeId, monster_is_flying))
+			continue;
+
 		// Calculate weight
 		float weight = CalculateBaseWeight(i, mutable_ctx);
 		weight = ApplySpecialModifiers(weight, i, mutable_ctx);
 		weight = ApplyMonsterWeightModifiers(weight, monster_info, i, mutable_ctx, is_elite_family_member);
+
+		// Explicit-roster bosses prioritize certain minions (e.g. stalkers/arachnids in the
+		// widow/arachnid waves). The monster already passed BossMinionExcludesMonster, so the
+		// multiplier here is > 0.
+		if (mutable_ctx.isBossWaveMinionPhase && BossHasExplicitRoster(current_boss_minion_source))
+			weight *= BossExplicitRosterWeight(current_boss_minion_source, monster_info->typeId);
 
 		cache_ref.addMonster(monster_info->typeId, weight);
 	}
@@ -5227,6 +5348,7 @@ void ResetGame()
 	// Also clear the wave type so Horde_RunFrame's per-frame fog check doesn't re-apply fog
 	// during the next map's warmup before wave 1 reassigns it.
 	current_wave_type = MonsterWaveType::None;
+	current_boss_minion_source = horde::MonsterTypeID::UNKNOWN;
 	ResetFogState();
 
 	ResetBenefits();
@@ -10146,6 +10268,8 @@ static void Horde_InitLevel(const int32_t lvl)
 	Horde_UpdateStartItemsForWave(lvl);
 
 	// Determine the wave type. Boss waves start with no type; it's set when the boss spawns.
+	// Clear any explicit boss minion roster from a prior wave; the boss re-sets it when it commits.
+	current_boss_minion_source = horde::MonsterTypeID::UNKNOWN;
 	if (!(lvl >= 10 && lvl % 5 == 0))
 	{
 		InitializeWaveType(lvl);
