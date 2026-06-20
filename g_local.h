@@ -1941,6 +1941,8 @@ struct monsterinfo_t
 	bool IS_BOSS = false; // Is monster a boss?
 	bool effects_applied = false; // prevention for applying more that 1 time effect
 	bool BOSS_DEATH_HANDLED = false; // is dead?
+	uint8_t boss_loot_share_count = 0; // 0/1 = lone boss (full drop); N = member of an N-boss group
+	uint8_t boss_loot_share_index = 0; // 0..N-1 position within the boss group (loot slice selector)
 	bool damage_modifier_applied = false;
 	bool death_processed = false; // death management for onentitydeath
 	uint8_t monster_type_id;
@@ -4562,6 +4564,11 @@ inline void ThrowGibs(edict_t* self, int32_t damage, std::initializer_list<gib_d
 }
 
 extern void boss_die(edict_t* boss) noexcept;
+
+// Fixer Trio (3-fixbot boss raid) helper used by fixbot_die to defer turret cleanup until the last
+// fixer dies: returns a still-living member of the active trio that should inherit a dying member's
+// turrets, or nullptr when no member survives (so the caller destroys them instead).
+extern edict_t* FirstAliveFixer() noexcept;
 
 inline bool M_CheckGib(edict_t* self, const mod_t& mod)
 {

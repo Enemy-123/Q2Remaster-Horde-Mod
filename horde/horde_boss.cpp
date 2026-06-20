@@ -201,7 +201,10 @@ extern bool HasWaveType(MonsterWaveType entityTypes, MonsterWaveType typeToCheck
 // Hell Maidens helpers (defined further below, before SpawnBossAutomatically). Forward-declared
 // here so boss_die() can react when a maiden dies.
 static void HealHellMaidenSurvivors(const edict_t *dead_maiden);
-static bool RecentlyUsedHellMaidens() noexcept;
+
+// Fixer Trio mutual-heal helper (defined further below). Forward-declared so boss_die() can react
+// when a fixer dies; IsFixer() is declared in horde_boss.h.
+static void HealFixerSurvivors(const edict_t *dead_fixer);
 
 // Boss spawning constants
 namespace {
@@ -395,7 +398,7 @@ static bool TryTeleportBossToGridFallback(edict_t *self, const vec3_t &predicted
 }
 
 // Boss data arrays
-static constexpr std::array<boss_t, 11> BOSS_SMALL_SRC = {{
+static constexpr std::array<boss_t, 12> BOSS_SMALL_SRC = {{
 	{horde::MonsterTypeID::CARRIER_MINI, 24, -1, 0.1f, BossSizeCategory::Small},
 	{horde::MonsterTypeID::BOSS2_KL, 24, -1, 0.1f, BossSizeCategory::Small},
 	{horde::MonsterTypeID::FIXBOT_KL, 15, -1, 0.2f, BossSizeCategory::Small},
@@ -406,10 +409,13 @@ static constexpr std::array<boss_t, 11> BOSS_SMALL_SRC = {{
 	{horde::MonsterTypeID::MAKRON_KL, 36, -1, 0.2f, BossSizeCategory::Small},
 	{horde::MonsterTypeID::MAKRON, 16, 26, 0.1f, BossSizeCategory::Small},
 	{horde::MonsterTypeID::PSX_ARACHNID, 15, -1, 0.1f, BossSizeCategory::Small},
-	{horde::MonsterTypeID::REDMUTANT, -1, 24, 0.1f, BossSizeCategory::Small}
+	{horde::MonsterTypeID::REDMUTANT, -1, 24, 0.1f, BossSizeCategory::Small},
+	// Hell Sisters mini-raid (3 buffed chicks). Intercepted in SpawnBossAutomatically and spawned as
+	// the trio; sits in the pool like any other boss so recent_bosses spaces it from repeating.
+	{horde::MonsterTypeID::CHICKKL, 15, -1, 0.15f, BossSizeCategory::Small}
 }};
 
-static constexpr std::array<boss_t, 11> BOSS_MEDIUM_SRC = {{
+static constexpr std::array<boss_t, 12> BOSS_MEDIUM_SRC = {{
 	{horde::MonsterTypeID::CARRIER, 24, -1, 0.1f, BossSizeCategory::Medium},
 	{horde::MonsterTypeID::BOSS2, 19, -1, 0.1f, BossSizeCategory::Medium},
 	{horde::MonsterTypeID::FIXBOT_KL, 15, -1, 0.1f, BossSizeCategory::Medium},
@@ -420,10 +426,12 @@ static constexpr std::array<boss_t, 11> BOSS_MEDIUM_SRC = {{
 	{horde::MonsterTypeID::WIDOW2, 19, -1, 0.15f, BossSizeCategory::Medium},
 	{horde::MonsterTypeID::PSX_ARACHNID, 14, -1, 0.1f, BossSizeCategory::Medium},
 	{horde::MonsterTypeID::MAKRON_KL, 26, -1, 0.2f, BossSizeCategory::Medium},
-	{horde::MonsterTypeID::MAKRON, 16, 25, 0.1f, BossSizeCategory::Medium}
+	{horde::MonsterTypeID::MAKRON, 16, 25, 0.1f, BossSizeCategory::Medium},
+	// Hell Sisters mini-raid (intercepted in SpawnBossAutomatically; see small pool note).
+	{horde::MonsterTypeID::CHICKKL, 15, -1, 0.15f, BossSizeCategory::Medium}
 }};
 
-static constexpr std::array<boss_t, 13> BOSS_LARGE_SRC = {{
+static constexpr std::array<boss_t, 14> BOSS_LARGE_SRC = {{
 	{horde::MonsterTypeID::CARRIER, 24, -1, 0.1f, BossSizeCategory::Large},
 	{horde::MonsterTypeID::BOSS2, 19, -1, 0.1f, BossSizeCategory::Large},
 	{horde::MonsterTypeID::FIXBOT_KL, 15, -1, 0.1f, BossSizeCategory::Large},
@@ -436,7 +444,9 @@ static constexpr std::array<boss_t, 13> BOSS_LARGE_SRC = {{
 	{horde::MonsterTypeID::PSX_GUARDIAN, -1, -1, 0.1f, BossSizeCategory::Large},
 	{horde::MonsterTypeID::JORG, 30, -1, 0.15f, BossSizeCategory::Large},
 	{horde::MonsterTypeID::MAKRON_KL, 30, -1, 0.2f, BossSizeCategory::Large},
-	{horde::MonsterTypeID::WIDOW2, 25, -1, 0.15f, BossSizeCategory::Large}
+	{horde::MonsterTypeID::WIDOW2, 25, -1, 0.15f, BossSizeCategory::Large},
+	// Hell Sisters mini-raid (intercepted in SpawnBossAutomatically; see small pool note).
+	{horde::MonsterTypeID::CHICKKL, 15, -1, 0.15f, BossSizeCategory::Large}
 }};
 
 // Compile-time transformation function
@@ -1025,8 +1035,17 @@ void BossDeathHandler(edict_t *boss) noexcept
 		IT_ITEM_SPHERE_DEFENDER, IT_ARMOR_COMBAT, IT_ITEM_BANDOLIER,
 		IT_ITEM_INVULNERABILITY, IT_AMMO_NUKE};
 
+	// Boss-group loot share: members of a multi-boss encounter (Hell Sisters, Fixer Trio) split a
+	// single boss's loot so the group doesn't drop N x the items. A count of 0/1 is a lone boss and
+	// keeps the full drop. The weapon goes to member 0, the power-up to a different member, and the
+	// standard items are partitioned across the group by index.
+	const int32_t loot_share_count = std::max<int32_t>(1, boss->monsterinfo.boss_loot_share_count);
+	const int32_t loot_share_index = boss->monsterinfo.boss_loot_share_index;
+	const bool drops_weapon  = (loot_share_index == 0);
+	const bool drops_powerup = (loot_share_index == (loot_share_count > 1 ? 1 : 0));
+
 	// Drop primary weapon
-	item_id_t weapon_id = SelectBossWeaponDrop(current_wave_level);
+	item_id_t weapon_id = drops_weapon ? SelectBossWeaponDrop(current_wave_level) : IT_NULL;
 	if (weapon_id != IT_NULL)
 	{
 		if (gitem_t *weapon_item = GetItemByIndex(weapon_id))
@@ -1051,7 +1070,8 @@ void BossDeathHandler(edict_t *boss) noexcept
 	}
 
 	// Drop special power-up
-	item_id_t special_id = brandom() ? IT_ITEM_QUADFIRE : IT_ITEM_QUAD;
+	item_id_t special_id = drops_powerup ? (brandom() ? IT_ITEM_QUADFIRE : IT_ITEM_QUAD) : IT_NULL;
+	if (special_id != IT_NULL)
 	if (gitem_t *special_item = GetItemByIndex(special_id))
 	{
 		if (edict_t *powerup = Drop_Item(boss, special_item))
@@ -1075,8 +1095,14 @@ void BossDeathHandler(edict_t *boss) noexcept
 	std::array<item_id_t, standardItemIDs.size()> shuffledIDs = standardItemIDs;
 	std::shuffle(shuffledIDs.begin(), shuffledIDs.end(), mt_rand);
 
-	for (item_id_t item_id : shuffledIDs)
+	for (size_t item_slot = 0; item_slot < shuffledIDs.size(); ++item_slot)
 	{
+		// Partition the standard items across the group: a lone boss (count 1) drops them all,
+		// while group members each drop their slice (count totals back to the full set).
+		if (static_cast<int32_t>(item_slot % loot_share_count) != loot_share_index)
+			continue;
+
+		item_id_t item_id = shuffledIDs[item_slot];
 		if (item_id == IT_NULL)
 			continue;
 
@@ -1136,6 +1162,12 @@ void boss_die(edict_t *boss) noexcept
 	// only tears down this maiden's (nonexistent) individual bar, not the group's bar.
 	if (IsHellMaiden(boss))
 		HealHellMaidenSurvivors(boss);
+
+	// Fixer Trio: same mutual-heal mechanic — surviving fixers are fully restored when one falls, so
+	// the group resets unless all three are burned down quickly. Their turrets are handled separately
+	// in fixbot_die (kept alive until the last fixer dies).
+	if (IsFixer(boss))
+		HealFixerSurvivors(boss);
 
 	BossDeathHandler(boss);
 	ClearBossHealthBar(boss);
@@ -1267,8 +1299,6 @@ namespace {
 	constexpr int32_t  HELL_MAIDEN_HEALTH      = 2500;
 	constexpr int32_t  HELL_MAIDEN_SHIELD      = 1750;
 	constexpr float    HELL_MAIDEN_SCALE       = 1.35f;   // "bit bigger"; tunable
-	constexpr int32_t  HELL_MAIDEN_MIN_WAVE    = 15;      // chicks are appropriate by here; tunable
-	constexpr float    HELL_MAIDEN_BASE_CHANCE = 0.25f;   // chance per eligible boss wave; tunable
 	constexpr const char *HELL_MAIDEN_NAME     = "Hell Sisters";
 
 	// Three visually distinct, non-friendly modifiers (red fiery shell / green / dark tracker).
@@ -1293,9 +1323,6 @@ struct HellMaidenGroup {
 };
 static HellMaidenGroup g_hellMaidens;
 
-// Keep maiden encounters from repeating back-to-back across boss waves.
-static int32_t g_lastHellMaidenWave = -1000;
-
 bool IsHellMaiden(const edict_t *ent) noexcept
 {
 	if (!g_hellMaidens.active || !ent)
@@ -1304,12 +1331,6 @@ bool IsHellMaiden(const edict_t *ent) noexcept
 		if (m == ent)
 			return true;
 	return false;
-}
-
-static bool RecentlyUsedHellMaidens() noexcept
-{
-	// Require at least two boss-wave intervals between maiden encounters.
-	return (current_wave_level - g_lastHellMaidenWave) < (BOSS_WAVE_INTERVAL * 2);
 }
 
 // Free the shared bar (the misc_health_bar entity) and the aggregator, and clear the HUD name.
@@ -1470,9 +1491,17 @@ THINK(HellMaidensSpawnThink)(edict_t *self) -> void
 		maiden->mass = static_cast<int>(maiden->mass * HELL_MAIDEN_SCALE);
 		maiden->s.origin[2] -= (original_mins_z * HELL_MAIDEN_SCALE - original_mins_z);
 
-		// Extra loot: each maiden drops a horde item (BossDeathHandler also drops on death).
-		maiden->item = G_HordePickItem();
-		maiden->spawnflags &= ~SPAWNFLAG_MONSTER_NO_DROP;
+		// Loot share: the group splits one boss's worth of loot (see BossDeathHandler). The index is
+		// this member's slot; the count is finalized after the loop once we know how many spawned.
+		maiden->monsterinfo.boss_loot_share_index = static_cast<uint8_t>(spawned);
+
+		// Extra bonus item: only the first maiden carries one, so the group drops a single horde item
+		// (BossDeathHandler also drops on death). Without this gate all three would each drop one.
+		if (spawned == 0)
+		{
+			maiden->item = G_HordePickItem();
+			maiden->spawnflags &= ~SPAWNFLAG_MONSTER_NO_DROP;
+		}
 
 		maiden->solid = SOLID_BBOX;
 		gi.linkentity(maiden);
@@ -1495,6 +1524,11 @@ THINK(HellMaidensSpawnThink)(edict_t *self) -> void
 		G_FreeEdict(self);
 		return;
 	}
+
+	// Finalize the loot-share group size now that we know how many maidens actually spawned.
+	for (int32_t i = 0; i < spawned; ++i)
+		if (g_hellMaidens.members[i])
+			g_hellMaidens.members[i]->monsterinfo.boss_loot_share_count = static_cast<uint8_t>(spawned);
 
 	if (sound_spawn1)
 		gi.sound(g_hellMaidens.members[0], CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
@@ -1590,12 +1624,358 @@ void SpawnHellMaidens()
 	controller->nextthink = level.time + BOSS_SPAWN_DELAY;
 	gi.linkentity(controller);
 
-	// Commit the encounter now (mirrors how SpawnBossAutomatically reserves the wave before the delay).
+	// Commit the encounter now and register it in the rotation so recent_bosses spaces it like any
+	// other boss (mirrors SpawnFixerTrio).
 	boss_spawned_for_wave = true;
-	g_lastHellMaidenWave = current_wave_level;
+	recent_bosses.add(horde::MonsterTypeID::CHICKKL);
 
 	if (developer->integer)
 		gi.Com_PrintFmt("SpawnHellMaidens: anchor reserved for wave {} at {}; maidens arrive after spawn delay.\n", current_wave_level, anchor);
+}
+
+// ============================================================================================
+// Fixer Trio — the Fixer boss as a 3-fixbot mini-raid (same shared-bar + mutual-heal mechanic as
+// the Hell Maidens). It additionally keeps every turret the group spawns alive until the LAST
+// fixer dies: a dying member hands its turrets to a surviving sister (see fixbot_die), so the final
+// fixer owns the whole group's turrets and they all clear at once when it falls.
+// ============================================================================================
+namespace {
+	constexpr int32_t FIXER_COUNT  = 3;
+	constexpr int32_t FIXER_HEALTH = 2500;   // same fixed value as the Hell Sisters (HELL_MAIDEN_HEALTH)
+	constexpr int32_t FIXER_SHIELD = 1750;   // same fixed value as the Hell Sisters (HELL_MAIDEN_SHIELD)
+	constexpr const char *FIXER_NAME = "The Fixers";
+
+	// Distinct visible/buff modifier per fixer (cosmetic only, no stat scaling) — mirrors the maidens.
+	constexpr std::array<bonus_flags_t, FIXER_COUNT> FIXER_FLAGS = {
+		BF_CHAMPION, BF_POSSESSED, BF_RAGEQUITTER
+	};
+
+	// Spread the three fixbots around the anchor; they fly, so lift the flankers a little.
+	constexpr std::array<vec3_t, FIXER_COUNT> FIXER_OFFSETS = {{
+		{ 112.0f,    0.0f, 32.0f},
+		{ -72.0f,  112.0f, 64.0f},
+		{ -72.0f, -112.0f, 64.0f}
+	}};
+}
+
+struct FixerGroup {
+	std::array<edict_t *, FIXER_COUNT> members{};
+	edict_t *aggregator = nullptr;   // invisible entity that owns the shared health bar
+	int32_t  spawned = 0;
+	int32_t  alive = 0;
+	bool     active = false;
+};
+static FixerGroup g_fixers;
+
+bool IsFixer(const edict_t *ent) noexcept
+{
+	if (!g_fixers.active || !ent)
+		return false;
+	for (const edict_t *m : g_fixers.members)
+		if (m == ent)
+			return true;
+	return false;
+}
+
+// A surviving trio member to inherit a dying member's turrets (nullptr if none survive). Exposed via
+// g_local.h so fixbot_die can funnel turrets to the last fixer instead of destroying them early.
+edict_t *FirstAliveFixer() noexcept
+{
+	if (!g_fixers.active)
+		return nullptr;
+	for (edict_t *m : g_fixers.members)
+		if (m && m->inuse && !m->deadflag && m->health > 0)
+			return m;
+	return nullptr;
+}
+
+// Free the shared bar (the misc_health_bar entity) and the aggregator, and clear the HUD name.
+static void ClearFixersBar()
+{
+	if (g_fixers.aggregator)
+	{
+		if (g_fixers.aggregator->inuse)
+		{
+			ClearBossHealthBar(g_fixers.aggregator);
+			G_FreeEdict(g_fixers.aggregator);
+		}
+		g_fixers.aggregator = nullptr;
+	}
+
+	if (strcmp(gi.get_configstring(CONFIG_HEALTH_BAR_NAME), FIXER_NAME) == 0)
+		gi.configstring(CONFIG_HEALTH_BAR_NAME, "");
+}
+
+static void HealFixerSurvivors(const edict_t *dead_fixer)
+{
+	int32_t alive = 0;
+	for (edict_t *&m : g_fixers.members)
+	{
+		// Drop the dead fixer from the group so a later corpse free/reuse can't dangle.
+		if (m == dead_fixer)
+		{
+			m = nullptr;
+			continue;
+		}
+
+		if (!m || !m->inuse || m->deadflag || m->health <= 0)
+			continue;
+
+		// Full restore: health and power shield — the group must be burned down quickly.
+		m->health = m->max_health;
+		m->monsterinfo.power_armor_power = m->monsterinfo.max_power_armor_power;
+		++alive;
+
+		SpawnGrow_Spawn(m->s.origin, 60.0f, 6.0f);
+	}
+
+	g_fixers.alive = alive;
+
+	if (alive > 0)
+		AppendHordeMessage("A Fixer is scrapped - the rest reassemble!", 3_sec);
+}
+
+// Per-frame think on the invisible aggregator: drive the shared bar from the living fixers' health,
+// and clean everything up once all fixers are dead.
+void FixersAggregatorThink(edict_t *self);
+THINK(FixersAggregatorThink)(edict_t *self) -> void
+{
+	if (!g_fixers.active || g_fixers.aggregator != self)
+		return;
+
+	int32_t alive = 0;
+	int32_t total_health = 0;
+	for (edict_t *m : g_fixers.members)
+	{
+		if (m && m->inuse && !m->deadflag && m->health > 0)
+		{
+			++alive;
+			total_health += m->health;
+		}
+	}
+	g_fixers.alive = alive;
+
+	if (alive == 0)
+	{
+		ClearFixersBar();
+		g_fixers = FixerGroup{};
+		return;
+	}
+
+	self->health = total_health;
+	self->nextthink = level.time + FRAME_TIME_S;
+}
+
+// Deferred spawn: runs BOSS_SPAWN_DELAY after SpawnFixerTrio so the fixers pop in with the same
+// delay + grow effect as a normal boss. The controller stores the anchor + chosen size category,
+// then frees itself once the fixers and shared bar are set up.
+void FixersSpawnThink(edict_t *self);
+THINK(FixersSpawnThink)(edict_t *self) -> void
+{
+	const vec3_t anchor = self->s.origin;
+	const BossSizeCategory sizeCategory = static_cast<BossSizeCategory>(self->count);
+
+	vec3_t predicted_mins, predicted_maxs;
+	GetPredictedScaledBounds(horde::MonsterTypeID::FIXBOT_KL, predicted_mins, predicted_maxs);
+
+	const bool is_flying = IsFlying(horde::MonsterTypeID::FIXBOT_KL);
+
+	current_wave_type = MonsterWaveType::Boss;
+	StoreWaveType(current_wave_type);
+	gi.LocBroadcast_Print(PRINT_CHAT, "{}", "The Fixers deploy - dismantle them before they rebuild!\n");
+	AppendHordeMessage("\nBOSS: The Fixers deploy!", BOSS_ANNOUNCEMENT_DURATION);
+
+	const char *fixer_classname = horde::MonsterTypeRegistry::GetClassname(horde::MonsterTypeID::FIXBOT_KL);
+
+	int32_t spawned = 0;
+	for (int32_t i = 0; i < FIXER_COUNT; ++i)
+	{
+		vec3_t slot = anchor + FIXER_OFFSETS[i];
+		const auto slot_validation = IsPositionPhysicallyValidForBoss(slot, predicted_mins, predicted_maxs, is_flying);
+		if (slot_validation.is_valid)
+			slot = slot_validation.adjusted_position;
+		else
+			slot = anchor;
+
+		edict_t *fixer = G_Spawn();
+		if (!fixer)
+			continue;
+
+		fixer->classname = fixer_classname;
+		fixer->s.origin = slot;
+		fixer->s.angles = vec3_origin;
+		fixer->bossSizeCategory = sizeCategory;
+
+		// Set IS_BOSS before spawning so the monster's own bonus-flag pass is skipped (mirrors
+		// BossSpawnThink / Hell Maidens); we apply our own fixed stats + visuals afterward.
+		fixer->monsterinfo.IS_BOSS = true;
+		fixer->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
+		fixer->monsterinfo.last_reacttodamage_target_time = 0_ms;
+		fixer->solid = SOLID_NOT;
+
+		ED_CallSpawnMonsterByID(fixer, horde::MonsterTypeID::FIXBOT_KL);
+		if (!fixer->inuse)
+		{
+			if (developer->integer)
+				gi.Com_PrintFmt("SpawnFixerTrio: ED_CallSpawn failed for fixer {}.\n", i);
+			continue;
+		}
+
+		// Bot-targetable enemy monster (mirror BossSpawnThink / Hell Maidens).
+		fixer->svflags |= SVF_MONSTER;
+		fixer->monsterinfo.team = CTF_TEAM2;
+		fixer->sv.init = false;
+
+		// Distinct visible/buff modifier (sets bonus_flags + effects, no stat scaling) — like maidens.
+		ApplyBonusFlagVisuals(fixer, FIXER_FLAGS[i]);
+
+		// Same fixed boss-grade stats as the Hell Sisters: fixed health + power shield, no wave scaling
+		// and no separate combat armor (the power shield is the only protection, exactly like a maiden).
+		fixer->health = fixer->max_health = FIXER_HEALTH;
+		fixer->monsterinfo.base_health = FIXER_HEALTH;
+		fixer->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
+		fixer->monsterinfo.power_armor_power = FIXER_SHIELD;
+		fixer->monsterinfo.max_power_armor_power = FIXER_SHIELD;
+		fixer->monsterinfo.armor_power = 0;
+
+		// Loot share: the group splits one boss's worth of loot (see BossDeathHandler).
+		fixer->monsterinfo.boss_loot_share_index = static_cast<uint8_t>(spawned);
+
+		// Only the first fixer carries a bonus item so the group drops a single horde item.
+		if (spawned == 0)
+		{
+			fixer->item = G_HordePickItem();
+			fixer->spawnflags &= ~SPAWNFLAG_MONSTER_NO_DROP;
+		}
+
+		fixer->solid = SOLID_BBOX;
+		gi.linkentity(fixer);
+
+		const float base_size = std::max(SPAWN_GROW_MIN_BASE_SIZE, slot.length() * SPAWN_GROW_BASE_SIZE_MULTIPLIER);
+		ImprovedSpawnGrow(slot, base_size, base_size * SPAWN_GROW_END_SIZE_MULTIPLIER, fixer);
+		SpawnGrow_Spawn(slot, base_size, base_size * SPAWN_GROW_END_SIZE_MULTIPLIER);
+
+		auto_spawned_bosses.insert(fixer);
+		g_fixers.members[spawned] = fixer;
+		++spawned;
+	}
+
+	if (spawned == 0)
+	{
+		if (developer->integer)
+			gi.Com_PrintFmt("FixersSpawnThink: failed to spawn any fixers on wave {}.\n", current_wave_level);
+		boss_spawned_for_wave = false;   // allow a normal boss to spawn next tick instead
+		G_FreeEdict(self);
+		return;
+	}
+
+	// Finalize the loot-share group size now that we know how many fixers actually spawned.
+	for (int32_t i = 0; i < spawned; ++i)
+		if (g_fixers.members[i])
+			g_fixers.members[i]->monsterinfo.boss_loot_share_count = static_cast<uint8_t>(spawned);
+
+	if (sound_spawn1)
+		gi.sound(g_fixers.members[0], CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
+
+	// Create the invisible aggregator that owns the shared "The Fixers" health bar.
+	edict_t *agg = G_Spawn();
+	agg->classname = "fixer_trio_bar";
+	agg->s.origin = anchor + vec3_t{0.0f, 0.0f, 40.0f};
+	agg->movetype = MOVETYPE_NONE;
+	agg->solid = SOLID_NOT;
+	agg->takedamage = false;
+	agg->svflags |= SVF_NOCLIENT;
+
+	int32_t group_max_health = 0;
+	for (int32_t i = 0; i < spawned; ++i)
+		if (g_fixers.members[i])
+			group_max_health += g_fixers.members[i]->max_health;
+
+	agg->max_health = group_max_health;
+	agg->health = agg->max_health;
+	agg->think = FixersAggregatorThink;
+	agg->nextthink = level.time + FRAME_TIME_S;
+	gi.linkentity(agg);
+
+	g_fixers.aggregator = agg;
+	g_fixers.spawned = spawned;
+	g_fixers.alive = spawned;
+	g_fixers.active = true;
+
+	AttachHealthBar(agg);
+	gi.configstring(CONFIG_HEALTH_BAR_NAME, FIXER_NAME);
+
+	if (developer->integer)
+		gi.Com_PrintFmt("FixersSpawnThink: spawned {} fixers on wave {} at {}.\n", spawned, current_wave_level, anchor);
+
+	G_FreeEdict(self);
+}
+
+void SpawnFixerTrio(BossSizeCategory sizeCategory)
+{
+	// Tear down any stale group first (only one encounter is ever active at a time).
+	if (g_fixers.active)
+		ClearFixersBar();
+	g_fixers = FixerGroup{};
+
+	vec3_t predicted_mins, predicted_maxs;
+	GetPredictedScaledBounds(horde::MonsterTypeID::FIXBOT_KL, predicted_mins, predicted_maxs);
+
+	const char *map_name = GetCurrentMapName();
+	if (!map_name)
+		map_name = "";
+
+	const bool is_flying = IsFlying(horde::MonsterTypeID::FIXBOT_KL);
+
+	// Find an anchor: prefer the map's registered boss origin, else the validated spawn grid.
+	vec3_t anchor;
+	bool has_anchor = false;
+
+	vec3_t spawn_origin;
+	const horde::MapID mapId = horde::MapOriginRegistry::GetMapID(map_name);
+	if (horde::MapOriginRegistry::GetOrigin(mapId, spawn_origin))
+	{
+		ClearSpawnArea(spawn_origin, predicted_mins, predicted_maxs);
+		const auto validation = IsPositionPhysicallyValidForBoss(spawn_origin, predicted_mins, predicted_maxs, is_flying);
+		if (validation.is_valid)
+		{
+			anchor = validation.adjusted_position;
+			has_anchor = true;
+		}
+	}
+
+	if (!has_anchor)
+		has_anchor = TryBossGridFallbackPosition(predicted_mins, predicted_maxs, is_flying, true, "fixer trio", anchor);
+
+	if (!has_anchor)
+	{
+		if (developer->integer)
+			gi.Com_PrintFmt("SpawnFixerTrio: No valid anchor position for wave {}. Will retry next frame.\n", current_wave_level);
+		boss_spawned_for_wave = false;
+		return;
+	}
+
+	PushEntitiesAway(anchor, PUSH_ITERATIONS, PUSH_BASE_RADIUS, PUSH_BASE_STRENGTH, PUSH_PLAYER_STRENGTH, PUSH_MONSTER_STRENGTH);
+
+	// Defer the actual spawn (same delay + grow as a normal boss). The controller carries the anchor
+	// in its origin and the chosen size category in its count field.
+	edict_t *controller = G_Spawn();
+	controller->classname = "fixer_trio_spawner";
+	controller->s.origin = anchor;
+	controller->count = static_cast<int32_t>(sizeCategory);
+	controller->svflags |= SVF_NOCLIENT;
+	controller->solid = SOLID_NOT;
+	controller->movetype = MOVETYPE_NONE;
+	controller->think = FixersSpawnThink;
+	controller->nextthink = level.time + BOSS_SPAWN_DELAY;
+	gi.linkentity(controller);
+
+	// Commit the encounter now and register it in the rotation so order/cooldown are respected.
+	boss_spawned_for_wave = true;
+	recent_bosses.add(horde::MonsterTypeID::FIXBOT_KL);
+
+	if (developer->integer)
+		gi.Com_PrintFmt("SpawnFixerTrio: anchor reserved for wave {} at {}; fixers arrive after spawn delay.\n", current_wave_level, anchor);
 }
 
 void SpawnBossAutomatically()
@@ -1629,15 +2009,6 @@ void SpawnBossAutomatically()
 		return;
 	}
 
-	// Alternative encounter: occasionally replace the single boss with the Hell Maidens mini-raid.
-	if (current_wave_level >= HELL_MAIDEN_MIN_WAVE &&
-		!RecentlyUsedHellMaidens() &&
-		frandom() < HELL_MAIDEN_BASE_CHANCE)
-	{
-		SpawnHellMaidens();
-		return;
-	}
-
 	// Select boss type
 	const char *map_name = GetCurrentMapName();
 	if (!map_name)
@@ -1653,6 +2024,18 @@ void SpawnBossAutomatically()
 		if (developer->integer)
 			gi.Com_PrintFmt("SpawnBossAutomatically: Failed to pick a boss type for wave {}.\n", current_wave_level);
 		boss_spawned_for_wave = false;
+		return;
+	}
+
+	// Two boss picks are actually 3-monster mini-raids spawned in place of the single boss. Because
+	// they're picked by the normal rotation, they inherit the recent-boss order/spacing. Each finds
+	// its own anchor and commits the wave (or resets boss_spawned_for_wave to retry).
+	if (boss_pick_result.typeId == horde::MonsterTypeID::FIXBOT_KL) {
+		SpawnFixerTrio(boss_pick_result.sizeCategory);
+		return;
+	}
+	if (boss_pick_result.typeId == horde::MonsterTypeID::CHICKKL) {
+		SpawnHellMaidens();
 		return;
 	}
 

@@ -70,6 +70,12 @@ constexpr std::array<reinforcement_def_t, 1> fixbot_reinforcements_defs = { {
 
 constexpr int32_t fixbot_monster_slots_base = 6;
 
+// Concurrent live-turret cap per boss fixbot. monster_slots alone allows a dozen+ turrets, which the
+// boss would spam out; this keeps a sensible deployed presence and lets it replenish losses instead.
+constexpr int32_t fixbot_max_active_turrets = 4;
+// Don't bother spawning a turret when the enemy is already on top of the fixbot — deploy at range.
+constexpr float   fixbot_turret_min_enemy_dist = 220.0f;
+
 // =======================================================================
 // NEW: Helper functions to reduce repetition and improve clarity
 // =======================================================================
@@ -532,22 +538,31 @@ void fixbot_start_spawn(edict_t* self)
 	}
 }
 
-void spawn_turret_at_position(edict_t* self, const vec3_t& position)
+// Returns true only if a turret was actually created, so callers (fixbot_spawn_check) don't play the
+// spawn-success effects on a failed attempt. Most failures here are the global monster caps inside
+// M_CanSpawnMore — the field is full — which is why turret spawns intermittently "fail without reason".
+bool spawn_turret_at_position(edict_t* self, const vec3_t& position)
 {
 	// Validate inputs
 	if (!self || !self->inuse || position.equals(vec3_origin)) {
-		return;
+		return false;
 	}
 
-	// Check if we can spawn more monsters using the helper
+	// Check if we can spawn more monsters using the helper (slots + global/hard monster caps)
 	if (!M_CanSpawnMore(self)) {
-		return;
+		if (developer->integer > 1)
+			gi.Com_PrintFmt("spawn_turret_at_position: blocked by caps (used {}/{}, global {}/{}).\n",
+				self->monsterinfo.monster_used, self->monsterinfo.monster_slots,
+				level.global_spawned_count, level.global_spawner_limit);
+		return false;
 	}
 
 	// Check if turret is precached in horde mode
 	// TURRET is automatically marked as precached when sentrygun spawns (they share the same model)
 	if (g_horde->integer && !IsMonsterTypePrecached(horde::MonsterTypeID::TURRET)) {
-		return; // Don't spawn turret if not precached
+		if (developer->integer > 1)
+			gi.Com_PrintFmt("spawn_turret_at_position: TURRET not precached.\n");
+		return false; // Don't spawn turret if not precached
 	}
 
 	bool isboss = IsBoss(self);
@@ -577,7 +592,7 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	const char* classname = horde::MonsterTypeRegistry::GetClassname(horde::MonsterTypeID::TURRET);
 	if (!classname) {
 		gi.Com_PrintFmt("Fixbot failed to get classname for turret\n");
-		return;
+		return false;
 	}
 
 
@@ -585,9 +600,12 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	// This bypasses both the precache check AND the failing CheckGroundSpawnPoint.
 	edict_t* ent = CreateMonster(position, angles, classname);
 
-	if (!ent) {
-		gi.Com_PrintFmt("Fixbot failed to create turret entity\n");
-		return;
+	if (!ent || !ent->inuse) {
+		// CreateMonster's classname overload always returns an edict, but SP_monster_turret frees it
+		// (inuse == false) if M_AllowSpawn rejected the placement — treat that as a failed spawn.
+		if (developer->integer > 1)
+			gi.Com_PrintFmt("spawn_turret_at_position: CreateMonster failed/placement rejected at {}.\n", position);
+		return false;
 	}
 
 	// Setup spawned entity properties
@@ -639,6 +657,7 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	}
 	ent->monsterinfo.search_time = level.time + (isboss ? 4.5_sec : 3.5_sec);
 	ent->pain_debounce_time = level.time + (isboss ? 2.5_sec : 1.5_sec);
+	return true;
 }
 mframe_t fixbot_frames_run[] = {
 	{ ai_run, 10 }
@@ -714,12 +733,12 @@ void fixbot_spawn_check(edict_t* self) {
 	if ((self->monsterinfo.aiflags & AI_MANUAL_STEERING) &&
 		!self->monsterinfo.blind_fire_target.equals(vec3_origin))
 	{
-		// The position was already validated by find_turret_spawn_position
-		// Perform the actual spawn
-		spawn_turret_at_position(self, self->monsterinfo.blind_fire_target);
-		spawned_successfully = true; // Assume success if we called spawn
+		// The position was validated in prep_spawn, but the field may have changed during the laser
+		// animation. spawn_turret_at_position now reports whether a turret actually appeared, so the
+		// boss "thunk" effect only plays on a real spawn instead of on every (sometimes failed) attempt.
+		spawned_successfully = spawn_turret_at_position(self, self->monsterinfo.blind_fire_target);
 
-		// Add boss-specific effect after successful spawn attempt
+		// Add boss-specific effect after a successful spawn
 		if (spawned_successfully && IsBoss(self)) {
 			gi.WriteByte(svc_temp_entity);
 			gi.WriteByte(TE_BFG_EXPLOSION);
@@ -1983,6 +2002,20 @@ void fixbot_start_attack(edict_t* self)
 }
 
 
+// Count the turrets this fixbot currently has deployed and alive (including any inherited from a
+// fallen Fixer Trio sister, since reassignment moves their owner to the survivor). Used to keep the
+// boss from over-saturating the field and to let it replenish turrets it has actually lost.
+static int32_t fixbot_count_active_turrets(edict_t* self)
+{
+	int32_t count = 0;
+	for (auto ent : active_monsters()) {
+		if (ent->inuse && ent->owner == self && !ent->deadflag && ent->health > 0 &&
+			horde::IsMonsterType(ent, horde::MonsterTypeID::TURRET))
+			++count;
+	}
+	return count;
+}
+
 MONSTERINFO_ATTACK(fixbot_attack) (edict_t* self) -> void
 {
 	// Set optimal flight parameters for combat
@@ -1990,13 +2023,24 @@ MONSTERINFO_ATTACK(fixbot_attack) (edict_t* self) -> void
 
 	bool isboss = IsBoss(self);
 
-	// ONLY boss fixbots should consider spawning turrets during an attack
-	if (isboss) {
-		int slots_left = self->monsterinfo.monster_slots - self->monsterinfo.monster_used;
-		// High chance to spawn if slots are available
-		if (slots_left > 0 && frandom() < 0.4f) {
-			M_SetAnimation(self, &fixbot_move_spawn);
-			return; // Start spawn animation instead of attacking
+	// ONLY boss fixbots should consider spawning turrets during an attack. Smarter logic: only commit
+	// when a turret can actually be placed (M_CanSpawnMore covers slots + the global/hard monster caps
+	// that silently failed turret spawns before), cap how many are deployed at once, deploy them at
+	// range (not point-blank), and taper the chance as the field fills so the boss keeps shooting.
+	if (isboss && M_HasValidTarget(self) && M_CanSpawnMore(self))
+	{
+		const int32_t active_turrets = fixbot_count_active_turrets(self);
+		const float enemy_dist = (self->enemy->s.origin - self->s.origin).length();
+
+		if (active_turrets < fixbot_max_active_turrets && enemy_dist >= fixbot_turret_min_enemy_dist)
+		{
+			// 0 turrets -> ~45% chance, tapering to 0 as we approach the cap.
+			const float fill = static_cast<float>(active_turrets) / static_cast<float>(fixbot_max_active_turrets);
+			const float spawn_chance = 0.45f * (1.0f - fill);
+			if (frandom() < spawn_chance) {
+				M_SetAnimation(self, &fixbot_move_spawn);
+				return; // Start spawn animation instead of attacking
+			}
 		}
 	}
 
@@ -2054,14 +2098,29 @@ void fixbot_dead(edict_t* self)
 DIE(fixbot_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 
+	// A fixer that belongs to a Fixer Trio (loot_share_count > 1) keeps its turrets alive: instead of
+	// destroying them on death, it hands them to a surviving sister so the whole group's turrets only
+	// vanish once the LAST fixer dies. This marker is persistent on the entity, so it stays correct
+	// even if boss_die() already ran for this fixer (e.g. via the gib path).
+	const bool trio_fixer = (self->monsterinfo.boss_loot_share_count > 1);
+
 	// Handle boss death logic if applicable ( Horde mode integration )
 	if (g_horde && g_horde->integer && self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED)
 		boss_die(self);
 
-	// Find and destroy all turrets this fixbot spawned
+	// boss_die() above updated the trio's alive count. If a living sister remains, funnel this fixer's
+	// turrets to her; otherwise (a lone fixbot, or this was the last fixer) destroy them as before.
+	edict_t* turret_heir = trio_fixer ? FirstAliveFixer() : nullptr;
+
+	// Find this fixbot's turrets and either hand them off or destroy them.
 	for (auto ent : active_monsters()) {
 		if (ent->inuse && ent->owner == self && horde::IsMonsterType(ent, horde::MonsterTypeID::TURRET)) {
-		BecomeTE(ent);
+			if (turret_heir) {
+				ent->owner = turret_heir;
+				ent->monsterinfo.commander = turret_heir;
+			} else {
+				BecomeTE(ent);
+			}
 		}
 	}
 

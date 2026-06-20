@@ -977,6 +977,22 @@ void OnEntityRemoved(edict_t* self){
 
 	// --- Free Savable Memory ---
 	self->moveinfo.curve_positions.release();
+
+	// --- Free the turret/sentry laser-sight beam ---
+	// The laser sight is a separate RF_BEAM entity stored in target_ent and owned by the turret.
+	// turret2_die() frees it explicitly, but turrets are also removed through paths that bypass
+	// the die handler: fixbot_die() -> BecomeTE() -> G_FreeEdict, remove_sentries() -> G_FreeEdict,
+	// fade-out/stuck-entity cleanup, etc. G_FreeEdict never frees an entity's owned children, so
+	// those paths used to orphan the beam, leaving a laser sight lingering in the world. Freeing it
+	// here covers every removal path. The classname+owner gate keeps this strictly scoped.
+	if (self->target_ent && self->target_ent->inuse &&
+		self->target_ent->owner == self &&
+		self->target_ent->classname &&
+		!Q_strcasecmp(self->target_ent->classname, "turret_lasersight"))
+	{
+		G_FreeEdict(self->target_ent);
+		self->target_ent = nullptr;
+	}
 }
 
 void CleanupInvalidEntities() {

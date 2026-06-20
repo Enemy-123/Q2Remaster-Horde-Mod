@@ -525,8 +525,8 @@ MONSTER_FIXBOT_DAMAGE_MAX_PLASMA                 = 20
 MONSTER_FIXBOT_ADDON_DAMAGE_PLASMA               = 0
 
 -- Fixbotkl
-MONSTER_FIXBOTKL_HEALTH                          = 1000
-MONSTER_FIXBOTKL_POWER_ARMOR_POWER               = 800
+MONSTER_FIXBOTKL_HEALTH                          = 300
+MONSTER_FIXBOTKL_POWER_ARMOR_POWER               = 500
 MONSTER_FIXBOTKL_POWER_ARMOR_TYPE                = "shield"
 MONSTER_FIXBOTKL_HEALTH_SCALE                    = 1
 MONSTER_FIXBOTKL_DAMAGE_SCALE                    = 1.2

@@ -124,6 +124,12 @@ void HandleForcedBossRemoval(edict_t *boss);
 void SpawnHellMaidens();
 bool IsHellMaiden(const edict_t *ent) noexcept;
 
+// Fixer Trio — the Fixer boss (FIXBOT_KL) spawned as a 3-fixbot mini-raid with the same shared
+// health bar + mutual-heal mechanic as the Hell Maidens, plus turrets that persist until the last
+// fixer dies. Spawned in place of the single Fixer boss when the rotation picks it.
+void SpawnFixerTrio(BossSizeCategory sizeCategory);
+bool IsFixer(const edict_t *ent) noexcept;
+
 // Helper functions
 template<size_t N>
 constexpr BossDataSoA create_boss_soa(const std::array<boss_t, N> &boss_list);
