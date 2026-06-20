@@ -713,6 +713,36 @@ Use this call with a distance of 0 to replace ai_face
 ==============
 */
 
+// Returns true when the straight line of fire from self to target is physically obstructed by
+// another body (a teammate, or another monster) instead of being clear. Unlike visible(), which
+// only traces world geometry, this includes entities — so anyone standing in the way counts as
+// blocked. Used so a monster re-targets the closest visible enemy (often the blocker itself)
+// rather than staring and dry-firing through whoever is in front of it.
+static bool M_AttackLaneBlocked(edict_t* self, edict_t* target)
+{
+	if (!self || !target || !target->inuse)
+		return false;
+
+	vec3_t start = self->s.origin;
+	start.z += (self->viewheight != 0 ? self->viewheight : (self->maxs.z > 4 ? self->maxs.z - 4 : 0));
+
+	// Mirror M_CheckClearShot's clear-shot test at the enemy's head and feet; the lane only counts
+	// as blocked when BOTH aim points are obstructed by something that isn't our target. Hitting a
+	// client (player) counts as clear since players are valid enemies, not a wasted shot.
+	for (const float z : { static_cast<float>(target->viewheight), 0.f })
+	{
+		vec3_t end = target->s.origin;
+		end.z += z;
+
+		const trace_t tr = gi.traceline(start, end, self, MASK_PROJECTILE & ~CONTENTS_DEADMONSTER);
+
+		if (tr.ent == target || (tr.ent && tr.ent->client) || tr.fraction > 0.8f)
+			return false; // clear enough to at least one aim point
+	}
+
+	return true;
+}
+
 static bool M_HandleStalledAttackRetarget(edict_t* self, float dist)
 {
 	static constexpr gtime_t LOS_STALL_RETARGET_TIME = 500_ms;
@@ -760,7 +790,10 @@ static bool M_HandleStalledAttackRetarget(edict_t* self, float dist)
 			return false;
 		}
 
-		if (visible(self, self->enemy, false))
+		// A clear line of sight only counts as "not stalled" when nothing is standing in our line of
+		// fire. If a body (teammate or another enemy) blocks the shot, fall through and let the
+		// retarget timer run so we switch to the closest visible enemy or reposition.
+		if (visible(self, self->enemy, false) && !M_AttackLaneBlocked(self, self->enemy))
 		{
 			self->monsterinfo.no_los_attack_time = 0_ms;
 			return false;
@@ -2538,6 +2571,31 @@ bool ai_checkattack(edict_t* self, float dist)
 	if (self->monsterinfo.checkattack_time <= level.time)
 	{
 		self->monsterinfo.checkattack_time = level.time + 0.07_sec; // Throttle checkattack calls
+
+		// If our line of fire to the current enemy is obstructed by another body (a teammate or a
+		// closer enemy), don't stand there attacking through it. Re-target the closest visible enemy
+		// (often the blocker itself) so we engage who we can actually hit; otherwise keep this enemy
+		// and let ai_run reposition us for a clear shot.
+		if (enemy_vis && range_to(self, self->enemy) > RANGE_MELEE &&
+			!(self->monsterinfo.aiflags & (AI_MEDIC | AI_MANUAL_STEERING)) &&
+			M_AttackLaneBlocked(self, self->enemy))
+		{
+			edict_t* const blocked_enemy = self->enemy;
+			const bool found_clear =
+				self->monsterinfo.isfriendlyspawn ? FindMTarget(self) :
+				g_horde->integer                  ? FindEnhancedTarget(self) :
+				                                     FindTarget(self);
+
+			if (found_clear && self->enemy && self->enemy != blocked_enemy)
+			{
+				HuntTarget(self); // engage the clearer/closer enemy
+				return false;     // don't attack the blocked enemy this frame
+			}
+
+			if (!self->enemy)
+				self->enemy = blocked_enemy; // finder cleared it; keep current and reposition
+		}
+
 		if (self->monsterinfo.checkattack) // Ensure the function pointer is valid
 			retval = self->monsterinfo.checkattack(self);
 	}
