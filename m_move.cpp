@@ -29,17 +29,20 @@ constexpr float REPULSION_STRENGTH_TIGHT_CORRIDOR = 0.0f; // New: completely dis
 constexpr float REPULSION_LATERAL_MAX_FRACTION = 0.5f;    // cap sideways nudge to this fraction of the step length (keeps goal dominant)
 constexpr float REPULSION_MIN_THRESHOLD_SQ = 1.0f;
 
-// --- Hard separation: summoned Stroggs deeply overlapping a DIFFERENT-team monster ---
+// --- Hard separation: summoned Stroggs deeply overlapping a non-friendly (enemy) monster ---
 // Lateral repulsion can't separate two mutual enemies (the push is anti-parallel to the goal, so
 // its lateral component is ~0 and gets stripped). This adds a FULL (non-lateral) un-stacking push,
-// gated to summoned stroggs only and only at DEEP overlap, so they un-pile yet can still close to
-// melee. One-sided (only the strogg accumulates it) -> no symmetric ping-pong, normal crowd untouched.
+// gated to summoned stroggs vs monsters WITHOUT BF_FRIENDLY (every friendly spawn carries that flag,
+// enemies never do) and only at DEEP overlap, so they un-pile yet can still close to melee. One-sided
+// (only the strogg accumulates it) -> no symmetric ping-pong, friendly crowd untouched. The strength
+// has to BEAT a head-on grind: when strogg and enemy target each other both walk a full step into each
+// other per frame, so the push is sized to out-pace that (cap > 1 step) instead of stalemating in place.
 constexpr float HARD_SEPARATION_DEEP_OVERLAP_FRACTION = 0.5f; // engage only when dist < personal_space * this (or boxes intersect)
 constexpr float HARD_SEPARATION_MAX_FORCE             = 24.0f; // peak per-neighbor push (matches REPULSION_MAX_FORCE)
-constexpr float HARD_SEPARATION_STRENGTH              = 0.6f;  // applied fraction (stronger than lateral so it actually un-stacks)
-constexpr float HARD_SEPARATION_STRENGTH_COMBAT       = 0.5f;  // scale vs a live enemy (don't shove past melee range)
+constexpr float HARD_SEPARATION_STRENGTH              = 0.9f;  // applied fraction (strong enough to win a head-on grind vs an enemy)
+constexpr float HARD_SEPARATION_STRENGTH_COMBAT       = 0.75f; // scale vs a live enemy - kept high so they still un-stack while fighting
 constexpr float HARD_SEPARATION_MIN_DIST              = 4.0f;  // floor in falloff denominator (anti force-spike at near-zero distance)
-constexpr float HARD_SEPARATION_STEP_CAP_FRACTION     = 1.0f;  // cap total hard push to this * step length (anti-jitter)
+constexpr float HARD_SEPARATION_STEP_CAP_FRACTION     = 1.5f;  // cap total hard push to this * step length (>1 so a strogg out-backs a head-on pursuer)
 
 // Wall repulsion constants - keeps monsters off walls so squeezed boxes don't park their
 // (full-size) model inside geometry. Lateral-only vs. the goal direction, so it never blocks
@@ -219,12 +222,14 @@ static vec3_t CalculateMonsterRepulsion(edict_t* ent)
 		repulsion += push;
 		nearby_count++;
 
-		// --- Hard separation: only when WE are a summoned strogg and the neighbor is a different-team
-		// monster (normal monsters are NOTEAM; OnSameTeam(team1, NOTEAM) == false). Two summoned stroggs
-		// were already skipped above, so this never fights a teammate. Deep overlap only -> melee still
-		// works. This is the un-stack fix: applied FULL (not lateral) in ApplyMonsterRepulsion, so the
-		// along-goal separating component survives when a strogg and its enemy point goals at each other.
-		if (ent->monsterinfo.issummoned && !OnSameTeam(ent, other))
+		// --- Hard separation: only when WE are a summoned strogg and the neighbor is a REAL enemy
+		// (a monster WITHOUT BF_FRIENDLY). Every friendly spawn carries BF_FRIENDLY, so this never shoves
+		// an ally - and unlike the old OnSameTeam test it doesn't ride on the CTF_NOTEAM coincidence (a
+		// summoned strogg that happened to share the enemy team id would have slipped through). Two
+		// summoned stroggs are already skipped above. Deep overlap only -> melee still works. Applied FULL
+		// (not lateral) in ApplyMonsterRepulsion, so the along-goal separating component survives when a
+		// strogg and its enemy point goals at each other - that's what un-stacks two mutual enemies grinding.
+		if (ent->monsterinfo.issummoned && !(other->monsterinfo.bonus_flags & BF_FRIENDLY))
 		{
 			const float deep_dist = personal_space * HARD_SEPARATION_DEEP_OVERLAP_FRACTION;
 			const bool deeply_overlapping =
