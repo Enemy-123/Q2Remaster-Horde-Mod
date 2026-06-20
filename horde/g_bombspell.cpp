@@ -36,6 +36,7 @@ constexpr int FLOOR_PITCH = 90;     // Looking down
 
 // Forward declarations
 void spawn_grenades(edict_t* ent, const vec3_t& origin, gtime_t time, int damage, int num);
+void Grenade_Touch(edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self);
 void T_RadiusDamage_TeamSafe(edict_t* inflictor, edict_t* attacker, float damage,
                              edict_t* ignore, float radius, damageflags_t dflags, mod_t mod);
 void T_SlamRadiusDamage(vec3_t point, edict_t* inflictor, edict_t* attacker, float damage,
@@ -82,37 +83,43 @@ void T_RadiusDamage_TeamSafe(edict_t* inflictor, edict_t* attacker, float damage
 }
 
 // Helper function to spawn grenades
+// Dedicated vertical-drop dropper (mirrors the original Vortex spawn_grenades): each grenade
+// falls straight down with the EF_GRENADE trail and explodes on contact or after its fuse.
+// Callers spread the spawn origin themselves, so no per-grenade horizontal jitter here.
 void spawn_grenades(edict_t* ent, const vec3_t& origin, gtime_t time, int damage, int num)
 {
     if (!ent || num <= 0 || damage <= 0)
         return;
 
-    vec3_t start = origin;
-
-    // Spawn grenades that fall downward
     for (int i = 0; i < num; i++)
     {
-        // Start with straight down direction
-        vec3_t dir = { 0, 0, -1 };
+        edict_t* grenade = G_Spawn();
+        if (!grenade)
+            return;
 
-        // Add slight random horizontal spread for variety
-        dir.x = crandom() * 0.05f;  // Very slight horizontal variation
-        dir.y = crandom() * 0.05f;
-        dir = dir.normalized();
+        grenade->owner        = ent;
+        grenade->s.origin     = origin;
+        grenade->velocity     = { 0, 0, -300 };  // straight down, like Vortex
+        grenade->avelocity    = { 200.f + crandom() * 10.f, 200.f + crandom() * 10.f, 200.f + crandom() * 10.f };
+        grenade->movetype     = MOVETYPE_BOUNCE;
+        grenade->clipmask     = MASK_SHOT;
+        grenade->solid        = SOLID_BBOX;
+        grenade->s.effects   |= EF_GRENADE;  // falling-grenade trail (the key visual)
+        grenade->svflags     |= SVF_PROJECTILE;
+        grenade->mins         = { -8, -8, -8 };
+        grenade->maxs         = {  8,  8,  8 };
+        grenade->s.modelindex = gi.modelindex("models/objects/grenade/tris.md2");
+        grenade->dmg          = damage;
+        grenade->dmg_radius   = g_config.bomb_spell.damage_radius;  // keep Horde's radius
+        grenade->classname    = "grenade";
+        grenade->touch        = Grenade_Touch;
+        grenade->think        = Grenade_Explode;  // both read ent->dmg / ent->dmg_radius
+        grenade->nextthink    = level.time + time;  // fuse passed in by caller
 
-        // Adjust starting position slightly for multiple grenades
-        vec3_t spawn_pos = start;
-        if (num > 1) {
-            spawn_pos.x += crandom() * 10.0f;
-            spawn_pos.y += crandom() * 10.0f;
-        }
+        // Keep attacker info so damage is attributed even if the owner dies first
+        SetProjectileAttackerInfo(grenade, ent);
 
-        // Fire grenade with minimal initial velocity (let gravity do the work)
-        // Low speed and high up_adjust creates an arc that falls naturally
-        fire_grenade(ent, spawn_pos, dir, damage, 200, time, g_config.bomb_spell.damage_radius,
-                    crandom() * 5.0f,  // Small random horizontal adjustment
-                    50.0f + crandom() * 20.0f,  // Small upward velocity for arc
-                    false);
+        gi.linkentity(grenade);
     }
 }
 
@@ -229,7 +236,7 @@ THINK(carpetbomb_think)(edict_t* self) -> void
         if (is_monster_owner)
         {
             self->s.origin = start;
-            self->nextthink = level.time + FRAME_TIME_MS * 2;  // Doubled to slow down movement
+            self->nextthink = level.time + FRAME_TIME_MS;  // Vortex sweep speed (single frame per step)
             gi.linkentity(self);
             return;
         }
@@ -255,7 +262,7 @@ THINK(carpetbomb_think)(edict_t* self) -> void
 
     // Restore entity to starting position for next think
     self->s.origin = start;
-    self->nextthink = level.time + FRAME_TIME_MS * 2;  // Doubled to slow down movement
+    self->nextthink = level.time + FRAME_TIME_MS;  // Vortex sweep speed (single frame per step)
 
     gi.linkentity(self);
 }
@@ -443,8 +450,8 @@ void CarpetBomb(edict_t* ent)
 // Bomb area think function
 THINK(bombarea_think)(edict_t* self) -> void
 {
-    float thinktime, bombtime;
-    vec3_t start, spawn_pos;
+    float bombtime;
+    vec3_t start;
 
     // Check owner validity - support both players and monsters
     if (!self->owner || !self->owner->inuse || self->owner->health <= 0 || level.time >= self->timestamp)
@@ -460,37 +467,21 @@ THINK(bombarea_think)(edict_t* self) -> void
         return;
     }
 
-    // Calculate think time
-    thinktime = 0.3f + 0.2f * frandom();  // Slower interval (was 0.15-0.25, now 0.3-0.5)
-
-    // Start from the area center
-    start = self->s.origin;
-
-    // Spread randomly around the area
-    start.x += frandom(-BOMBAREA_WIDTH / 2, BOMBAREA_WIDTH / 2);
-    start.y += frandom(-BOMBAREA_WIDTH / 2, BOMBAREA_WIDTH / 2);
-
-    // Set spawn position above the target area
-    spawn_pos = start;
-
-    // Check what kind of surface we're bombing
+    // Match Vortex: 1 grenade per think, spawned on the surface via a horizontal trace so
+    // grenades never appear through walls. The emitter is already elevated to ceiling height
+    // for floor targets (see BombArea), so grenades fall from above onto the area below.
     bool is_ceiling = (self->s.angles[PITCH] > 225 && self->s.angles[PITCH] < 315);
 
-    if (is_ceiling)
-    {
-        spawn_pos.z -= 50;  // Spawn slightly below ceiling
-    }
-    else  // Floor bombing
-    {
-        spawn_pos.z += 200 + frandom(50, 150);  // Spawn 200-350 units above floor
-    }
+    start = self->s.origin;
+    start.x += frandom(0, BOMBAREA_WIDTH / 2) * crandom();  // Vortex-style center-biased spread
+    start.y += frandom(0, BOMBAREA_WIDTH / 2) * crandom();
 
-    // Spawn fewer grenades per wave for slower start (reduced from 2-3 to 1-2)
-    bombtime = 0.5f + 2.0f * frandom();
-    int grenade_count = irandom(2, 3);
-    spawn_grenades(self->owner, spawn_pos, gtime_t::from_sec(bombtime), self->dmg, grenade_count);
+    trace_t tr = gi.traceline(self->s.origin, start, self, MASK_SHOT);
 
-    self->nextthink = level.time + gtime_t::from_sec(thinktime);
+    bombtime = is_ceiling ? (1.0f + 2.0f * frandom()) : (0.5f + 2.0f * frandom());
+    spawn_grenades(self->owner, tr.endpos, gtime_t::from_sec(bombtime), self->dmg, 1);
+
+    self->nextthink = level.time + 200_ms;  // Vortex steady patter (~0.2s)
 }
 
 // Bomb area function
@@ -599,7 +590,19 @@ void BombArea(edict_t* ent)//, float skill_mult, float cost_mult)
     bomb->dmg = damage;
     bomb->think = bombarea_think;
     bomb->s.angles = angles;
-    bomb->s.origin = tr.endpos;
+
+    // Elevate the emitter so grenades rain down from above (Vortex behavior). For a floor
+    // target, lift toward ceiling height (up to BOMBAREA_FLOOR_HEIGHT); for a ceiling target
+    // keep it at the ceiling so grenades drop straight down from it.
+    vec3_t emitter_origin = tr.endpos;
+    if (!is_ceiling)
+    {
+        vec3_t up_end = tr.endpos;
+        up_end.z += BOMBAREA_FLOOR_HEIGHT;
+        trace_t up_tr = gi.traceline(tr.endpos, up_end, ent, MASK_SOLID);
+        emitter_origin = up_tr.endpos;
+    }
+    bomb->s.origin = emitter_origin;
     bomb->classname = "bombspell";  // Set classname for identification
 
     gi.linkentity(bomb);
@@ -614,7 +617,7 @@ void BombArea(edict_t* ent)//, float skill_mult, float cost_mult)
 THINK(bombperson_think)(edict_t* self) -> void
 {
     int height, max_height;
-    float bombtime, thinktime;
+    float thinktime;
     vec3_t start;
     trace_t tr;
 
@@ -629,12 +632,14 @@ THINK(bombperson_think)(edict_t* self) -> void
         return;
     }
 
-    // Calculate drop rate based on remaining time
-    float time_remaining = (self->timestamp - level.time).seconds();
-    bombtime = time_remaining - 2.0f;  // Leave 2 seconds buffer
-    if (bombtime < 0)
-        bombtime = 0;
-    thinktime = 0.25f * (bombtime + 1.0f);
+    // Calculate drop rate (Vortex cadence): ramps from ~0.5s at cast down to a steady 0.25s
+    // after the first ~2 seconds, so bombs start raining promptly instead of slowly.
+    gtime_t bombtime = (self->timestamp - BOMBPERSON_DURATION) + 2_sec;  // max rate 2s after cast
+    if (bombtime < level.time)
+        bombtime = level.time;
+    thinktime = 0.25f * ((bombtime + 1_sec) - level.time).seconds();
+    if (thinktime < 0.25f)
+        thinktime = 0.25f;
 
     // Update position to follow enemy, but don't modify self yet
     vec3_t target_pos = self->enemy->s.origin;

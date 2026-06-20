@@ -289,7 +289,7 @@ struct BombSpellConfig
 	int forward_cooldown_ms = 1500;
 	int area_cooldown_ms = 10000;
 	int max_height = 256;
-	int step_size = 96;
+	int step_size = 128;  // Vortex CARPETBOMB_STEP_SIZE
 	int carpet_width = 200;
 };
 

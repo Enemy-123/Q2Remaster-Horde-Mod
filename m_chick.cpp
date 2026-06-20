@@ -1762,13 +1762,13 @@ MONSTERINFO_ATTACK(chickkl_attack) (edict_t* self) -> void
 			}
 			else
 			{
-				// Ranged - fire grenades or plasma
-				if (frandom() <= 0.5f)
-				{
-					// Grenade attack using proper mmove
-					M_SetAnimation(self, &chickkl_move_grenade);
-				}
-				else
+				//// Ranged - fire grenades or plasma
+				//if (frandom() <= 0.5f)
+				//{
+				//	// Grenade attack using proper mmove
+				//	M_SetAnimation(self, &chickkl_move_grenade);
+				//}
+				//else
 				{
 					// Plasma attack
 					M_SetAnimation(self, &chickkl_move_attack1);

@@ -3028,6 +3028,11 @@ struct MonsterSelectionContext
 	bool isRecoveryModeActive = false;
 	float flyingAdjustmentFactor = 1.0f;
 	bool isBossWaveMinionPhase = false;
+	// During a Heavy-boss minion phase, the heaviest unit tier actually fillable at effectiveLevel
+	// (Heavy / Medium / Light). Lets BossMinionExcludesMonster degrade the Heavy requirement
+	// gracefully instead of starving an early Heavy boss into the soldier_light emergency pool.
+	// None outside that phase. See ComputeBossMinionTierFloor.
+	MonsterWaveType bossMinionTierFloor = MonsterWaveType::None;
 };
 
 struct MonsterCache
@@ -3629,6 +3634,35 @@ static bool BossHasExplicitRoster(horde::MonsterTypeID boss)
 	return boss == ID::WIDOW || boss == ID::WIDOW2 || boss == ID::PSX_ARACHNID;
 }
 
+// Heaviest minion tier actually fillable at `level` for a Heavy-boss wave: Heavy if any precached
+// Heavy ground unit is unlocked at that level, else Medium if any Medium ground unit is, else Light.
+// This is the "graceful degrade" that stops early Heavy bosses (e.g. the Guardian at wave 10, before
+// any Heavy minion unlocks) from falling through to the all-soldier_light emergency pool. `allowHeavy`
+// is cleared on the early boss waves (10/15) so their escort is drawn from the Medium tier even once
+// Heavy units exist (see the early-wave degrade in G_HordePickMonsterType).
+static MonsterWaveType ComputeBossMinionTierFloor(int32_t level, bool spawnPointFlying, bool allowHeavy)
+{
+	if (spawnPointFlying)
+		return MonsterWaveType::Light; // flying lanes aren't governed by the ground Heavy rule
+
+	bool has_medium = false;
+	for (const MonsterTypeInfo* monster_info : g_eligible_monsters_for_wave)
+	{
+		const size_t i = static_cast<size_t>(monster_info->typeId);
+		if (!g_precached_monster_types_flags[i]) continue;
+		if (g_monsterData.minWaves[i] > level) continue;
+
+		const MonsterWaveType flags = g_monsterData.waveTypes[i];
+		if (!HasWaveType(flags, MonsterWaveType::Ground)) continue;
+
+		if (allowHeavy && HasWaveType(flags, MonsterWaveType::Heavy))
+			return MonsterWaveType::Heavy; // Heavy wins outright
+		if (HasWaveType(flags, MonsterWaveType::Medium))
+			has_medium = true;
+	}
+	return has_medium ? MonsterWaveType::Medium : MonsterWaveType::Light;
+}
+
 // During a boss-wave minion phase, returns true when a monster should be EXCLUDED because it
 // doesn't fit the boss's wave. Boss waves build the eligible pool typeless, so this is where the
 // boss's character is actually enforced on the minions. No-op outside the minion phase or before
@@ -3671,11 +3705,47 @@ static bool BossMinionExcludesMonster(const MonsterSelectionContext& ctx, horde:
 	if (requested_themes != MonsterWaveType::None)
 		return (monster & requested_themes) == MonsterWaveType::None;
 
-	// Heavy-units wave (e.g. Tank 64): ground+heavy boss with no theme.
-	if (wave_wants_ground && HasWaveType(wave, MonsterWaveType::Heavy) && !HasWaveType(monster, MonsterWaveType::Heavy))
-		return true;
+	// Heavy-units wave (e.g. Tank 64): ground+heavy boss with no theme. Instead of a hard
+	// "must be Heavy" rule -- which starves an early Heavy boss (the Guardian at wave 10, before any
+	// Heavy minion unlocks) and dumps it into the soldier_light emergency pool -- exclude only down
+	// to ctx.bossMinionTierFloor, the heaviest tier actually fillable at this level.
+	if (wave_wants_ground && HasWaveType(wave, MonsterWaveType::Heavy))
+	{
+		if (ctx.bossMinionTierFloor == MonsterWaveType::Light)
+			return false; // nothing Heavy/Medium unlocked yet; accept any ground unit
+		if (ctx.bossMinionTierFloor == MonsterWaveType::Medium)
+			return !HasWaveType(monster, MonsterWaveType::Heavy) &&
+			       !HasWaveType(monster, MonsterWaveType::Medium);
+		return !HasWaveType(monster, MonsterWaveType::Heavy); // floor == Heavy (default/strict)
+	}
 
 	return false;
+}
+
+// How many precached minions would survive the boss-minion filter at `level`, with a tier floor
+// computed using `allowHeavy`. Used by the early-wave degrade to walk the reduced level back up
+// until the escort has enough variety, so an intentionally-softer wave can never collapse into a
+// single basic type (the soldier_light problem).
+static int CountEligibleBossMinions(const MonsterSelectionContext& ctx, int32_t level, bool allowHeavy)
+{
+	MonsterSelectionContext probe = ctx;
+	probe.effectiveLevel = level;
+	probe.bossMinionTierFloor = ComputeBossMinionTierFloor(level, ctx.isSpawnPointFlying, allowHeavy);
+
+	int count = 0;
+	for (const MonsterTypeInfo* monster_info : g_eligible_monsters_for_wave)
+	{
+		const size_t i = static_cast<size_t>(monster_info->typeId);
+		if (!g_precached_monster_types_flags[i]) continue;
+		if (g_monsterData.minWaves[i] > level) continue;
+
+		const bool monster_is_flying = IsFlying(monster_info->typeId);
+		if (ctx.isSpawnPointFlying && !monster_is_flying) continue;
+		if (BossMinionExcludesMonster(probe, monster_info->typeId, monster_is_flying)) continue;
+
+		count++;
+	}
+	return count;
 }
 
 // Add monsters with relaxed wave type filter (used in low variety fallback)
@@ -4055,6 +4125,43 @@ horde::MonsterTypeID G_HordePickMonsterType(
 		attemptHigherLevel = ShouldAttemptHigherLevelSpawn(ctx.currentActualLevel, ctx.isRetaliationActive, ctx.isRecoveryModeActive);
 	}
 	ctx.effectiveLevel = CalculateEffectiveMonsterLevel(ctx.currentActualLevel, attemptHigherLevel, ctx.waveTypeForFiltering);
+
+	// --- 2b. Boss-wave minion shaping ---
+	// The boss itself is the headline threat; shape its escort so it is neither starved (the
+	// Guardian-at-wave-10 -> soldier_light bug) nor overwhelming on the earliest boss waves.
+	if (ctx.isBossWaveMinionPhase)
+	{
+		// Early boss waves (10 & 15): draw the escort from a lower tier -- a few levels down AND with
+		// the Heavy requirement relaxed to Medium -- so the supporting horde isn't also top-of-roster.
+		// Guarded by a variety check that walks the reduced level back up, so the softer wave can
+		// never collapse into the soldier_light emergency fallback.
+		const bool isEarlyBossWave = (ctx.currentActualLevel == 10 || ctx.currentActualLevel == 15);
+		const bool allowHeavyFloor = !isEarlyBossWave;
+
+		if (isEarlyBossWave)
+		{
+			constexpr int32_t MINION_LEVEL_REDUCTION = 4;  // ~3-4 levels softer escort
+			constexpr int32_t MIN_MINION_LEVEL = 6;        // floor: the Medium tier reliably exists here
+			constexpr int32_t MIN_MINION_VARIETY = 5;      // raise the level back up if fewer types survive
+
+			int32_t reducedLevel = std::max(MIN_MINION_LEVEL, ctx.currentActualLevel - MINION_LEVEL_REDUCTION);
+			while (reducedLevel < ctx.currentActualLevel &&
+			       CountEligibleBossMinions(ctx, reducedLevel, allowHeavyFloor) < MIN_MINION_VARIETY)
+			{
+				reducedLevel++;
+			}
+			ctx.effectiveLevel = std::min(ctx.effectiveLevel, reducedLevel);
+
+			if (developer->integer > 1)
+				gi.Com_PrintFmt("BOSS MINION DEGRADE: wave {} -> minion level {} ({} eligible types)\n",
+					ctx.currentActualLevel, ctx.effectiveLevel,
+					CountEligibleBossMinions(ctx, ctx.effectiveLevel, allowHeavyFloor));
+		}
+
+		// Heaviest minion tier we can actually fill at the (possibly reduced) level. Drives the
+		// Heavy->Medium->Light degrade in BossMinionExcludesMonster.
+		ctx.bossMinionTierFloor = ComputeBossMinionTierFloor(ctx.effectiveLevel, ctx.isSpawnPointFlying, allowHeavyFloor);
+	}
 
 	// --- 3. Build cache (also precaches + records this wave's elite pick when attempting one) ---
 	BuildMonsterCache(g_monster_picker_internal_cache, ctx);
