@@ -228,16 +228,16 @@ static inline void UpdateLaserSight(edict_t* self)
 	// Heatbeam (== blaster) is an instant beam attack and gets no laser sight; every
 	// other turret/sentry variant does. Drop any stale beam so a no-laser variant
 	// never keeps one lingering.
-	if (self->spawnflags.has(SPAWNFLAG_TURRET2_NO_LASERSIGHT) ||
-		self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
-	{
-		if (self->target_ent)
-		{
-			G_FreeEdict(self->target_ent);
-			self->target_ent = nullptr;
-		}
-		return;
-	}
+	//if (self->spawnflags.has(SPAWNFLAG_TURRET2_NO_LASERSIGHT) ||
+	//	self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
+	//{
+	//	if (self->target_ent)
+	//	{
+	//		G_FreeEdict(self->target_ent);
+	//		self->target_ent = nullptr;
+	//	}
+	//	return;
+	//}
 
 	// Create laser sight entity if it doesn't exist
 	if (!self->target_ent)
@@ -560,9 +560,14 @@ MMOVE_T(turret2_move_run) = { FRAME_run01, FRAME_run02, turret2_frames_run, turr
 
 void turret2_ready_gun(edict_t* self)
 {
-	if (self->monsterinfo.active_move != &turret2_move_ready_gun)
+	// No spin-up: snap straight to the combat-ready run state so the turret can aim and
+	// fire the instant it has a target (e.g. right after being deployed). The old
+	// turret2_move_ready_gun ramp played FRAME_active01..run01 (~0.7s) before the first
+	// shot, which made freshly-spawned sentries sit idle for a moment - looking "hurt"/
+	// inactive - even with an enemy already in view.
+	if (self->monsterinfo.active_move != &turret2_move_run)
 	{
-		M_SetAnimation(self, &turret2_move_ready_gun);
+		M_SetAnimation(self, &turret2_move_run);
 		//		self->monsterinfo.weapon_sound = sound_moving;
 	}
 }
@@ -619,7 +624,7 @@ MONSTERINFO_RUN(turret2_run) (edict_t* self) -> void
 			if (!can_attack_current) {
 				vec3_t target_pos = self->enemy->s.origin;
 				target_pos[2] += self->enemy->client ? self->enemy->viewheight :
-					(self->enemy->maxs[2] - self->enemy->mins[2]) * 0.5f;
+					(self->enemy->maxs[2] + self->enemy->mins[2]) * 0.5f;
 				can_attack_current = turret2_CanShootThroughObstacles(self, muzzle_pos, target_pos);
 			}
 
@@ -1116,7 +1121,7 @@ static void TurretFirePlasma(edict_t* self, const vec3_t& start, const vec3_t& d
 		return;
 	}
 
-	const float projectileSpeed = self->monsterinfo.quadfire_time > level.time ? 1450 : 1250;
+	const float projectileSpeed = self->monsterinfo.quadfire_time > level.time ? 2000 : 1750;
 	vec3_t fire_dir = dir;
 	vec3_t target_pos;
 
@@ -1355,7 +1360,7 @@ void turret2Fire(edict_t* self) {
 		if (self->enemy->client)
 			end[2] += self->enemy->viewheight;
 		else
-			end[2] += (self->enemy->maxs[2] - self->enemy->mins[2]) * 0.5f;
+			end[2] += (self->enemy->maxs[2] + self->enemy->mins[2]) * 0.5f;
 	}
 
 	// Calculate actual muzzle position using M_ProjectFlashSource (like tank blaster fix)
@@ -1437,15 +1442,19 @@ void turret2Fire(edict_t* self) {
             self->monsterinfo.aiflags |= AI_HOLD_FRAME;
             self->monsterinfo.duck_wait_time = level.time +
                 (self->monsterinfo.quadfire_time > level.time ? 4_sec : 3_sec);
-            self->monsterinfo.next_duck_time = level.time + 0.05_sec; // Fast update for smooth beam
+            state->next_heatbeam_fire_time = level.time; // fire on the very first frame
             state->heatbeam_active = true;
             state->heatbeam_start_time = level.time;
             state->heatbeam_duration = self->monsterinfo.duck_wait_time - level.time; // Track beam duration explicitly
         }
 
-		// Fire heatbeam continuously while holding frame
-		if (self->monsterinfo.next_duck_time <= level.time) {
-			self->monsterinfo.next_duck_time = level.time + 0.05_sec; // Keep updating rapidly
+		// Fire heatbeam continuously while holding frame. Use the sentry's own cadence
+		// timer here - NOT monsterinfo.next_duck_time, which TurretSparks shoves 2-4.5s
+		// into the future whenever health <= 50%. Sharing it was starving the beam: a
+		// freshly-deployed (or damaged) heatbeam turret would aim but not fire until the
+		// spark timer happened to elapse.
+		if (state->next_heatbeam_fire_time <= level.time) {
+			state->next_heatbeam_fire_time = level.time + 0.05_sec; // Keep updating rapidly
 
 			// Use the already-calculated muzzle position from M_ProjectFlashSource
 			// Simpler prediction calculation
@@ -1621,7 +1630,7 @@ MONSTERINFO_ATTACK(turret2_attack) (edict_t* self) -> void
 		if (!can_shoot_current) {
 			vec3_t target_pos = self->enemy->s.origin;
 			target_pos[2] += self->enemy->client ? self->enemy->viewheight :
-				(self->enemy->maxs[2] - self->enemy->mins[2]) * 0.5f;
+				(self->enemy->maxs[2] + self->enemy->mins[2]) * 0.5f;
 			can_shoot_current = turret2_CanShootThroughObstacles(self, muzzle_pos, target_pos);
 		}
 
@@ -1648,7 +1657,7 @@ MONSTERINFO_ATTACK(turret2_attack) (edict_t* self) -> void
 				if (!can_shoot_old) {
 					vec3_t old_target_pos = self->oldenemy->s.origin;
 					old_target_pos[2] += self->oldenemy->client ? self->oldenemy->viewheight :
-						(self->oldenemy->maxs[2] - self->oldenemy->mins[2]) * 0.5f;
+						(self->oldenemy->maxs[2] + self->oldenemy->mins[2]) * 0.5f;
 					can_shoot_old = turret2_CanShootThroughObstacles(self, old_muzzle_pos, old_target_pos);
 				}
 
@@ -2121,17 +2130,31 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 	// Get positions for line of sight check
 	vec3_t spot1 = self->s.origin;
 	spot1[2] += self->viewheight;
+
+	// Aim at the enemy's vertical hull *center*. NOTE: maxs/mins are already scaled at
+	// spawn (g_monster.cpp: mins/maxs *= s.scale) and adjusted by squeeze-to-fit, so they
+	// are the real bounds - do NOT multiply by s.scale again here.
+	// The center offset is (maxs+mins)*0.5, NOT (maxs-mins)*0.5: the latter is the
+	// half-height, which sits too high by |mins[2]|. Once that error is scaled up on big
+	// bosses it lands near/above the head, so the LOS trace clips ceilings and the turret
+	// never fires - even though summoned monsters, which aim low, hit the boss fine.
 	vec3_t spot2 = self->enemy->s.origin;
-	// NOTE: maxs/mins are already scaled at spawn (g_monster.cpp: mins/maxs *= s.scale)
-	// and further adjusted by the squeeze-to-fit code, so they are the real bounds.
-	// Do NOT multiply by s.scale again here - that double-scales and makes the turret
-	// aim far above big monsters' heads, so the LOS trace hits geometry and it never fires.
 	spot2[2] += self->enemy->client ? self->enemy->viewheight :
-		(self->enemy->maxs[2] - self->enemy->mins[2]) * 0.5f;
+		(self->enemy->maxs[2] + self->enemy->mins[2]) * 0.5f;
 
 	// Check line of sight with more thorough mask
-	trace_t const tr = gi.traceline(spot1, spot2, self,
-		MASK_SHOT);
+	trace_t tr = gi.traceline(spot1, spot2, self, MASK_SHOT);
+
+	// If the center shot is blocked by *world* geometry (not another monster we could
+	// switch to), try the enemy's feet before giving up. Tall/scaled bosses are easy to
+	// clip at center height even when there's a clear shot lower down - same head+feet
+	// fallback that M_CheckClearShot gives the summoned monsters.
+	if (tr.fraction < 1.0f && tr.ent != self->enemy &&
+		!(tr.ent && tr.ent->inuse && (tr.ent->svflags & SVF_MONSTER))) {
+		trace_t const tr_feet = gi.traceline(spot1, self->enemy->s.origin, self, MASK_SHOT);
+		if (tr_feet.fraction == 1.0f || tr_feet.ent == self->enemy)
+			tr = tr_feet;
+	}
 
 	// If we hit something that's not our target
 	if (tr.fraction < 1.0f && tr.ent != self->enemy) {
@@ -2405,9 +2428,14 @@ void SP_monster_sentrygun(edict_t* self)
 	// Calculate health based on skill level using config values
 	int base_health = g_config.sentrygun.initial_health +
 	                  (self->monsterinfo.pvm_level * g_config.sentrygun.addon_health);
-	// Apply max cap
+	// Apply config max cap
 	if (base_health > g_config.sentrygun.max_health) {
 		base_health = g_config.sentrygun.max_health;
+	}
+	// Hard ceiling: total sentry health (base + per-skill addon) never exceeds 500,
+	// regardless of config max_health or skill level.
+	if (base_health > 500) {
+		base_health = 500;
 	}
 
 	// Armor configuration differs between Classic and RPG modes

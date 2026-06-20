@@ -1004,7 +1004,7 @@ mid	    infront and show hostile
 #include <cassert>
 #include <cmath> 
 // Constantes estáticas para mejorar rendimiento
-static constexpr float MAX_RANGE = 1000.0f;
+static constexpr float MAX_RANGE = 1800.0f;
 static constexpr float MAX_RANGE_SQUARED = MAX_RANGE * MAX_RANGE;
 static constexpr float PRIORITY_ATTACKER_BONUS = 0.5f;
 

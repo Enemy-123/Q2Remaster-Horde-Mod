@@ -1761,6 +1761,9 @@ typedef struct sentry_state_s {
     bool            heatbeam_active;
     gtime_t         heatbeam_start_time;
     gtime_t         heatbeam_duration;
+    gtime_t         next_heatbeam_fire_time; // dedicated heatbeam fire cadence; must NOT
+                                             // share monsterinfo.next_duck_time, which
+                                             // TurretSparks pushes 2-4.5s ahead when hurt
 } sentry_state_t;
 
 struct monsterinfo_t

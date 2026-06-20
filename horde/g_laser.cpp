@@ -93,9 +93,13 @@ static int CalculateWaveBasedSentryHealth(int base_health, int wave_level, int a
 {
     // Wave-based scaling: base + (wave - 1) * 15 per wave + adrenaline bonus
     int effective_wave_level = std::max(1, wave_level);
-    int wave_bonus = (effective_wave_level - 1) * 15;
+    int wave_bonus = (effective_wave_level - 1) * 10;
     int adrenaline_bonus = adrenaline_count * 10;
-    return base_health + wave_bonus + adrenaline_bonus;
+    int total = base_health + wave_bonus + adrenaline_bonus;
+    // Hard ceiling: sentry max health never exceeds 500. Mirrors the cap in
+    // SP_monster_sentrygun so Classic-mode wave scaling stays consistent - without this,
+    // high-wave sentries would blow past the spawn-time cap.
+    return std::min(total, 500);
 }
 
 // Helper function to update laser damage and health for a single player in Classic Mode
