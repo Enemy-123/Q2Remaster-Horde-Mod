@@ -3082,21 +3082,21 @@ static bool ShouldAttemptHigherLevelSpawn(int32_t currentLevel, bool isRetaliati
 		elites_spawned_this_wave >= MAX_ELITES_PER_WAVE ||
 		isRetaliationActive || isRecoveryModeActive)
 	{
-		if (developer->integer > 1)
-		{
-			gi.Com_PrintFmt("ShouldAttemptHigherLevelSpawn: BLOCKED (elites={}/{}, retaliation={}, recovery={})\n",
-				elites_spawned_this_wave, MAX_ELITES_PER_WAVE, isRetaliationActive, isRecoveryModeActive);
-		}
+		//if (developer->integer > 1)
+		//{
+		//	gi.Com_PrintFmt("ShouldAttemptHigherLevelSpawn: BLOCKED (elites={}/{}, retaliation={}, recovery={})\n",
+		//		elites_spawned_this_wave, MAX_ELITES_PER_WAVE, isRetaliationActive, isRecoveryModeActive);
+		//}
 		return false;
 	}
 
 	// Restore the old odds from 0.995 instead of forcing higher-level picks in early waves.
 	if (currentLevel <= 10)
 	{
-		if (developer->integer > 1)
-		{
-			gi.Com_PrintFmt("ShouldAttemptHigherLevelSpawn: wave {} using 0.995 early-wave odds (32%%)\n", currentLevel);
-		}
+		//if (developer->integer > 1)
+		//{
+		//	gi.Com_PrintFmt("ShouldAttemptHigherLevelSpawn: wave {} using 0.995 early-wave odds (32%%)\n", currentLevel);
+		//}
 		return frandom() < 0.32f;
 	}
 	if (currentLevel <= 20)
@@ -3355,12 +3355,12 @@ static void CollectEliteCandidates(
 		float priority = g_monsterData.weights[i] / (1.0f + abs(monster_info.minWave - ctx.effectiveLevel));
 		candidates.push_back({ monster_info.typeId, i, priority });
 
-		if (developer->integer > 1)
-		{
-			gi.Com_PrintFmt("Dynamic Precache: CANDIDATE '{}' (minWave={}, buffer=+{}, priority={:.2f})\n",
-				horde::MonsterTypeRegistry::GetClassname(monster_info.typeId),
-				monster_info.minWave, min_wave_buffer, priority);
-		}
+		//if (developer->integer > 1)
+		//{
+		//	gi.Com_PrintFmt("Dynamic Precache: CANDIDATE '{}' (minWave={}, buffer=+{}, priority={:.2f})\n",
+		//		horde::MonsterTypeRegistry::GetClassname(monster_info.typeId),
+		//		monster_info.minWave, min_wave_buffer, priority);
+		//}
 	}
 }
 
@@ -3407,16 +3407,16 @@ static EliteCandidateResult FindEliteCandidate(const MonsterSelectionContext& ct
 	EliteCandidateResult result = SelectWeightedCandidate(candidates);
 	if (result.found)
 	{
-		if (developer->integer > 1)
-			gi.Com_PrintFmt("Dynamic Precache: SELECTED from {} candidates (buffer=+{})\n", candidates.size(), initial_buffer);
+		//if (developer->integer > 1)
+		//	gi.Com_PrintFmt("Dynamic Precache: SELECTED from {} candidates (buffer=+{})\n", candidates.size(), initial_buffer);
 		return result;
 	}
 
 	// Fallback: try with smaller buffers (+2, +1)
 	for (int32_t fallback_buffer = std::min(2, initial_buffer - 1); fallback_buffer >= 1; --fallback_buffer)
 	{
-		if (developer->integer > 1)
-			gi.Com_PrintFmt("Dynamic Precache: FALLBACK attempt with +{} buffer\n", fallback_buffer);
+		//if (developer->integer > 1)
+		//	gi.Com_PrintFmt("Dynamic Precache: FALLBACK attempt with +{} buffer\n", fallback_buffer);
 
 		candidates.clear();
 		CollectEliteCandidates(candidates, ctx, fallback_buffer);
@@ -3424,8 +3424,8 @@ static EliteCandidateResult FindEliteCandidate(const MonsterSelectionContext& ct
 		result = SelectWeightedCandidate(candidates);
 		if (result.found)
 		{
-			if (developer->integer > 1)
-				gi.Com_PrintFmt("Dynamic Precache: FALLBACK SELECTED from {} candidates (buffer=+{})\n", candidates.size(), fallback_buffer);
+			//if (developer->integer > 1)
+			//	gi.Com_PrintFmt("Dynamic Precache: FALLBACK SELECTED from {} candidates (buffer=+{})\n", candidates.size(), fallback_buffer);
 			return result;
 		}
 	}
@@ -3448,24 +3448,24 @@ static AssetFamilyID PrecacheEliteMonster(
 	AssetFamilyID family = GetMonsterAssetFamily(type_id);
 	if (g_precached_families_this_map.find(family) == g_precached_families_this_map.end())
 	{
-		if (developer->integer > 1)
-		{
-			gi.Com_PrintFmt("Dynamic Precache: BLOCKED '{}' - family {} not allowed on this map\n",
-				classname, static_cast<int>(family));
-		}
+		//if (developer->integer > 1)
+		//{
+		//	gi.Com_PrintFmt("Dynamic Precache: BLOCKED '{}' - family {} not allowed on this map\n",
+		//		classname, static_cast<int>(family));
+		//}
 		return AssetFamilyID::UNKNOWN_FAMILY; // Family not allowed, don't precache
 	}
 
 	const bool already_precached = g_precached_monster_types_flags[array_index];
 
-	if (developer->integer > 1)
-	{
-		if (already_precached)
-			gi.Com_PrintFmt("Dynamic Precache: REUSING '{}' for wave {} elite\n", classname, ctx.currentActualLevel);
-		else
-			gi.Com_PrintFmt("Dynamic Precache: Loading '{}' for elite spawn (wave {} -> effective {})\n",
-				classname, ctx.currentActualLevel, ctx.effectiveLevel);
-	}
+	//if (developer->integer > 1)
+	//{
+	//	if (already_precached)
+	//		gi.Com_PrintFmt("Dynamic Precache: REUSING '{}' for wave {} elite\n", classname, ctx.currentActualLevel);
+	//	else
+	//		gi.Com_PrintFmt("Dynamic Precache: Loading '{}' for elite spawn (wave {} -> effective {})\n",
+	//			classname, ctx.currentActualLevel, ctx.effectiveLevel);
+	//}
 
 	// Precache if needed
 	if (!already_precached)
@@ -3785,8 +3785,8 @@ static void HandleLowVarietyFallback(
 	constexpr int MINIMUM_VARIETY_THRESHOLD = 5;
 	if (cache_ref.count >= MINIMUM_VARIETY_THRESHOLD) return;
 
-	if (developer->integer > 1)
-		gi.Com_PrintFmt("BuildMonsterCache: LOW VARIETY ({} monsters) - Applying relaxed filters\n", cache_ref.count);
+	//if (developer->integer > 1)
+	//	gi.Com_PrintFmt("BuildMonsterCache: LOW VARIETY ({} monsters) - Applying relaxed filters\n", cache_ref.count);
 
 	MonsterWaveType relaxed_wave_type = ctx.waveTypeForFiltering;
 
@@ -3794,16 +3794,16 @@ static void HandleLowVarietyFallback(
 	if (HasWaveType(relaxed_wave_type, MonsterWaveType::Special))
 	{
 		relaxed_wave_type = relaxed_wave_type & ~MonsterWaveType::Special;
-		if (developer->integer > 1)
-			gi.Com_PrintFmt("BuildMonsterCache: PASS 1 - Removed 'Special' requirement\n");
+		//if (developer->integer > 1)
+		//	gi.Com_PrintFmt("BuildMonsterCache: PASS 1 - Removed 'Special' requirement\n");
 		AddMonstersWithRelaxedFilter(cache_ref, ctx, relaxed_wave_type, 0.4f, MIN_MONSTERS_AVAILABLE);
 	}
 
 	// PASS 2: Relax Light/Medium/Heavy categories
 	if (cache_ref.count < MINIMUM_VARIETY_THRESHOLD)
 	{
-		if (developer->integer > 1)
-			gi.Com_PrintFmt("BuildMonsterCache: PASS 2 - Relaxing Light/Medium/Heavy categories\n");
+		//if (developer->integer > 1)
+		//	gi.Com_PrintFmt("BuildMonsterCache: PASS 2 - Relaxing Light/Medium/Heavy categories\n");
 
 		if (HasWaveType(relaxed_wave_type, MonsterWaveType::Light))
 			relaxed_wave_type |= MonsterWaveType::Medium;
@@ -3818,8 +3818,8 @@ static void HandleLowVarietyFallback(
 	// PASS 3: Add any early-wave monsters
 	if (cache_ref.count < MINIMUM_VARIETY_THRESHOLD)
 	{
-		if (developer->integer > 1)
-			gi.Com_PrintFmt("BuildMonsterCache: PASS 3 - Adding any early-wave monsters\n");
+		//if (developer->integer > 1)
+		//	gi.Com_PrintFmt("BuildMonsterCache: PASS 3 - Adding any early-wave monsters\n");
 
 		for (const MonsterTypeInfo* monster_info : g_eligible_monsters_for_wave)
 		{
@@ -3858,9 +3858,9 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 	// When higher-level spawns are triggered, precache ONE new monster family
 	if (mutable_ctx.effectiveLevel > mutable_ctx.currentActualLevel)
 	{
-		if (developer->integer > 1)
-			gi.Com_PrintFmt("BuildMonsterCache: Elite attempt (effectiveLevel={} > currentActualLevel={})\n",
-				mutable_ctx.effectiveLevel, mutable_ctx.currentActualLevel);
+		//if (developer->integer > 1)
+		//	gi.Com_PrintFmt("BuildMonsterCache: Elite attempt (effectiveLevel={} > currentActualLevel={})\n",
+		//		mutable_ctx.effectiveLevel, mutable_ctx.currentActualLevel);
 
 		// Limit: only 1 new model family per wave
 		if (g_dynamic_precache_count_this_wave < 1)
@@ -3869,9 +3869,9 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 
 			if (candidate.found)
 			{
-				if (developer->integer > 1)
-					gi.Com_PrintFmt("Dynamic Precache: FINAL SELECTION '{}'\n",
-						horde::MonsterTypeRegistry::GetClassname(candidate.selected_type));
+//				if (developer->integer > 1)
+//					gi.Com_PrintFmt("Dynamic Precache: FINAL SELECTION '{}'\n",
+//						horde::MonsterTypeRegistry::GetClassname(candidate.selected_type));
 
 				const char* candidate_model_path = GetMonsterModelPath(candidate.selected_type);
 				elite_spawn_family = PrecacheEliteMonster(
@@ -3888,14 +3888,14 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 			{
 				// No suitable elite monster found - revert to normal spawning
 				mutable_ctx.effectiveLevel = mutable_ctx.currentActualLevel;
-				if (developer->integer > 1)
-					gi.Com_PrintFmt("Dynamic Precache: No suitable elite found, reverting to normal spawning\n");
+	//			if (developer->integer > 1)
+	//				gi.Com_PrintFmt("Dynamic Precache: No suitable elite found, reverting to normal spawning\n");
 			}
 		}
-		else if (developer->integer > 1)
-		{
-			gi.Com_PrintFmt("BuildMonsterCache: Skipping dynamic precache (already precached elite this wave)\n");
-		}
+		//else if (developer->integer > 1)
+		//{
+		//	gi.Com_PrintFmt("BuildMonsterCache: Skipping dynamic precache (already precached elite this wave)\n");
+		//}
 	}
 
 	// Get PVM random monsters if active
@@ -3965,16 +3965,16 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 	// Handle low variety fallback
 	HandleLowVarietyFallback(cache_ref, mutable_ctx);
 
-	// Debug output
-	if (developer->integer > 1)
-	{
-		gi.Com_PrintFmt("BuildMonsterCache: Final cache has {} monsters, total_weight={:.1f}\n",
-			cache_ref.count, cache_ref.total_weight);
-		if (elite_spawn_family != AssetFamilyID::UNKNOWN_FAMILY)
-			gi.Com_PrintFmt("BuildMonsterCache: Elite spawn boost active - family {} ({}) gets 2x weight\n",
-				static_cast<int>(elite_spawn_family),
-				elite_spawn_model_path ? elite_spawn_model_path : "unknown");
-	}
+	//// Debug output
+	//if (developer->integer > 1)
+	//{
+	//	gi.Com_PrintFmt("BuildMonsterCache: Final cache has {} monsters, total_weight={:.1f}\n",
+	//		cache_ref.count, cache_ref.total_weight);
+	//	if (elite_spawn_family != AssetFamilyID::UNKNOWN_FAMILY)
+	//		gi.Com_PrintFmt("BuildMonsterCache: Elite spawn boost active - family {} ({}) gets 2x weight\n",
+	//			static_cast<int>(elite_spawn_family),
+	//			elite_spawn_model_path ? elite_spawn_model_path : "unknown");
+	//}
 }
 
 
@@ -4115,10 +4115,10 @@ horde::MonsterTypeID G_HordePickMonsterType(
 	{
 		// Elite already spawned this wave, force normal spawning
 		attemptHigherLevel = false;
-		if (developer->integer > 1)
-		{
-			gi.Com_PrintFmt("ELITE ALREADY SPAWNED: Forcing normal spawn for remaining monsters.\n");
-		}
+		//if (developer->integer > 1)
+		//{
+		//	gi.Com_PrintFmt("ELITE ALREADY SPAWNED: Forcing normal spawn for remaining monsters.\n");
+		//}
 	}
 	else
 	{
@@ -7738,8 +7738,8 @@ int32_t ManageSpawnCountsAndQueue(const horde::MapSize& mapSize, int32_t availab
 		{
 			g_horde_local.num_to_spawn += transfer_amount;
 			g_horde_local.queued_monsters -= transfer_amount;
-			if (developer->integer > 1)
-				gi.Com_PrintFmt("SpawnMonsters: Transferred {} from queue ({} left).\n", transfer_amount, g_horde_local.queued_monsters);
+			//if (developer->integer > 1)
+			//	gi.Com_PrintFmt("SpawnMonsters: Transferred {} from queue ({} left).\n", transfer_amount, g_horde_local.queued_monsters);
 			return availableSpace - transfer_amount; // Return updated available space
 		}
 	}
@@ -7913,16 +7913,16 @@ static bool FindValidSpawnLocation(
 		out_origin = validation.adjusted_position;
 		out_angles = base_angles;
 		out_used_alternative = false;
-		if (developer->integer > 1 && is_flying && is_flying_only_lane)
-		{
-			gi.Com_PrintFmt("STYLE1 DIRECT: Spawned flying monster at dedicated lane {}.\n", out_origin);
-		}
+		//if (developer->integer > 1 && is_flying && is_flying_only_lane)
+		//{
+		//	gi.Com_PrintFmt("STYLE1 DIRECT: Spawned flying monster at dedicated lane {}.\n", out_origin);
+		//}
 		return true;
 	}
-	if (developer->integer > 1 && is_flying && is_flying_only_lane)
-	{
-		gi.Com_PrintFmt("STYLE1 DIRECT FAIL: Rejected dedicated lane {} for flying spawn.\n", base_origin);
-	}
+	//if (developer->integer > 1 && is_flying && is_flying_only_lane)
+	//{
+	//	gi.Com_PrintFmt("STYLE1 DIRECT FAIL: Rejected dedicated lane {} for flying spawn.\n", base_origin);
+	//}
 
 	// Attempt Alternative Spawn
 	if (TryAlternativeSpawnPosition(spawn_point, monster_type, out_origin, out_angles))
@@ -7930,10 +7930,10 @@ static bool FindValidSpawnLocation(
 		out_used_alternative = true;
 		return true;
 	}
-	if (developer->integer > 1 && is_flying && is_flying_only_lane)
-	{
-		gi.Com_PrintFmt("STYLE1 ALT FAIL: No valid alternative near dedicated lane {}.\n", base_origin);
-	}
+	//if (developer->integer > 1 && is_flying && is_flying_only_lane)
+	//{
+	//	gi.Com_PrintFmt("STYLE1 ALT FAIL: No valid alternative near dedicated lane {}.\n", base_origin);
+	//}
 
 	return false;
 }
@@ -7960,8 +7960,8 @@ static void ApplySuccessfulAlternativeCooldown(edict_t* spawn_point)
 	g_spawn_system.spawn_points_data.alternative_cooldown[static_cast<size_t>(index)] = level.time + alt_cooldown;
 	ApplyLongFlyingLaneCooldown(spawn_point);
 
-	if (developer->integer > 1)
-		gi.Com_PrintFmt("Success cooldown applied to spawn at {}: {:.1f}s\n", spawn_point->s.origin, alt_cooldown.seconds());
+	//if (developer->integer > 1)
+	//	gi.Com_PrintFmt("Success cooldown applied to spawn at {}: {:.1f}s\n", spawn_point->s.origin, alt_cooldown.seconds());
 }
 
 static void SetMonsterArmor(edict_t* monster)
@@ -8754,10 +8754,10 @@ public:
 					if (dominant_family != AssetFamilyID::UNKNOWN_FAMILY) {
 						RecordSpawnInHistory(dominant_family, current_wave_level);
 
-						if (developer->integer >= 2) {
-							gi.Com_PrintFmt("Recorded spawn: family={}, count={}, wave={}\n",
-								static_cast<int>(dominant_family), max_count, current_wave_level);
-						}
+						//if (developer->integer >= 2) {
+						//	gi.Com_PrintFmt("Recorded spawn: family={}, count={}, wave={}\n",
+						//		static_cast<int>(dominant_family), max_count, current_wave_level);
+						//}
 					}
 				}
 			}

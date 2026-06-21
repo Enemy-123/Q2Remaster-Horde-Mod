@@ -977,12 +977,12 @@ void PlanMonsterSpawnBatch(
         try_plan_next_monster();
     }
 
-    if (developer->integer > 1)
+/*    if (developer->integer > 1)
     {
         gi.Com_PrintFmt("SPAWN PLAN: Target={}, Planned={}, FailedValidation={}, FailedPick={}, PointsChecked={}/{} (Remaining: {})\n",
                         num_to_plan, planned_count, failed_validation, failed_monster_pick,
                         points_checked, max_points_to_check, g_horde_local.num_to_spawn);
-    }
+    }*/
 }
 
 void PlanNextSpawnBatch()
@@ -1168,12 +1168,12 @@ void DetermineSpawnStrategy(const horde::MapSize& mapSize, int32_t& out_spawnabl
         base_batch += (base_batch + 1) / 2;  // +50% (rounded up)
     out_spawnable_this_call = std::min({g_horde_local.num_to_spawn, base_batch, availableSpace});
 
-    if (developer->integer >= 2 && out_spawnable_this_call < g_horde_local.num_to_spawn)
-    {
-        gi.Com_PrintFmt("SPAWN STRATEGY: Wanted={}, BatchCap={}, AvailableSpace={}, Planning={} (Deferred={})\n",
-                        g_horde_local.num_to_spawn, base_batch, availableSpace,
-                        out_spawnable_this_call, g_horde_local.num_to_spawn - out_spawnable_this_call);
-    }
+    //if (developer->integer >= 2 && out_spawnable_this_call < g_horde_local.num_to_spawn)
+    //{
+    //    gi.Com_PrintFmt("SPAWN STRATEGY: Wanted={}, BatchCap={}, AvailableSpace={}, Planning={} (Deferred={})\n",
+    //                    g_horde_local.num_to_spawn, base_batch, availableSpace,
+    //                    out_spawnable_this_call, g_horde_local.num_to_spawn - out_spawnable_this_call);
+    //}
 
     out_use_emergency_spawn = false;
     if (g_spawn_system.consecutive_spawn_failures >= HordeConstants::MAX_CONSECUTIVE_FAILURES_BEFORE_EMERGENCY)
