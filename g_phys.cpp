@@ -31,15 +31,18 @@ void SV_Physics_NewToss(edict_t* ent); // PGM
 // [Horde] Monster "sides" for selective solidity. Works under CTF_NOTEAM (where OnSameTeam is
 // unreliable): a monster is on the PLAYER's side if it's a summoned strogg or carries the friendly
 // bonus flag; everything else is an enemy. Two monsters are "opposed" only when on different sides
-// - those are the pairs we keep SOLID to each other (summoned allies body-block enemies, and vice
-// versa). Same-side pairs (enemy/enemy, ally/ally) stay non-solid so the dense horde still files
-// through itself and allies pass each other (spacing handled by repulsion).
-static bool M_IsPlayerAlly(const edict_t* m)
+// - those are the pairs we make SOLID to each other in AI movement (SV_movestep does the per-pair
+// wall via M_MonstersOpposed). Same-side pairs (enemy/enemy, ally/ally) stay non-solid so the
+// dense horde still files through itself and allies pass each other (spacing handled by repulsion).
+// NOTE: these are NOT used to drive G_GetClipMask's mask (that stayed mask-based and only goes
+// non-solid for same-team / both-summoned blockers) - a single CONTENTS_MONSTER bit can't express
+// "solid to enemies but not allies", which is why the wall is enforced per-pair in SV_movestep.
+bool M_IsPlayerAlly(const edict_t* m)
 {
     return m && (m->monsterinfo.issummoned || (m->monsterinfo.bonus_flags & BF_FRIENDLY) != BF_NONE);
 }
 
-static bool M_MonstersOpposed(const edict_t* a, const edict_t* b)
+bool M_MonstersOpposed(const edict_t* a, const edict_t* b)
 {
     if (!a || !b)
         return false;
@@ -103,9 +106,11 @@ contents_t G_GetClipMask(edict_t* ent)
 
         for (auto* other : potential_colliders)
         {
-            // Same-side (pass-through) = NOT opposed. Only opposed pairs (summoned ally vs enemy)
-            // stay solid; enemy/enemy and ally/ally pass through so the horde keeps its spacing.
-            if (!M_MonstersOpposed(ent, other))
+            // Check if same team OR if both are summoned monsters (they can walk through each other)
+            bool same_side = OnSameTeam(ent, other) ||
+                (ent->monsterinfo.issummoned && other->monsterinfo.issummoned);
+
+            if (same_side)
             {
                 // YOU MUST DO THIS CHECK. It is fast.
                 if (boxes_intersect(ent->absmin, ent->absmax, other->absmin, other->absmax))
@@ -122,9 +127,11 @@ contents_t G_GetClipMask(edict_t* ent)
             trace_t tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin, ent, mask);
             if (tr.ent && (tr.ent->svflags & SVF_MONSTER))
             {
-                // Drop monster collision only when the blocker is same-side (not opposed), so an
-                // ally still phases through allies but stays solid against enemy monsters.
-                if (!M_MonstersOpposed(ent, tr.ent))
+                // Check if same team OR both summoned
+                bool same_side = OnSameTeam(ent, tr.ent) ||
+                    (ent->monsterinfo.issummoned && tr.ent->monsterinfo.issummoned);
+
+                if (same_side)
                 {
                     // Don't filter collision for morphed players - they need proper collision
                     if (!IsMorphed(ent)) {

@@ -1122,6 +1122,59 @@ static bool SV_flystep(edict_t* ent, vec3_t move, bool relink, edict_t* current_
 	return false;
 }
 
+// [Horde] Per-pair selective solidity. Horde monsters are non-solid to each other in SV_movestep
+// (spacing is repulsion-based), but summoned player-allies and enemy monsters should act as real
+// mutual walls. A single CONTENTS_MONSTER mask bit can't express "solid to enemies but not allies"
+// (that made normal monsters jam near an ally), so we enforce the wall PER PAIR here. Returns true
+// (step blocked) when:
+//   - the step would move us INTO an OPPOSED monster we're not already overlapping (the wall: stop
+//     at the surface, i.e. melee range), OR
+//   - we're ALREADY lodged inside an opposed monster (e.g. the player shoved us in) and the step
+//     does NOT move us away from it. The repulsion can't eject us here - it's capped so it never
+//     reverses the pull toward our enemy goal - so the wall forces us out: only separating steps
+//     pass, and the caller bumps (SV_NewChaseDir) to a separating heading until we reach the surface.
+static bool M_StepHitsOpposedMonster(edict_t* ent, const vec3_t& candidate_origin)
+{
+	if (!g_horde->integer || !(ent->svflags & SVF_MONSTER))
+		return false;
+
+	const vec3_t cmin = candidate_origin + ent->mins;
+	const vec3_t cmax = candidate_origin + ent->maxs;
+
+	// Radius generous enough that a neighbor whose box could intersect ours is returned.
+	const float ent_width = std::max(ent->maxs[0] - ent->mins[0], ent->maxs[1] - ent->mins[1]);
+	const float search_radius = std::max(ent_width, 64.f) + 64.f;
+	std::span<edict_t* const> nearby = HordePhys::g_monster_grid.IsBuilt()
+		? HordePhys::g_monster_grid.QueryRadius(candidate_origin, search_radius)
+		: std::span<edict_t* const>{};
+
+	for (edict_t* other : nearby)
+	{
+		if (other == ent || !other->inuse || !(other->svflags & SVF_MONSTER))
+			continue;
+		if (other->health <= 0 || other->deadflag)
+			continue;
+		if (!M_MonstersOpposed(ent, other))
+			continue; // same side -> pass through (no wall)
+
+		if (boxes_intersect(ent->absmin, ent->absmax, other->absmin, other->absmax))
+		{
+			// Already lodged inside this opposed monster: allow ONLY steps that increase the
+			// distance to its center (eject toward the surface); block anything that keeps or
+			// deepens the overlap (our goal would otherwise pull us right back in).
+			if (DistanceSquared(candidate_origin, other->s.origin) <= DistanceSquared(ent->s.origin, other->s.origin))
+				return true;
+		}
+		else if (boxes_intersect(cmin, cmax, other->absmin, other->absmax))
+		{
+			// Stepping INTO a new overlap -> hard wall (stop at the surface / melee range).
+			return true;
+		}
+	}
+
+	return false;
+}
+
 /*
 =============
 SV_movestep
@@ -1181,6 +1234,13 @@ bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
 	if (ent->flags & (FL_SWIM | FL_FLY))
 		return SV_flystep(ent, move, relink, current_bad);
 
+	// [Horde] Per-pair wall: opposed monsters (summoned ally <-> enemy) hard-block each other even
+	// though horde monsters are otherwise non-solid. If this horizontal step would move us INTO an
+	// opposed monster, reject it like a wall block - the caller then bumps via SV_NewChaseDir, so
+	// allies route around enemy walls (and stop at their melee target). Same-side pairs pass through.
+	if (M_StepHitsOpposedMonster(ent, ent->s.origin + vec3_t{ move[0], move[1], 0.f }))
+		return false;
+
 	// try the move
 	vec3_t const oldorg = ent->s.origin;
 
@@ -1204,17 +1264,12 @@ bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
 if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::SENTRY_GUN)) ||
     (ent->svflags & SVF_PLAYER && EntIsSpectating(ent)))
 {
-    // Don't remove CONTENTS_MONSTER for morphed players - they need proper collision
+    // Don't remove CONTENTS_MONSTER for morphed players - they need proper collision.
+    // Horde monsters are non-solid to each other here (spacing is repulsion-based); the ONLY
+    // hard collision between monsters is the per-pair opposed wall checked above (summoned ally
+    // <-> enemy), so normal same-side monsters keep passing through with a gentle nudge.
     if (!IsMorphed(ent)) {
-        if (g_horde->integer && (ent->svflags & SVF_MONSTER)) {
-            // Team-aware solidity for AI movement (mirrors the physics clipmask): stay SOLID to
-            // OPPOSED monsters (summoned allies vs enemies body-block each other) but non-solid to
-            // same-side, so the dense horde still files through itself and allies pass each other.
-            // G_GetClipMask drops CONTENTS_MONSTER only when a same-side monster is the blocker.
-            mask = G_GetClipMask(ent);
-        } else {
-            mask &= ~CONTENTS_MONSTER;
-        }
+        mask &= ~CONTENTS_MONSTER;
     }
 }
 

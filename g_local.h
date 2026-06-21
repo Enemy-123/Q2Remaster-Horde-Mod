@@ -2886,6 +2886,11 @@ void SV_AddGravity(edict_t* ent);
 void SV_CheckVelocity(edict_t* ent);
 void	SV_FlyMove(edict_t* ent, float time, contents_t mask);
 contents_t G_GetClipMask(edict_t* ent);
+// [Horde] monster "sides" for per-pair selective solidity (summoned/BF_FRIENDLY = player ally).
+// Opposed = different sides; SV_movestep makes opposed monsters hard-block each other while
+// same-side pairs pass through (see g_phys.cpp).
+bool M_IsPlayerAlly(const edict_t* m);
+bool M_MonstersOpposed(const edict_t* a, const edict_t* b);
 void G_Impact(edict_t* e1, const trace_t& trace);
 
 //

@@ -23,6 +23,36 @@ will always have a null "enemy".
 
 constexpr size_t TRAIL_LENGTH = 8;
 
+// A trail node is only safe to touch if its edict slot is still a live player_trail. If the slot
+// was freed and reused (e.g. by a corpse / dropped item under heavy entity load), these fail.
+static bool PlayerTrail_NodeValid(const edict_t* e)
+{
+	return e && e->inuse && e->classname && !strcmp(e->classname, "player_trail");
+}
+
+// Defensive: if any trail pointer no longer references a live player_trail entity, the chain is
+// corrupt (a freed/reused slot). Reset it so we never walk into - or, worse, reposition (via
+// PlayerTrail_Add's `trail->s.origin = player pos`) - a reused entity, which is what teleported
+// corpses/items onto players. Validates each node BEFORE dereferencing its ->chain, and is bounded
+// so a corrupted/cyclic chain can't loop. Orphaned valid nodes (if any) are cleared at level change.
+static void PlayerTrail_Sanitize(gclient_t* cl)
+{
+	if (!cl)
+		return;
+	size_t n = 0;
+	for (edict_t* c = cl->trail_tail; c; )
+	{
+		if (!PlayerTrail_NodeValid(c) || ++n > TRAIL_LENGTH + 1)
+		{
+			cl->trail_head = cl->trail_tail = nullptr;
+			return;
+		}
+		c = c->chain;
+	}
+	if (cl->trail_head && !PlayerTrail_NodeValid(cl->trail_head))
+		cl->trail_head = cl->trail_tail = nullptr;
+}
+
 // places a new entity at the head of the player trail.
 // the tail entity may be moved to the front if the length
 // is at the end.
@@ -105,13 +135,13 @@ void PlayerTrail_Destroy(edict_t* player)
 // for this player.
 void PlayerTrail_Add(edict_t* player)
 {
-	// Player trails are not needed or used in Horde mode.
-	if (g_horde->integer)
-		return;
-
 	// Safety check: Ensure player is valid and has a client structure.
 	if (!player || !player->client)
 		return;
+
+	// Drop any trail pointers that now reference freed/reused edict slots before we touch them
+	// (prevents repositioning a reused corpse/item entity onto the player).
+	PlayerTrail_Sanitize(player->client);
 
 	// Don't add a new trail marker if the player can still see the last one they dropped.
 	// This prevents spamming markers when standing still or moving slowly.
@@ -133,14 +163,16 @@ void PlayerTrail_Add(edict_t* player)
 
 edict_t* PlayerTrail_Pick(edict_t* self, bool next)
 {
-	// Player trails are not used in Horde mode.
-	if (g_horde->integer)
+	if (!self || !self->enemy || !self->enemy->client)
 		return nullptr;
+
+	// Drop any trail pointers that now reference freed/reused edict slots before we walk them.
+	PlayerTrail_Sanitize(self->enemy->client);
 
 	// This is your safety check. It's excellent.
 	// With the G_FreeEdict fix, this should only be triggered by actual monsters,
 	// but keeping this check is good practice to prevent crashes from other potential bugs.
-	if (!self || !self->enemy || !self->enemy->client || !self->enemy->client->trail_head)
+	if (!self->enemy->client->trail_head)
 		return nullptr;
 
 	// Find the first marker in the player's trail that is *newer* than the last one
