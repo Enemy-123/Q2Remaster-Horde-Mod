@@ -6625,6 +6625,28 @@ public:
 	}
 };
 
+/**
+ * SanitizeLayoutText
+ * Returns a copy of `text` safe to embed inside a quoted layout `string "..."`
+ * token. The client-side layout parser has no concept of escaped quotes, so a
+ * stray '"' or '\\' in a player name or bonus string would terminate the token
+ * early and corrupt the rest of the layout (silent client crash). Control chars
+ * (< 0x20, including the raw newlines used to separate active bonuses) are
+ * collapsed to spaces. High-bit bytes (>= 0x80) are preserved so colored/special
+ * name glyphs still render.
+ */
+static std::string SanitizeLayoutText(std::string_view text) {
+	std::string out;
+	out.reserve(text.size());
+	for (unsigned char c : text) {
+		if (c == '"' || c == '\\' || c < 0x20)
+			out += ' ';
+		else
+			out += static_cast<char>(c);
+	}
+	return out;
+}
+
 
 /**
  * PlayerScore
@@ -6747,6 +6769,8 @@ public:
 						activeBonuses = "Error";
 					}
 				}
+				// Safety net: strip any quote/backslash/control chars before embedding
+				activeBonuses = SanitizeLayoutText(activeBonuses);
 				const std::string bonus_line = fmt::format(
 					"xv 208 yv 8 string \"{}\" \n", activeBonuses);
 				(void)layout_builder.append_checked(bonus_line, LAYOUT_SAFETY_MARGIN);
@@ -6804,6 +6828,7 @@ public:
 					display_name.resize(17);
 					display_name += "...";
 				}
+				display_name = SanitizeLayoutText(display_name);
 				const std::string player_line = fmt::format(
 					"yv {} xv -140 string \"{}\" xv 70 string \"{}\"  xv 120 string \"{}\" \n",
 					y, display_name, player.score, player.ping);
@@ -6846,6 +6871,7 @@ public:
 					display_spec_name.resize(17);
 					display_spec_name += "...";
 				}
+				display_spec_name = SanitizeLayoutText(display_spec_name);
 
 				// Optimized format: Name, Score, Ping (spectators don't have levels)
 				if (!g_vortex->integer)
@@ -6915,6 +6941,11 @@ public:
  * @param killer The entity that killed the player (if any)
  */
 void HordeScoreboardMessage(edict_t* ent, edict_t* killer) {
+	// Belt-and-suspenders: every current caller passes a live client, but the
+	// addFooter()/addTeamScore() helpers dereference ent->client directly.
+	if (!ent || !ent->client)
+		return;
+
 	// Create scoreboard layout generator
 	ScoreboardLayout layout(ent);
 

@@ -286,16 +286,16 @@ std::string GetPlayerActiveBonusesString(edict_t* player) {
         return "";
     }
 
-    // Use std::string to format the result
+    // Single-line list joined by a separator glyph. The scoreboard draws this as
+    // one quoted layout token, so we use " | " rather than newlines (a single
+    // `string` command ignores '\n' and a raw newline inside the token is unsafe).
     std::string result;
     result.reserve(active_count * 30);
 
     for (int i = 0; i < active_count; ++i) {
-        result += "* ";
+        if (i > 0)
+            result += " | ";
         result += active_bonuses[i];
-        if (i < active_count - 1) {
-            result += "\n";
-        }
     }
 
     return result;

@@ -36,8 +36,13 @@ inline vec3_t CalculateEntityCenter(const edict_t* ent) {
 	return ent->s.origin + (ent->mins + ent->maxs) * 0.5f;
 }
 
-// Validates that all if/ifgef statements in a layout string have matching endif statements
-// Returns true if balanced, false if imbalanced (with debug logging)
+// Validates a layout string before it is sent to the client. Checks two things:
+//   1. Every if/ifgef has a matching endif (unbalanced conditionals crash the
+//      client-side layout parser).
+//   2. The double-quote delimiters are balanced. The layout protocol has no
+//      escaped quotes, so an odd number of '"' means an unterminated string token
+//      that the parser reads to EOF -> corrupted layout / silent client crash.
+// Returns true if valid, false otherwise (with developer-gated debug logging).
 bool ValidateLayoutString(const std::string& layout, const char* debug_name) {
 	int if_count = 0;
 	int endif_count = 0;
@@ -78,15 +83,26 @@ bool ValidateLayoutString(const std::string& layout, const char* debug_name) {
 		pos++;
 	}
 	
-	const bool balanced = (if_count == endif_count);
-	
+	const bool ifs_balanced = (if_count == endif_count);
+
+	// Count quote delimiters; an odd total is an unterminated string token.
+	int quote_count = 0;
+	for (char c : layout)
+		if (c == '"')
+			quote_count++;
+	const bool quotes_balanced = (quote_count % 2) == 0;
+
+	const bool valid = ifs_balanced && quotes_balanced;
+
 	// Log validation results if developer mode is on
-	if (!balanced && developer && developer->integer)
+	if (!valid && developer && developer->integer)
 	{
 		const char* name = debug_name ? debug_name : "Unknown";
 		gi.Com_PrintFmt("ERROR: Layout validation failed for '{}'\n", name);
-		gi.Com_PrintFmt("  if/ifgef count: {}\n", if_count);
-		gi.Com_PrintFmt("  endif count: {}\n", endif_count);
+		if (!ifs_balanced)
+			gi.Com_PrintFmt("  unbalanced if/endif: if/ifgef count {} vs endif count {}\n", if_count, endif_count);
+		if (!quotes_balanced)
+			gi.Com_PrintFmt("  unbalanced quotes: {} double-quote chars (odd -> unterminated string token)\n", quote_count);
 		gi.Com_PrintFmt("  Layout size: {} bytes\n", layout.size());
 
 		// If developer is 2 or higher, log the full layout string for complete debugging
@@ -106,8 +122,8 @@ bool ValidateLayoutString(const std::string& layout, const char* debug_name) {
 			gi.Com_PrintFmt("  (Set 'developer 2' to see full layout string)\n");
 		}
 	}
-	
-	return balanced;
+
+	return valid;
 }
 
 // Removes an entity from its team chain cleanly

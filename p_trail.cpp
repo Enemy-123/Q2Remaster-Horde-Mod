@@ -21,7 +21,13 @@ The head node will always have a null "chain", the tail node
 will always have a null "enemy".
 */
 
-constexpr size_t TRAIL_LENGTH = 8;
+// Number of breadcrumb markers kept per player. Markers are dropped only when the player moves out
+// of sight of the last one and are recycled only when this many newer ones exist (no time expiry),
+// so a larger value = a longer trail that persists longer -> monsters track a player who broke line
+// of sight further back. Each marker is one edict (per player), so this is cheap vs MAX_EDICTS=8192.
+// Bump higher for even more persistence; lower if monsters start chasing stale paths. Only affects
+// pursuit of PLAYER enemies (trail needs a client); summoned-vs-enemy uses the goalentity refresh.
+constexpr size_t TRAIL_LENGTH = 24; // was 8
 
 // A trail node is only safe to touch if its edict slot is still a live player_trail. If the slot
 // was freed and reused (e.g. by a corpse / dropped item under heavy entity load), these fail.
