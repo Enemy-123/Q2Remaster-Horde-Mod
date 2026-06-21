@@ -867,7 +867,61 @@ void M_MoveFrame(edict_t* self)
 		{
 			float dist = move->frame[index].dist * self->monsterinfo.scale;
 			dist /= gi.tick_rate / 10.0f;
+
+			// [Horde] Movement-agnostic stall detection. Capture origin, run the frame's move,
+			// then check whether we actually translated. This sees BOTH M_MoveToGoal (pursuit) and
+			// M_walkmove (ai_charge / ai_run_slide combat movement), so a monster "running in place"
+			// while strafing or charging an enemy across an obstacle is caught too - the old
+			// M_MoveToGoal-only tracker was blind to combat-movement freezes (e.g. summoned stroggs
+			// fighting an enemy across a wall). dist>0 means the frame actually intends to move, so
+			// stationary attack frames don't count as stuck. stuck_no_move_time drives the recovery
+			// in M_MoveToGoal and the re-aim skip in ai_charge.
+			const vec3_t pre_move_origin = self->s.origin;
 			move->frame[index].aifunc(self, dist);
+
+			if (dist > 0.f && self->inuse)
+			{
+				if ((self->s.origin - pre_move_origin).lengthSquared() > 1.0f)
+					self->monsterinfo.stuck_no_move_time = 0_ms;
+				else
+					self->monsterinfo.stuck_no_move_time += FRAME_TIME_S;
+
+				if (developer->integer > 1 && self->monsterinfo.stuck_no_move_time > 1500_ms &&
+					self->monsterinfo.stuck_log_time <= level.time)
+				{
+					self->monsterinfo.stuck_log_time = level.time + 1_sec;
+					const float edist = (self->enemy && self->enemy->inuse) ? (self->enemy->s.origin - self->s.origin).length() : -1.f;
+
+					// Probe the 8 cardinal/diagonal directions to see how many we could actually step
+					// into: distinguishes "truly wedged" (opendirs low) from "open escapes exist but
+					// the logic won't commit / it's a targeting gap" (opendirs high). Plus enemy
+					// validity: ealive/egoal reveal the post-kill case where we spin with a dead or
+					// non-goal enemy. Cheap - only runs for an already-logged stuck monster.
+					int open_dirs = 0;
+					for (int a = 0; a < 360; a += 45)
+					{
+						const vec3_t fwd = AngleVectors(vec3_t{ 0.f, (float)a, 0.f }).forward;
+						const trace_t ptr = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin + fwd * 24.f, self, G_GetClipMask(self));
+						if (ptr.fraction > 0.5f)
+							open_dirs++;
+					}
+					const bool startsolid = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_SOLID).startsolid;
+					const bool ealive = (self->enemy && self->enemy->inuse && self->enemy->health > 0);
+					const bool egoal = (self->goalentity == self->enemy);
+
+					gi.Com_PrintFmt("STUCK {} no_move={:.2f}s friendly={} opendirs={} startsolid={} ealive={} egoal={} evis={} edist={:.0f} atk_state={} charging={} iyaw={:.0f} cyaw={:.0f} yspd={:.0f} bad_move={} navrc={}\n",
+						self->classname, self->monsterinfo.stuck_no_move_time.seconds(),
+						!!self->monsterinfo.isfriendlyspawn,
+						open_dirs, startsolid, ealive, egoal,
+						(self->enemy && self->enemy->inuse && visible(self, self->enemy, false)),
+						edist,
+						(int32_t)self->monsterinfo.attack_state,
+						!!(self->monsterinfo.aiflags & AI_CHARGING),
+						self->ideal_yaw, self->s.angles[YAW], self->yaw_speed,
+						self->monsterinfo.bad_move_time > level.time,
+						(int32_t)self->monsterinfo.nav_path.returnCode);
+				}
+			}
 		}
 		else
 			move->frame[index].aifunc(self, 0);

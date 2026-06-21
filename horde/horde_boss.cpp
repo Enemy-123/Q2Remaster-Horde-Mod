@@ -1018,8 +1018,8 @@ item_id_t SelectBossWeaponDrop(int32_t wave_level)
 		{IT_WEAPON_IONRIPPER, 9},  // Xatrix (originally boomer)
 		{IT_WEAPON_PLASMABEAM, 9}, // Rogue
 		{IT_WEAPON_RAILGUN, 9},	   // Moved slightly later
-		{IT_WEAPON_DISRUPTOR, 9}, // Rogue (originally disintegrator)
-		{IT_WEAPON_BFG, 9}		   // Moved slightly later
+		{IT_WEAPON_DISRUPTOR, 19}, // Rogue (originally disintegrator)
+		{IT_WEAPON_BFG, 19}		   // Moved slightly later
 	} };
 
 	// Use a stack-allocated array to store indices of eligible weapons
@@ -1072,10 +1072,10 @@ void BossDeathHandler(edict_t *boss) noexcept
 	OnEntityRemoved(boss);
 
 	// Drop items
-	static const std::array<item_id_t, 8> standardItemIDs = {
+	static const std::array<item_id_t, 9> standardItemIDs = {
 		IT_ITEM_ADRENALINE, IT_ITEM_PACK, IT_ITEM_SENTRYGUN,
 		IT_ITEM_SPHERE_DEFENDER, IT_ARMOR_COMBAT, IT_ITEM_BANDOLIER,
-		IT_ITEM_INVULNERABILITY, IT_AMMO_NUKE};
+		IT_ITEM_INVULNERABILITY, IT_AMMO_NUKE, IT_ITEM_STROGGSUMM };
 
 	// Boss-group loot share: members of a multi-boss encounter (Hell Sisters, Fixer Trio) split a
 	// single boss's loot so the group doesn't drop N x the items. A count of 0/1 is a lone boss and

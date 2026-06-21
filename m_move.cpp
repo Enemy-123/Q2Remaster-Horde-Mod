@@ -18,12 +18,12 @@ constexpr float MONSTER_PERSONAL_SPACE_FLYING = 64.0f;
 constexpr float MONSTER_PERSONAL_SPACE_SEARCH_MULTIPLIER = 2.0f;
 
 // Repulsion system constants
-constexpr float REPULSION_MAX_FORCE = 24.0f;
+constexpr float REPULSION_MAX_FORCE = 32.0f;
 constexpr float REPULSION_VERTICAL_DAMPING = 0.1f;
 constexpr float REPULSION_MULTI_MONSTER_SCALE = 0.7f;
 constexpr float REPULSION_STRENGTH_DEFAULT = 0.25f;
 constexpr float REPULSION_STRENGTH_BOSS = 0.1f;
-constexpr float REPULSION_STRENGTH_COMBAT = 0.5f;
+constexpr float REPULSION_STRENGTH_COMBAT = 28.5f;
 constexpr float REPULSION_STRENGTH_CORRIDOR = 0.1f;       // Reduced from 0.3 to 0.1
 constexpr float REPULSION_STRENGTH_TIGHT_CORRIDOR = 0.0f; // New: completely disable in very tight spaces
 constexpr float REPULSION_LATERAL_MAX_FRACTION = 0.5f;    // cap sideways nudge to this fraction of the step length (keeps goal dominant)
@@ -192,9 +192,9 @@ static vec3_t CalculateMonsterRepulsion(edict_t* ent)
 		if (other->health <= 0 || other->deadflag)
 			continue;
 
-		// Skip repulsion between summoned Stroggs - they can walk through each other
-		if (ent->monsterinfo.issummoned && other->monsterinfo.issummoned)
-			continue;
+		//// Skip repulsion between summoned Stroggs - they can walk through each other
+		//if (ent->monsterinfo.issummoned && other->monsterinfo.issummoned)
+		//	continue;
 
 		// Calculate distance using squared distance for performance
 		vec3_t diff = ent->s.origin - other->s.origin;
@@ -2398,55 +2398,9 @@ void M_MoveToGoal(edict_t* ent, float dist)
 	else if (!goal)
 		return;
 
-	// --- Stall ("running in place") detection ---
-	// The run animation advances every frame whether or not the monster actually translates,
-	// so a monster whose step keeps getting rejected (FacingIdeal revert in SV_StepDirection,
-	// a blocked nav-path that still reports "handled", a hard-separation back-push) looks like
-	// it's running on the spot. Track real per-frame displacement (entry-to-entry) only while
-	// we actually intend to move; used purely to drive the developer>1 diagnostic below.
-	const bool wants_to_move = dist > 0.f &&
-		!(ent->monsterinfo.aiflags & AI_STAND_GROUND) &&
-		!(ent->flags & FL_STATIONARY);
-	if (wants_to_move)
-	{
-		if (DistanceSquared(ent->s.origin, ent->monsterinfo.stuck_last_origin) > 1.0f)
-			ent->monsterinfo.stuck_no_move_time = 0_ms;
-		else
-			ent->monsterinfo.stuck_no_move_time += FRAME_TIME_S;
-	}
-	else
-		ent->monsterinfo.stuck_no_move_time = 0_ms;
-	ent->monsterinfo.stuck_last_origin = ent->s.origin;
-
-	// Diagnostic only (developer>1): report a sustained no-translation so we can see which
-	// mechanism is eating the step. IMPORTANT: do NOT touch ideal_yaw here. The wall-stuck
-	// escape in SV_movestep and SV_NewChaseDir's anti-circling deliberately set a *turned*
-	// heading and rely on M_MoveToGoal NOT re-aiming at the (blocked) goal every frame -
-	// re-aiming marches the monster straight back into the same wall and freezes it (the exact
-	// 3-10s wall grind these diagnostics surfaced). Let the existing escapes do their job.
-	if (developer->integer > 1 && ent->monsterinfo.stuck_no_move_time > 1500_ms &&
-		ent->monsterinfo.stuck_log_time <= level.time)
-	{
-		ent->monsterinfo.stuck_log_time = level.time + 1_sec;
-		const float enemy_dist = (ent->enemy && ent->enemy->inuse)
-			? (ent->enemy->s.origin - ent->s.origin).length() : -1.f;
-		const float goal_dist = ent->goalentity ? (ent->goalentity->s.origin - ent->s.origin).length() : -1.f;
-		const float goal_yaw_dbg = ent->goalentity ? vectoyaw((ent->goalentity->s.origin - ent->s.origin)) : -1.f;
-		const float fmp_dist = (ent->monsterinfo.nav_path.firstMovePoint - ent->s.origin).length();
-		gi.Com_PrintFmt("STUCK {} no_move={:.2f}s lost={} facing={} evis={} edist={:.0f} gdist={:.0f} fmp={:.0f} iyaw={:.0f} cyaw={:.0f} gyaw={:.0f} yspd={:.0f} pn={} pt={} pls={} navrc={} pathing={} bad_move={}\n",
-			ent->classname, ent->monsterinfo.stuck_no_move_time.seconds(),
-			!!(ent->monsterinfo.aiflags & AI_LOST_SIGHT),
-			FacingIdeal(ent),
-			(ent->enemy && ent->enemy->inuse && visible(ent, ent->enemy, false)),
-			enemy_dist, goal_dist, fmp_dist,
-			ent->ideal_yaw, ent->s.angles[YAW], goal_yaw_dbg, ent->yaw_speed,
-			!!(ent->monsterinfo.aiflags & AI_PURSUE_NEXT),
-			!!(ent->monsterinfo.aiflags & AI_PURSUE_TEMP),
-			!!(ent->monsterinfo.aiflags & AI_PURSUIT_LAST_SEEN),
-			(int32_t)ent->monsterinfo.nav_path.returnCode,
-			!!(ent->monsterinfo.aiflags & AI_PATHING),
-			ent->monsterinfo.bad_move_time > level.time);
-	}
+	// Stall tracking (stuck_no_move_time) and the developer>1 STUCK diagnostic now live in
+	// M_MoveFrame, so they're movement-agnostic and also cover M_walkmove combat movement
+	// (ai_charge / ai_run_slide). Here we just read stuck_no_move_time to drive recovery.
 
 	// Hard unstick: a lost-sight monster wedged facing a blocked goal gets pinned because the nav
 	// path block below runs every frame, turns toward its (blocked) firstMovePoint, and

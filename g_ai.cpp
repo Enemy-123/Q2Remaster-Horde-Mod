@@ -955,7 +955,13 @@ void ai_charge(edict_t* self, float dist)
 		self->monsterinfo.blind_fire_target = self->enemy->s.origin + (self->enemy->velocity * -0.1f);
 	// --- End Check ---
 
-	if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
+	// While genuinely stuck in combat (charging/strafing into an obstacle toward the enemy), STOP
+	// re-aiming at the enemy every frame. That per-frame re-aim is exactly what defeats
+	// SV_movestep's wall-stuck escape (which turns ideal_yaw to slide off the obstacle) - holding
+	// it off lets the escape heading take, so the monster steps around the obstacle and resumes
+	// aiming once it's moving again. Same "don't re-aim at the goal every frame" rule M_MoveToGoal
+	// relies on. stuck_no_move_time is maintained in M_MoveFrame (covers this M_walkmove path).
+	if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING) && self->monsterinfo.stuck_no_move_time < 700_ms)
 	{
 		// --- Check added before accessing enemy origin ---
 		if (self->enemy && self->enemy->inuse)
@@ -970,7 +976,12 @@ void ai_charge(edict_t* self, float dist)
 
 	if (dist || (self->monsterinfo.aiflags & AI_ALTERNATE_FLY))
 	{
-		if (self->monsterinfo.aiflags & AI_CHARGING)
+		// AI_CHARGING follows the goal; ALSO fall back to goal-following when we're stuck
+		// strafing/walking into an obstacle next to the enemy (combat freeze). M_MoveToGoal has
+		// the bad_move + SV_NewChaseDir escape (the enemy goal has a classname, so it escalates),
+		// which repositions us instead of grinding the circle-strafe in place - the summoned-strogg
+		// combat freeze that ai_charge's inline strafe below can't recover from on its own.
+		if ((self->monsterinfo.aiflags & AI_CHARGING) || self->monsterinfo.stuck_no_move_time > 700_ms)
 		{
 			M_MoveToGoal(self, dist);
 			return;
@@ -2352,6 +2363,19 @@ void ai_run_slide(edict_t* self, float distance)
 	float ofs;
 	float angle;
 
+	// If circle-strafing isn't actually translating us (boxed in next to the enemy - we just spin
+	// in place), abandon the strafe and go straight. ai_run then pursues/repositions via
+	// M_MoveToGoal, which - chasing a real enemy goal (non-null classname) - has the bad_move +
+	// SV_NewChaseDir escape. Without this a hemmed-in monster (often a summoned strogg) strafes in
+	// place forever. Legit strafing translates, so stuck_no_move_time stays low and never trips.
+	if (self->monsterinfo.stuck_no_move_time > 700_ms)
+	{
+		if (self->monsterinfo.aiflags & AI_DODGING)
+			monster_done_dodge(self);
+		self->monsterinfo.attack_state = AS_STRAIGHT;
+		return;
+	}
+
 	self->ideal_yaw = enemy_yaw;
 
 	angle = 90;
@@ -2816,12 +2840,20 @@ void ai_run(edict_t* self, float dist)
 		}
 		else if (!M_HasEnemy(self) || self->enemy->client)
 		{
+			edict_t* const prev_enemy = self->enemy;
 			self->enemy = nullptr;
 			if (!FindMTarget(self))
 			{
 				if (self->monsterinfo.stand) self->monsterinfo.stand(self);
 				return;
 			}
+			// FindMTarget only sets self->enemy - it does NOT sync goalentity / ideal_yaw / run
+			// state (unlike FindTarget on the regular path, which calls FoundTarget). Without this
+			// sync a summoned monster that just killed its target keeps running toward the OLD
+			// target's spot with a stale yaw ("kill one, then run in place until it somehow
+			// re-targets"). Hand off to the new enemy whenever it actually changed.
+			if (self->enemy && self->enemy != prev_enemy)
+				HuntTarget(self);
 		}
 	}
 	// 3. Handle general case: Regular monster targeting logic
@@ -2872,7 +2904,20 @@ void ai_run(edict_t* self, float dist)
 		if (self->monsterinfo.stand) self->monsterinfo.stand(self);
 		return;
 	}
-	
+
+	// 5. Keep goalentity synced to the enemy for friendly spawns. FindMTarget (their acquisition
+	// path) only sets self->enemy - unlike FoundTarget on the regular path, it never points
+	// goalentity at the target. Left unsynced, goalentity stays stale (often its own/old position),
+	// so goal-based movement (M_MoveToGoal, the ai_charge stuck fallback, lost-sight pursuit) heads
+	// nowhere and the monster strafes/runs in place next to a visible enemy (egoal=false in the
+	// STUCK diag). Cheap pointer set; ideal_yaw/run are managed per-frame elsewhere. AI_COMBAT_POINT
+	// keeps its own goal; lost-sight save/restore below still works (it snapshots this value).
+	if (self->monsterinfo.isfriendlyspawn && M_HasEnemy(self) &&
+		!(self->monsterinfo.aiflags & AI_COMBAT_POINT) && self->goalentity != self->enemy)
+	{
+		self->goalentity = self->enemy;
+	}
+
 	// =======================================================================
 	// --- ORIGINAL AI LOGIC CONTINUES (NOW GUARANTEED TO HAVE A VALID ENEMY) ---
 	// =======================================================================
