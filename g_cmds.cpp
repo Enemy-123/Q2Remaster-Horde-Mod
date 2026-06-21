@@ -892,6 +892,7 @@ void Cmd_Summon_f(edict_t* ent)
 	monster->svflags |= SVF_MONSTER;
 	monster->solid = SOLID_BBOX;
 	monster->clipmask = MASK_MONSTERSOLID;
+	monster->ctf_team = CTF_TEAM1;
 
 	// Set touch function for pushing
 	monster->touch = strogg_summoned_touch;
