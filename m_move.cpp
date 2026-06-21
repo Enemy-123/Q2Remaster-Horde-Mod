@@ -1206,7 +1206,15 @@ if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::
 {
     // Don't remove CONTENTS_MONSTER for morphed players - they need proper collision
     if (!IsMorphed(ent)) {
-        mask &= ~CONTENTS_MONSTER;
+        if (g_horde->integer && (ent->svflags & SVF_MONSTER)) {
+            // Team-aware solidity for AI movement (mirrors the physics clipmask): stay SOLID to
+            // OPPOSED monsters (summoned allies vs enemies body-block each other) but non-solid to
+            // same-side, so the dense horde still files through itself and allies pass each other.
+            // G_GetClipMask drops CONTENTS_MONSTER only when a same-side monster is the blocker.
+            mask = G_GetClipMask(ent);
+        } else {
+            mask &= ~CONTENTS_MONSTER;
+        }
     }
 }
 
