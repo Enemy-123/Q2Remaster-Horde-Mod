@@ -23,7 +23,7 @@
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
-    <EnableASAN>false</EnableASAN>
+    <EnableASAN>true</EnableASAN>
     <EnableFuzzer>false</EnableFuzzer>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
@@ -67,7 +67,11 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>FMT_HEADER_ONLY;KEX_Q2_GAME;KEX_Q2GAME_EXPORTS;KEX_Q2GAME_DYNAMIC;_CRT_SECURE_NO_WARNINGS;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <!-- _DISABLE_*_ANNOTATION: ASan turns on STL container annotations (annotate_string/annotate_vector=1),
+           but the prebuilt jsoncpp.lib was compiled without ASan (=0). These macros turn the annotations off
+           on our side so the link succeeds (LNK2038/LNK1319). ASan itself stays active; only container-buffer
+           overflow detection is lost. Remove these when ASan is disabled / not needed. -->
+      <PreprocessorDefinitions>FMT_HEADER_ONLY;KEX_Q2_GAME;KEX_Q2GAME_EXPORTS;KEX_Q2GAME_DYNAMIC;_CRT_SECURE_NO_WARNINGS;_DISABLE_STRING_ANNOTATION;_DISABLE_VECTOR_ANNOTATION;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp23</LanguageStandard>
       <DisableSpecificWarnings>4267;4244</DisableSpecificWarnings>

@@ -83,6 +83,9 @@ bool ValidateLayoutString(const std::string& layout, const char* debug_name) {
 		pos++;
 	}
 	
+	// Runtime check (not assert): we must still skip malformed layouts in Release
+	// builds, where assert() is compiled out under NDEBUG. An unbalanced if/endif
+	// is a recoverable runtime condition (gracefully return false), not a logic bug.
 	const bool ifs_balanced = (if_count == endif_count);
 
 	// Count quote delimiters; an odd total is an unterminated string token.

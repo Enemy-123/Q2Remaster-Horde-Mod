@@ -975,6 +975,13 @@ void G_MonsterKilled(edict_t* self)
 
 void M_ProcessPain(edict_t* e)
 {
+	// Deferred pain runs in the frame loop after G_RunEntity, which may have freed the
+	// monster this same frame (death/removal). A freed edict can still carry SVF_MONSTER
+	// and stale, non-zero monsterinfo.damage_* garbage, so without this guard we would
+	// dereference dead memory in e->pain()/e->die() (ASan: wild read in guardian_pain).
+	if (!e || !e->inuse)
+		return;
+
 	// No damage was processed, so there's nothing to do.
 	if (!e->monsterinfo.damage_blood)
 		return;

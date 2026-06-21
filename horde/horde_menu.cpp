@@ -6582,7 +6582,6 @@ constexpr size_t MAX_PLAYERS_TO_DISPLAY = 14;
 constexpr int PLAYER_Y_START = 42;
 constexpr int PLAYER_Y_SPACING = 8;
 constexpr int LAYOUT_SAFETY_MARGIN = 50;
-static constexpr size_t MAX_BONUS_STRING_LENGTH = 400; 
 
 /**
  *  StringBuilder
@@ -6755,25 +6754,39 @@ public:
 		if (!level.intermissiontime)
 		{
 
-			// Active bonuses (per-player) with length check
-			std::string activeBonuses = GetPlayerActiveBonusesString(const_cast<edict_t*>(ent));
+			// Active bonuses (per-player), one per line down the right column.
+			// GetPlayerActiveBonusesString() returns entries separated by '\n'; the layout
+			// `string` command cannot render embedded newlines (SanitizeLayoutText collapses
+			// them to spaces), so we emit a separate yv line per bonus.
+			const std::string activeBonuses = GetPlayerActiveBonusesString(const_cast<edict_t*>(ent));
 			if (!activeBonuses.empty()) {
-	//			Truncate if too long to prevent overflow
-				if (activeBonuses.length() > MAX_BONUS_STRING_LENGTH) {
-	//				Safe resize with bounds check
-					try {
-						activeBonuses.resize(MAX_BONUS_STRING_LENGTH);
-						activeBonuses += "...";
-					} catch (const std::bad_alloc&) {
-						gi.Com_Print("WARNING: Failed to resize bonus string\n");
-						activeBonuses = "Error";
+				constexpr int BONUS_X = 208;
+				constexpr int BONUS_Y_START = 8;
+				constexpr int BONUS_Y_SPACING = 8;
+
+				const std::string_view bonuses_view(activeBonuses);
+				int bonus_y = BONUS_Y_START;
+				size_t start = 0;
+				while (start <= bonuses_view.size()) {
+					const size_t nl = bonuses_view.find('\n', start);
+					const std::string_view entry = (nl == std::string_view::npos)
+						? bonuses_view.substr(start)
+						: bonuses_view.substr(start, nl - start);
+
+					if (!entry.empty()) {
+						// entry has no embedded newline now, so sanitizing keeps it intact.
+						const std::string bonus_line = fmt::format(
+							"xv {} yv {} string \"{}\" \n",
+							BONUS_X, bonus_y, SanitizeLayoutText(entry));
+						if (!layout_builder.append_checked(bonus_line, LAYOUT_SAFETY_MARGIN))
+							break; // out of layout budget; stop adding bonus lines
+						bonus_y += BONUS_Y_SPACING;
 					}
+
+					if (nl == std::string_view::npos)
+						break;
+					start = nl + 1;
 				}
-				// Safety net: strip any quote/backslash/control chars before embedding
-				activeBonuses = SanitizeLayoutText(activeBonuses);
-				const std::string bonus_line = fmt::format(
-					"xv 208 yv 8 string \"{}\" \n", activeBonuses);
-				(void)layout_builder.append_checked(bonus_line, LAYOUT_SAFETY_MARGIN);
 			}
 		}
 		else

@@ -8,6 +8,20 @@
 CHECK_GCLIENT_INTEGRITY;
 CHECK_EDICT_INTEGRITY;
 
+// AddressSanitizer default options, baked into the DLL so they apply regardless of
+// how the game is launched (F5, Steam, or manual + attach) without depending on the
+// ASAN_OPTIONS env var. detect_container_overflow=0 is required because jsoncpp.lib is
+// linked without ASan container annotations (see _DISABLE_*_ANNOTATION in game.vcxproj);
+// with the runtime check left on, ASan misreads std::format's internal _Fmt_buffer and
+// crashes (verify_double_ended_contiguous_container). A real ASAN_OPTIONS env var still
+// overrides these per-key.
+#ifdef __SANITIZE_ADDRESS__
+extern "C" __declspec(dllexport) const char *__asan_default_options()
+{
+	return "detect_container_overflow=0:halt_on_error=1:abort_on_error=0";
+}
+#endif
+
 std::mt19937 mt_rand;
 
 game_locals_t  game;
@@ -1576,7 +1590,9 @@ inline void G_RunFrame_(bool main_loop)
         }
 
         // Process monster pain immediately after its main logic has run.
-        if (ent->svflags & SVF_MONSTER) {
+        // G_RunEntity above may have freed this monster this frame, so re-check inuse
+        // before processing deferred pain on a dead edict.
+        if (ent->inuse && (ent->svflags & SVF_MONSTER)) {
             M_ProcessPain(ent);
         }
     }
