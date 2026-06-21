@@ -400,13 +400,27 @@ static void ApplyMonsterRepulsion(edict_t* ent, vec3_t& move, bool in_combat)
 		{
 			vec3_t hard_move = hard_sep * hard_strength;
 
-			// Anti-jitter: when a goal exists, cap the total hard push to a fraction of the step
-			// length so the strogg can't be flung across the enemy in a single frame.
 			if (original_move.lengthSquared() > 1.0f)
 			{
-				const float max_push = original_move.length() * HARD_SEPARATION_STEP_CAP_FRACTION;
+				const vec3_t move_dir = original_move.normalized();
+				const float step_len = original_move.length();
+
+				// Anti-jitter: cap the total hard push to a fraction of the step length so the
+				// strogg can't be flung across the enemy in a single frame.
+				const float max_push = step_len * HARD_SEPARATION_STEP_CAP_FRACTION;
 				if (hard_move.lengthSquared() > max_push * max_push)
 					hard_move = hard_move.normalized() * max_push;
+
+				// Keep the lateral (un-stacking) part in full, but never let the along-goal
+				// back-push REVERSE net travel: when a strogg and its enemy point goals straight
+				// at each other the full push used to net-cancel the forward step, leaving the
+				// strogg running in place. Slow it head-on if we must, but always net at least
+				// MIN_FWD_FRACTION of the intended step forward so it keeps closing to melee.
+				static constexpr float MIN_FWD_FRACTION = 0.25f;
+				const float along = hard_move.dot(move_dir);          // < 0 => pushing backward
+				const vec3_t lateral = hard_move - move_dir * along;  // perpendicular part
+				const float min_along = -(step_len * (1.0f - MIN_FWD_FRACTION));
+				hard_move = lateral + move_dir * std::max(along, min_along);
 			}
 
 			move += hard_move;
@@ -1860,9 +1874,17 @@ const bool is_widow = (horde::IsMonsterType(ent, horde::MonsterTypeID::WIDOW) ||
 		return true;
 	}
 
-	// Movement failed, restore original rotation
-	ent->ideal_yaw = old_ideal_yaw;
-	ent->s.angles[YAW] = old_current_yaw;
+	// Movement failed. Normally we also undo the turn M_ChangeYaw just made, so a monster doesn't
+	// pivot in place against a wall. BUT when the caller allows turning without moving
+	// (allow_no_turns - nav path following and the bad_move bump escape), KEEP the rotation: a
+	// wedged monster has to be able to rotate toward a new heading even while every step is
+	// blocked, otherwise its yaw is reverted every frame and stays pinned forever - the lost-sight
+	// "runs in place, can't even turn until attacked" freeze.
+	if (!allow_no_turns)
+	{
+		ent->ideal_yaw = old_ideal_yaw;
+		ent->s.angles[YAW] = old_current_yaw;
+	}
 
 	// Update entity state and check triggers even on failure
 	gi.linkentity(ent);
@@ -2376,13 +2398,86 @@ void M_MoveToGoal(edict_t* ent, float dist)
 	else if (!goal)
 		return;
 
-	// [Paril-KEX] try paths if we can't see the enemy
-	if (!(ent->monsterinfo.aiflags & AI_COMBAT_POINT) && ent->monsterinfo.attack_state < AS_MISSILE)
+	// --- Stall ("running in place") detection ---
+	// The run animation advances every frame whether or not the monster actually translates,
+	// so a monster whose step keeps getting rejected (FacingIdeal revert in SV_StepDirection,
+	// a blocked nav-path that still reports "handled", a hard-separation back-push) looks like
+	// it's running on the spot. Track real per-frame displacement (entry-to-entry) only while
+	// we actually intend to move; used purely to drive the developer>1 diagnostic below.
+	const bool wants_to_move = dist > 0.f &&
+		!(ent->monsterinfo.aiflags & AI_STAND_GROUND) &&
+		!(ent->flags & FL_STATIONARY);
+	if (wants_to_move)
 	{
+		if (DistanceSquared(ent->s.origin, ent->monsterinfo.stuck_last_origin) > 1.0f)
+			ent->monsterinfo.stuck_no_move_time = 0_ms;
+		else
+			ent->monsterinfo.stuck_no_move_time += FRAME_TIME_S;
+	}
+	else
+		ent->monsterinfo.stuck_no_move_time = 0_ms;
+	ent->monsterinfo.stuck_last_origin = ent->s.origin;
+
+	// Diagnostic only (developer>1): report a sustained no-translation so we can see which
+	// mechanism is eating the step. IMPORTANT: do NOT touch ideal_yaw here. The wall-stuck
+	// escape in SV_movestep and SV_NewChaseDir's anti-circling deliberately set a *turned*
+	// heading and rely on M_MoveToGoal NOT re-aiming at the (blocked) goal every frame -
+	// re-aiming marches the monster straight back into the same wall and freezes it (the exact
+	// 3-10s wall grind these diagnostics surfaced). Let the existing escapes do their job.
+	if (developer->integer > 1 && ent->monsterinfo.stuck_no_move_time > 1500_ms &&
+		ent->monsterinfo.stuck_log_time <= level.time)
+	{
+		ent->monsterinfo.stuck_log_time = level.time + 1_sec;
+		const float enemy_dist = (ent->enemy && ent->enemy->inuse)
+			? (ent->enemy->s.origin - ent->s.origin).length() : -1.f;
+		const float goal_dist = ent->goalentity ? (ent->goalentity->s.origin - ent->s.origin).length() : -1.f;
+		const float goal_yaw_dbg = ent->goalentity ? vectoyaw((ent->goalentity->s.origin - ent->s.origin)) : -1.f;
+		const float fmp_dist = (ent->monsterinfo.nav_path.firstMovePoint - ent->s.origin).length();
+		gi.Com_PrintFmt("STUCK {} no_move={:.2f}s lost={} facing={} evis={} edist={:.0f} gdist={:.0f} fmp={:.0f} iyaw={:.0f} cyaw={:.0f} gyaw={:.0f} yspd={:.0f} pn={} pt={} pls={} navrc={} pathing={} bad_move={}\n",
+			ent->classname, ent->monsterinfo.stuck_no_move_time.seconds(),
+			!!(ent->monsterinfo.aiflags & AI_LOST_SIGHT),
+			FacingIdeal(ent),
+			(ent->enemy && ent->enemy->inuse && visible(ent, ent->enemy, false)),
+			enemy_dist, goal_dist, fmp_dist,
+			ent->ideal_yaw, ent->s.angles[YAW], goal_yaw_dbg, ent->yaw_speed,
+			!!(ent->monsterinfo.aiflags & AI_PURSUE_NEXT),
+			!!(ent->monsterinfo.aiflags & AI_PURSUE_TEMP),
+			!!(ent->monsterinfo.aiflags & AI_PURSUIT_LAST_SEEN),
+			(int32_t)ent->monsterinfo.nav_path.returnCode,
+			!!(ent->monsterinfo.aiflags & AI_PATHING),
+			ent->monsterinfo.bad_move_time > level.time);
+	}
+
+	// Hard unstick: a lost-sight monster wedged facing a blocked goal gets pinned because the nav
+	// path block below runs every frame, turns toward its (blocked) firstMovePoint, and
+	// SV_StepDirection REVERTS the yaw on the failed step - so the monster can neither step nor
+	// rotate, and bad_move (which would let it turn-and-keep via allow_no_turns) never gets set
+	// (the lost-sight tempgoal has no classname, so the straight-path never escalates). Once
+	// genuinely frozen: (1) set bad_move so the bump logic can rotate without reverting, and
+	// (2) skip nav this frame (handled at the path-block guard) so it stops fighting the turn.
+	const bool stuck_recovering = ent->monsterinfo.stuck_no_move_time > 700_ms;
+	if (ent->monsterinfo.stuck_no_move_time > 1000_ms && ent->monsterinfo.bad_move_time <= level.time)
+		ent->monsterinfo.bad_move_time = level.time + 2_sec;
+
+	// [Paril-KEX] try paths if we can't see the enemy.
+	// Skip nav while we're in stuck-recovery: M_NavPathToGoal reverts our yaw every blocked frame
+	// (SV_StepDirection rollback), which pins a wedged monster so it can never rotate out. Letting
+	// classic movement run instead gives SV_NewChaseDir + the (now-set) bad_move turn-and-keep
+	// escape a clear shot at unsticking it.
+	if (!(ent->monsterinfo.aiflags & AI_COMBAT_POINT) && ent->monsterinfo.attack_state < AS_MISSILE && !stuck_recovering)
+	{
+		// Only count the path as "handled" (and skip the classic bump below) if it actually
+		// moved us this frame. M_NavPathToGoal returns true even on blocked frames, which used
+		// to park a stuck monster here for seconds; falling through instead lets SV_NewChaseDir
+		// bump/turn-around the same frame. No double-move risk: we only fall through on no move.
+		const vec3_t pre_path_origin = ent->s.origin;
 		if (M_MoveToPath(ent, dist))
 		{
-			ent->monsterinfo.path_blocked_counter = max(0_ms, ent->monsterinfo.path_blocked_counter - FRAME_TIME_S);
-			return;
+			if (DistanceSquared(ent->s.origin, pre_path_origin) > 1.0f)
+			{
+				ent->monsterinfo.path_blocked_counter = max(0_ms, ent->monsterinfo.path_blocked_counter - FRAME_TIME_S);
+				return;
+			}
 		}
 	}
 
@@ -2454,8 +2549,14 @@ void M_MoveToGoal(edict_t* ent, float dist)
 	}
 
 	// bump around...
-	// Skip if still in bump time cooldown (prevents stuttering from rapid direction changes)
-	if (ent->monsterinfo.bump_time > level.time)
+	// Skip if still in bump time cooldown (prevents stuttering from rapid direction changes),
+	// BUT not once we've genuinely been frozen for a while. SV_movestep's collision recovery
+	// refreshes bump_time every frame we fail to move, so a monster wedged facing a blocked goal
+	// would sit in this gate forever and never reach SV_NewChaseDir below to pick a new heading /
+	// turn around. This is the lost-sight freeze: the pursuit tempgoal has no classname, so the
+	// straight-path never escalates to bad_move, and bump_time keeps us out of the chase-dir
+	// search. Past the stall threshold, fall through so SV_NewChaseDir can unstick us.
+	if (ent->monsterinfo.bump_time > level.time && ent->monsterinfo.stuck_no_move_time < 700_ms)
 	{
 		M_ChangeYaw(ent); // Still face the target while waiting
 		return;

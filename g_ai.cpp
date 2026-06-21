@@ -769,8 +769,16 @@ static bool M_RetargetClosestVisibleEnemy(edict_t* self)
 		return FindTarget(self);
 
 	edict_t* const prev_enemy = self->enemy;
-	const bool prev_visible = visible(self, prev_enemy, false);
 	const float prev_dist_sq = DistanceSquared(self->s.origin, prev_enemy->s.origin);
+
+	// Treat the current enemy as "really lost" only after a SUSTAINED loss of sight, not a
+	// single occluded frame. In a horde, non-solid monsters constantly flicker through the LOS
+	// line; reacting to each flicker made us re-HuntTarget (which resets ideal_yaw and recalls
+	// run()) as often as every 300ms - that churn reads in-game as a monster "running in place /
+	// unable to decide between running and attacking". trail_time is refreshed every frame we
+	// actually see the enemy (ai_run / ai_checkattack), so it's the right freshness gauge.
+	static constexpr gtime_t LOST_SIGHT_GRACE = 1_sec;
+	const bool really_lost = (level.time - self->monsterinfo.trail_time) > LOST_SIGHT_GRACE;
 
 	// Faction-correct picker: friendly spawns hunt monsters only (FindMTarget), horde monsters use
 	// the grid search. Both only set self->enemy (no FoundTarget side effects), so we finish the
@@ -788,9 +796,10 @@ static bool M_RetargetClosestVisibleEnemy(edict_t* self)
 		return false;
 	}
 
-	// Hysteresis: while we can still see the current enemy, only switch to a meaningfully closer
-	// pick; once it's out of sight, take any visible replacement immediately.
-	if (prev_visible &&
+	// Hysteresis: while the current enemy isn't genuinely lost, only switch to a meaningfully
+	// closer pick; once it's been out of sight past the grace window, take any visible
+	// replacement immediately.
+	if (!really_lost &&
 		DistanceSquared(self->s.origin, new_enemy->s.origin) >= prev_dist_sq * 0.6f)
 	{
 		self->enemy = prev_enemy;
@@ -3219,6 +3228,19 @@ void ai_run(edict_t* self, float dist)
 			self->monsterinfo.trail_time = marker->timestamp;
 			self->s.angles[YAW] = self->ideal_yaw = marker->s.angles[YAW];
 
+			newEnemy = true;
+		}
+		// [Horde] PlayerTrail is disabled in horde (see p_trail.cpp), so the pick above is
+		// always null and last_sighting would stay pinned to the spot we just reached ->
+		// goalentity == our own position -> the monster freezes "running in place" once it
+		// arrives at the last-seen point. With no trail to follow, head to where the enemy
+		// ACTUALLY is now and keep hunting (a closer/visible target is still acquired normally
+		// by the retarget path). Guarded by !newEnemy so it never clobbers an AI_PURSUE_TEMP
+		// detour; only fires on arrival (AI_PURSUE_NEXT), so it's a stepwise chase, not
+		// omniscient tracking.
+		else if (g_horde->integer && !newEnemy && self->enemy && self->enemy->inuse)
+		{
+			self->monsterinfo.last_sighting = self->monsterinfo.saved_goal = self->enemy->s.origin;
 			newEnemy = true;
 		}
 	}

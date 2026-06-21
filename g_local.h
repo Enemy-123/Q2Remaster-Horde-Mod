@@ -1861,11 +1861,15 @@ struct monsterinfo_t
 	gtime_t	  path_blocked_counter; // break out of paths when > a certain time
 	gtime_t	  path_wait_time; // don't try nav nodes until this is over
 	PathInfo  nav_path; // if AI_PATHING, this is where we are trying to reach
-	gtime_t	  nav_path_cache_time; // cache nav_path result for this much time
+	gtime_t	  nav_path_cache_time; // cacchrome://vivaldi-webui/startpagehe nav_path result for this much time
 	// Progress-based path recalculation tracking
 	gtime_t   path_progress_time;     // next time to check movement progress
 	float     path_last_goal_dist;    // last recorded distance to goal
 	gtime_t   path_no_progress_time;  // accumulated time without progress
+	// Stall ("running in place") detection - see M_MoveToGoal
+	vec3_t    stuck_last_origin;      // origin sampled at the previous M_MoveToGoal entry
+	gtime_t   stuck_no_move_time;     // accumulated time with a goal but no translation
+	gtime_t   stuck_log_time;         // throttle for the developer>1 STUCK diagnostic
 	combat_style_t combat_style; // pathing style
 
 	edict_t* damage_attacker;
@@ -2277,6 +2281,7 @@ extern cvar_t* ai_damage_scale;
 extern cvar_t* ai_model_scale;
 extern cvar_t* ai_allow_dm_spawn;
 extern cvar_t* ai_movement_disabled;
+extern cvar_t* developer;
 extern cvar_t* g_monster_squeeze;        // target half-WIDTH a blocked monster shrinks its box down to, to fit a tight gap (0 = off; smaller = squeezes tighter)
 extern cvar_t* g_monster_squeeze_height; // target total HEIGHT a blocked monster shrinks its box down to (0 = don't shrink height)
 
