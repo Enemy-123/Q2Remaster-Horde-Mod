@@ -18,31 +18,28 @@ constexpr float MONSTER_PERSONAL_SPACE_FLYING = 64.0f;
 constexpr float MONSTER_PERSONAL_SPACE_SEARCH_MULTIPLIER = 2.0f;
 
 // Repulsion system constants
-constexpr float REPULSION_MAX_FORCE = 32.0f;
+constexpr float REPULSION_MAX_FORCE = 24.0f;
 constexpr float REPULSION_VERTICAL_DAMPING = 0.1f;
 constexpr float REPULSION_MULTI_MONSTER_SCALE = 0.7f;
 constexpr float REPULSION_STRENGTH_DEFAULT = 0.25f;
 constexpr float REPULSION_STRENGTH_BOSS = 0.1f;
-constexpr float REPULSION_STRENGTH_COMBAT = 28.5f;
+constexpr float REPULSION_STRENGTH_COMBAT = 0.5f;
 constexpr float REPULSION_STRENGTH_CORRIDOR = 0.1f;       // Reduced from 0.3 to 0.1
 constexpr float REPULSION_STRENGTH_TIGHT_CORRIDOR = 0.0f; // New: completely disable in very tight spaces
 constexpr float REPULSION_LATERAL_MAX_FRACTION = 0.5f;    // cap sideways nudge to this fraction of the step length (keeps goal dominant)
 constexpr float REPULSION_MIN_THRESHOLD_SQ = 1.0f;
 
-// --- Hard separation: summoned Stroggs deeply overlapping a non-friendly (enemy) monster ---
+// --- Hard separation: summoned Stroggs deeply overlapping a DIFFERENT-team monster ---
 // Lateral repulsion can't separate two mutual enemies (the push is anti-parallel to the goal, so
 // its lateral component is ~0 and gets stripped). This adds a FULL (non-lateral) un-stacking push,
-// gated to summoned stroggs vs monsters WITHOUT BF_FRIENDLY (every friendly spawn carries that flag,
-// enemies never do) and only at DEEP overlap, so they un-pile yet can still close to melee. One-sided
-// (only the strogg accumulates it) -> no symmetric ping-pong, friendly crowd untouched. The strength
-// has to BEAT a head-on grind: when strogg and enemy target each other both walk a full step into each
-// other per frame, so the push is sized to out-pace that (cap > 1 step) instead of stalemating in place.
+// gated to summoned stroggs only and only at DEEP overlap, so they un-pile yet can still close to
+// melee. One-sided (only the strogg accumulates it) -> no symmetric ping-pong, normal crowd untouched.
 constexpr float HARD_SEPARATION_DEEP_OVERLAP_FRACTION = 0.5f; // engage only when dist < personal_space * this (or boxes intersect)
-constexpr float HARD_SEPARATION_MAX_FORCE             = 24.0f; // peak per-neighbor push (matches REPULSION_MAX_FORCE)
-constexpr float HARD_SEPARATION_STRENGTH              = 0.9f;  // applied fraction (strong enough to win a head-on grind vs an enemy)
-constexpr float HARD_SEPARATION_STRENGTH_COMBAT       = 0.75f; // scale vs a live enemy - kept high so they still un-stack while fighting
-constexpr float HARD_SEPARATION_MIN_DIST              = 4.0f;  // floor in falloff denominator (anti force-spike at near-zero distance)
-constexpr float HARD_SEPARATION_STEP_CAP_FRACTION     = 1.5f;  // cap total hard push to this * step length (>1 so a strogg out-backs a head-on pursuer)
+constexpr float HARD_SEPARATION_MAX_FORCE = 24.0f; // peak per-neighbor push (matches REPULSION_MAX_FORCE)
+constexpr float HARD_SEPARATION_STRENGTH = 0.6f;  // applied fraction (stronger than lateral so it actually un-stacks)
+constexpr float HARD_SEPARATION_STRENGTH_COMBAT = 0.5f;  // scale vs a live enemy (don't shove past melee range)
+constexpr float HARD_SEPARATION_MIN_DIST = 4.0f;  // floor in falloff denominator (anti force-spike at near-zero distance)
+constexpr float HARD_SEPARATION_STEP_CAP_FRACTION = 1.0f;  // cap total hard push to this * step length (anti-jitter)
 
 // Wall repulsion constants - keeps monsters off walls so squeezed boxes don't park their
 // (full-size) model inside geometry. Lateral-only vs. the goal direction, so it never blocks
@@ -1874,17 +1871,9 @@ const bool is_widow = (horde::IsMonsterType(ent, horde::MonsterTypeID::WIDOW) ||
 		return true;
 	}
 
-	// Movement failed. Normally we also undo the turn M_ChangeYaw just made, so a monster doesn't
-	// pivot in place against a wall. BUT when the caller allows turning without moving
-	// (allow_no_turns - nav path following and the bad_move bump escape), KEEP the rotation: a
-	// wedged monster has to be able to rotate toward a new heading even while every step is
-	// blocked, otherwise its yaw is reverted every frame and stays pinned forever - the lost-sight
-	// "runs in place, can't even turn until attacked" freeze.
-	if (!allow_no_turns)
-	{
-		ent->ideal_yaw = old_ideal_yaw;
-		ent->s.angles[YAW] = old_current_yaw;
-	}
+	// Movement failed, restore original rotation
+	ent->ideal_yaw = old_ideal_yaw;
+	ent->s.angles[YAW] = old_current_yaw;
 
 	// Update entity state and check triggers even on failure
 	gi.linkentity(ent);
@@ -2398,44 +2387,18 @@ void M_MoveToGoal(edict_t* ent, float dist)
 	else if (!goal)
 		return;
 
-	// Stall tracking (stuck_no_move_time) and the developer>1 STUCK diagnostic now live in
-	// M_MoveFrame, so they're movement-agnostic and also cover M_walkmove combat movement
-	// (ai_charge / ai_run_slide). Here we just read stuck_no_move_time to drive recovery.
-
-	// Hard unstick: a lost-sight monster wedged facing a blocked goal gets pinned because the nav
-	// path block below runs every frame, turns toward its (blocked) firstMovePoint, and
-	// SV_StepDirection REVERTS the yaw on the failed step - so the monster can neither step nor
-	// rotate, and bad_move (which would let it turn-and-keep via allow_no_turns) never gets set
-	// (the lost-sight tempgoal has no classname, so the straight-path never escalates). Once
-	// genuinely frozen: (1) set bad_move so the bump logic can rotate without reverting, and
-	// (2) skip nav this frame (handled at the path-block guard) so it stops fighting the turn.
-	const bool stuck_recovering = ent->monsterinfo.stuck_no_move_time > 700_ms;
-	if (ent->monsterinfo.stuck_no_move_time > 1000_ms && ent->monsterinfo.bad_move_time <= level.time)
-		ent->monsterinfo.bad_move_time = level.time + 2_sec;
-
-	// [Paril-KEX] try paths if we can't see the enemy.
-	// Skip nav while we're in stuck-recovery: M_NavPathToGoal reverts our yaw every blocked frame
-	// (SV_StepDirection rollback), which pins a wedged monster so it can never rotate out. Letting
-	// classic movement run instead gives SV_NewChaseDir + the (now-set) bad_move turn-and-keep
-	// escape a clear shot at unsticking it.
-	if (!(ent->monsterinfo.aiflags & AI_COMBAT_POINT) && ent->monsterinfo.attack_state < AS_MISSILE && !stuck_recovering)
+	// [Paril-KEX] try paths if we can't see the enemy
+	if (!(ent->monsterinfo.aiflags & AI_COMBAT_POINT) && ent->monsterinfo.attack_state < AS_MISSILE)
 	{
-		// Only count the path as "handled" (and skip the classic bump below) if it actually
-		// moved us this frame. M_NavPathToGoal returns true even on blocked frames, which used
-		// to park a stuck monster here for seconds; falling through instead lets SV_NewChaseDir
-		// bump/turn-around the same frame. No double-move risk: we only fall through on no move.
-		const vec3_t pre_path_origin = ent->s.origin;
 		if (M_MoveToPath(ent, dist))
 		{
-			if (DistanceSquared(ent->s.origin, pre_path_origin) > 1.0f)
-			{
-				ent->monsterinfo.path_blocked_counter = max(0_ms, ent->monsterinfo.path_blocked_counter - FRAME_TIME_S);
-				return;
-			}
+			ent->monsterinfo.path_blocked_counter = max(0_ms, ent->monsterinfo.path_blocked_counter - FRAME_TIME_S);
+			return;
 		}
 	}
 
 	ent->monsterinfo.aiflags &= ~AI_PATHING;
+
 
 	//if (goal)
 	//	gi.Draw_Point(goal->s.origin, 1.f, rgba_red, gi.frame_time_ms, false);
@@ -2510,7 +2473,7 @@ void M_MoveToGoal(edict_t* ent, float dist)
 	// turn around. This is the lost-sight freeze: the pursuit tempgoal has no classname, so the
 	// straight-path never escalates to bad_move, and bump_time keeps us out of the chase-dir
 	// search. Past the stall threshold, fall through so SV_NewChaseDir can unstick us.
-	if (ent->monsterinfo.bump_time > level.time && ent->monsterinfo.stuck_no_move_time < 700_ms)
+	if (ent->monsterinfo.bump_time > level.time)
 	{
 		M_ChangeYaw(ent); // Still face the target while waiting
 		return;

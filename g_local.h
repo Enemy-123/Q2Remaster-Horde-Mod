@@ -9,9 +9,9 @@
 
 // BFG Mode enum for tri-state BFG behavior
 enum class BFGMode : uint8_t {
-    NORMAL = 0,    // Standard BFG
-    SLIDE = 1,     // Bouncing/sliding BFG (current default)
-    GRAV_PULL = 2  // Slide + gravity pull effect
+	NORMAL = 0,    // Standard BFG
+	SLIDE = 1,     // Bouncing/sliding BFG (current default)
+	GRAV_PULL = 2  // Slide + gravity pull effect
 };
 
 // the "gameversion" client command will print this plus compile date
@@ -108,7 +108,8 @@ private:
 		{
 			if (!input) {
 				output = ""; // Use empty string for null
-			} else {
+			}
+			else {
 				// Check string length to avoid reading beyond bounds
 				size_t len = strnlen(input, MAX_INFO_STRING - 1);
 				if (len >= MAX_INFO_STRING - 1) {
@@ -119,7 +120,8 @@ private:
 #ifdef _DEBUG
 					Com_Print("Warning: String truncated in loc_embed\n");
 #endif
-				} else {
+				}
+				else {
 					// String is safe to use directly
 					output = input;
 				}
@@ -141,7 +143,7 @@ private:
 		}
 		else {
 			// Compile-time error for unsupported types
-			static_assert(!std::is_same_v<T,T>, "Unsupported type passed to loc_embed");
+			static_assert(!std::is_same_v<T, T>, "Unsupported type passed to loc_embed");
 			output = "[INVALID_TYPE]"; // Fallback (should never reach here)
 		}
 	}
@@ -484,7 +486,7 @@ public:
 	}
 	constexpr bool operator<=(const gtime_t& time) const
 	{
-		return _ms <= time._ms; 
+		return _ms <= time._ms;
 	}
 	constexpr bool operator>=(const gtime_t& time) const
 	{
@@ -640,13 +642,13 @@ public:
 	}
 
 	inline save_data_t<T, Tag>& operator=(const save_data_t<T, Tag>& other)
-    {
-        if (this != &other) { // Self-assignment check
-            value = other.value;
-            list = other.list;
-        }
-        return *this;
-    }
+	{
+		if (this != &other) { // Self-assignment check
+			value = other.value;
+			list = other.list;
+		}
+		return *this;
+	}
 
 	inline save_data_t& operator=(value_type ptr_in)
 	{
@@ -1708,14 +1710,14 @@ namespace horde {
 
 struct reinforcement_def_t
 {
-    horde::MonsterTypeID typeId;
-    int32_t strength;
+	horde::MonsterTypeID typeId;
+	int32_t strength;
 };
 
 // MODIFIED: The list now holds a non-owning view of a constexpr array of definitions.
 struct reinforcement_list_t
 {
-    std::span<const reinforcement_def_t> defs;
+	std::span<const reinforcement_def_t> defs;
 };
 
 constexpr size_t MAX_REINFORCEMENTS = 5; // max number of spawns we can do at once.
@@ -1742,28 +1744,28 @@ enum bonus_flags_t : uint32_t {
 MAKE_ENUM_BITFLAGS(bonus_flags_t);
 
 typedef struct sentry_state_s {
-    gtime_t         last_target_time;
-    gtime_t         last_enemy_change_time;
-    struct edict_t* previous_enemy;
-    bool            was_attacking;
-    int             transition_state; // 0=idle, 1=readying, 2=active, 3=cooling down
-    gtime_t         next_target_search_time;
-    gtime_t         last_animation_change_time;
-    int             grenade_burst_count;
-    gtime_t         last_grenade_burst_time;
-    gtime_t         last_regeneration_time;
-    // Flechette burst system
-    int             flechette_burst_count;
-    int             flechette_burst_target;  // Random 12-16 flechettes per burst
-    gtime_t         last_flechette_burst_time;
-    bool            grenade_ready;           // True when flechette burst done, grenade should fire
-    // Heatbeam continuous tracking
-    bool            heatbeam_active;
-    gtime_t         heatbeam_start_time;
-    gtime_t         heatbeam_duration;
-    gtime_t         next_heatbeam_fire_time; // dedicated heatbeam fire cadence; must NOT
-                                             // share monsterinfo.next_duck_time, which
-                                             // TurretSparks pushes 2-4.5s ahead when hurt
+	gtime_t         last_target_time;
+	gtime_t         last_enemy_change_time;
+	struct edict_t* previous_enemy;
+	bool            was_attacking;
+	int             transition_state; // 0=idle, 1=readying, 2=active, 3=cooling down
+	gtime_t         next_target_search_time;
+	gtime_t         last_animation_change_time;
+	int             grenade_burst_count;
+	gtime_t         last_grenade_burst_time;
+	gtime_t         last_regeneration_time;
+	// Flechette burst system
+	int             flechette_burst_count;
+	int             flechette_burst_target;  // Random 12-16 flechettes per burst
+	gtime_t         last_flechette_burst_time;
+	bool            grenade_ready;           // True when flechette burst done, grenade should fire
+	// Heatbeam continuous tracking
+	bool            heatbeam_active;
+	gtime_t         heatbeam_start_time;
+	gtime_t         heatbeam_duration;
+	gtime_t         next_heatbeam_fire_time; // dedicated heatbeam fire cadence; must NOT
+	// share monsterinfo.next_duck_time, which
+	// TurretSparks pushes 2-4.5s ahead when hurt
 } sentry_state_t;
 
 struct monsterinfo_t
@@ -1861,15 +1863,11 @@ struct monsterinfo_t
 	gtime_t	  path_blocked_counter; // break out of paths when > a certain time
 	gtime_t	  path_wait_time; // don't try nav nodes until this is over
 	PathInfo  nav_path; // if AI_PATHING, this is where we are trying to reach
-	gtime_t	  nav_path_cache_time; // cacchrome://vivaldi-webui/startpagehe nav_path result for this much time
+	gtime_t	  nav_path_cache_time; // cache nav_path result for this much time
 	// Progress-based path recalculation tracking
 	gtime_t   path_progress_time;     // next time to check movement progress
 	float     path_last_goal_dist;    // last recorded distance to goal
 	gtime_t   path_no_progress_time;  // accumulated time without progress
-	// Stall ("running in place") detection - see M_MoveToGoal
-	vec3_t    stuck_last_origin;      // origin sampled at the previous M_MoveToGoal entry
-	gtime_t   stuck_no_move_time;     // accumulated time with a goal but no translation
-	gtime_t   stuck_log_time;         // throttle for the developer>1 STUCK diagnostic
 	combat_style_t combat_style; // pathing style
 
 	edict_t* damage_attacker;
@@ -1959,7 +1957,7 @@ struct monsterinfo_t
 	int team; // Setting a team, test
 
 	gtime_t next_regen_time; // Timer for Stygian/other regen effects
- 	sentry_state_t* sentry_state; 
+	sentry_state_t* sentry_state;
 
 	bool is_fading_out = false; // corpse cleaning management (moved from edict_t)
 	bool was_spawned_by_horde;
@@ -2281,7 +2279,6 @@ extern cvar_t* ai_damage_scale;
 extern cvar_t* ai_model_scale;
 extern cvar_t* ai_allow_dm_spawn;
 extern cvar_t* ai_movement_disabled;
-extern cvar_t* developer;
 extern cvar_t* g_monster_squeeze;        // target half-WIDTH a blocked monster shrinks its box down to, to fit a tight gap (0 = off; smaller = squeezes tighter)
 extern cvar_t* g_monster_squeeze_height; // target total HEIGHT a blocked monster shrinks its box down to (0 = don't shrink height)
 
@@ -2602,7 +2599,7 @@ void skull_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
 edict_t* ThrowGib(edict_t* self, const char* gibname, int damage, gib_type_t type, float scale, int frame = 0);
 void BecomeExplosion1(edict_t* self);
 void BecomeExplosion2(edict_t* self);
-void BecomeTE(edict_t *self);
+void BecomeTE(edict_t* self);
 void misc_viper_use(edict_t* self, edict_t* other, edict_t* activator);
 void misc_strogg_ship_use(edict_t* self, edict_t* other, edict_t* activator);
 void VelocityForDamage(int damage, vec3_t& v);
@@ -2664,7 +2661,7 @@ edict_t* fire_blaster_bolt(edict_t* self, const vec3_t& start, const vec3_t& dir
 void Grenade_Explode(edict_t* ent);
 void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, gtime_t timer,
 	float damage_radius, float right_adjust, float up_adjust, bool monster);
-void fire_grenade2(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, gtime_t timer, 
+void fire_grenade2(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, gtime_t timer,
 	float damage_radius, bool held, bool from_upgraded_prox = false);
 void rocket_touch(edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self);
 void fireball_touch(edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self);
@@ -3077,59 +3074,59 @@ struct regeneration_info_t {
 // - Runtime limit (from config): Actual enforced limit during gameplay
 
 namespace BarrelConstants {
-    constexpr int32_t MAX_BARRELS_ARRAY_SIZE = 16;
-    inline int32_t MAX_BARRELS_PER_PLAYER() { return g_config.entity_limits.max_barrels; }
-    constexpr int32_t BARREL_COST = 10;
-    constexpr gtime_t BARREL_LIFETIME = 120_sec;
-    constexpr int32_t BARREL_BASE_HEALTH = 30;
-    constexpr int32_t BARREL_BASE_DAMAGE = 100;
-    constexpr float BARREL_EXPLOSION_RADIUS = 350.0f;
-    constexpr float BARREL_PICKUP_RANGE = 128.0f;
-    constexpr float BARREL_THROW_SPEED = 700.0f;
+	constexpr int32_t MAX_BARRELS_ARRAY_SIZE = 16;
+	inline int32_t MAX_BARRELS_PER_PLAYER() { return g_config.entity_limits.max_barrels; }
+	constexpr int32_t BARREL_COST = 10;
+	constexpr gtime_t BARREL_LIFETIME = 120_sec;
+	constexpr int32_t BARREL_BASE_HEALTH = 30;
+	constexpr int32_t BARREL_BASE_DAMAGE = 100;
+	constexpr float BARREL_EXPLOSION_RADIUS = 350.0f;
+	constexpr float BARREL_PICKUP_RANGE = 128.0f;
+	constexpr float BARREL_THROW_SPEED = 700.0f;
 }
 
 namespace LaserConstants {
-    constexpr int32_t MAX_LASERS_ARRAY_SIZE = 16;
-    inline int32_t MAX_LASERS_PER_PLAYER() { return g_config.entity_limits.max_lasers; }
-    constexpr int32_t MAX_LASER_HEALTH = 4250;
-    constexpr gtime_t LASER_SPAWN_DELAY = 1_sec;
-    constexpr gtime_t LASER_TIMEOUT_DELAY = 240_sec;
-    constexpr gtime_t BLINK_INTERVAL = 500_ms;
-    constexpr gtime_t WARNING_TIME = 10_sec;
-    // Visual appearance constants
-    constexpr uint32_t COLOR_LASER_HEALTHY = 0xf2f2f0f0;
-    constexpr uint32_t COLOR_LASER_DAMAGED = 0xd0d1d2d3;
-    constexpr uint32_t COLOR_LASER_WARNING = 0xd0d1d2d3;
-    constexpr uint32_t COLOR_FLARE_HEALTHY = 0xFF0000FF;
-    constexpr uint32_t COLOR_FLARE_DAMAGED = 0x00FF00FF;
-    constexpr uint32_t COLOR_FLARE_WARNING = 0x00FF00FF;
-    constexpr float HEALTH_THRESHOLD_DAMAGED = 0.25f;
+	constexpr int32_t MAX_LASERS_ARRAY_SIZE = 16;
+	inline int32_t MAX_LASERS_PER_PLAYER() { return g_config.entity_limits.max_lasers; }
+	constexpr int32_t MAX_LASER_HEALTH = 4250;
+	constexpr gtime_t LASER_SPAWN_DELAY = 1_sec;
+	constexpr gtime_t LASER_TIMEOUT_DELAY = 240_sec;
+	constexpr gtime_t BLINK_INTERVAL = 500_ms;
+	constexpr gtime_t WARNING_TIME = 10_sec;
+	// Visual appearance constants
+	constexpr uint32_t COLOR_LASER_HEALTHY = 0xf2f2f0f0;
+	constexpr uint32_t COLOR_LASER_DAMAGED = 0xd0d1d2d3;
+	constexpr uint32_t COLOR_LASER_WARNING = 0xd0d1d2d3;
+	constexpr uint32_t COLOR_FLARE_HEALTHY = 0xFF0000FF;
+	constexpr uint32_t COLOR_FLARE_DAMAGED = 0x00FF00FF;
+	constexpr uint32_t COLOR_FLARE_WARNING = 0x00FF00FF;
+	constexpr float HEALTH_THRESHOLD_DAMAGED = 0.25f;
 }
 
 namespace ProxConstants {
-    constexpr int32_t MAX_PROXS_ARRAY_SIZE = 64;
-    inline int32_t MAX_PROXS_PER_PLAYER() { return g_config.entity_limits.max_prox; }
+	constexpr int32_t MAX_PROXS_ARRAY_SIZE = 64;
+	inline int32_t MAX_PROXS_PER_PLAYER() { return g_config.entity_limits.max_prox; }
 }
 
 namespace SentryConstants {
-    constexpr int32_t MAX_SENTRIES_ARRAY_SIZE = 32;
-    inline int32_t MAX_SENTRIES_PER_PLAYER() { return g_config.entity_limits.max_sentries; }
+	constexpr int32_t MAX_SENTRIES_ARRAY_SIZE = 32;
+	inline int32_t MAX_SENTRIES_PER_PLAYER() { return g_config.entity_limits.max_sentries; }
 }
 
 namespace SummonConstants {
-    constexpr int32_t MAX_SUMMONS_ARRAY_SIZE = 16;
-    inline int32_t MAX_SUMMONS_PER_PLAYER() { return g_config.entity_limits.max_summons; }
+	constexpr int32_t MAX_SUMMONS_ARRAY_SIZE = 16;
+	inline int32_t MAX_SUMMONS_PER_PLAYER() { return g_config.entity_limits.max_summons; }
 }
 
 namespace TeslaConstants {
-    constexpr int32_t MAX_TESLAS_ARRAY_SIZE = 32;
-    inline int32_t MAX_TESLAS_PER_PLAYER() { return g_config.entity_limits.max_teslas; }
-    constexpr gtime_t TIME_TO_LIVE = 60_sec;
+	constexpr int32_t MAX_TESLAS_ARRAY_SIZE = 32;
+	inline int32_t MAX_TESLAS_PER_PLAYER() { return g_config.entity_limits.max_teslas; }
+	constexpr gtime_t TIME_TO_LIVE = 60_sec;
 }
 
 namespace TrapConstants {
-    constexpr int32_t MAX_TRAPS_ARRAY_SIZE = 16;
-    inline int32_t MAX_TRAPS_PER_PLAYER() { return g_config.entity_limits.max_traps; }
+	constexpr int32_t MAX_TRAPS_ARRAY_SIZE = 16;
+	inline int32_t MAX_TRAPS_PER_PLAYER() { return g_config.entity_limits.max_traps; }
 }
 
 
@@ -3266,7 +3263,7 @@ struct player_skills_t {
 	bool gl_silent = false;       // Silent firing (no flash/noise)
 	bool gl_bouncy = false;       // Bouncy/Napalm grenades
 
-		// Weapon Upgrades - Rocket Launcher
+	// Weapon Upgrades - Rocket Launcher
 	int8_t rl_damage = 0;         // 0-10: Rocket damage multiplier
 	int8_t rl_speed = 0;          // 0-10: Rocket range/speed
 	int8_t rl_radius = 0;         // 0-10: Explosion radius
@@ -3395,7 +3392,7 @@ struct player_skills_t {
 	int8_t disruptor_duration = 0; // 0-10: Tracker effect duration (for momentum/damage)
 	bool disruptor_silent = false; // Silent firing (no flash/noise)
 
-	int8_t reserved[9] = {0};
+	int8_t reserved[9] = { 0 };
 };;
 
 // client data that stays across multiple level loads
@@ -3455,7 +3452,7 @@ struct client_persistant_t
 	bool	 iddmg_state;
 	sentrytype_t sentry_gun_choice; // Player's preferred sentry type (default SENTRY_RANDOM)
 	int adrenaline_count = 0;
-	
+
 	bool received_late_join_ammo = false; // Track if player received late-join ammo (only given once) // DOESNT WORK YET
 
 	// OLD wave-based benefits system (Horde mode only - for bots) //not for bots only anymore. for non vortex modes
@@ -3536,13 +3533,13 @@ struct client_respawn_t
 	int      oldest_tesla_idx;
 
 	// Food Cubes - TRAPS
-    int      num_traps = 0;
-    edict_t* deployed_traps[TrapConstants::MAX_TRAPS_ARRAY_SIZE];
-    int      oldest_trap_idx;
+	int      num_traps = 0;
+	edict_t* deployed_traps[TrapConstants::MAX_TRAPS_ARRAY_SIZE];
+	int      oldest_trap_idx;
 
 	// --- Prox Mine Tracking ---
 	int         num_proxs = 0;
-	edict_t*    deployed_proxs[ProxConstants::MAX_PROXS_ARRAY_SIZE];
+	edict_t* deployed_proxs[ProxConstants::MAX_PROXS_ARRAY_SIZE];
 	int         oldest_prox_idx;
 	// --- Barrel Tracking ---
 	int      num_barrels = 0;
@@ -3721,12 +3718,12 @@ struct gclient_t
 	gtime_t		ctf_grapplereleasetime; // time of grapple release
 	gtime_t		ctf_regentime;			// regen tech
 	gtime_t		ctf_techsndtime;
-//	gtime_t		ctf_lasttechmsg;
-	// ZOID
+	//	gtime_t		ctf_lasttechmsg;
+		// ZOID
 
 
 
-	// used for player trails.
+		// used for player trails.
 	edict_t* trail_head, * trail_tail;
 	// whether to use weapon chains
 	bool no_weapon_chains;
@@ -3786,8 +3783,8 @@ struct gclient_t
 
 	//coop respawn
 	vec3_t      cached_squad_spot;          // The last valid spot found by G_FindRespawnSpot.
-    gtime_t     squad_spot_cache_time;      // The level.time when the spot was cached.
-    vec3_t      squad_spot_cached_at_pos;   // The player's position when the spot was cached.
+	gtime_t     squad_spot_cache_time;      // The level.time when the spot was cached.
+	vec3_t      squad_spot_cached_at_pos;   // The player's position when the spot was cached.
 
 	gtime_t lastdmg; // ID DMG
 
@@ -4244,7 +4241,8 @@ public:
 		{
 			if (offset > 0) {
 				it.index++;
-			} else {
+			}
+			else {
 				it.index--;
 			}
 		}
@@ -4289,7 +4287,8 @@ private:
 		{
 			if (direction > 0) {
 				index++;
-			} else {
+			}
+			else {
 				// This check prevents an unsigned integer from wrapping around below zero.
 				if (index == 0) {
 					index = globals.num_edicts; // Set to "end" to terminate the loop safely.
@@ -4323,21 +4322,21 @@ public:
 
 inline bool IsBonusMonster(const edict_t* ent)
 {
-    if (!ent)
-    {
-        return false;
-    }
+	if (!ent)
+	{
+		return false;
+	}
 
-    return (ent->monsterinfo.bonus_flags != BF_NONE && !(ent->monsterinfo.bonus_flags & BF_FRIENDLY));
+	return (ent->monsterinfo.bonus_flags != BF_NONE && !(ent->monsterinfo.bonus_flags & BF_FRIENDLY));
 }
 
 // Check if entity is a body queue entity (cannot be freed via G_FreeEdict)
 inline bool IsBodyQueueEntity(const edict_t* ent)
 {
-    if (!ent)
-        return false;
-    ptrdiff_t idx = ent - g_edicts;
-    return idx > 0 && idx <= (ptrdiff_t)(game.maxclients + BODY_QUEUE_SIZE);
+	if (!ent)
+		return false;
+	ptrdiff_t idx = ent - g_edicts;
+	return idx > 0 && idx <= (ptrdiff_t)(game.maxclients + BODY_QUEUE_SIZE);
 }
 
 // Properly disable a body queue entity when crushed (since G_FreeEdict won't free it)
@@ -4345,32 +4344,32 @@ inline bool IsBodyQueueEntity(const edict_t* ent)
 // Matches body_die() behavior for MOD_CRUSH
 inline void DisableCrushedBodyQueue(edict_t* ent)
 {
-    if (!ent || !ent->inuse)
-        return;
+	if (!ent || !ent->inuse)
+		return;
 
-    // Create explosion effect (one time only)
-    gi.WriteByte(svc_temp_entity);
-    gi.WriteByte(TE_EXPLOSION1);
-    gi.WritePosition(ent->s.origin);
-    gi.multicast(ent->s.origin, MULTICAST_PHS, false);
+	// Create explosion effect (one time only)
+	gi.WriteByte(svc_temp_entity);
+	gi.WriteByte(TE_EXPLOSION1);
+	gi.WritePosition(ent->s.origin);
+	gi.multicast(ent->s.origin, MULTICAST_PHS, false);
 
-    // Disable the entity completely so it stops blocking (matches body_die for MOD_CRUSH)
-    ent->takedamage = false;
-    ent->die = nullptr;
-    ent->solid = SOLID_NOT;
-    ent->movetype = MOVETYPE_NOCLIP;
-    ent->svflags = SVF_NOCLIENT;
-    ent->s.modelindex = 0;
-    ent->health = 0;
-    gi.unlinkentity(ent);
+	// Disable the entity completely so it stops blocking (matches body_die for MOD_CRUSH)
+	ent->takedamage = false;
+	ent->die = nullptr;
+	ent->solid = SOLID_NOT;
+	ent->movetype = MOVETYPE_NOCLIP;
+	ent->svflags = SVF_NOCLIENT;
+	ent->s.modelindex = 0;
+	ent->health = 0;
+	gi.unlinkentity(ent);
 }
 
 inline constexpr float DistanceSquared(const vec3_t& v1, const vec3_t& v2) {
-    // Direct calculation without temporary object creation
-    const float dx = v1.x - v2.x;
-    const float dy = v1.y - v2.y;
-    const float dz = v1.z - v2.z;
-    return dx * dx + dy * dy + dz * dz;
+	// Direct calculation without temporary object creation
+	const float dx = v1.x - v2.x;
+	const float dy = v1.y - v2.y;
+	const float dz = v1.z - v2.z;
+	return dx * dx + dy * dy + dz * dz;
 }
 
 // 1. First, define the spawn point filter template
@@ -4462,22 +4461,22 @@ inline entity_iterable_t<active_monsters_filter_t> active_monsters()
 // Filter for active, dodgeable projectiles
 struct active_projectiles_filter_t
 {
-    inline bool operator()(edict_t* ent) const
-    {
-        // A projectile is "active" for dodging if it's in use,
-        // has the projectile flag, and is marked as dodgeable.
-        return (ent->inuse && 
-                (ent->svflags & SVF_PROJECTILE) && 
-                (ent->flags & FL_DODGE));
-    }
+	inline bool operator()(edict_t* ent) const
+	{
+		// A projectile is "active" for dodging if it's in use,
+		// has the projectile flag, and is marked as dodgeable.
+		return (ent->inuse &&
+			(ent->svflags & SVF_PROJECTILE) &&
+			(ent->flags & FL_DODGE));
+	}
 };
 
 // Helper function to create the iterable range
 inline entity_iterable_t<active_projectiles_filter_t> active_projectiles()
 {
-    // Projectiles can be anywhere in the edict list after players/monsters,
-    // so we search the whole range.
-    return entity_iterable_t<active_projectiles_filter_t> { game.maxclients + 1U };
+	// Projectiles can be anywhere in the edict list after players/monsters,
+	// so we search the whole range.
+	return entity_iterable_t<active_projectiles_filter_t> { game.maxclients + 1U };
 }
 
 struct gib_def_t
@@ -4621,12 +4620,12 @@ enum pois_t : uint16_t
 // implementation of pierce stuff
 inline bool pierce_args_t::mark(edict_t* ent)
 {
-    // --- ADDED: Null Pointer Check ---
-    if (!ent) {
-        // Cannot mark a null entity, indicate failure to mark.
-        return false;
-    }
-    // --- END ADDED ---
+	// --- ADDED: Null Pointer Check ---
+	if (!ent) {
+		// Cannot mark a null entity, indicate failure to mark.
+		return false;
+	}
+	// --- END ADDED ---
 
 	// ran out of pierces
 	if (num_pierced == MAX_PIERCE)
@@ -4775,12 +4774,12 @@ extern void UpdateVoteHUD() noexcept;
 
 inline int8_t GetNumHumanPlayers()
 {
-	const auto &players = active_players_no_spect();
+	const auto& players = active_players_no_spect();
 	return std::count_if(players.begin(), players.end(),
-						 [](const edict_t *const player)
-						 {
-							 return !(player->svflags & SVF_BOT);
-						 });
+		[](const edict_t* const player)
+		{
+			return !(player->svflags & SVF_BOT);
+		});
 }
 
 // g_monster.cpp
@@ -4789,7 +4788,7 @@ extern inline bool G_CheatCheck(edict_t* ent);
 bool M_HasEnemy(edict_t* self); // Basic enemy existence check (for blindfire-compatible functions)
 bool M_HasValidTarget(edict_t* self); // Full target validation (checks health, not for blindfire start)
 extern ctfteam_t GetEntityTeam(const edict_t* ent);
-extern void Own_Sphere(edict_t *self, edict_t *sphere);
+extern void Own_Sphere(edict_t* self, edict_t* sphere);
 
 // g_bombspell.cpp
 void CarpetBomb(edict_t* ent);//, float skill_mult = 1.0f, float cost_mult = 1.0f);

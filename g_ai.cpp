@@ -771,14 +771,14 @@ static bool M_RetargetClosestVisibleEnemy(edict_t* self)
 	edict_t* const prev_enemy = self->enemy;
 	const float prev_dist_sq = DistanceSquared(self->s.origin, prev_enemy->s.origin);
 
-	// Treat the current enemy as "really lost" only after a SUSTAINED loss of sight, not a
-	// single occluded frame. In a horde, non-solid monsters constantly flicker through the LOS
-	// line; reacting to each flicker made us re-HuntTarget (which resets ideal_yaw and recalls
-	// run()) as often as every 300ms - that churn reads in-game as a monster "running in place /
-	// unable to decide between running and attacking". trail_time is refreshed every frame we
-	// actually see the enemy (ai_run / ai_checkattack), so it's the right freshness gauge.
-	static constexpr gtime_t LOST_SIGHT_GRACE = 1_sec;
-	const bool really_lost = (level.time - self->monsterinfo.trail_time) > LOST_SIGHT_GRACE;
+	//// Treat the current enemy as "really lost" only after a SUSTAINED loss of sight, not a
+	//// single occluded frame. In a horde, non-solid monsters constantly flicker through the LOS
+	//// line; reacting to each flicker made us re-HuntTarget (which resets ideal_yaw and recalls
+	//// run()) as often as every 300ms - that churn reads in-game as a monster "running in place /
+	//// unable to decide between running and attacking". trail_time is refreshed every frame we
+	//// actually see the enemy (ai_run / ai_checkattack), so it's the right freshness gauge.
+	//static constexpr gtime_t LOST_SIGHT_GRACE = 1_sec;
+	//const bool really_lost = (level.time - self->monsterinfo.trail_time) > LOST_SIGHT_GRACE;
 
 	// Faction-correct picker: friendly spawns hunt monsters only (FindMTarget), horde monsters use
 	// the grid search. Both only set self->enemy (no FoundTarget side effects), so we finish the
@@ -799,8 +799,7 @@ static bool M_RetargetClosestVisibleEnemy(edict_t* self)
 	// Hysteresis: while the current enemy isn't genuinely lost, only switch to a meaningfully
 	// closer pick; once it's been out of sight past the grace window, take any visible
 	// replacement immediately.
-	if (!really_lost &&
-		DistanceSquared(self->s.origin, new_enemy->s.origin) >= prev_dist_sq * 0.6f)
+	if (DistanceSquared(self->s.origin, new_enemy->s.origin) >= prev_dist_sq * 0.6f)
 	{
 		self->enemy = prev_enemy;
 		return false;
@@ -961,7 +960,7 @@ void ai_charge(edict_t* self, float dist)
 	// it off lets the escape heading take, so the monster steps around the obstacle and resumes
 	// aiming once it's moving again. Same "don't re-aim at the goal every frame" rule M_MoveToGoal
 	// relies on. stuck_no_move_time is maintained in M_MoveFrame (covers this M_walkmove path).
-	if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING) && self->monsterinfo.stuck_no_move_time < 700_ms)
+	if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
 	{
 		// --- Check added before accessing enemy origin ---
 		if (self->enemy && self->enemy->inuse)
@@ -981,7 +980,7 @@ void ai_charge(edict_t* self, float dist)
 		// the bad_move + SV_NewChaseDir escape (the enemy goal has a classname, so it escalates),
 		// which repositions us instead of grinding the circle-strafe in place - the summoned-strogg
 		// combat freeze that ai_charge's inline strafe below can't recover from on its own.
-		if ((self->monsterinfo.aiflags & AI_CHARGING) || self->monsterinfo.stuck_no_move_time > 700_ms)
+		if ((self->monsterinfo.aiflags & AI_CHARGING))
 		{
 			M_MoveToGoal(self, dist);
 			return;
@@ -2363,18 +2362,18 @@ void ai_run_slide(edict_t* self, float distance)
 	float ofs;
 	float angle;
 
-	// If circle-strafing isn't actually translating us (boxed in next to the enemy - we just spin
-	// in place), abandon the strafe and go straight. ai_run then pursues/repositions via
-	// M_MoveToGoal, which - chasing a real enemy goal (non-null classname) - has the bad_move +
-	// SV_NewChaseDir escape. Without this a hemmed-in monster (often a summoned strogg) strafes in
-	// place forever. Legit strafing translates, so stuck_no_move_time stays low and never trips.
-	if (self->monsterinfo.stuck_no_move_time > 700_ms)
-	{
-		if (self->monsterinfo.aiflags & AI_DODGING)
-			monster_done_dodge(self);
-		self->monsterinfo.attack_state = AS_STRAIGHT;
-		return;
-	}
+	//// If circle-strafing isn't actually translating us (boxed in next to the enemy - we just spin
+	//// in place), abandon the strafe and go straight. ai_run then pursues/repositions via
+	//// M_MoveToGoal, which - chasing a real enemy goal (non-null classname) - has the bad_move +
+	//// SV_NewChaseDir escape. Without this a hemmed-in monster (often a summoned strogg) strafes in
+	//// place forever. Legit strafing translates, so stuck_no_move_time stays low and never trips.
+	//if (self->monsterinfo.stuck_no_move_time > 700_ms)
+	//{
+	//	if (self->monsterinfo.aiflags & AI_DODGING)
+	//		monster_done_dodge(self);
+	//	self->monsterinfo.attack_state = AS_STRAIGHT;
+	//	return;
+	//}
 
 	self->ideal_yaw = enemy_yaw;
 

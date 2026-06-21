@@ -78,8 +78,8 @@ void monster_fire_bullet(edict_t* self, const vec3_t& start, const vec3_t& dir, 
 	// Don't shoot backwards (redundant safety check)
 	// Bosses, blindfire, and dying monsters (death-spray animations) are exempt
 	if (self->enemy && self->health > 0 && !infront(self, self->enemy) &&
-	    !self->monsterinfo.IS_BOSS &&
-	    !(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
+		!self->monsterinfo.IS_BOSS &&
+		!(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
 	{
 		return;
 	}
@@ -89,7 +89,7 @@ void monster_fire_bullet(edict_t* self, const vec3_t& start, const vec3_t& dir, 
 }
 void monster_fire_energy_bullet(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int kick, int hspread,
 	int vspread, monster_muzzleflash_id_t flashtype)
-{	
+{
 
 	fire_energy_bullet(self, start, dir, damage, kick, hspread, vspread, MOD_CHAINGUN);
 	monster_muzzleflash(self, start, flashtype);
@@ -137,8 +137,8 @@ void monster_fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimd
 	// Don't shoot backwards (redundant safety check)
 	// Bosses and blindfire are exempt from this check
 	if (self->enemy && !infront(self, self->enemy) &&
-	    !self->monsterinfo.IS_BOSS &&
-	    !(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
+		!self->monsterinfo.IS_BOSS &&
+		!(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
 	{
 		return;
 	}
@@ -153,8 +153,8 @@ void monster_fire_rocket(edict_t* self, const vec3_t& start, const vec3_t& dir, 
 	// Don't shoot backwards (redundant safety check)
 	// Bosses and blindfire are exempt from this check
 	if (self->enemy && !infront(self, self->enemy) &&
-	    !self->monsterinfo.IS_BOSS &&
-	    !(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
+		!self->monsterinfo.IS_BOSS &&
+		!(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
 	{
 		return;
 	}
@@ -419,12 +419,12 @@ void M_WorldEffects(edict_t* ent)
 		// Aplicar daño por ahogamiento si corresponde
 		if (take_drown_damage && ent->pain_debounce_time < level.time)
 		{
-	// Drowning damage increases over time.
-	dmg = 2 + static_cast<int>(2 * floorf((level.time - ent->air_finished).seconds()));
-	if (dmg > 15) {
-		// After a certain point, drowning becomes rapidly fatal.
-		dmg = 120; 
-	}
+			// Drowning damage increases over time.
+			dmg = 2 + static_cast<int>(2 * floorf((level.time - ent->air_finished).seconds()));
+			if (dmg > 15) {
+				// After a certain point, drowning becomes rapidly fatal.
+				dmg = 120;
+			}
 			T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, dmg, 0, DAMAGE_NO_ARMOR,
 				MOD_WATER);
 			ent->pain_debounce_time = level.time + 1_sec;
@@ -571,7 +571,7 @@ bool M_HasValidTarget(edict_t* self)
 		// Menu protected or fully invisible (fade complete) - treat as invalid target
 		if (self->enemy->client->menu_protected ||
 			(self->enemy->client->invisible_time > level.time &&
-			 self->enemy->client->invisibility_fade_time <= level.time))
+				self->enemy->client->invisibility_fade_time <= level.time))
 		{
 			return false;
 		}
@@ -758,8 +758,8 @@ void M_MoveFrame(edict_t* self)
 	// When monsters are blocked or struggling with movement, make them think faster
 	// to reconsider their options more quickly (especially jumping)
 	if ((self->monsterinfo.aiflags & AI_BLOCKED) ||
-	    (self->monsterinfo.bad_move_time > level.time) ||
-	    (self->monsterinfo.bump_time > level.time))
+		(self->monsterinfo.bad_move_time > level.time) ||
+		(self->monsterinfo.bump_time > level.time))
 	{
 		// Think at 20hz (50ms) when blocked to make jump decisions faster
 		self->nextthink = level.time + 50_ms;
@@ -867,61 +867,7 @@ void M_MoveFrame(edict_t* self)
 		{
 			float dist = move->frame[index].dist * self->monsterinfo.scale;
 			dist /= gi.tick_rate / 10.0f;
-
-			// [Horde] Movement-agnostic stall detection. Capture origin, run the frame's move,
-			// then check whether we actually translated. This sees BOTH M_MoveToGoal (pursuit) and
-			// M_walkmove (ai_charge / ai_run_slide combat movement), so a monster "running in place"
-			// while strafing or charging an enemy across an obstacle is caught too - the old
-			// M_MoveToGoal-only tracker was blind to combat-movement freezes (e.g. summoned stroggs
-			// fighting an enemy across a wall). dist>0 means the frame actually intends to move, so
-			// stationary attack frames don't count as stuck. stuck_no_move_time drives the recovery
-			// in M_MoveToGoal and the re-aim skip in ai_charge.
-			const vec3_t pre_move_origin = self->s.origin;
 			move->frame[index].aifunc(self, dist);
-
-			if (dist > 0.f && self->inuse)
-			{
-				if ((self->s.origin - pre_move_origin).lengthSquared() > 1.0f)
-					self->monsterinfo.stuck_no_move_time = 0_ms;
-				else
-					self->monsterinfo.stuck_no_move_time += FRAME_TIME_S;
-
-				if (developer->integer > 1 && self->monsterinfo.stuck_no_move_time > 1500_ms &&
-					self->monsterinfo.stuck_log_time <= level.time)
-				{
-					self->monsterinfo.stuck_log_time = level.time + 1_sec;
-					const float edist = (self->enemy && self->enemy->inuse) ? (self->enemy->s.origin - self->s.origin).length() : -1.f;
-
-					// Probe the 8 cardinal/diagonal directions to see how many we could actually step
-					// into: distinguishes "truly wedged" (opendirs low) from "open escapes exist but
-					// the logic won't commit / it's a targeting gap" (opendirs high). Plus enemy
-					// validity: ealive/egoal reveal the post-kill case where we spin with a dead or
-					// non-goal enemy. Cheap - only runs for an already-logged stuck monster.
-					int open_dirs = 0;
-					for (int a = 0; a < 360; a += 45)
-					{
-						const vec3_t fwd = AngleVectors(vec3_t{ 0.f, (float)a, 0.f }).forward;
-						const trace_t ptr = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin + fwd * 24.f, self, G_GetClipMask(self));
-						if (ptr.fraction > 0.5f)
-							open_dirs++;
-					}
-					const bool startsolid = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_SOLID).startsolid;
-					const bool ealive = (self->enemy && self->enemy->inuse && self->enemy->health > 0);
-					const bool egoal = (self->goalentity == self->enemy);
-
-					gi.Com_PrintFmt("STUCK {} no_move={:.2f}s friendly={} opendirs={} startsolid={} ealive={} egoal={} evis={} edist={:.0f} atk_state={} charging={} iyaw={:.0f} cyaw={:.0f} yspd={:.0f} bad_move={} navrc={}\n",
-						self->classname, self->monsterinfo.stuck_no_move_time.seconds(),
-						!!self->monsterinfo.isfriendlyspawn,
-						open_dirs, startsolid, ealive, egoal,
-						(self->enemy && self->enemy->inuse && visible(self, self->enemy, false)),
-						edist,
-						(int32_t)self->monsterinfo.attack_state,
-						!!(self->monsterinfo.aiflags & AI_CHARGING),
-						self->ideal_yaw, self->s.angles[YAW], self->yaw_speed,
-						self->monsterinfo.bad_move_time > level.time,
-						(int32_t)self->monsterinfo.nav_path.returnCode);
-				}
-			}
 		}
 		else
 			move->frame[index].aifunc(self, 0);
@@ -963,15 +909,15 @@ static void AwardKillToPlayer(edict_t* player)
 
 void G_MonsterKilled(edict_t* self)
 {
-    if (!(self->monsterinfo.aiflags & AI_DO_NOT_COUNT))
-    {
-        level.killed_monsters++;
-    }
+	if (!(self->monsterinfo.aiflags & AI_DO_NOT_COUNT))
+	{
+		level.killed_monsters++;
+	}
 
 	// Award kill to the player or the owner of the entity that got the kill
-    if (self->enemy && self->enemy->client)
-    {
-        AwardKillToPlayer(self->enemy);
+	if (self->enemy && self->enemy->client)
+	{
+		AwardKillToPlayer(self->enemy);
 
 		// Award PvM XP if in PvM mode
 		if (pvm->integer)
@@ -980,10 +926,10 @@ void G_MonsterKilled(edict_t* self)
 			constexpr int32_t BASE_MONSTER_XP = 8;
 			PvM_AwardExperience(self->enemy, BASE_MONSTER_XP);
 		}
-    }
-    else if (self->enemy && self->enemy->owner && self->enemy->owner->client)
-    {
-        AwardKillToPlayer(self->enemy->owner);
+	}
+	else if (self->enemy && self->enemy->owner && self->enemy->owner->client)
+	{
+		AwardKillToPlayer(self->enemy->owner);
 
 		// Award PvM XP if in PvM mode
 		if (pvm->integer)
@@ -991,8 +937,8 @@ void G_MonsterKilled(edict_t* self)
 			constexpr int32_t BASE_MONSTER_XP = 3;
 			PvM_AwardExperience(self->enemy->owner, BASE_MONSTER_XP);
 		}
-    }
-	
+	}
+
 	// Debugging: Track monster kills if enabled
 	if (g_debug_monster_kills->integer)
 	{
@@ -1012,10 +958,10 @@ void G_MonsterKilled(edict_t* self)
 		// If the monster wasn't found in the registered list, it might indicate an issue
 		if (!found)
 		{
-// #if defined(_DEBUG) && defined(KEX_PLATFORM_WINPC)
-// 			__debugbreak(); // Trigger debugger breakpoint in debug builds on Windows
-// #endif
-			// Print a message to the center of the screen for the first player
+			// #if defined(_DEBUG) && defined(KEX_PLATFORM_WINPC)
+			// 			__debugbreak(); // Trigger debugger breakpoint in debug builds on Windows
+			// #endif
+						// Print a message to the center of the screen for the first player
 			gi.Center_Print(&g_edicts[1], "found missing monster?");
 		}
 
@@ -1164,7 +1110,7 @@ THINK(monster_dead_think) (edict_t* self) -> void
 		}
 	}
 
-// Advance death animation until the last frame.
+	// Advance death animation until the last frame.
 	if (self->s.frame < self->monsterinfo.active_move->lastframe)
 	{
 		self->s.frame++;
@@ -1204,7 +1150,8 @@ THINK(monster_dead_think) (edict_t* self) -> void
 				self->chain->teamchain = nullptr;
 			}
 			BecomeTE(self);
-		} else {
+		}
+		else {
 			G_FreeEdict(self);
 		}
 		return;
@@ -1263,64 +1210,64 @@ static bool projectile_infront(edict_t* self, edict_t* other)
 // The new,  M_CheckDodge function
 static void M_CheckDodge(edict_t* self)
 {
-    if (!self || !self->inuse || !self->monsterinfo.dodge) {
-        return;
-    }
+	if (!self || !self->inuse || !self->monsterinfo.dodge) {
+		return;
+	}
 
-    // we recently made a valid dodge, don't try again for a bit
-    if (self->monsterinfo.dodge_time > level.time) {
-        return;
-    }
+	// we recently made a valid dodge, don't try again for a bit
+	if (self->monsterinfo.dodge_time > level.time) {
+		return;
+	}
 
-    // OPTIMIZATION: Use spatial grid to query only nearby projectiles
-    // Instead of O(n) iteration through all projectiles, this queries only the grid cells
-    // within radius, dramatically reducing checks when many projectiles exist
-    static constexpr float MAX_DODGE_DIST = 512.0f;
-    auto projectiles = HordePhys::g_entity_grid.QueryRadiusFiltered(
-        self->s.origin,
-        MAX_DODGE_DIST,
-        HordePhys::EntityGrid::TYPE_PROJECTILES
-    );
+	// OPTIMIZATION: Use spatial grid to query only nearby projectiles
+	// Instead of O(n) iteration through all projectiles, this queries only the grid cells
+	// within radius, dramatically reducing checks when many projectiles exist
+	static constexpr float MAX_DODGE_DIST = 512.0f;
+	auto projectiles = HordePhys::g_entity_grid.QueryRadiusFiltered(
+		self->s.origin,
+		MAX_DODGE_DIST,
+		HordePhys::EntityGrid::TYPE_PROJECTILES
+	);
 
-    for (auto* ent : projectiles)
-    {
-        // Grid already filtered by distance, but verify entity is valid and has dodge flag
-        if (!ent || !ent->inuse || !(ent->flags & FL_DODGE)) {
-            continue;
-        }
+	for (auto* ent : projectiles)
+	{
+		// Grid already filtered by distance, but verify entity is valid and has dodge flag
+		if (!ent || !ent->inuse || !(ent->flags & FL_DODGE)) {
+			continue;
+		}
 
-        // 1. Is it moving?
-        if (ent->velocity.lengthSquared() < VECTOR_LENGTH_SQ_EPSILON) {
-            continue;
-        }
+		// 1. Is it moving?
+		if (ent->velocity.lengthSquared() < VECTOR_LENGTH_SQ_EPSILON) {
+			continue;
+		}
 
-        // 2. Is it in front of us?
-        if (!projectile_infront(self, ent)) {
-            continue;
-        }
+		// 2. Is it in front of us?
+		if (!projectile_infront(self, ent)) {
+			continue;
+		}
 
-        // 3. Trace its path to see if it will hit us
-        vec3_t trace_start = ent->s.origin;
-        vec3_t trace_end = ent->s.origin + ent->velocity;
-        trace_t tr = gi.trace(trace_start, ent->mins, ent->maxs, trace_end, ent, ent->clipmask);
+		// 3. Trace its path to see if it will hit us
+		vec3_t trace_start = ent->s.origin;
+		vec3_t trace_end = ent->s.origin + ent->velocity;
+		trace_t tr = gi.trace(trace_start, ent->mins, ent->maxs, trace_end, ent, ent->clipmask);
 
-        if (tr.ent == self)
-        {
-            // It's going to hit! Calculate ETA and call the dodge function.
-            vec3_t v = tr.endpos - trace_start;
-            float vel_len = ent->velocity.length();
-            gtime_t eta = 0_sec;
+		if (tr.ent == self)
+		{
+			// It's going to hit! Calculate ETA and call the dodge function.
+			vec3_t v = tr.endpos - trace_start;
+			float vel_len = ent->velocity.length();
+			gtime_t eta = 0_sec;
 
-            if (vel_len > 0.0f) {
-                eta = gtime_t::from_sec(v.length() / vel_len);
-            }
+			if (vel_len > 0.0f) {
+				eta = gtime_t::from_sec(v.length() / vel_len);
+			}
 
-            self->monsterinfo.dodge(self, ent->owner, eta, &tr, (ent->movetype == MOVETYPE_BOUNCE || ent->movetype == MOVETYPE_TOSS));
+			self->monsterinfo.dodge(self, ent->owner, eta, &tr, (ent->movetype == MOVETYPE_BOUNCE || ent->movetype == MOVETYPE_TOSS));
 
-            // We've initiated a dodge, no need to check other projectiles this frame.
-            return;
-        }
-    }
+			// We've initiated a dodge, no need to check other projectiles this frame.
+			return;
+		}
+	}
 }
 
 // Global dodge function for bonus monsters
@@ -1375,7 +1322,8 @@ MONSTERINFO_DODGE(bonus_monster_dodge) (edict_t* self, edict_t* attacker, gtime_
 	if (dist < 350.0f) {
 		// Close range - dodge backward
 		dodge_dir += forward * -0.35f;
-	} else if (dist > 700.0f) {
+	}
+	else if (dist > 700.0f) {
 		// Long range - dodge forward to close distance
 		dodge_dir += forward * 0.25f;
 	}
@@ -1390,7 +1338,7 @@ MONSTERINFO_DODGE(bonus_monster_dodge) (edict_t* self, edict_t* attacker, gtime_
 
 	// Apply dodge velocity
 	vec3_t dodge_velocity = dodge_dir * dodge_speed;
-	
+
 	// Preserve some vertical momentum but replace horizontal
 	dodge_velocity.z = self->velocity.z * 0.5f;
 	self->velocity = dodge_velocity;
@@ -1462,33 +1410,33 @@ static bool CheckPathVisibility(const vec3_t& start, const vec3_t& end)
 
 THINK(monster_think) (edict_t* self) -> void
 {
-    // Check if the monster's ID is uninitialized (using UNKNOWN as the sentinel value).
-    // This catches monsters spawned without an explicit ID set in their SP_... function.
-    if (self->monsterinfo.monster_type_id == static_cast<uint8_t>(horde::MonsterTypeID::UNKNOWN)) 
-    {
-        // Attempt to assign the ID based on its classname.
-        self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID(self->classname));
+	// Check if the monster's ID is uninitialized (using UNKNOWN as the sentinel value).
+	// This catches monsters spawned without an explicit ID set in their SP_... function.
+	if (self->monsterinfo.monster_type_id == static_cast<uint8_t>(horde::MonsterTypeID::UNKNOWN))
+	{
+		// Attempt to assign the ID based on its classname.
+		self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID(self->classname));
 
-        // Check the result of the assignment.
-        if (self->monsterinfo.monster_type_id != static_cast<uint8_t>(horde::MonsterTypeID::UNKNOWN))
-        {
-            // SUCCESS: We found a valid ID. Log this for the developer.
-            if (developer->integer) {
-                gi.Com_PrintFmt(
-                    "LAZY-INIT: Assigned monster ID for #{} (classname '{}') to {}\n",
-                    static_cast<int>(self - g_edicts), 
-                    self->classname, 
-                    self->monsterinfo.monster_type_id
-                );
-            }
-        }
-        else
-        {
-            // FAILURE: The classname is not in the registry. This is a critical warning.
-            // We log this regardless of the 'developer' cvar because it's an error.
-            gi.Com_PrintFmt("WARNING: UNKNOWN MONSTER - Classname '{}' (#{}) has no registered MonsterTypeID.\n", self->classname, static_cast<int>(self - g_edicts)); // FIX: self.classname -> self->classname
-        }
-    }
+		// Check the result of the assignment.
+		if (self->monsterinfo.monster_type_id != static_cast<uint8_t>(horde::MonsterTypeID::UNKNOWN))
+		{
+			// SUCCESS: We found a valid ID. Log this for the developer.
+			if (developer->integer) {
+				gi.Com_PrintFmt(
+					"LAZY-INIT: Assigned monster ID for #{} (classname '{}') to {}\n",
+					static_cast<int>(self - g_edicts),
+					self->classname,
+					self->monsterinfo.monster_type_id
+				);
+			}
+		}
+		else
+		{
+			// FAILURE: The classname is not in the registry. This is a critical warning.
+			// We log this regardless of the 'developer' cvar because it's an error.
+			gi.Com_PrintFmt("WARNING: UNKNOWN MONSTER - Classname '{}' (#{}) has no registered MonsterTypeID.\n", self->classname, static_cast<int>(self - g_edicts)); // FIX: self.classname -> self->classname
+		}
+	}
 
 	// Check horde stuck monster
 	if (g_horde->integer)
@@ -1891,7 +1839,7 @@ struct monster_filter_t
 // check all active monsters' scaling
 void G_Monster_CheckCoopHealthScaling()
 {
-	
+
 	for (auto monster : entity_iterable_t<monster_filter_t>())
 	{
 		// No escalar si es un jefe
@@ -1918,17 +1866,17 @@ bool monster_start(edict_t* self, const spawn_temp_t& st)
 	}
 
 	if (g_horde && g_horde->integer && (!(self->monsterinfo.isfriendlyspawn))) {
-	    if (self->monsterinfo.team == CTF_NOTEAM)
-    {
-        // If no team is set, assign it to the default enemy team.
-        self->monsterinfo.team = CTF_TEAM2;
-    }
-}
+		if (self->monsterinfo.team == CTF_NOTEAM)
+		{
+			// If no team is set, assign it to the default enemy team.
+			self->monsterinfo.team = CTF_TEAM2;
+		}
+	}
 
 	//     if (g_horde && g_horde->integer && !self->monsterinfo.was_spawned_by_horde)
-    // {
-    //     self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-    // }
+	// {
+	//     self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+	// }
 
 	if (self->spawnflags.has(SPAWNFLAG_MONSTER_SCENIC))
 		self->monsterinfo.aiflags |= AI_GOOD_GUY;
@@ -2063,12 +2011,12 @@ bool monster_start(edict_t* self, const spawn_temp_t& st)
 	return true;
 }
 
-stuck_result_t G_FixStuckObject(edict_t *self, vec3_t check)
+stuck_result_t G_FixStuckObject(edict_t* self, vec3_t check)
 {
 	contents_t mask = G_GetClipMask(self);
-	stuck_result_t result = G_FixStuckObject_Generic(check, self->mins, self->maxs, [self, mask] (const vec3_t &start, const vec3_t &mins, const vec3_t &maxs, const vec3_t &end) {
+	stuck_result_t result = G_FixStuckObject_Generic(check, self->mins, self->maxs, [self, mask](const vec3_t& start, const vec3_t& mins, const vec3_t& maxs, const vec3_t& end) {
 		return gi.trace(start, mins, maxs, end, self, mask);
-	});
+		});
 
 	if (result == stuck_result_t::NO_GOOD_POSITION)
 		return result;
@@ -2083,7 +2031,7 @@ stuck_result_t G_FixStuckObject(edict_t *self, vec3_t check)
 
 bool Horde_AttemptToUnstickMonster(edict_t* self);
 
-void monster_start_go(edict_t *self)
+void monster_start_go(edict_t* self)
 {
 	// Initialize anti-stacking system for horde mode
 	if (g_horde->integer && (self->svflags & SVF_MONSTER))
@@ -2184,7 +2132,7 @@ void monster_start_go(edict_t *self)
 						self->s.origin[0] = check[0] + adjust[x];
 						self->s.origin[1] = check[1] + adjust[y];
 						self->s.origin[2] = check[2] + adjust[z];
-						
+
 						if (self->monsterinfo.aiflags & AI_GOOD_GUY)
 						{
 							is_stuck = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_MONSTERSOLID).startsolid;
@@ -2201,24 +2149,24 @@ void monster_start_go(edict_t *self)
 		}
 
 		if (is_stuck)
-        {
-            // MODIFICATION: If in Horde mode, attempt a more robust fix.
-            if (g_horde && g_horde->integer)
-            {
-                if (Horde_AttemptToUnstickMonster(self))
-                {
-                    // The monster was successfully relocated.
-                    is_stuck = false;
-                }
-            }
-            // END MODIFICATION
+		{
+			// MODIFICATION: If in Horde mode, attempt a more robust fix.
+			if (g_horde && g_horde->integer)
+			{
+				if (Horde_AttemptToUnstickMonster(self))
+				{
+					// The monster was successfully relocated.
+					is_stuck = false;
+				}
+			}
+			// END MODIFICATION
 
-            // If still stuck (not horde, or horde fix failed), print the warning.
-            if (is_stuck)
-            {
-			    gi.Com_PrintFmt("WARNING: {} stuck in solid (calling emergencyspawn)\n", *self);
-            }
-        }
+			// If still stuck (not horde, or horde fix failed), print the warning.
+			if (is_stuck)
+			{
+				gi.Com_PrintFmt("WARNING: {} stuck in solid (calling emergencyspawn)\n", *self);
+			}
+		}
 	}
 
 	vec3_t v;
@@ -2233,7 +2181,7 @@ void monster_start_go(edict_t *self)
 	{
 		bool	 notcombat;
 		bool	 fixup;
-		edict_t *target;
+		edict_t* target;
 
 		target = nullptr;
 		notcombat = false;
@@ -2259,7 +2207,7 @@ void monster_start_go(edict_t *self)
 	// validate combattarget
 	if (self->combattarget)
 	{
-		edict_t *target;
+		edict_t* target;
 
 		target = nullptr;
 		while ((target = G_FindByString<&edict_t::targetname>(target, self->combattarget)) != nullptr)
@@ -2307,7 +2255,7 @@ void monster_start_go(edict_t *self)
 		if (!spawn_dead)
 			self->monsterinfo.stand(self);
 	}
-	
+
 	if (spawn_dead)
 	{
 		// to spawn dead, we'll mimick them dying naturally
@@ -2347,7 +2295,8 @@ void monster_start_go(edict_t *self)
 
 		if (self->monsterinfo.start_frame) {
 			self->s.frame = self->monsterinfo.start_frame;
-		} else {
+		}
+		else {
 			self->s.frame = move->lastframe;
 		}
 
