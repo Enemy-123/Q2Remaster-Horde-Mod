@@ -1,11 +1,11 @@
 {
     "name": "quake2-remaster-horde",
     "version-string": "1.0.0",
-    "builtin-baseline": "1cacb5c60ae0669236d8e0a7c2e8cbfa63a2e9fa",
+    "builtin-baseline": "a0b1c8d3a477c1cb4813d8e127a56961707ca42b",
     "dependencies": [
         {
             "name": "fmt",
-            "version>=": "12.1.0"
+            "version>=": "12.2.0"
         },
         {
             "name": "jsoncpp",
