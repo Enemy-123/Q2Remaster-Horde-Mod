@@ -637,7 +637,10 @@ void CooperativeCampaignHandler(edict_t *ent, pmenuhnd_t *p)
 		return;
 	}
 
-	const char *selected_text = p->entries[p->cur].text;
+	// Copy before closing: PMenu_Close frees p->entries, so the raw text pointer would
+	// dangle and the comparisons below would be use-after-free (ASan). Point at an owned copy.
+	const std::string selected_text_storage = p->entries[p->cur].text;
+	const char *selected_text = selected_text_storage.c_str();
 
 	PMenu_Close(ent);
 
@@ -759,7 +762,10 @@ void SinglePlayerCampaignHandler(edict_t *ent, pmenuhnd_t *p)
 		return;
 	}
 
-	const char *selected_text = p->entries[p->cur].text;
+	// Copy before closing: PMenu_Close frees p->entries, so the raw text pointer would
+	// dangle and the comparisons below would be use-after-free (ASan). Point at an owned copy.
+	const std::string selected_text_storage = p->entries[p->cur].text;
+	const char *selected_text = selected_text_storage.c_str();
 
 	PMenu_Close(ent);
 
@@ -797,7 +803,10 @@ void MapCategoryHandler(edict_t *ent, pmenuhnd_t *p)
 		return;
 	}
 
-	const char *selected_text = p->entries[p->cur].text;
+	// Copy before closing: PMenu_Close frees p->entries, so the raw text pointer would
+	// dangle and the comparisons below would be use-after-free (ASan). Point at an owned copy.
+	const std::string selected_text_storage = p->entries[p->cur].text;
+	const char *selected_text = selected_text_storage.c_str();
 
 	PMenu_Close(ent); // Close the category menu first
 
@@ -836,7 +845,7 @@ void MapCategoryHandler(edict_t *ent, pmenuhnd_t *p)
 		// Start vote to switch to PvM mode
 		CTFBeginElection(ent, ELECT_PVM, "Switch to PvM Mode? (Disables g_instagib)");
 	}
-	else if (strcmp(selected_text, "Vote Horde Mode") == 0)
+	else if (strcmp(selected_text, "Vote Horde Map") == 0)
 	{
 		// Start vote to switch to Horde mode
 		CTFBeginElection(ent, ELECT_HORDE, "Switch to Horde Mode? (Enables g_instagib)");
@@ -845,7 +854,7 @@ void MapCategoryHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		// Start manual vote to extend map time
 		ctfgame.automatic_vote = false; // Mark as manual vote
-		CTFBeginElection(ent, ELECT_TIME, "Extend map time by 30 minutes?");
+		CTFBeginElection(ent, ELECT_TIME, "Extend map time by 20 minutes?");
 	}
 	else if (strcmp(selected_text, "Back to Horde Menu") == 0)
 	{
@@ -946,7 +955,7 @@ void OpenMapCategoryMenu(edict_t *ent)
 		else if (pvm->integer)
 		{
 			// In PvM mode - show Horde vote option
-			Q_strlcpy(map_category_menu[idx].text, "Vote Horde Mode", sizeof(map_category_menu[idx].text));
+			Q_strlcpy(map_category_menu[idx].text, "Vote Horde Map", sizeof(map_category_menu[idx].text));
 			map_category_menu[idx].align = PMENU_ALIGN_LEFT;
 			map_category_menu[idx].SelectFunc = MapCategoryHandler;
 			idx++;
@@ -954,7 +963,7 @@ void OpenMapCategoryMenu(edict_t *ent)
 		else if (G_IsCooperative() || coop->integer)
 		{
 			// In cooperative mode - show option to vote for horde mode
-			Q_strlcpy(map_category_menu[idx].text, "Vote Horde Mode", sizeof(map_category_menu[idx].text));
+			Q_strlcpy(map_category_menu[idx].text, "Vote Horde Map", sizeof(map_category_menu[idx].text));
 			map_category_menu[idx].align = PMENU_ALIGN_LEFT;
 			map_category_menu[idx].SelectFunc = MapCategoryHandler;
 			idx++;
@@ -992,16 +1001,19 @@ void OpenMapCategoryMenu(edict_t *ent)
 
 void ModeSelectionHandler(edict_t *ent, pmenuhnd_t *p)
 {
-	if (!ent || !ent->client || !p)
+	if (!ent || !ent->client || !p || !p->entries || p->cur < 0 || p->cur >= p->num)
 	{
 		return;
 	}
 
-	const char *selected_text = p->entries[p->cur].text;
+	// Copy the selected text out BEFORE closing the menu: PMenu_Close frees p->entries,
+	// so the original char* would dangle and every comparison below would be a
+	// use-after-free (caught by ASan). Compare against the owned copy instead.
+	const std::string selected_text = p->entries[p->cur].text;
 
 	PMenu_Close(ent); // Close the mode selection menu
 
-	if (strcmp(selected_text, "Vote Horde Mode") == 0)
+	if (selected_text == "Vote Horde Map")
 	{
 		// Store that we want to vote for Horde mode
 		ent->client->pending_mode_vote = 1;
@@ -1010,22 +1022,14 @@ void ModeSelectionHandler(edict_t *ent, pmenuhnd_t *p)
 		// Now open the map category menu to select which map
 		OpenMapCategoryMenu(ent);
 	}
-	else if (strcmp(selected_text, "Vote PvM Mode") == 0)
-	{
-		// Store that we want to vote for PvM mode
-		ent->client->pending_mode_vote = 2;
-		// Categorize maps before opening map menu
-		CategorizeMapList();
-		// Now open the map category menu to select which map
-		OpenMapCategoryMenu(ent);
-	}
-	else if (strcmp(selected_text, "Extend Time") == 0)
+	// PvM mode voting is disabled (nobody plays it); option removed from the menu below.
+	else if (selected_text == "Extend Time")
 	{
 		// Start manual vote to extend map time
 		ctfgame.automatic_vote = false; // Mark as manual vote
-		CTFBeginElection(ent, ELECT_TIME, "Extend map time by 30 minutes?");
+		CTFBeginElection(ent, ELECT_TIME, "Extend map time by 20 minutes?");
 	}
-	else if (strcmp(selected_text, "Back to Horde Menu") == 0)
+	else if (selected_text == "Back to Horde Menu")
 	{
 		OpenHordeMenu(ent);
 	}
@@ -1068,13 +1072,8 @@ void OpenModeSelectionMenu(edict_t *ent)
 	mode_selection_menu[idx].SelectFunc = nullptr;
 	idx++;
 
-	// Show both mode options
-	Q_strlcpy(mode_selection_menu[idx].text, "Vote Horde Mode", sizeof(mode_selection_menu[idx].text));
-	mode_selection_menu[idx].align = PMENU_ALIGN_LEFT;
-	mode_selection_menu[idx].SelectFunc = ModeSelectionHandler;
-	idx++;
-
-	Q_strlcpy(mode_selection_menu[idx].text, "Vote PvM Mode", sizeof(mode_selection_menu[idx].text));
+	// Horde mode vote option (PvM mode voting disabled — nobody plays it)
+	Q_strlcpy(mode_selection_menu[idx].text, "Vote Horde Map", sizeof(mode_selection_menu[idx].text));
 	mode_selection_menu[idx].align = PMENU_ALIGN_LEFT;
 	mode_selection_menu[idx].SelectFunc = ModeSelectionHandler;
 	idx++;
@@ -2554,10 +2553,10 @@ void HordeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	// Check for Admin Menu (host only)
 	if (strcmp(selected_text, "[HOST] Admin Menu") == 0)
 	{
-		OpenAdminMenu(ent);
-		shouldCloseMenu = false;
+		OpenAdminMenu(ent); // closes this menu (PMenu_Close) and opens the admin menu
+		return;				// selected_text now points into freed menu memory; must not fall through
 	}
-	if (strcmp(selected_text, "Single Player") == 0)
+	if (strcmp(selected_text, "[HOST] Single Player") == 0)
 	{
 		if (!CanShowSinglePlayerCampaignMenu(ent))
 		{
@@ -2722,7 +2721,7 @@ pmenuhnd_t *CreateHordeMenu(edict_t *ent)
 
 		if (CanShowSinglePlayerCampaignMenu(ent))
 		{
-			add_entry("Single Player", PMENU_ALIGN_LEFT, HordeMenuHandler);
+			add_entry("[HOST] Single Player", PMENU_ALIGN_LEFT, HordeMenuHandler);
 		}
 	}
 

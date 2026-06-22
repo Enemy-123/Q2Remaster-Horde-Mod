@@ -2377,7 +2377,7 @@ bool CTFCheckTimeExtensionVote()
 			{
 				// Mark this as an automatic vote before starting it
 				ctfgame.automatic_vote = true;
-				return CTFBeginElection(player, ELECT_TIME, "Extend map time by 30 minutes?");
+				return CTFBeginElection(player, ELECT_TIME, "Extend map time by 20 minutes?");
 			}
 		}
 	}
@@ -2467,7 +2467,7 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 
 	if (is_time_vote) {
 		if (ctfgame.automatic_vote) {
-			gi.LocBroadcast_Print(PRINT_CHAT, "AUTOMATED VOTE: Wish to add 30 minutes?\n");
+			gi.LocBroadcast_Print(PRINT_CHAT, "AUTOMATED VOTE: Wish to add 20 minutes?\n");
 		}
 		else {
 			gi.LocBroadcast_Print(PRINT_CHAT, "{} Has Started a Vote!\n", player_name);
