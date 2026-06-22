@@ -395,7 +395,7 @@ void M_WorldEffects(edict_t* ent)
 						}
 					}
 					else if (ent->svflags & SVF_MONSTER) {
-						if (CheckAndTeleportStuckMonster(ent)) {
+						if (CheckAndTeleportStuckMonster(ent, true)) {
 							ent->air_finished = level.time + 6_sec;
 						}
 						else {

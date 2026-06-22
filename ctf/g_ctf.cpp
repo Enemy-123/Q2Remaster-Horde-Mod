@@ -882,7 +882,7 @@ THINK(CTFFlagSetup) (edict_t* ent) -> void
 	tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, dest, ent, MASK_SOLID);
 	if (tr.startsolid)
 	{
-		gi.Com_PrintFmt("PRINT: CTFFlagSetup: {} startsolid at {}\n", ent->classname, ent->s.origin);
+		gi.Com_PrintFmt("PRINT: CTFFlagSetup: {} startsolid at {:.0f}\n", ent->classname, ent->s.origin);
 		G_FreeEdict(ent);
 		return;
 	}

@@ -452,7 +452,20 @@ static void guardianpsx_kick(edict_t* self)
 	}
 
 	int melee_damage = M_MELEE_DMG(self);
-	if (!fire_hit(self, { 160.f, 0, -80.f }, melee_damage > 0 ? melee_damage : 85, 700))
+	if (melee_damage <= 0)
+		melee_damage = 85;
+
+	// Against tesla mines, stomp as a true radius blast so a whole cluster goes down at once.
+	if (horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::TESLA_MINE) ||
+		horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP))
+	{
+		// Radius damage emanates from the guardian's center; boost the base to overcome the
+		// `damage - 0.5 * dist` falloff so mines at the edge of melee reach still die.
+		T_RadiusDamage(self, self, static_cast<float>(melee_damage) + 100.f, self, 200.f, DAMAGE_NONE, MOD_HIT);
+		return;
+	}
+
+	if (!fire_hit(self, { 160.f, 0, -80.f }, melee_damage, 700))
 		self->monsterinfo.melee_debounce_time = level.time + 3500_ms;
 }
 
@@ -770,8 +783,22 @@ static void guardianpsx_fire_rocket(edict_t* self, float offset)
 	if (speed < 200)
 		speed = 200;
 
-	// Force an initial upward arc; homing activates shortly after launch.
-	vec3_t dir = safe_normalized((forward * 0.35f) + (up * 0.95f));
+	// A steep launch into a low ceiling just wastes the rocket. Detect it and fire flat instead.
+	trace_t const up_tr = gi.trace(start, vec3_origin, vec3_origin, start + up * 160.f, self, MASK_SOLID);
+	bool const low_ceiling = up_tr.fraction < 1.0f && !(up_tr.surface && (up_tr.surface->flags & SURF_SKY));
+
+	vec3_t dir;
+	if (low_ceiling && self->enemy)
+	{
+		// Aim mostly along forward / toward the enemy with minimal lift.
+		vec3_t const at_enemy = safe_normalized(self->enemy->s.origin - start);
+		dir = safe_normalized((forward * 0.5f) + (at_enemy * 0.5f) + (up * 0.1f));
+	}
+	else
+	{
+		// Force an initial upward arc; homing activates shortly after launch.
+		dir = safe_normalized((forward * 0.35f) + (up * 0.95f));
+	}
 
 	const float turn_fraction = 0.18f;
 
@@ -829,6 +856,17 @@ MONSTERINFO_ATTACK(guardianpsx_attack) (edict_t* self) -> void
 {
 	if (!M_HasValidTarget(self))
 		return; // Can't at a non-existent or dead target.
+
+	// Tesla mines: stomp them as an AOE up close (clears clusters), blast while closing the gap.
+	if (horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::TESLA_MINE))
+	{
+		if (self->monsterinfo.melee_debounce_time < level.time && range_to(self, self->enemy) < 160.f)
+			M_SetAnimation(self, &guardianpsx_move_kick);
+		else
+			M_SetAnimation(self, &guardianpsx_move_atk1_in);
+		self->style = 0;
+		return;
+	}
 
 	// Stationary hazards: just fire the blaster, never kick
 	if (horde::IsRangedOnlyTarget(self->enemy))

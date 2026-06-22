@@ -234,7 +234,7 @@ namespace LimitBreakWave {
 
 	// Spawn-point bias: chance to use the farthest spawn point (so the horde "comes from
 	// nowhere"), and how many valid candidates to consider when that bias is active.
-	inline constexpr float FARTHEST_SPAWN_CHANCE     = 0.5f;
+	inline constexpr float FARTHEST_SPAWN_CHANCE     = 0.25f;
 	inline constexpr int   FARTHEST_SPAWN_CANDIDATES = 6;
 
 	// Fog waves bias even harder toward the farthest point, and re-fire its alternatives quickly

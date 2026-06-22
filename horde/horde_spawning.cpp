@@ -820,11 +820,14 @@ void PlanMonsterSpawnBatch(
     {
         const bool monster_is_flying = IsFlying(monster_type_id);
 
-        // Limit-break / fog waves: with some chance, bias toward the farthest spawn point so the
-        // horde appears to come from nowhere. We scan a short run of valid candidates and keep
-        // the one farthest from the nearest player instead of taking the first valid one.
-        const bool prefer_farthest = IsLimitBreakWave(current_wave_type) &&
-                                     frandom() < LimitBreakWave::FARTHEST_SPAWN_CHANCE_FOG;
+        // With some chance, bias toward the farthest spawn point so the horde appears to come from
+        // nowhere. We scan a short run of valid candidates and keep the one farthest from the nearest
+        // player instead of taking the first valid one. Normal waves use a 50/50 near/far mix; fog /
+        // limit-break waves bias hard toward the far edge so the swarm pours from a distance.
+        const float farthest_chance = IsLimitBreakWave(current_wave_type)
+            ? LimitBreakWave::FARTHEST_SPAWN_CHANCE_FOG   // 0.9 -- fog / limit-break
+            : LimitBreakWave::FARTHEST_SPAWN_CHANCE;       // 0.25 -- normal waves
+        const bool prefer_farthest = frandom() < farthest_chance;
         edict_t* farthest_point = nullptr;
         float farthest_dist_sq = -1.0f;
         int candidates_seen = 0;

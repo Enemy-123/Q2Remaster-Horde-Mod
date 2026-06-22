@@ -2114,7 +2114,7 @@ void SpawnBossAutomatically()
 			has_spawn_position = true;
 
 			if (developer->integer > 1)
-				gi.Com_PrintFmt("SpawnBossAutomatically: Primary spawn validated at {}\n", final_spawn_origin);
+				gi.Com_PrintFmt("SpawnBossAutomatically: Primary spawn validated at {:.0f}\n", final_spawn_origin);
 		}
 		// Step 2: If primary fails, try alternative spawn points
 		else if (TryAlternativeSpawnPoints(spawn_origin, predicted_mins, predicted_maxs, is_flying,
@@ -2123,11 +2123,11 @@ void SpawnBossAutomatically()
 			has_spawn_position = true;
 
 			if (developer->integer > 1)
-				gi.Com_PrintFmt("SpawnBossAutomatically: Using alternative spawn at {}\n", final_spawn_origin);
+				gi.Com_PrintFmt("SpawnBossAutomatically: Using alternative spawn at {:.0f}\n", final_spawn_origin);
 		}
 		else if (developer->integer > 1)
 		{
-			gi.Com_PrintFmt("SpawnBossAutomatically: Registered boss origin failed validation at {}. Trying grid fallback.\n", spawn_origin);
+			gi.Com_PrintFmt("SpawnBossAutomatically: Registered boss origin failed validation at {:.0f}. Trying grid fallback.\n", spawn_origin);
 		}
 	}
 	else if (developer->integer > 1)
@@ -2153,7 +2153,7 @@ void SpawnBossAutomatically()
 		if (developer->integer)
 		{
 			if (has_registered_spawn_origin)
-				gi.Com_PrintFmt("SpawnBossAutomatically: All coordinate and grid spawn attempts failed at {}. Will retry next frame.\n", spawn_origin);
+				gi.Com_PrintFmt("SpawnBossAutomatically: All coordinate and grid spawn attempts failed at {:.0f}. Will retry next frame.\n", spawn_origin);
 			else
 				gi.Com_PrintFmt("SpawnBossAutomatically: No boss coordinate or valid grid fallback for map '{}'. Will retry next frame.\n", map_name);
 		}
@@ -2289,7 +2289,7 @@ THINK(BossSpawnThink)(edict_t *self)->void
 
 	if (developer->integer > 1)
 	{
-		gi.Com_PrintFmt("BossSpawnThink: Finalized spawn for boss {} at {}.\n", self->classname, self->s.origin);
+		gi.Com_PrintFmt("BossSpawnThink: Finalized spawn for boss {} at {:.0f}.\n", self->classname, self->s.origin);
 	}
 }
 

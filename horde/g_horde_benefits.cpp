@@ -1,5 +1,6 @@
 #include "g_horde_benefits.h"
 #include "../g_local.h" // Include g_local.h for gi, etc.
+#include <iterator> // std::back_inserter for fmt::format_to into a memory buffer
 
 const char* GetPlayerName(const edict_t* player);
 
@@ -220,17 +221,12 @@ std::string GetActiveBonusesString() {
 		return "";
 	}
 
-    // Use std::string to format the result
+    // Build the list with one reserved string; format_to avoids manual newline bookkeeping.
+    // Uses std::string (not fmt::memory_buffer) so it stays portable to the std::format path.
     std::string result;
     result.reserve(active_count * 30);
-
-    for (int i = 0; i < active_count; ++i) {
-        result += "* ";
-        result += active_bonuses[i];
-        if (i < active_count - 1) {
-            result += "\n";
-        }
-    }
+    for (int i = 0; i < active_count; ++i)
+        fmt::format_to(std::back_inserter(result), "{}* {}", i ? "\n" : "", active_bonuses[i]);
 
     return result;
 }
@@ -286,17 +282,12 @@ std::string GetPlayerActiveBonusesString(edict_t* player) {
         return "";
     }
 
-    // Use std::string to format the result
+    // Build the list with one reserved string; format_to avoids manual newline bookkeeping.
+    // Uses std::string (not fmt::memory_buffer) so it stays portable to the std::format path.
     std::string result;
     result.reserve(active_count * 30);
-
-    for (int i = 0; i < active_count; ++i) {
-        result += "* ";
-        result += active_bonuses[i];
-        if (i < active_count - 1) {
-            result += "\n";
-        }
-    }
+    for (int i = 0; i < active_count; ++i)
+        fmt::format_to(std::back_inserter(result), "{}* {}", i ? "\n" : "", active_bonuses[i]);
 
     return result;
 }

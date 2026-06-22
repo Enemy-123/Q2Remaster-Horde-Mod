@@ -433,7 +433,7 @@ struct PositionValidationResult {
 };
 
 [[nodiscard]] PositionValidationResult IsPositionPhysicallyValid(const vec3_t& position, const vec3_t& monster_mins, const vec3_t& monster_maxs, bool is_flying);
-bool CheckAndTeleportStuckMonster(edict_t* self);
+bool CheckAndTeleportStuckMonster(edict_t* self, bool force_drowning);
 static void AnnounceIncomingWave(gtime_t duration = 3_sec);
 static edict_t* FindBestPlayerTargetForTeleport();
 
@@ -1374,7 +1374,7 @@ edict_t* SelectNextShuffledSpawnPoint(TFilter filter)
 
 		if (IsSpawnPointOccupied(spawnPoint)) {
 			if (developer->integer > 2)
-				gi.Com_PrintFmt("SelectNextShuffled: Point #{} at {} skipped (player occupied).\n", index, spawnPoint->s.origin);
+				gi.Com_PrintFmt("SelectNextShuffled: Point #{} at {:.0f} skipped (player occupied).\n", index, spawnPoint->s.origin);
 			continue;
 		}
 
@@ -6808,7 +6808,7 @@ static void ResetStroggCleanup()
 	g_horde_local.lastStroggKillTime = 0_sec;
 }
 
-bool CheckAndTeleportStuckMonster(edict_t* self)
+bool CheckAndTeleportStuckMonster(edict_t* self, bool force_drowning)
 {
 	PROFILE_SCOPE("CheckAndTeleportStuckMonster");
 
@@ -6816,26 +6816,34 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 	if (level.intermissiontime || !self || !self->inuse || self->deadflag || self->monsterinfo.IS_BOSS || !g_horde->integer || self->monsterinfo.isfriendlyspawn)
 		return false;
 
-	// Periodic check rate limiting - faster checks for all monsters to catch unreachable positions
-	if (level.time < self->monsterinfo.stuck_check_time)
-		return false;
+	// force_drowning: the M_WorldEffects drowning path has already decided this monster is out of
+	// air and physically stuck in water. The gates below (periodic check throttle, jumping guard,
+	// teleport cooldown) otherwise swallow the call almost every frame, so a drowning monster races
+	// escalating drown damage and just dies. Skip them so the "Drowning" hard reason actually fires.
+	if (!force_drowning)
+	{
+		// Periodic check rate limiting - faster checks for all monsters to catch unreachable positions
+		if (level.time < self->monsterinfo.stuck_check_time)
+			return false;
 
-	// All monsters check frequently (4-6 sec) to catch unreachable roofs, sky areas, enclosed spaces, etc.
-	self->monsterinfo.stuck_check_time = level.time + random_time(4.0_sec, 6.0_sec);
+		// All monsters check frequently (4-6 sec) to catch unreachable roofs, sky areas, enclosed spaces, etc.
+		self->monsterinfo.stuck_check_time = level.time + random_time(4.0_sec, 6.0_sec);
+	}
 
 	// Skip certain monster types
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::MISC_INSANE) || horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN) || (horde::IsMonsterType(self, horde::MonsterTypeID::TURRET) || (horde::IsMonsterType(self, horde::MonsterTypeID::FLIPPER))))
 		return false;
 
-	// Don't teleport jumping monsters
-	if (IsMonsterJumping(self))
+	// Don't teleport jumping monsters (a drowning monster can't meaningfully be "jumping", and the
+	// +1.5s teleport_time push here would re-block it every frame, so the drowning path skips this).
+	if (!force_drowning && IsMonsterJumping(self))
 	{
 		self->teleport_time = level.time + 1.5_sec;
 		return false;
 	}
 
 	// Teleport cooldown
-	if (self->teleport_time > level.time)
+	if (!force_drowning && self->teleport_time > level.time)
 		return false;
 
 	// --- 2. Global Rate Limiting (ADAPTIVE BASED ON REMAINING MONSTERS) ---
@@ -7339,7 +7347,7 @@ bool Horde_AttemptToUnstickMonster(edict_t* self)
 			ApplyLongFlyingLaneCooldown(dest_spot);
 			if (developer->integer)
 			{
-				gi.Com_PrintFmt("FIXED STUCK (Safe): Relocated '{}' to spawn point at {}.\n", self->classname, dest_spot->s.origin);
+				gi.Com_PrintFmt("FIXED STUCK (Safe): Relocated '{}' to spawn point at {:.0f}.\n", self->classname, dest_spot->s.origin);
 			}
 			return true;
 		}
