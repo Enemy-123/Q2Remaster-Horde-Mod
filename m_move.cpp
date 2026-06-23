@@ -16,6 +16,11 @@ constexpr float MONSTER_PERSONAL_SPACE_DEFAULT = 48.0f;
 constexpr float MONSTER_PERSONAL_SPACE_BOSS = 96.0f;
 constexpr float MONSTER_PERSONAL_SPACE_FLYING = 64.0f;
 constexpr float MONSTER_PERSONAL_SPACE_SEARCH_MULTIPLIER = 2.0f;
+// Bbox-aware separation: monsters repulse out to the SUM of their horizontal radii (+margin) so two
+// of them never come to rest sharing a bounding box (they stay non-solid and can still pass through).
+// Fixed personal space alone is too small for big monsters, which is how they end up stacked & stuck.
+constexpr float BBOX_SEPARATION_MARGIN = 8.0f;                  // push slightly past bbox contact so they fully clear
+constexpr float MONSTER_REPULSION_MAX_NEIGHBOR_RADIUS = 80.0f;  // search reach for the largest likely neighbor bbox
 
 // Repulsion system constants
 constexpr float REPULSION_MAX_FORCE = 24.0f;
@@ -36,10 +41,10 @@ constexpr float REPULSION_MIN_THRESHOLD_SQ = 1.0f;
 // melee. One-sided (only the strogg accumulates it) -> no symmetric ping-pong, normal crowd untouched.
 constexpr float HARD_SEPARATION_DEEP_OVERLAP_FRACTION = 0.5f; // engage only when dist < personal_space * this (or boxes intersect)
 constexpr float HARD_SEPARATION_MAX_FORCE = 24.0f; // peak per-neighbor push (matches REPULSION_MAX_FORCE)
-constexpr float HARD_SEPARATION_STRENGTH = 0.6f;  // applied fraction (stronger than lateral so it actually un-stacks)
-constexpr float HARD_SEPARATION_STRENGTH_COMBAT = 0.5f;  // scale vs a live enemy (don't shove past melee range)
+constexpr float HARD_SEPARATION_STRENGTH = 1.0f;  // applied fraction (full force so it actually un-stacks)
+constexpr float HARD_SEPARATION_STRENGTH_COMBAT = 1.0f;  // no penalty vs a live enemy: the falloff + MIN_FWD_FRACTION clamp keep it closing to melee, so a stuck cluster fighting one player still breaks apart
 constexpr float HARD_SEPARATION_MIN_DIST = 4.0f;  // floor in falloff denominator (anti force-spike at near-zero distance)
-constexpr float HARD_SEPARATION_STEP_CAP_FRACTION = 1.0f;  // cap total hard push to this * step length (anti-jitter)
+constexpr float HARD_SEPARATION_STEP_CAP_FRACTION = 2.5f;  // cap total hard push to this * step length; >1 lets a wedged pile shove apart faster than the goal re-converges it
 
 // Wall repulsion constants - keeps monsters off walls so squeezed boxes don't park their
 // (full-size) model inside geometry. Lateral-only vs. the goal direction, so it never blocks
@@ -149,6 +154,15 @@ static float GetMonsterPersonalSpace(edict_t* ent)
 	return MONSTER_PERSONAL_SPACE_DEFAULT;
 }
 
+// TEMP DIAGNOSTIC filter: count live monster neighbors via the engine areagrid, to compare against
+// the custom ProximityGrid's result (does the grid actually return the stacked monsters?).
+static BoxEdictsResult_t RepulseDbg_BoxFilter(edict_t* hit, void* self_ptr)
+{
+	if (hit == self_ptr || !(hit->svflags & SVF_MONSTER) || hit->health <= 0 || hit->deadflag)
+		return BoxEdictsResult_t::Skip;
+	return BoxEdictsResult_t::Keep;
+}
+
 // Calculate repulsion vector from nearby monsters
 static vec3_t CalculateMonsterRepulsion(edict_t* ent)
 {
@@ -169,9 +183,15 @@ static vec3_t CalculateMonsterRepulsion(edict_t* ent)
 	if (personal_space <= 0)
 		personal_space = GetMonsterPersonalSpace(ent);
 
-	// Search for nearby monsters using spatial grid (O(1) instead of O(n))
-	const float search_radius = personal_space * MONSTER_PERSONAL_SPACE_SEARCH_MULTIPLIER;
-	const float personal_space_sq = personal_space * personal_space; // Squared for faster comparison
+	// Horizontal bounding radius of this monster (largest x/y half-extent). Used so the engagement
+	// distance scales with the actual bbox - two monsters should separate until their boxes no longer
+	// overlap, not just to a fixed personal space (which is smaller than a big monster's box).
+	const float ent_radius = std::max({ ent->maxs.x, -ent->mins.x, ent->maxs.y, -ent->mins.y });
+
+	// Search wide enough to find any monster whose bbox could overlap ours (our radius + the largest
+	// likely neighbor radius + margin), floored at the original personal-space search.
+	const float search_radius = std::max(personal_space * MONSTER_PERSONAL_SPACE_SEARCH_MULTIPLIER,
+	                                      ent_radius + MONSTER_REPULSION_MAX_NEIGHBOR_RADIUS + BBOX_SEPARATION_MARGIN);
 	int nearby_count = 0;
 
 	// Use ProximityGrid for massive performance improvement over findradius
@@ -197,20 +217,42 @@ static vec3_t CalculateMonsterRepulsion(edict_t* ent)
 		vec3_t diff = ent->s.origin - other->s.origin;
 		const float dist_sq = diff.lengthSquared();
 
-		// Skip if too far (use squared distance comparison)
-		if (dist_sq >= personal_space_sq || dist_sq < REPULSION_MIN_THRESHOLD_SQ)
+		// Per-pair engagement: keep their bboxes from overlapping. Engage out to the sum of both
+		// horizontal radii (+margin) so neither comes to rest inside the other's box, but never below
+		// this monster's personal space. Repulsion only nudges the move vector - monsters stay non-solid
+		// and can still pass THROUGH each other; they just won't settle stacked on one spot.
+		const float other_radius = std::max({ other->maxs.x, -other->mins.x, other->maxs.y, -other->mins.y });
+		const float pair_space = std::max(personal_space, ent_radius + other_radius + BBOX_SEPARATION_MARGIN);
+		const float pair_space_sq = pair_space * pair_space;
+
+		// Too far: ignore.
+		if (dist_sq >= pair_space_sq)
 			continue;
 
-		// Now calculate actual distance only when needed
-		const float dist = std::sqrt(dist_sq);
+		// Separation direction + distance. Near-coincident (dist < ~1) is the WORST stack - exactly the
+		// "stuck on the same bbox" case we most need to break - but diff is ~0 so it can't be normalized.
+		// The old code early-SKIPPED this case (the divide-by-zero guard), which is why a perfectly
+		// stacked pair never separated. Instead, synthesize a deterministic per-entity horizontal escape
+		// direction (golden-angle from the entity number) so a stacked group fans out in distinct
+		// directions rather than staying piled.
+		float dist;
+		vec3_t sep_dir;
+		if (dist_sq < REPULSION_MIN_THRESHOLD_SQ)
+		{
+			dist = HARD_SEPARATION_MIN_DIST; // treat as contact for the falloff math
+			const float ang = static_cast<float>(ent->s.number) * 2.39996323f; // golden angle (radians)
+			sep_dir = { cosf(ang), sinf(ang), 0.0f };
+		}
+		else
+		{
+			dist = std::sqrt(dist_sq);
+			sep_dir = diff * (1.0f / dist); // unit vector AWAY from the neighbor
+		}
 
 		// Calculate repulsion force - stronger when closer
-		// Use C++17/23 std::clamp for cleaner, potentially better optimized code
-		float strength = std::clamp((personal_space - dist) / personal_space, 0.0f, 1.0f);
+		float strength = std::clamp((pair_space - dist) / pair_space, 0.0f, 1.0f);
 
-		// Normalize and scale the repulsion vector
-		vec3_t push = diff * (1.0f / dist); // Manual normalization (already have dist)
-		push *= strength * REPULSION_MAX_FORCE;
+		vec3_t push = sep_dir * (strength * REPULSION_MAX_FORCE);
 
 		// Reduce vertical repulsion for ground monsters
 		if (!(ent->flags & (FL_FLY | FL_SWIM)))
@@ -219,30 +261,43 @@ static vec3_t CalculateMonsterRepulsion(edict_t* ent)
 		repulsion += push;
 		nearby_count++;
 
-		// --- Hard separation: only when WE are a summoned strogg and the neighbor is a REAL enemy
-		// (a monster WITHOUT BF_FRIENDLY). Every friendly spawn carries BF_FRIENDLY, so this never shoves
-		// an ally - and unlike the old OnSameTeam test it doesn't ride on the CTF_NOTEAM coincidence (a
-		// summoned strogg that happened to share the enemy team id would have slipped through). Two
-		// summoned stroggs are already skipped above. Deep overlap only -> melee still works. Applied FULL
-		// (not lateral) in ApplyMonsterRepulsion, so the along-goal separating component survives when a
-		// strogg and its enemy point goals at each other - that's what un-stacks two mutual enemies grinding.
-		if (ent->monsterinfo.issummoned && !(other->monsterinfo.bonus_flags & BF_FRIENDLY))
+		// --- Hard separation: FULL (non-lateral) un-stack push, DEEP overlap only. Applied in
+		// ApplyMonsterRepulsion without the lateral strip, so the along-goal separating component
+		// survives - that's what un-stacks monsters whose goals point the same way (or at each other),
+		// which plain lateral repulsion can't. Two one-sided cases (one-sided so a pair can't ping-pong):
+		//   1. WE are a summoned strogg and the neighbor is a REAL enemy (no BF_FRIENDLY). Naturally
+		//      one-sided: the enemy isn't summoned, so only the strogg accumulates the push. Un-stacks
+		//      two mutual enemies grinding into each other.
+		//   2. Two NORMAL enemy monsters (neither is an ally). A spawn cluster all chasing the SAME
+		//      player has near-parallel goals, so lateral repulsion barely separates it; this un-piles
+		//      them. Made one-sided via the entity-number tiebreaker (only the lower-numbered one steps
+		//      aside). Allies (issummoned OR BF_FRIENDLY) are excluded on BOTH sides so it never shoves
+		//      a friendly spawn.
+		const bool ent_is_ally   = ent->monsterinfo.issummoned   || (ent->monsterinfo.bonus_flags & BF_FRIENDLY);
+		const bool other_is_ally = other->monsterinfo.issummoned || (other->monsterinfo.bonus_flags & BF_FRIENDLY);
+		const bool summoned_vs_enemy = ent->monsterinfo.issummoned && !(other->monsterinfo.bonus_flags & BF_FRIENDLY);
+		const bool normal_pair = !ent_is_ally && !other_is_ally && (ent->s.number < other->s.number);
+		if (summoned_vs_enemy || normal_pair)
 		{
-			const float deep_dist = personal_space * HARD_SEPARATION_DEEP_OVERLAP_FRACTION;
+			// Normal enemy pairs un-stack across the FULL bbox-aware range (push until their boxes
+			// clear). The diagnostic showed they settle at bbox-overlap distance (dist ~24-48), where
+			// the old deep-overlap-only gate (pair_space*0.5) never fired - so |hardsep| was always 0
+			// and they stayed visibly stacked. The summoned strogg-vs-enemy case keeps the tighter
+			// deep-overlap engagement so stroggs still close to melee instead of being held at box range.
+			const float deep_dist = normal_pair ? pair_space
+			                                    : pair_space * HARD_SEPARATION_DEEP_OVERLAP_FRACTION;
 			const bool deeply_overlapping =
 				(dist < deep_dist) ||
 				boxes_intersect(ent->absmin, ent->absmax, other->absmin, other->absmax);
 
 			if (deeply_overlapping)
 			{
-				// Falloff: 0 at the deep-overlap edge, ~1 at contact. Floor the distance so a near-zero
-				// separation can't spike the force (direction stays well-defined; outer loop already
-				// skipped dist_sq < REPULSION_MIN_THRESHOLD_SQ, so dist >= 1).
+				// Falloff: 0 at the deep-overlap edge, ~1 at contact. dist is already floored
+				// (coincident pairs use HARD_SEPARATION_MIN_DIST above), so this can't spike.
 				const float clamped = std::max(dist, HARD_SEPARATION_MIN_DIST);
 				const float hs = std::clamp((deep_dist - clamped) / deep_dist, 0.0f, 1.0f);
 
-				vec3_t hard_push = diff * (1.0f / dist); // unit vector AWAY from the enemy (diff = ent - other)
-				hard_push *= hs * HARD_SEPARATION_MAX_FORCE;
+				vec3_t hard_push = sep_dir * (hs * HARD_SEPARATION_MAX_FORCE); // unit dir AWAY from the neighbor
 
 				if (!(ent->flags & (FL_FLY | FL_SWIM)))
 					hard_push.z *= REPULSION_VERTICAL_DAMPING;
@@ -263,6 +318,32 @@ static vec3_t CalculateMonsterRepulsion(edict_t* ent)
 	// Store calculated repulsion
 	ent->monsterinfo.repulsion_vector = repulsion;
 	ent->monsterinfo.hard_separation_vector = hard_separation;
+
+	// TEMP DIAGNOSTIC (developer 2): compare the custom grid's neighbor count against the engine
+	// areagrid's, and report whether a push was computed. Interpreting the [REPULSE] lines:
+	//   * no lines at all while monsters are visibly stacked -> this function (so SV_movestep) isn't
+	//     running for them; they're stacked in a non-walking AI state (fix must run outside movestep).
+	//   * grid_nearby=0 but box_nearby>=2 -> the ProximityGrid query is the problem (use BoxEdicts).
+	//   * grid_nearby>=2 with hardsep=0 -> the hard-separation gate isn't firing.
+	//   * grid_nearby>=2 with hardsep>0 -> push IS computed; the loss is downstream (movement/re-converge).
+	if (developer->integer >= 2)
+	{
+		edict_t* box[16];
+		const size_t box_nearby = gi.BoxEdicts(ent->absmin - vec3_t{ 16, 16, 16 }, ent->absmax + vec3_t{ 16, 16, 16 },
+			box, 16, AREA_SOLID, RepulseDbg_BoxFilter, ent);
+		if (box_nearby >= 2 || nearby_count >= 2)
+		{
+			static gtime_t s_next_repulse_dbg = 0_sec;
+			if (level.time >= s_next_repulse_dbg)
+			{
+				s_next_repulse_dbg = level.time + 500_ms;
+				gi.Com_PrintFmt("[REPULSE] {} grid={} box={} |rep|={} |hardsep|={} corridor={} tight={}\n",
+					ent->classname, nearby_count, static_cast<int>(box_nearby),
+					static_cast<int>(repulsion.length()), static_cast<int>(hard_separation.length()),
+					ent->monsterinfo.corridor_blocked_dirs, ent->monsterinfo.corridor_tight_blocked_dirs);
+			}
+		}
+	}
 
 	return repulsion;
 }
@@ -373,11 +454,12 @@ static void ApplyMonsterRepulsion(edict_t* ent, vec3_t& move, bool in_combat)
 		}
 	}
 
-	// --- Hard separation (FULL push, summoned strogg deep-overlap only) ---
+	// --- Hard separation (FULL push, deep-overlap only) ---
 	// Not projected to lateral, so the along-goal separating component (the one the lateral block
-	// strips) survives - that's what un-stacks a strogg from an enemy whose goal points back at it.
-	// Only non-zero at deep overlap (see CalculateMonsterRepulsion), so it never fires at normal
-	// adjacency and never stops the strogg from closing to melee.
+	// strips) survives - that's what un-stacks monsters whose goals point the same way (a spawn
+	// cluster chasing one player) or back at each other (a summoned strogg vs its enemy). Only
+	// non-zero at deep overlap (see CalculateMonsterRepulsion), so it never fires at normal adjacency
+	// and never stops a monster from closing to melee.
 	const vec3_t hard_sep = ent->monsterinfo.hard_separation_vector;
 	if (hard_sep.lengthSquared() >= REPULSION_MIN_THRESHOLD_SQ)
 	{
@@ -387,11 +469,12 @@ static void ApplyMonsterRepulsion(edict_t* ent, vec3_t& move, bool in_combat)
 		if (in_combat && ent->enemy && ent->enemy->inuse)
 			hard_strength *= HARD_SEPARATION_STRENGTH_COMBAT;
 
-		// Respect corridors like the lateral path does (don't fight through walls).
+		// Un-stacking stays mostly ON in corridors: a hard push aimed into a wall is rejected/slid by
+		// the step trace (monsters are still solid to walls), so it can't bury them, while the
+		// along-corridor component still separates a front-to-back pile. Only damp it in the very
+		// tightest single-file spots so a 1-wide corridor still files through instead of jittering.
 		if (ent->monsterinfo.corridor_tight_blocked_dirs >= CORRIDOR_BLOCKED_TIGHT_THRESHOLD)
-			hard_strength = 0.0f;
-		else if (ent->monsterinfo.corridor_blocked_dirs >= CORRIDOR_BLOCKED_THRESHOLD)
-			hard_strength *= REPULSION_STRENGTH_CORRIDOR;
+			hard_strength *= 0.5f;
 
 		if (hard_strength > 0.0f)
 		{

@@ -828,9 +828,22 @@ void PlanMonsterSpawnBatch(
             ? LimitBreakWave::FARTHEST_SPAWN_CHANCE_FOG   // 0.9 -- fog / limit-break
             : LimitBreakWave::FARTHEST_SPAWN_CHANCE;       // 0.25 -- normal waves
         const bool prefer_farthest = frandom() < farthest_chance;
-        edict_t* farthest_point = nullptr;
-        float farthest_dist_sq = -1.0f;
+        edict_t* farthest_point = nullptr;        float farthest_dist_sq = -1.0f;        // fallback: plain farthest
+        edict_t* farthest_spaced = nullptr;       float farthest_spaced_dist_sq = -1.0f; // preferred: far AND spaced from batch-mates
         int candidates_seen = 0;
+
+        // Spread the far-biased picks: a batch shouldn't pile its far spawns into one wing (the
+        // farthest points on a big map tend to be geographically bunched). Prefer the farthest point
+        // that's also at least a batch-spacing away from points already used this batch; fall back to
+        // the plain farthest so this never starves.
+        const float batch_spacing = GetEmergencySpacingForMap(g_horde_local.current_map_size);
+        const float batch_spacing_sq = batch_spacing * batch_spacing;
+        auto too_close_to_batch = [&](const edict_t* sp) -> bool {
+            for (const edict_t* p : used_spawn_points_this_batch)
+                if (p && DistanceSquared(p->s.origin, sp->s.origin) < batch_spacing_sq)
+                    return true;
+            return false;
+        };
 
         // Keep-flowing fallbacks: when every style-compatible point is on cooldown/occupied we still
         // spawn (so domination/fog waves never stall) by reusing the point whose cooldown is oldest.
@@ -878,6 +891,15 @@ void PlanMonsterSpawnBatch(
             if (already_used)
                 continue;
 
+            // Respect this point's post-spawn cooldown for PRIMARY selection, but treat it as a SKIP,
+            // not a validation failure: it's already recorded as an oldest-cooldown fallback above, so
+            // the batch flows to a different point - or, if every point is cooling, to the oldest one
+            // (placed at an alternative offset). Routing the cooldown through ValidateSpawnPointForMonster
+            // instead would call IncreaseSpawnAttempts and inflate consecutive_spawn_failures (which trips
+            // recovery at 5 / emergency at 10) for every cooling point a batch scans.
+            if (level.time < effective_cooldown_end(spawn_point))
+                continue;
+
             if (!ValidateSpawnPointForMonster(spawn_point, level.time))
             {
                 failed_validation++;
@@ -903,18 +925,29 @@ void PlanMonsterSpawnBatch(
                 farthest_dist_sq = dist_sq;
                 farthest_point = spawn_point;
             }
+            if (!too_close_to_batch(spawn_point) && dist_sq > farthest_spaced_dist_sq)
+            {
+                farthest_spaced_dist_sq = dist_sq;
+                farthest_spaced = spawn_point;
+            }
             if (++candidates_seen >= LimitBreakWave::FARTHEST_SPAWN_CANDIDATES)
             {
-                used_spawn_points_this_batch.push_back(farthest_point);
-                return farthest_point;
+                edict_t* pick = farthest_spaced ? farthest_spaced : farthest_point;
+                used_spawn_points_this_batch.push_back(pick);
+                return pick;
             }
         }
 
-        // Fog: best valid & unused farthest point found in the full scan.
-        if (prefer_farthest && farthest_point)
+        // Best valid & unused farthest point found in the full scan (spaced from batch-mates if one
+        // qualified, else plain farthest).
+        if (prefer_farthest)
         {
-            used_spawn_points_this_batch.push_back(farthest_point);
-            return farthest_point;
+            edict_t* pick = farthest_spaced ? farthest_spaced : farthest_point;
+            if (pick)
+            {
+                used_spawn_points_this_batch.push_back(pick);
+                return pick;
+            }
         }
 
         // No valid unused point this scan. Keep the wave flowing by reusing the oldest-cooldown

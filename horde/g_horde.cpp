@@ -696,6 +696,9 @@ void IncreaseSpawnAttempts(edict_t* spawn_point)
 	g_spawn_system.spawn_points_data.lastSpawnTime[index] = level.time;
 }
 //s
+// Defined later in this file; forward-declared so the post-spawn cooldown below can use the
+// map/difficulty-scaled value (clamped 1.5-3.5s) instead of the tiny fixed minimum.
+extern gtime_t SPAWN_POINT_COOLDOWN;
 void OnSuccessfulSpawn(edict_t* spawn_point)
 {
 	if (!spawn_point || !spawn_point->inuse)
@@ -708,7 +711,12 @@ void OnSuccessfulSpawn(edict_t* spawn_point)
 	g_spawn_system.spawn_points_data.successfulSpawns[index]++;
 	g_spawn_system.spawn_points_data.attempts[index] = 0;
 	g_spawn_system.spawn_points_data.isTemporarilyDisabled[index] = false;
-	g_spawn_system.spawn_points_data.cooldownEndsAt[index] = level.time + HordeConstants::MIN_INDIVIDUAL_SUCCESS_COOLDOWN;
+	// Real post-spawn cooldown (map/difficulty-scaled, 1.5-3.5s) so this point isn't reused the instant
+	// the just-spawned monster walks off it. find_spawn_point_for_monster skips points still inside this
+	// window and sends the batch to a different point (or the oldest-cooled one at an alternative offset).
+	// Floored at the individual-success minimum for safety.
+	g_spawn_system.spawn_points_data.cooldownEndsAt[index] =
+		level.time + std::max(SPAWN_POINT_COOLDOWN, HordeConstants::MIN_INDIVIDUAL_SUCCESS_COOLDOWN);
 	ApplyLongFlyingLaneCooldown(spawn_point);
 
 	horde::g_spawnPointTimeTracker.SetLastSpawnTime(spawn_point, level.time);
