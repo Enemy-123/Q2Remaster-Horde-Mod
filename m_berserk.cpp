@@ -13,6 +13,7 @@ BERSERK
 #include "shared.h"
 #include "horde/g_horde_scaling.h"
 #include "monster_constants.h"
+#include "horde/g_horde.h"   // current_wave_type, HasWaveType, MonsterWaveType
 
 constexpr spawnflags_t SPAWNFLAG_BERSERK_NOJUMPING = 8_spawnflag;
 
@@ -145,14 +146,16 @@ void()	berserk_runb12	=[	$r_att12 ,	berserk_runb7	] {ai_run(19);};
 
 void berserk_check_passive_zap(edict_t* self); // Keep this forward declaration
 
-// This is the looping part of the "hand up" run.
+// This is the looping part of the "hand up" run. The passive zap is evaluated
+// on EVERY frame so the lightning streams continuously (tesla-mine-like) instead
+// of pulsing once per loop; its own short cooldown caps the actual fire rate.
 mframe_t berserk_frames_run_loop[] = {
-	{ ai_run, 21 },
-	{ ai_run, 11, monster_footstep },
-	{ ai_run, 21, berserk_check_passive_zap }, // PASSIVE ZAP IS CALLED HERE!
-	{ ai_run, 25 },
-	{ ai_run, 18, monster_footstep },
-	{ ai_run, 19 }
+	{ ai_run, 21, berserk_check_passive_zap },
+	{ ai_run, 11, [](edict_t* self) { berserk_check_passive_zap(self); monster_footstep(self); } },
+	{ ai_run, 21, berserk_check_passive_zap },
+	{ ai_run, 25, berserk_check_passive_zap },
+	{ ai_run, 18, [](edict_t* self) { berserk_check_passive_zap(self); monster_footstep(self); } },
+	{ ai_run, 19, berserk_check_passive_zap }
 };
 // When this animation ends, it calls berserk_start_run_loop, which sets the animation again, creating a perfect loop.
 MMOVE_T(berserk_move_run_loop) = { FRAME_r_att7, FRAME_r_att12, berserk_frames_run_loop, berserk_start_run_loop };
@@ -175,22 +178,64 @@ mframe_t berserk_frames_run_start[] = {
 // After this finishes, it calls berserk_start_run_loop to begin the main loop.
 MMOVE_T(berserk_move_run_start) = { FRAME_r_att1, FRAME_r_att6, berserk_frames_run_start, berserk_start_run_loop };
 
+// The restored "normal" run (no raised arm, no lightning). Auto-loops the
+// FRAME_run1..FRAME_run6 range because its end-func is nullptr. This is the
+// alternate to the "hand up" lightning run above; it deliberately has no
+// berserk_check_passive_zap so a berserk in this animation never zaps.
+mframe_t berserk_frames_run_normal[] = {
+	{ ai_run, 21 },
+	{ ai_run, 11, monster_footstep },
+	{ ai_run, 21 },
+	{ ai_run, 25, monster_done_dodge },
+	{ ai_run, 18, monster_footstep },
+	{ ai_run, 19 }
+};
+MMOVE_T(berserk_move_run_normal) = { FRAME_run1, FRAME_run6, berserk_frames_run_normal, nullptr };
+
+// --- Run-animation selection -------------------------------------------------
+// Decides whether a berserk should run with the "hand up" lightning animation
+// (which zaps) or the restored normal run (which does not). The choice is made
+// fresh every time berserk_run starts a run from a non-run state, so it re-rolls
+// after each pain/attack/jump/duck.
+constexpr int   BERSERK_FOG_LIGHTNING_MIN_WAVE    = 35;   // fog waves below this: regular berserk never zaps
+constexpr float BERSERK_LIGHTNING_CHANCE          = 0.5f; // regular berserk random alternation
+constexpr float BERSERKKL_NONFOG_LIGHTNING_CHANCE = 0.8f; // berserkerkl on normal (non-fog) waves
+
+static bool berserk_wants_lightning_run(edict_t* self)
+{
+	const bool is_kl = (self->monsterinfo.monster_type_id ==
+						static_cast<uint8_t>(horde::MonsterTypeID::BERSERKERKL));
+	const bool fog   = HasWaveType(current_wave_type, MonsterWaveType::Berserk);
+
+	if (is_kl)
+		return fog ? true : (frandom() < BERSERKKL_NONFOG_LIGHTNING_CHANCE);
+
+	// regular monster_berserk
+	if (fog && current_wave_level < BERSERK_FOG_LIGHTNING_MIN_WAVE)
+		return false;                            // never lightning in fog below wave 35
+	return frandom() < BERSERK_LIGHTNING_CHANCE; // non-fog any wave, or fog >= 35
+}
+
 // This is now our main run function.
 MONSTERINFO_RUN(berserk_run) (edict_t* self) -> void
 {
 	monster_done_dodge(self);
 
-	// Don't restart the animation if we are already in the "hand up" run.
+	// Don't restart the animation if we are already running; keep whichever
+	// run (lightning or normal) we previously chose until something interrupts.
 	if (self->monsterinfo.active_move == &berserk_move_run_loop ||
-		self->monsterinfo.active_move == &berserk_move_run_start)
+		self->monsterinfo.active_move == &berserk_move_run_start ||
+		self->monsterinfo.active_move == &berserk_move_run_normal)
 	{
 		return;
 	}
 
 	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
 		M_SetAnimation(self, &berserk_move_stand);
+	else if (berserk_wants_lightning_run(self))
+		M_SetAnimation(self, &berserk_move_run_start);  // "hand up" lightning run
 	else
-		M_SetAnimation(self, &berserk_move_run_start); // Start the "hand up" run sequence.
+		M_SetAnimation(self, &berserk_move_run_normal); // restored normal run
 }
 // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 // END OF NEW BLOCK
@@ -525,46 +570,77 @@ MMOVE_T(berserk_move_run_attack1) = { FRAME_r_att1, FRAME_r_att18, berserk_frame
 // interrupting its movement or preventing it from starting a melee attack.
 //============================================================================
 
-// Attack parameters
-constexpr float BERSERK_ZAP_RADIUS         = 280.0f;
-constexpr float BERSERK_ZAP_RADIUS_SQUARED = BERSERK_ZAP_RADIUS * BERSERK_ZAP_RADIUS; // Pre-calculate for performance
-constexpr int   BERSERK_ZAP_DAMAGE         = 6;
-constexpr int   BERSERK_ZAP_KNOCKBACK      = 10;
-constexpr int   BERSERK_ZAP_MAX_TARGETS    = 3;
-constexpr gtime_t BERSERK_ZAP_COOLDOWN       = 2.0_sec;   // Time between zaps
-constexpr float BERSERK_ZAP_MIN_RANGE      = 128.0f; // Don't zap if enemy is in melee range
-constexpr float BERSERK_ZAP_MAX_RANGE      = 600.0f; // Max range for zapping
+// Attack parameters. The zap now fires near-continuously (every think) like a
+// tesla mine, so per-tick damage/knockback are small; tune these in playtest.
+constexpr float BERSERK_ZAP_RADIUS            = 230.0f;
+constexpr float BERSERK_ZAP_RADIUS_SQUARED    = BERSERK_ZAP_RADIUS * BERSERK_ZAP_RADIUS; // Pre-calculate for performance
+constexpr int   BERSERK_ZAP_DAMAGE            = 1;       // low per-tick damage; applied continuously
+constexpr int   BERSERK_ZAP_KNOCKBACK         = 2;       // small, since it now lands every tick
+constexpr int   BERSERK_ZAP_MAX_TARGETS       = 2;
+constexpr gtime_t BERSERK_ZAP_COOLDOWN        = 0.1_sec; // ~every think -> constant tesla-like stream
+constexpr float BERSERK_ZAP_CHAIN_DAMAGE_MULT = 0.5f;    // chained (non-primary) targets take reduced damage
+constexpr float BERSERK_ZAP_MIN_RANGE         = 128.0f;  // (unused; kept for reference)
+constexpr float BERSERK_ZAP_MAX_RANGE         = 400.0f;  // (unused; kept for reference)
+constexpr int   BERSERK_LIGHTNING_MAX_EFFECTS_PER_FRAME = 1; // global cap on TE_LIGHTNING temp ents/frame
 
-// Helper function to fire a single lightning bolt.
-static void berserk_fire_bolt(edict_t* self, edict_t* target, const vec3_t& zap_origin)
+// Global per-server-frame cap on emitted lightning visuals so dense berserk fog
+// waves (35+) don't flood the network. Mirrors the chain cap in g_tesla.cpp.
+static int     berserk_lightning_fx_this_frame = 0;
+static gtime_t berserk_lightning_fx_frame_time = 0_ms;
+
+static bool berserk_can_emit_lightning_fx()
 {
-	// Get the center of the target for a better trace
+	if (berserk_lightning_fx_frame_time != level.time)
+	{
+		berserk_lightning_fx_this_frame = 0;
+		berserk_lightning_fx_frame_time = level.time;
+	}
+	if (berserk_lightning_fx_this_frame >= BERSERK_LIGHTNING_MAX_EFFECTS_PER_FRAME)
+		return false;
+	berserk_lightning_fx_this_frame++;
+	return true;
+}
+
+// Fire a single lightning bolt at `target`. LoS is traced from `trace_origin`
+// (the hand, which sits in open space and is robust), while the visible beam is
+// drawn from `visual_origin` so chained bolts can hop from the previous link.
+// Returns true if the bolt connected.
+static bool berserk_fire_bolt(edict_t* self, edict_t* target, const vec3_t& trace_origin,
+	const vec3_t& visual_origin, int damage, bool allow_sound)
+{
+	// Aim at the center of the target for a better trace.
 	vec3_t target_center = (target->absmin + target->absmax) * 0.5f;
 
-	// Check for a clear line of sight from the hand to the target
-	trace_t tr = gi.traceline(zap_origin, target_center, self, MASK_SHOT);
+	// Clear line of sight to the target?
+	trace_t tr = gi.traceline(trace_origin, target_center, self, MASK_SHOT);
 	if (tr.ent != target)
-		return; // Blocked by something
+		return false; // Blocked by something
 
-	// --- Attack Phase ---
-	int damage = static_cast<int>(BERSERK_ZAP_DAMAGE * M_DamageModifier(self));
 	T_Damage(target, self, self, vec3_origin, tr.endpos, tr.plane.normal,
 		damage, BERSERK_ZAP_KNOCKBACK, DAMAGE_ENERGY, MOD_TESLA);
 
-	// Play the zap sound at the target's location
-	gi.sound(target, CHAN_AUTO, sound_windup, 1, ATTN_NORM, 0);
+	// Throttle the zap sound; it would otherwise spam at the constant fire rate.
+	if (allow_sound && frandom() < 0.2f)
+		gi.sound(target, CHAN_AUTO, sound_windup, 1, ATTN_NORM, 0);
 
-	// Create the visual lightning effect
-	gi.WriteByte(svc_temp_entity);
-	gi.WriteByte(TE_LIGHTNING);
-	gi.WriteEntity(self);
-	gi.WriteEntity(target);
-	gi.WritePosition(zap_origin);
-	gi.WritePosition(tr.endpos);
-	gi.multicast(zap_origin, MULTICAST_PVS, false);
+	// Visual lightning beam (respecting the global per-frame cap).
+	if (berserk_can_emit_lightning_fx())
+	{
+		gi.WriteByte(svc_temp_entity);
+		gi.WriteByte(TE_LIGHTNING);
+		gi.WriteEntity(self);
+		gi.WriteEntity(target);
+		gi.WritePosition(visual_origin);
+		gi.WritePosition(tr.endpos);
+		gi.multicast(visual_origin, MULTICAST_PVS, false);
+	}
+
+	return true;
 }
 
-// This function contains the multi-target lightning logic.
+// Fire the constant lightning: a bolt from the raised hand to the primary enemy,
+// then chain from that enemy to nearby targets (like the tesla chain-lightning
+// bonus), unconditionally.
 void berserk_zap_enemies(edict_t* self)
 {
 	if (!M_HasValidTarget(self))
@@ -576,18 +652,24 @@ void berserk_zap_enemies(edict_t* self)
 	AngleVectors(self->s.angles, forward, right, nullptr);
 
 	// Coordinates for the Berserker's raised LEFT hand.
-	vec3_t const zap_origin = G_ProjectSource(self->s.origin, { 25.f, -20.f, 40.f }, forward, right);
+	vec3_t const hand_origin = G_ProjectSource(self->s.origin, { 25.f, -20.f, 40.f }, forward, right);
 
-	int targets_hit = 0;
+	const int base_damage  = max(1, static_cast<int>(BERSERK_ZAP_DAMAGE * M_DamageModifier(self)));
+	const int chain_damage = max(1, static_cast<int>(base_damage * BERSERK_ZAP_CHAIN_DAMAGE_MULT));
 
-	// --- 1. Prioritize the main enemy ---
+	// --- 1. Primary bolt: hand -> main enemy ---
+	edict_t* primary = nullptr;
 	if (DistanceSquared(self->s.origin, self->enemy->s.origin) <= BERSERK_ZAP_RADIUS_SQUARED)
 	{
-		berserk_fire_bolt(self, self->enemy, zap_origin);
-		targets_hit++;
+		if (berserk_fire_bolt(self, self->enemy, hand_origin, hand_origin, base_damage, true))
+			primary = self->enemy;
 	}
 
-	// --- 2. Find other nearby targets ---
+	// --- 2. Chain: beams hop from the primary target (or the hand, if the
+	//        primary was out of range/blocked) to nearby non-teammates. ---
+	const vec3_t chain_visual_origin = primary ? (primary->absmin + primary->absmax) * 0.5f : hand_origin;
+	int targets_hit = primary ? 1 : 0;
+
 	edict_t* target = nullptr;
 	while ((target = findradius(target, self->s.origin, BERSERK_ZAP_RADIUS)) != nullptr)
 	{
@@ -597,31 +679,31 @@ void berserk_zap_enemies(edict_t* self)
 		if (!target->inuse || target->health <= 0 || !target->takedamage)
 			continue;
 
-		// PERFORMANCE: Skip the main enemy, as it was already processed.
+		// Skip the berserk itself, the already-hit primary, and friendlies.
 		if (target == self || target == self->enemy || OnSameTeam(self, target))
 			continue;
 
 		if (DistanceSquared(self->s.origin, target->s.origin) > BERSERK_ZAP_RADIUS_SQUARED)
 			continue;
 
-		berserk_fire_bolt(self, target, zap_origin);
-		targets_hit++;
+		// LoS traced from the hand (robust); beam drawn as a chain hop.
+		if (berserk_fire_bolt(self, target, hand_origin, chain_visual_origin, chain_damage, false))
+			targets_hit++;
 	}
 }
 
-// This is called during the run animation.
-// A better implementation in m_berserk.c
+// This is called during the run animation (every loop frame). The short cooldown
+// in trail_time makes the lightning a near-continuous stream while the arm is up.
 void berserk_check_passive_zap(edict_t* self)
 {
-	// Use `trail_time` as a cooldown timer for this passive ability.
-	// It's an unused gtime_t field and more appropriate than a flight-related one.
+	// Use `trail_time` as a per-monster fire-rate gate for this passive ability.
 	if (level.time < self->monsterinfo.trail_time)
 		return;
 
 	// All clear, fire the zaps!
 	berserk_zap_enemies(self);
 
-	// Set the cooldown.
+	// Set the (short) cooldown.
 	self->monsterinfo.trail_time = level.time + BERSERK_ZAP_COOLDOWN;
 }
 
@@ -747,7 +829,11 @@ MONSTERINFO_ATTACK(berserk_attack) (edict_t* self) -> void
 	}
 	
 	// Logic to transition from a standard run into a running-melee attack.
-if ((self->monsterinfo.active_move == &berserk_move_run_start || self->monsterinfo.active_move == &berserk_move_run_loop) && (dist <= RANGE_NEAR))
+	// Works from either run (lightning or normal); the nextframe mapping below is
+	// FRAME_run1-based, which is correct for the normal run frames.
+	if ((self->monsterinfo.active_move == &berserk_move_run_start ||
+		self->monsterinfo.active_move == &berserk_move_run_loop ||
+		self->monsterinfo.active_move == &berserk_move_run_normal) && (dist <= RANGE_NEAR))
 	{
 		M_SetAnimation(self, &berserk_move_run_attack1);
 		self->monsterinfo.nextframe = FRAME_r_att1 + (self->s.frame - FRAME_run1) + 1;
@@ -1000,8 +1086,17 @@ MONSTERINFO_SIDESTEP(berserk_sidestep) (edict_t* self) -> bool
 		(self->monsterinfo.active_move == &berserk_move_pain2))
 		return false;
 
-	if (self->monsterinfo.active_move != &berserk_move_run_start)
-		M_SetAnimation(self, &berserk_move_run_start);
+	// Switch into a run animation to slide; keep whichever run we're already in,
+	// otherwise pick lightning vs normal the same way berserk_run does.
+	if (self->monsterinfo.active_move != &berserk_move_run_start &&
+		self->monsterinfo.active_move != &berserk_move_run_loop &&
+		self->monsterinfo.active_move != &berserk_move_run_normal)
+	{
+		if (berserk_wants_lightning_run(self))
+			M_SetAnimation(self, &berserk_move_run_start);
+		else
+			M_SetAnimation(self, &berserk_move_run_normal);
+	}
 
 	return true;
 }
