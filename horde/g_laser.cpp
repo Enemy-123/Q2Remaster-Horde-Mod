@@ -84,8 +84,8 @@ static int CalculateWaveBasedLaserMaxHealth(int wave_level)
 {
     int effective_wave_level = std::max(1, wave_level);
     // Classic Mode uses different base values than RPG mode config
-    constexpr int CLASSIC_BASE_HEALTH = 150;     // Base health at wave 1
-    constexpr int CLASSIC_HEALTH_PER_WAVE = 100; // Health increase per wave
+    constexpr int CLASSIC_BASE_HEALTH = 125;     // Base health at wave 1
+    constexpr int CLASSIC_HEALTH_PER_WAVE = 75; // Health increase per wave
     return std::min(CLASSIC_BASE_HEALTH + (CLASSIC_HEALTH_PER_WAVE * (effective_wave_level - 1)), LaserConstants::MAX_LASER_HEALTH);
 }
 
@@ -781,7 +781,7 @@ void create_laser(edict_t * ent)
         // Classic Mode: Wave-based with adrenaline bonus
         beam->dmg = CalculateWaveBasedLaserDamage(current_wave_level);
         int wave_based_health = CalculateWaveBasedLaserMaxHealth(current_wave_level);
-        int adrenaline_health_bonus = ent->client->pers.adrenaline_count * 250;
+        int adrenaline_health_bonus = ent->client->pers.adrenaline_count * 80;
         beam->max_health = std::min(wave_based_health + adrenaline_health_bonus, LaserConstants::MAX_LASER_HEALTH);
     }
     beam->health = beam->max_health;
