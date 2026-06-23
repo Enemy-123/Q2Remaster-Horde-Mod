@@ -44,6 +44,7 @@ void MoveClientToIntermission(edict_t* ent)
 
 	ent->client->showhelp = false;
 	ent->client->showscores = false; // Set to false, will be set to true later if deathmatch
+	ent->client->score_show_bonuses = false; // auto-shown intermission scoreboard starts on page 1
 
 	globals.server_flags &= ~SERVER_FLAG_SLOW_TIME;
 
@@ -629,6 +630,31 @@ void Cmd_Score_f(edict_t* ent)
 	if (!G_IsDeathmatch() && !G_IsCooperative())
 		return;
 
+	// Horde/teamplay: cycle closed -> scoreboard -> scoreboard+bonuses -> closed.
+	// The bonus column eats into the shared layout byte budget, so the first page
+	// omits it (full player list fits); a second press adds it.
+	if (G_TeamplayEnabled())
+	{
+		if (!ent->client->showscores)			// press 1: open, no bonuses
+		{
+			ent->client->showscores = true;
+			ent->client->score_show_bonuses = false;
+		}
+		else if (!ent->client->score_show_bonuses)	// press 2: add bonuses
+		{
+			ent->client->score_show_bonuses = true;
+		}
+		else						// press 3: close
+		{
+			ent->client->showscores = false;
+			ent->client->score_show_bonuses = false;
+			ent->client->update_chase = true;
+			return;
+		}
+		DeathmatchScoreboard(ent);
+		return;
+	}
+
 	if (ent->client->showscores)
 	{
 		ent->client->showscores = false;
@@ -756,6 +782,7 @@ void Cmd_Help_f(edict_t* ent)
 
 	ent->client->showinventory = false;
 	ent->client->showscores = false;
+	ent->client->score_show_bonuses = false;
 
 	if (ent->client->showhelp &&
 		(ent->client->pers.game_help1changed == game.help1changed ||

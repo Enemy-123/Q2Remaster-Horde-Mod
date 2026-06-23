@@ -6750,48 +6750,54 @@ public:
 		if (!layout_builder.append_checked(icon_line, LAYOUT_SAFETY_MARGIN))
 			return;
 
-		if (!level.intermissiontime)
-		{
-
-			// Active bonuses (per-player), one per line down the right column.
-			// GetPlayerActiveBonusesString() returns entries separated by '\n'; the layout
-			// `string` command cannot render embedded newlines (SanitizeLayoutText collapses
-			// them to spaces), so we emit a separate yv line per bonus.
-			const std::string activeBonuses = GetPlayerActiveBonusesString(const_cast<edict_t*>(ent));
-			if (!activeBonuses.empty()) {
-				constexpr int BONUS_X = 208;
-				constexpr int BONUS_Y_START = 8;
-				constexpr int BONUS_Y_SPACING = 8;
-
-				const std::string_view bonuses_view(activeBonuses);
-				int bonus_y = BONUS_Y_START;
-				size_t start = 0;
-				while (start <= bonuses_view.size()) {
-					const size_t nl = bonuses_view.find('\n', start);
-					const std::string_view entry = (nl == std::string_view::npos)
-						? bonuses_view.substr(start)
-						: bonuses_view.substr(start, nl - start);
-
-					if (!entry.empty()) {
-						// entry has no embedded newline now, so sanitizing keeps it intact.
-						const std::string bonus_line = fmt::format(
-							"xv {} yv {} string \"{}\" \n",
-							BONUS_X, bonus_y, SanitizeLayoutText(entry));
-						if (!layout_builder.append_checked(bonus_line, LAYOUT_SAFETY_MARGIN))
-							break; // out of layout budget; stop adding bonus lines
-						bonus_y += BONUS_Y_SPACING;
-					}
-
-					if (nl == std::string_view::npos)
-						break;
-					start = nl + 1;
-				}
-			}
-		}
-		else
+		if (level.intermissiontime)
 		{
 			// Intermission screen - display Strogg team icon (uses stat 26 = STAT_CTF_TEAM2_HEADER, right side)
 			(void)layout_builder.append_checked("if 26 xv 208 yv 8 pic 25 endif \n", LAYOUT_SAFETY_MARGIN);
+		}
+	}
+
+	// addBonusPage
+	// Page 2 of the score cycle: the viewer's own active bonuses listed down the
+	// center, with no player list so a long bonus list never truncates the roster.
+	// The wave/Stroggs header still comes from addHeader(); this adds the list below.
+	void addBonusPage()
+	{
+		const std::string title = "xv 0 yv 10 cstring2 \"Active Bonuses\" \n";
+		if (!layout_builder.append_checked(title, LAYOUT_SAFETY_MARGIN))
+			return;
+
+		const std::string activeBonuses = GetPlayerActiveBonusesString(const_cast<edict_t*>(ent));
+		if (activeBonuses.empty()) {
+			(void)layout_builder.append_checked("xv 0 yv 30 cstring \"No active bonuses\" \n", LAYOUT_SAFETY_MARGIN);
+			return;
+		}
+
+		// GetPlayerActiveBonusesString() separates entries with '\n'; the layout
+		// `cstring` command can't render embedded newlines, so emit one yv line each.
+		constexpr int BONUS_Y_START = 30;
+		constexpr int BONUS_Y_SPACING = 10;
+		const std::string_view bonuses_view(activeBonuses);
+		int bonus_y = BONUS_Y_START;
+		size_t start = 0;
+		while (start <= bonuses_view.size()) {
+			const size_t nl = bonuses_view.find('\n', start);
+			const std::string_view entry = (nl == std::string_view::npos)
+				? bonuses_view.substr(start)
+				: bonuses_view.substr(start, nl - start);
+
+			if (!entry.empty()) {
+				const std::string bonus_line = fmt::format(
+					"xv 0 yv {} cstring \"{}\" \n",
+					bonus_y, SanitizeLayoutText(entry));
+				if (!layout_builder.append_checked(bonus_line, LAYOUT_SAFETY_MARGIN))
+					break; // out of layout budget; stop adding bonus lines
+				bonus_y += BONUS_Y_SPACING;
+			}
+
+			if (nl == std::string_view::npos)
+				break;
+			start = nl + 1;
 		}
 	}
 
@@ -6964,11 +6970,21 @@ void HordeScoreboardMessage(edict_t* ent, edict_t* killer) {
 	// Collect and sort players
 	layout.collectPlayers();
 
-	// Build the layout in sections
+	// Build the layout in sections.
+	// Page 2 of the score cycle (score_show_bonuses) shows only the wave header and
+	// the viewer's active bonuses -- no player list -- so a long bonus list can't
+	// truncate the roster the way it did when both shared one layout.
 	layout.addHeader();
-	layout.addTeamScore();
-	layout.addPlayerList();
-	layout.addSpectators();
+	if (ent->client->score_show_bonuses && !level.intermissiontime)
+	{
+		layout.addBonusPage();
+	}
+	else
+	{
+		layout.addTeamScore();
+		layout.addPlayerList();
+		layout.addSpectators();
+	}
 	layout.addFooter();
 
 	// Get final layout string

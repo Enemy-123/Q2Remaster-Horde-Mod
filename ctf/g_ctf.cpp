@@ -3261,6 +3261,7 @@ void CTFShowScores(edict_t* ent, pmenu_t* p)
 	PMenu_Close(ent);
 
 	ent->client->showscores = true;
+	ent->client->score_show_bonuses = false; // auto-shown scoreboard starts on page 1 (no bonuses)
 	ent->client->showinventory = false;
 	DeathmatchScoreboard(ent);
 }
