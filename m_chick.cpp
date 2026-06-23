@@ -1293,6 +1293,10 @@ void chick_jump_now(edict_t* self)
 	AngleVectors(self->s.angles, forward, nullptr, up);
 	self->velocity += (forward * 100);
 	self->velocity += (up * 300);
+
+	// Both chick jumps play the duck frames (FRAME_duck01-07), so carry the shorter duck
+	// bbox while airborne to clear low obstacles. Restored on landing in chick_jump_wait_land.
+	monster_duck_down(self);
 }
 
 void chick_jump2_now(edict_t* self)
@@ -1314,7 +1318,10 @@ void chick_jump_wait_land(edict_t* self)
 			self->monsterinfo.nextframe = self->s.frame + 1;
 	}
 	else
+	{
 		self->monsterinfo.nextframe = self->s.frame + 1;
+		monster_duck_up(self); // Restore full bbox after the crouch jump (no-op if not ducked)
+	}
 }
 
 mframe_t chick_frames_jump[] = {

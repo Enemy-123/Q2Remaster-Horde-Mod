@@ -1686,13 +1686,20 @@ void soldier_do_jump(edict_t* self, float forward_vel, float up_vel)
 void soldier_jump_now(edict_t* self)
 {
     // A standard forward hop, good for clearing gaps
-    soldier_do_jump(self, 250, 250);
+    soldier_do_jump(self, 100, 300);
+
+	monster_duck_down(self);
 }
 
 void soldier_jump2_now(edict_t* self)
 {
     // A higher jump, good for getting onto ledges
-    soldier_do_jump(self, 200, 350);
+    soldier_do_jump(self, 100, 350);
+
+    // soldier_move_jump2 plays the duck/crouch frames (FRAME_duck01-05), so carry the
+    // shorter duck bbox while airborne to clear low obstacles. Restored on landing in
+    // soldier_jump_wait_land.
+    monster_duck_down(self);
 }
 
 // The wait function can now use our custom gravity
@@ -1707,12 +1714,18 @@ void soldier_jump_wait_land(edict_t* self)
     if (self->groundentity == nullptr && !timed_out)
     {
         self->monsterinfo.nextframe = self->s.frame; // Hold animation frame
+        // Re-inject forward momentum if a stairstep/edge clipped it to ~0, so the soldier
+        // grinds over the obstacle instead of bobbing in place (chick/brain/parasite all do
+        // this via monster_jump_finished; soldier was the only jumper missing it). Side effect
+        // only - we keep our own timeout above, so the bool return is ignored.
+        monster_jump_finished(self);
         soldier_apply_jump_gravity(self); // Apply our smart gravity
     }
     else // We've landed (or timed out) - continue the animation so it can recover
     {
         self->gravity = 1.0f; // Reset to default gravity multiplier
         self->monsterinfo.nextframe = self->s.frame + 1; // Continue animation
+        monster_duck_up(self); // Restore full bbox after the crouch jump (no-op if not ducked)
     }
 }
 

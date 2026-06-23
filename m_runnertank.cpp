@@ -197,16 +197,16 @@ MONSTERINFO_WALK(runnertank_walk) (edict_t* self) -> void
 //
 // Actualizar la animación de carrera
 mframe_t runnertank_frames_run[] = {
-	{ ai_run, 14, runnertank_footstep }, 
-	{ ai_run, 18, nullptr },
-	{ ai_run, 15, nullptr },
-	{ ai_run, 15, nullptr },
-	{ ai_run, 15, nullptr },
-	{ ai_run, 19, runnertank_footstep },
-	{ ai_run, 15, nullptr },
-	{ ai_run, 13, nullptr },
-	{ ai_run, 18, nullptr },
-	{ ai_run, 17, nullptr }
+	{ ai_run, 30, runnertank_footstep }, 
+	{ ai_run, 31, nullptr },
+	{ ai_run, 27, nullptr },
+	{ ai_run, 24, nullptr },
+	{ ai_run, 22, nullptr },
+	{ ai_run, 30, runnertank_footstep },
+	{ ai_run, 31, nullptr },
+	{ ai_run, 27, nullptr },
+	{ ai_run, 24, nullptr },
+	{ ai_run, 22, nullptr }
 };
 MMOVE_T(runnertank_move_run) = { FRAME_run01, FRAME_run10, runnertank_frames_run, nullptr };
 

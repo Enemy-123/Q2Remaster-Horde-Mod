@@ -6818,6 +6818,9 @@ static void ResetStroggCleanup()
 
 bool CheckAndTeleportStuckMonster(edict_t* self, bool force_drowning)
 {
+	if (developer->integer >= 3)
+	return false;
+
 	PROFILE_SCOPE("CheckAndTeleportStuckMonster");
 
 	// --- 1. Initial Validation ---

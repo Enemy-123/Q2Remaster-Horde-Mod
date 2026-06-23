@@ -1864,10 +1864,7 @@ struct monsterinfo_t
 	gtime_t	  path_wait_time; // don't try nav nodes until this is over
 	PathInfo  nav_path; // if AI_PATHING, this is where we are trying to reach
 	gtime_t	  nav_path_cache_time; // cache nav_path result for this much time
-	// Progress-based path recalculation tracking
-	gtime_t   path_progress_time;     // next time to check movement progress
-	float     path_last_goal_dist;    // last recorded distance to goal
-	gtime_t   path_no_progress_time;  // accumulated time without progress
+	float	  path_solve_z;        // monster Z when the cached path was last solved; re-solve after a SUPER_STEP/jump changes level (transient)
 	combat_style_t combat_style; // pathing style
 
 	edict_t* damage_attacker;
@@ -1912,7 +1909,6 @@ struct monsterinfo_t
 	int32_t formation_slot;          // Assigned position in group formation (-1 for none)
 	float preferred_combat_range;    // Ideal distance from target for this monster type
 	gtime_t last_repulsion_time;     // Last time repulsion was calculated
-	vec3_t last_valid_move;          // Last successful movement direction for momentum
 	gtime_t corridor_check_time;     // Last time corridor detection was performed (optimization)
 	int corridor_blocked_dirs;       // Cached corridor blocked direction count
 	int corridor_tight_blocked_dirs; // Cached tight corridor blocked direction count (single-file detection)

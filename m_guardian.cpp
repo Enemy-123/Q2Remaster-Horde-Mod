@@ -146,6 +146,29 @@ mframe_t guardian_frames_run[] = {
 };
 MMOVE_T(guardian_move_run) = { FRAME_walk1, FRAME_walk19, guardian_frames_run, nullptr };
 
+mframe_t janitor2_frames_run[] = {
+	{ ai_run, 24 },
+	{ ai_run, 24 },
+	{ ai_run, 24 },
+	{ ai_run, 24 },
+	{ ai_run, 24 },
+	{ ai_run, 24 },
+	{ ai_run, 24 },
+	{ ai_run, 24, guardian_footstep },
+	{ ai_run, 24 },
+	{ ai_run, 24 },
+	{ ai_run, 24 },
+	{ ai_run, 24 },
+	{ ai_run, 24 },
+	{ ai_run, 24 },
+	{ ai_run, 24 },
+	{ ai_run, 24 },
+	{ ai_run, 24 },
+	{ ai_run, 24, guardian_footstep },
+	{ ai_run, 24 }
+};
+MMOVE_T(janitor2_move_run) = { FRAME_walk1, FRAME_walk19, janitor2_frames_run, nullptr };
+
 MONSTERINFO_RUN(guardian_run) (edict_t* self) -> void
 {
 	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
@@ -153,8 +176,9 @@ MONSTERINFO_RUN(guardian_run) (edict_t* self) -> void
 		M_SetAnimation(self, &guardian_move_stand);
 		return;
 	}
-
-	M_SetAnimation(self, &guardian_move_run);
+	horde::IsMonsterType(self, horde::MonsterTypeID::JANITOR2)
+	? M_SetAnimation(self, &janitor2_move_run)
+	: M_SetAnimation(self, &guardian_move_run);
 }
 
 //

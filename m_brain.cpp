@@ -982,6 +982,10 @@ void brain_jump_now(edict_t* self)
 	AngleVectors(self->s.angles, forward, nullptr, up);
 	self->velocity += (forward * 100);
 	self->velocity += (up * 300);
+
+	// brain jumps play the duck frames (FRAME_duck01-08), so carry the shorter duck bbox
+	// while airborne to clear low obstacles. Restored on landing in brain_jump_wait_land.
+	monster_duck_down(self);
 }
 
 void brain_jump2_now(edict_t* self)
@@ -991,6 +995,8 @@ void brain_jump2_now(edict_t* self)
 	AngleVectors(self->s.angles, forward, nullptr, up);
 	self->velocity += (forward * 150);
 	self->velocity += (up * 400);
+
+	monster_duck_down(self); // shorter duck bbox while airborne; restored in brain_jump_wait_land
 }
 
 void brain_jump_attack(edict_t* self)
@@ -1041,7 +1047,10 @@ void brain_jump_attack(edict_t* self)
 
 	// Set other properties
 	self->groundentity = nullptr;
-	self->monsterinfo.aiflags |= AI_DUCKED;
+	// brain_move_jumpattack plays the duck frames (FRAME_duck01-08): shrink to the duck bbox
+	// (sets AI_DUCKED + maxs[2]) so the crouch box matches the pose. Restored on landing in
+	// brain_jump_wait_land_attack.
+	monster_duck_down(self);
 	self->monsterinfo.attack_finished = level.time + 2.0_sec;
 
 	// Play jump sound
@@ -1066,6 +1075,10 @@ void brain_jump_wait_land_attack(edict_t* self)
 	{
 		self->monsterinfo.nextframe = self->s.frame + 1;
 	}
+
+	// This function always falls through to a M_SetAnimation transition below, so restore the
+	// full bbox here (no-op if not ducked) to avoid carrying the crouch box into attack3/run.
+	monster_duck_up(self);
 
 	// Determine the actual target. If the enemy is a laser beam,
 	// the real target for this animation check is its owner (the emitter).
@@ -1103,7 +1116,10 @@ void brain_jump_wait_land(edict_t* self)
 			self->monsterinfo.nextframe = self->s.frame + 1;
 	}
 	else
+	{
 		self->monsterinfo.nextframe = self->s.frame + 1;
+		monster_duck_up(self); // Restore full bbox after the crouch jump (no-op if not ducked)
+	}
 }
 
 mframe_t brain_frames_jump[] = {

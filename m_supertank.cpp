@@ -145,6 +145,28 @@ mframe_t supertank_frames_run[] = {
 };
 MMOVE_T(supertank_move_run) = { FRAME_forwrd_1, FRAME_forwrd_18, supertank_frames_run, nullptr };
 
+mframe_t janitor_frames_run[] = {
+	{ ai_run, 26, TreadSound },
+	{ ai_run, 26 },
+	{ ai_run, 26 },
+	{ ai_run, 26 },
+	{ ai_run, 26 },
+	{ ai_run, 26 },
+	{ ai_run, 26 },
+	{ ai_run, 26 },
+	{ ai_run, 26 },
+	{ ai_run, 26 },
+	{ ai_run, 26 },
+	{ ai_run, 26 },
+	{ ai_run, 26 },
+	{ ai_run, 26 },
+	{ ai_run, 26 },
+	{ ai_run, 26 },
+	{ ai_run, 26 },
+	{ ai_run, 26 }
+};
+MMOVE_T(janitor_move_run) = { FRAME_forwrd_1, FRAME_forwrd_18, janitor_frames_run, nullptr };
+
 //
 // walk
 //
@@ -186,7 +208,9 @@ MONSTERINFO_RUN(supertank_run) (edict_t* self) -> void
 	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
 		M_SetAnimation(self, &supertank_move_stand);
 	else
-		M_SetAnimation(self, &supertank_move_run);
+		horde::IsMonsterType(self, horde::MonsterTypeID::JANITOR)
+		? M_SetAnimation(self, &janitor_move_run)
+		: M_SetAnimation(self, &supertank_move_run);
 }
 
 #if 0

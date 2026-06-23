@@ -754,20 +754,10 @@ void M_MoveFrame(edict_t* self)
 	// 10hz, but will run aifuncs at full speed with
 	// distance spread over 10hz
 
-	// HORDE MOD: Speed up thinking for blocked monsters
-	// When monsters are blocked or struggling with movement, make them think faster
-	// to reconsider their options more quickly (especially jumping)
-	if ((self->monsterinfo.aiflags & AI_BLOCKED) ||
-		(self->monsterinfo.bad_move_time > level.time) ||
-		(self->monsterinfo.bump_time > level.time))
-	{
-		// Think at 20hz (50ms) when blocked to make jump decisions faster
-		self->nextthink = level.time + 50_ms;
-	}
-	else
-	{
-		self->nextthink = level.time + FRAME_TIME_S;
-	}
+	// PSX parity: fixed 10hz think. (We previously bumped to 20hz while blocked/bad_move/bump_time
+	// to "reconsider faster", but doubling the re-evaluation rate exactly while a monster fights an
+	// obstacle amplified the per-frame direction changes - visible stutter/blur.)
+	self->nextthink = level.time + FRAME_TIME_S;
 
 	// time to run next 10hz move yet?
 	bool run_frame = self->monsterinfo.next_move_time <= level.time;

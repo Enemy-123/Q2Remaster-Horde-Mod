@@ -95,15 +95,8 @@ constexpr float MOVEMENT_MIN_DELTA = 1.0f;
 constexpr float MOVEMENT_MIN_DELTA_THRESHOLD = 10.0f;
 constexpr float MOVEMENT_PROGRESS_THRESHOLD = 0.05f;
 
-// Direction search constants
-constexpr float DIRECTION_ANGLE_STEP = 45.0f;
-constexpr float DIRECTION_YAW_MIN_DIFF = 15.0f;
-constexpr float DIRECTION_YAW_MAX_DIFF = 165.0f;
-constexpr float DIRECTION_MOMENTUM_VARIATION = 30.0f;
-
 // Timing constants
 constexpr gtime_t BUMP_TIME_DELAY = 200_ms;
-constexpr gtime_t BUMP_TIME_FALLBACK = 300_ms;
 constexpr gtime_t RANDOM_CHANGE_BASE = 100_ms;
 constexpr gtime_t RANDOM_CHANGE_MIN = 500_ms;
 constexpr gtime_t RANDOM_CHANGE_MAX = 1000_ms;
@@ -117,18 +110,15 @@ constexpr gtime_t REACT_DAMAGE_MAX = 5_sec;
 constexpr gtime_t FLY_WALL_STUCK_THRESHOLD = 1500_ms; // Time before forcing descent
 constexpr float FLY_DESCENT_SPEED_MULTIPLIER = 0.6f;  // How fast to descend when stuck
 
-// Ground monster wall-stuck recovery (non-boss). Bosses squeeze their box / push off walls to
-// thread tight gaps; normal monsters can't afford that (cost + model burying with many of them),
-// so instead they notice they've been grinding the same wall for a while and deliberately turn to
-// look another way before trying again. This is how long to keep grinding before forcing that turn.
-constexpr gtime_t WALL_STUCK_TURN_THRESHOLD = 600_ms;
-
-// Path progress detection constants - for dynamic recalculation when stuck
-constexpr float PATH_PROGRESS_MIN_DISTANCE = 16.0f;    // Must move at least this far toward goal
-constexpr gtime_t PATH_PROGRESS_CHECK_TIME = 500_ms;   // Check progress every 500ms
-constexpr gtime_t PATH_STUCK_RECALC_TIME = 750_ms;     // Recalculate path after this long without progress
-constexpr gtime_t PATH_CACHE_TIME_NORMAL = 2_sec;      // Normal path cache time
-constexpr gtime_t PATH_CACHE_TIME_STUCK = 500_ms;      // Reduced cache time when stuck
+// Path cache time (PSX parity): how long a solved path is committed before re-solving.
+constexpr gtime_t PATH_CACHE_TIME_NORMAL = 2_sec;
+// Re-solve the path once a monster has LANDED at an elevation this far from where the path was
+// solved. All horde monsters get SUPER_STEP (stepsize 64), so they often climb a ledge directly
+// instead of via the planned route, stranding the cached path on the level below; without this they
+// keep aiming at the bypassed lower point until the 2s cache expires. Tunable: lower clears lower
+// ledges faster but re-solves more often on stairs (harmless - single-route stairs re-solve to the
+// same path).
+constexpr float PATH_RESOLVE_Z_DELTA = 32.0f;
 
 // this is used for communications out of sv_movestep to say what entity
 // is blocking us
@@ -553,7 +543,6 @@ void InitMonsterAntiStack(edict_t* ent)
 	ent->monsterinfo.formation_slot = -1;
 	ent->monsterinfo.formation_update_time = 0_sec;
 	ent->monsterinfo.last_repulsion_time = 0_sec;
-	ent->monsterinfo.last_valid_move = vec3_t{0, 0, 0};
 
 	// Initialize corridor caching
 	ent->monsterinfo.corridor_check_time = 0_sec;
@@ -1631,11 +1620,6 @@ if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::
 					G_TouchTriggers(ent);
 			}
 			ent->groundentity = nullptr;
-			
-			// Store successful move direction for momentum
-			if ((ent->svflags & SVF_MONSTER) && move.lengthSquared() > 1.0f)
-				ent->monsterinfo.last_valid_move = move.normalized();
-			
 			return true;
 		}
 		// [Paril-KEX] allow dead monsters to "fall" off of edges in their death animation
@@ -1648,89 +1632,42 @@ if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::
 	{
 		ent->monsterinfo.bad_move_time = level.time + BAD_MOVE_TIME_PENALTY;
 
-		// If we're wedged while squeezed (bosses only), react immediately instead of waiting out
-		// the bump cooldown - otherwise a shrunk monster grinds into the wall (model clipping)
-		// instead of turning / backing out.
+		// Record when a ground monster started grinding this wall, for the horde teleport failsafe
+		// (g_horde.cpp checks wall_stuck_time + GROUND_WALL_STUCK_TELEPORT_TIME). We don't act on it
+		// here anymore - the PSX slide / SV_NewChaseDir handle recovery; this just feeds the failsafe
+		// so a monster wedged for far too long can still be teleported out.
+		if ((ent->svflags & SVF_MONSTER) && !ent->monsterinfo.IS_BOSS && ent->monsterinfo.wall_stuck_time == 0_ms)
+			ent->monsterinfo.wall_stuck_time = level.time;
+
+		// A wedged squeezed boss reacts immediately (ignores the bump cooldown) so its shrunk box
+		// doesn't grind its full-size model into the wall while it waits out the cooldown.
 		const vec3_t& bsq = ent->monsterinfo.bbox_squeeze;
 		const bool squeezed = (bsq[0] != 0.f || bsq[1] != 0.f || bsq[2] != 0.f);
 
-		// [Horde] Smart wall-stuck escape for normal (non-boss) ground monsters. They don't squeeze
-		// or get pushed off walls, so instead they remember how long they've been grinding this
-		// wall. Once that passes WALL_STUCK_TURN_THRESHOLD, commit to a deliberate turn: slide fully
-		// toward the open side, or - if nose-on with nowhere to slide - just look the other way.
-		// We return true so the new heading sticks: SV_StepDirection keeps a turned ideal_yaw on a
-		// true return but restores the old one on false, and the caller then won't immediately
-		// re-aim at the goal and march us straight back into the same wall. The gentle per-frame
-		// slide below still handles short grinds; this only escalates the persistent ones.
-		if ((ent->svflags & SVF_MONSTER) && !ent->monsterinfo.IS_BOSS && ent->health > 0 &&
-			chosen_forward.fraction < 1.0f)
-		{
-			if (ent->monsterinfo.wall_stuck_time == 0_ms)
-				ent->monsterinfo.wall_stuck_time = level.time; // start of a fresh grind
-			else if (level.time - ent->monsterinfo.wall_stuck_time >= WALL_STUCK_TURN_THRESHOLD)
-			{
-				vec3_t turn_dir = SlideClipVelocity(AngleVectors(vec3_t{ 0.f, ent->ideal_yaw, 0.f }).forward, chosen_forward.plane.normal, 1.0f);
-				if (turn_dir.lengthSquared() > 0.1f)
-					ent->ideal_yaw = vectoyaw(turn_dir);                // commit fully along the wall
-				else
-					ent->ideal_yaw = anglemod(ent->ideal_yaw + 180.f);  // dead-on: turn around
-
-				ent->monsterinfo.wall_stuck_time = level.time;          // re-arm; turn again only if still stuck
-				ent->monsterinfo.bump_time = level.time + BUMP_TIME_DELAY;
-				ent->monsterinfo.random_change_time = level.time + RANDOM_CHANGE_BASE;
-				return true;
-			}
-		}
-
-		// Improved collision recovery with smooth yaw interpolation
+		// PSX parity: snap ideal_yaw to slide along the wall we hit and try again next think. (We
+		// previously layered a non-boss wall-stuck turn-away, a 40%-smoothed slide and a
+		// last_valid_move momentum fallback on top of this - the smoothing mirrored the nav yaw lag
+		// we reverted and the yaw-diff window could skip the slide entirely. Harder/boxed-in cases
+		// now fall through to SV_NewChaseDir, the same as the original.)
 		if ((ent->monsterinfo.bump_time < level.time || squeezed) && chosen_forward.fraction < 1.0f)
 		{
-			// Calculate slide velocity
-			vec3_t slide_dir = SlideClipVelocity(AngleVectors(vec3_t{ 0.f, ent->ideal_yaw, 0.f }).forward, chosen_forward.plane.normal, 1.0f);
+			vec3_t dir = SlideClipVelocity(AngleVectors(vec3_t{ 0.f, ent->ideal_yaw, 0.f }).forward, chosen_forward.plane.normal, 1.0f);
+			float new_yaw = vectoyaw(dir);
 
-			// Validate the slide direction
-			if (slide_dir.lengthSquared() > 0.1f)
+			if (dir.lengthSquared() > 0.1f && ent->ideal_yaw != new_yaw)
 			{
-				float new_yaw = vectoyaw(slide_dir);
-
-				// Check if new direction is significantly different and not just oscillating
-				float yaw_diff = new_yaw - ent->ideal_yaw;
-				// Normalize to -180 to 180 range
-				if (yaw_diff > 180.f)
-					yaw_diff -= 360.f;
-				else if (yaw_diff < -180.f)
-					yaw_diff += 360.f;
-
-				float abs_yaw_diff = std::abs(yaw_diff);
-				if (abs_yaw_diff > DIRECTION_YAW_MIN_DIFF && abs_yaw_diff < DIRECTION_YAW_MAX_DIFF)
-				{
-					// PERFORMANCE FIX: Smooth yaw interpolation instead of instant snap
-					// Apply 40% of the rotation per frame to eliminate jerky wall-sliding
-					// This creates natural-looking turns while maintaining responsiveness
-					ent->ideal_yaw += yaw_diff * 0.4f;
-					// Normalize back to 0-360 range
-					ent->ideal_yaw = anglemod(ent->ideal_yaw);
-
-					ent->monsterinfo.random_change_time = level.time + RANDOM_CHANGE_BASE;
-					ent->monsterinfo.bump_time = level.time + BUMP_TIME_DELAY;
-					return true;
-				}
-			}
-
-			// If slide failed, try using last valid move with slight variation
-			if (ent->monsterinfo.last_valid_move.lengthSquared() > 0.1f)
-			{
-				float variation = frandom(-DIRECTION_MOMENTUM_VARIATION, DIRECTION_MOMENTUM_VARIATION);
-				ent->ideal_yaw = vectoyaw(ent->monsterinfo.last_valid_move) + variation;
-				ent->monsterinfo.bump_time = level.time + BUMP_TIME_FALLBACK;
+				ent->ideal_yaw = new_yaw;
+				ent->monsterinfo.random_change_time = level.time + RANDOM_CHANGE_BASE;
+				ent->monsterinfo.bump_time = level.time + BUMP_TIME_DELAY;
+				return true;
 			}
 		}
 
 		return false;
 	}
 
-	// Made real forward progress this step, so we're no longer grinding a wall - clear the
-	// non-boss wall-stuck timer. (Passing the "barely moved" test above is the truest signal.)
+	// Made forward progress this step, so we're no longer grinding a wall - clear the grind timer
+	// the horde teleport failsafe reads.
 	if (ent->svflags & SVF_MONSTER)
 		ent->monsterinfo.wall_stuck_time = 0_ms;
 
@@ -1793,10 +1730,6 @@ if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::
 					G_TouchTriggers(ent);
 			}
 			
-			// Store successful move direction
-			if ((ent->svflags & SVF_MONSTER) && move.lengthSquared() > 1.0f)
-				ent->monsterinfo.last_valid_move = move.normalized();
-			
 			return true;
 		}
 
@@ -1837,10 +1770,7 @@ if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::
 	ent->groundentity = trace.ent;
 	ent->groundentity_linkcount = trace.ent->linkcount;
 
-	// the move is ok - store successful move direction for momentum
-	if ((ent->svflags & SVF_MONSTER) && move.lengthSquared() > 1.0f)
-		ent->monsterinfo.last_valid_move = move.normalized();
-	
+	// the move is ok
 	if (relink)
 	{
 		gi.linkentity(ent);
@@ -2149,19 +2079,12 @@ bool SV_NewChaseDir(edict_t *actor, vec3_t pos, float dist)
 	if (turnaround != DI_NODIR && SV_StepDirection(actor, turnaround, dist, false))
 		return true;
 
-	// Every direction failed - we're boxed in (typically wedged into a corner). Don't re-roll a
-	// brand-new random yaw: doing that every think makes a cornered monster pirouette in place
-	// ("moving in circles"). Instead retreat the way we came (turnaround) and lock that heading
-	// for a beat via random_change_time, so M_MoveToGoal / M_NavPathToGoal hold ideal_yaw instead
-	// of immediately re-aiming at the (still-blocked) goal and walking us straight back in. The
-	// monster ends up facing a stable escape direction; if it stays wedged, the wall-stuck timer
-	// (SV_movestep) and the teleport failsafe take over rather than a frantic spin.
-	actor->ideal_yaw = (turnaround != DI_NODIR) ? turnaround : anglemod(actor->ideal_yaw + 180.f);
-
-	// Add a pause so we don't try-and-fail (or re-search all 8 dirs) every single frame.
-	actor->monsterinfo.random_change_time = level.time + random_time(RANDOM_CHANGE_MIN, RANDOM_CHANGE_MAX);
-	actor->monsterinfo.bump_time = level.time + BUMP_TIME_FALLBACK;
-	actor->monsterinfo.bad_move_time = level.time + BAD_MOVE_TIME_PENALTY;
+	// PSX parity: every direction failed - we're boxed in. Pick a fresh random yaw and let the
+	// search retry next think. (We had instead committed to turnaround and locked random_change_time
+	// /bump_time/bad_move_time to avoid pirouetting, but those locks starved this very search and
+	// the straight-shot, leaving cornered monsters wedged until they gained visual - so we restore
+	// the original retry-every-frame random escape.)
+	actor->ideal_yaw = frandom(0, 360); // can't move; pick a random yaw...
 
 	// if a bridge was pulled out from underneath a monster, it may not have
 	// a valid standing position at all
@@ -2209,52 +2132,66 @@ static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 	vec3_t const mon_mins = ground_origin + PLAYER_MINS;
 	vec3_t const mon_maxs = ground_origin + PLAYER_MAXS;
 
-	// --- Progress-based path recalculation ---
-	// Track if monster is actually making progress toward goal
+	// PSX parity: only recompute the path when the fixed cache expires or when we've reached the
+	// current path point - NOT on a "progress" heuristic. The old progress-based force_recalc
+	// measured distance-to-GOAL closed per 500ms and flagged "stuck" if it was small; but a monster
+	// chasing a fleeing enemy (the goal is the enemy's live origin) closes ~0 distance while moving
+	// perfectly, so it constantly re-solved off-schedule - and a fresh solve between two near-equal
+	// routes returns a different "lane", which is the stutter/blur during the lane swap. Genuine
+	// blocks are handled by SV_NewChaseDir + path_blocked_counter, not by re-solving here.
 	const vec3_t goal_pos = self->enemy ? self->enemy->s.origin : self->goalentity->s.origin;
-	const float current_dist_to_goal = (goal_pos - self->s.origin).length();
-	bool force_recalc = false;
-	bool is_stuck = false;
-
-	// Check progress every PATH_PROGRESS_CHECK_TIME
-	if (self->monsterinfo.path_progress_time <= level.time)
-	{
-		self->monsterinfo.path_progress_time = level.time + PATH_PROGRESS_CHECK_TIME;
-
-		// Compare current distance to goal with last recorded distance
-		if (self->monsterinfo.path_last_goal_dist > 0)
-		{
-			float progress = self->monsterinfo.path_last_goal_dist - current_dist_to_goal;
-
-			// If we haven't moved significantly closer to goal, we might be stuck
-			if (progress < PATH_PROGRESS_MIN_DISTANCE)
-			{
-				self->monsterinfo.path_no_progress_time += PATH_PROGRESS_CHECK_TIME;
-
-				// If stuck for too long, force path recalculation
-				if (self->monsterinfo.path_no_progress_time >= PATH_STUCK_RECALC_TIME)
-				{
-					force_recalc = true;
-					is_stuck = true;
-					self->monsterinfo.path_no_progress_time = 0_ms;
-				}
-			}
-			else
-			{
-				// Making progress, reset stuck counter
-				self->monsterinfo.path_no_progress_time = 0_ms;
-			}
-		}
-
-		self->monsterinfo.path_last_goal_dist = current_dist_to_goal;
-	}
 
 	// Check if we need to recalculate path
 	const bool path_expired = self->monsterinfo.nav_path_cache_time <= level.time;
-	const bool path_intersecting = self->monsterinfo.nav_path.returnCode != PathReturnCode::TraversalPending &&
-		boxes_intersect(mon_mins, mon_maxs, path_to, path_to);
+	const bool reached_point = boxes_intersect(mon_mins, mon_maxs, path_to, path_to);
+	const bool path_intersecting = self->monsterinfo.nav_path.returnCode != PathReturnCode::TraversalPending && reached_point;
 
-	if (path_expired || path_intersecting || force_recalc)
+	// [Horde] Jump a BarrierJump traversal a SUPER_STEP monster reached by walking. All horde monsters
+	// get SUPER_STEP (stepsize 64), so they walk onto the traversal's near point without triggering the
+	// engine's jump - returnCode stays TraversalPending and they sit on the landing (diag: rc=2 link=3,
+	// grounded, hdist~0, feet on the point). Re-solving just re-plans the same jump, and handing it to
+	// classic movement walks it back OFF the crate (the nav wanted a JUMP, not a walk - confirmed: after
+	// a classic hand-off the monster drifted ~189u away, then cycled). So do the jump ourselves toward
+	// the goal: the nav only planned a BarrierJump here because jump_height can clear it, so launch up by
+	// that height (+margin) and forward. Airborne after (groundentity cleared) -> re-evaluates on
+	// landing, climbing crate by crate. Won't cut a real engine jump short: that clears TraversalPending
+	// before the monster is ever grounded on the landing.
+	// "On the traversal point" - deliberately more lenient than boxes_intersect (reached_point): a
+	// TALL monster (e.g. monster_janitor) stands with its feet slightly ABOVE the barrier-jump node,
+	// so the point falls just under its player-sized box and boxes_intersect misses - then the jump
+	// never fires and it stays stuck (diag: janitor rc=2, hdist~1-3, dz=-32 so the point is below its
+	// feet). Fire when we're horizontally on the point and at/above it (reached or overshot the
+	// landing), regardless of exact box overlap.
+	const float trav_dx = path_to.x - self->s.origin.x;
+	const float trav_dy = path_to.y - self->s.origin.y;
+	const float trav_dz = path_to.z - self->s.origin.z; // <0 => point is below us (we reached/overshot up)
+	const bool on_traversal_point = self->groundentity &&
+		self->monsterinfo.nav_path.returnCode == PathReturnCode::TraversalPending &&
+		(trav_dx * trav_dx + trav_dy * trav_dy) < (32.f * 32.f) &&
+		trav_dz < 24.f && trav_dz > -80.f;
+	if (on_traversal_point)
+	{
+		const vec3_t jdir = goal_pos - self->s.origin; // vectoyaw uses x/y only, no normalize needed
+		if (jdir.x * jdir.x + jdir.y * jdir.y > 1.f)
+			self->ideal_yaw = self->s.angles[YAW] = vectoyaw(jdir); // face the goal so the jump clears the barrier
+		const float jh = std::max(static_cast<float>(self->monsterinfo.jump_height), 32.f);
+		const float up_vel = std::min(sqrtf(1600.f * (jh + 16.f)), 500.f); // clear ~jump_height (rise uses g=800*1.0)
+		if (developer->integer >= 2)
+			gi.Com_PrintFmt("[NAV] {} traversal-jump (up_vel={:.0f}) over barrier\n", self->classname, up_vel);
+		M_MonsterJump(self, 180.f, up_vel);
+		return true;
+	}
+
+	// SUPER_STEP / jumps can carry a monster up (or down) to a different level than the cached path
+	// was solved for, leaving a stale point it bypassed that boxes_intersect never "reaches" - it
+	// then aims back at the old level until the cache expires (the "doesn't clean after getting up"
+	// edge-of-platform stick). Once we've LANDED (grounded) a good step away in Z, re-solve from
+	// where we actually are. Grounded-gated so it never fires mid-jump; vertical-only so it can't
+	// reintroduce horizontal lane-thrash.
+	const bool elevation_changed = self->groundentity &&
+		fabsf(self->s.origin.z - self->monsterinfo.path_solve_z) > PATH_RESOLVE_Z_DELTA;
+
+	if (path_expired || path_intersecting || elevation_changed)
 	{
 		PathRequest request;
 
@@ -2268,9 +2205,13 @@ static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 		request.nodeSearch.minHeight = -(height * 1.5f); // Extra margin for slopes/stairs
 		request.nodeSearch.maxHeight = height * 2;       // Extra height for jumps/drops
 
-		// Debug drawing if enabled
+		// Debug drawing if enabled. The engine only draws the path when it's (re)solved - here that's
+		// every PATH_CACHE_TIME_NORMAL (2s), or sooner on arrival - so a one-frame drawTime just
+		// flickers (worst for a stuck/circling monster, which only re-solves on the 2s cache). Draw
+		// for a bit longer than the cache so the route stays continuously visible, like the bbox
+		// overlay (which persists by being redrawn every frame).
 		if (g_debug_monster_paths->integer == 1)
-			request.debugging.drawTime = gi.frame_time_s;
+			request.debugging.drawTime = 2.5f;
 
 		// Special handling for specific monster types
 		if (horde::IsMonsterType(self, horde::MonsterTypeID::GUARDIAN) || horde::IsMonsterType(self, horde::MonsterTypeID::PSX_GUARDIAN))
@@ -2309,11 +2250,36 @@ static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 			return false;
 		}
 
-		// Use shorter cache time if we were stuck, to recover faster
-		self->monsterinfo.nav_path_cache_time = level.time + (is_stuck ? PATH_CACHE_TIME_STUCK : PATH_CACHE_TIME_NORMAL);
+		// Fixed cache time (PSX parity): commit to this route until it expires or we reach it.
+		self->monsterinfo.nav_path_cache_time = level.time + PATH_CACHE_TIME_NORMAL;
+		self->monsterinfo.path_solve_z = self->s.origin.z; // baseline for the elevation-change re-solve
+	}
 
-		// Reset progress tracking for new path
-		self->monsterinfo.path_last_goal_dist = current_dist_to_goal;
+	// TEMP NAV DIAG (developer 2): diagnose the vertical "edge of platform" stick. Throttled, and
+	// gated to grounded monsters whose path point is at a different level or whose path is mid-
+	// traversal - i.e. the suspect cases. Read the stuck parasite's line:
+	//   rc = returnCode (TraversalPending means the nav planned a jump it thinks isn't done yet),
+	//   link = pathLinkType (BarrierJump/LongJump/WalkOffLedge/Walk/Elevator),
+	//   dz = path_to.z - origin.z (positive = point is ABOVE us, negative = below),
+	//   hdist = horizontal distance to the point, dsz = how far our Z drifted since the solve.
+	if (developer->integer >= 2 && self->groundentity &&
+		(self->monsterinfo.nav_path.returnCode == PathReturnCode::TraversalPending ||
+		 fabsf(path_to.z - self->s.origin.z) > 24.f))
+	{
+		static gtime_t s_next_nav_dbg = 0_ms;
+		if (level.time >= s_next_nav_dbg)
+		{
+			s_next_nav_dbg = level.time + 300_ms;
+			const vec3_t to_pt = path_to - self->s.origin;
+			gi.Com_PrintFmt("[NAV] {} rc={} link={} npts={} oz={:.0f} ptz={:.0f} dz={:.0f} hdist={:.0f} dsz={:.0f}\n",
+				self->classname,
+				(int32_t)self->monsterinfo.nav_path.returnCode,
+				(int32_t)self->monsterinfo.nav_path.pathLinkType,
+				self->monsterinfo.nav_path.numPathPoints,
+				self->s.origin.z, path_to.z, to_pt.z,
+				sqrtf(to_pt.x * to_pt.x + to_pt.y * to_pt.y),
+				self->s.origin.z - self->monsterinfo.path_solve_z);
+		}
 	}
 
 	// Store original yaw values for potential restoration
@@ -2321,41 +2287,15 @@ static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 	const float old_yaw = self->s.angles[YAW];
 	const float old_ideal_yaw = self->ideal_yaw;
 
-	// Calculate movement direction with yaw smoothing to prevent diagonal stuttering
+	// Aim straight at the nav waypoint. (We previously blended only 60% toward it for sub-45 deg
+	// changes to damp diagonal stutter, but that per-frame lag meant a monster never actually faced
+	// the waypoint on a curving path - it cut corners and drifted off the line, arriving at the
+	// wrong place when pursuing a lost target. Match the original: head directly at the point.)
 	if (self->monsterinfo.random_change_time >= level.time &&
 		!(self->monsterinfo.aiflags & AI_ALTERNATE_FLY))
-	{
 		yaw = self->ideal_yaw;
-	}
 	else
-	{
-		vec3_t dir = path_to - self->s.origin;
-		dir.normalize();
-		float target_yaw = vectoyaw(dir);
-
-		// Smooth yaw transition to prevent jittery diagonal movement
-		// Only apply smoothing if we already have a valid ideal_yaw direction
-		if (old_ideal_yaw >= 0)
-		{
-			float yaw_diff = target_yaw - old_ideal_yaw;
-			// Normalize to -180 to 180 range
-			if (yaw_diff > 180.f)
-				yaw_diff -= 360.f;
-			else if (yaw_diff < -180.f)
-				yaw_diff += 360.f;
-
-			// Only smooth small changes (< 45°) - larger changes should be immediate
-			// This prevents stuttering from micro-adjustments while allowing quick turns
-			if (std::abs(yaw_diff) < 45.f)
-				yaw = anglemod(old_ideal_yaw + yaw_diff * 0.6f);  // 60% blend toward target
-			else
-				yaw = target_yaw;
-		}
-		else
-		{
-			yaw = target_yaw;
-		}
-	}
+		yaw = vectoyaw((path_to - self->s.origin).normalized());
 
 	// Try primary movement
 	if (!SV_StepDirection(self, yaw, dist, true))
@@ -2498,12 +2438,13 @@ static bool M_MoveToPath(edict_t* self, float dist)
 		return false;
 	}
 
-	// 5. Ajustar el contador de bloqueo para ser más responsivo
-	self->monsterinfo.path_blocked_counter += FRAME_TIME_S * 2;  // Reducido de 3 a 2
+	// PSX parity: give the nav path a longer leash before abandoning it (was *2 / 3s, now *3 / 5s)
+	// so monsters commit to a route instead of bailing to classic bump movement mid-path.
+	self->monsterinfo.path_blocked_counter += FRAME_TIME_S * 3;
 
-	if (self->monsterinfo.path_blocked_counter > 3_sec) {  // Reducido de 5 a 3 segundos
+	if (self->monsterinfo.path_blocked_counter > 5_sec) {
 		self->monsterinfo.path_blocked_counter = 0_ms;
-		self->monsterinfo.path_wait_time = level.time + 3_sec;  // Reducido de 5 a 3 segundos
+		self->monsterinfo.path_wait_time = level.time + 5_sec;
 		return false;
 	}
 
@@ -2611,20 +2552,11 @@ void M_MoveToGoal(edict_t* ent, float dist)
 		}
 	}
 
-	// bump around...
-	// Skip if still in bump time cooldown (prevents stuttering from rapid direction changes),
-	// BUT not once we've genuinely been frozen for a while. SV_movestep's collision recovery
-	// refreshes bump_time every frame we fail to move, so a monster wedged facing a blocked goal
-	// would sit in this gate forever and never reach SV_NewChaseDir below to pick a new heading /
-	// turn around. This is the lost-sight freeze: the pursuit tempgoal has no classname, so the
-	// straight-path never escalates to bad_move, and bump_time keeps us out of the chase-dir
-	// search. Past the stall threshold, fall through so SV_NewChaseDir can unstick us.
-	if (ent->monsterinfo.bump_time > level.time)
-	{
-		M_ChangeYaw(ent); // Still face the target while waiting
-		return;
-	}
-
+	// bump around... (PSX parity: no bump_time gate here. We previously skipped straight to facing
+	// the target while bump_time was active, but SV_movestep refreshes bump_time on nearly every
+	// blocked frame, so that gate permanently starved the SV_NewChaseDir cardinal-direction search
+	// below - a monster wedged in a corner could never run it and stayed stuck until it gained
+	// visual. bump_time now only throttles SV_movestep's own wall-slide, as in the original.)
 	if ((ent->monsterinfo.random_change_time <= level.time // random change time is up
 		&& irandom(4) == 1 // random bump around
 		&& !(ent->monsterinfo.aiflags & AI_CHARGING) // PMM - charging monsters (AI_CHARGING) don't deflect unless they have to
