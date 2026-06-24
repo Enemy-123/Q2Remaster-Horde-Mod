@@ -704,9 +704,16 @@ void chickkl_grenade(edict_t* self)
 	target[2] += self->enemy->viewheight;
 	aim = (target - start).normalized();
 
-	// Fire grenade
-	int speed = M_GRENADE_SPEED(self);
-	monster_fire_grenade(self, start, aim, M_GRENADE_DMG(self), speed > 0 ? speed : 600, MZ2_CHICK_ROCKET_1, 2.5f, 120);
+	// Fire grenade. Launch speed scales with range (M_BallisticSpeedForTarget) so throws stay
+	// precise at any distance instead of using a fixed config speed.
+	float speed = M_BallisticSpeedForTarget(start, target, 550.f, 1100.f);
+
+	// Solve the ballistic arc: on success the pitch carries the lob (no fixed up-boost);
+	// out-of-range targets fall back to the old fixed-lob shot.
+	if (M_CalculatePitchToFire(self, target, start, aim, speed, 2.5f, false))
+		monster_fire_grenade(self, start, aim, M_GRENADE_DMG(self), static_cast<int>(speed), MZ2_CHICK_ROCKET_1, 2.5f, frandom() * 10.f);
+	else
+		monster_fire_grenade(self, start, aim, M_GRENADE_DMG(self), static_cast<int>(speed), MZ2_CHICK_ROCKET_1, 2.5f, 120.f);
 }
 
 void ChickRocket(edict_t* self)

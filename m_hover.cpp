@@ -441,8 +441,19 @@ void hover_fire_grenades(edict_t* self)
     // pmm
 
     aim.normalize();
-    monster_fire_grenade(self, start, aim, M_GRENADE_DMG(self), M_GRENADE_SPEED(self), flash_number,
-        (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
+
+    // Launch speed scales with range (Vortex-style) so daedalus_bomber grenades stay precise and
+    // don't feel underpowered at distance, instead of the fixed config speed.
+    float speed = M_BallisticSpeedForTarget(start, target, 550.f, 1100.f);
+
+    // Solve the ballistic arc (keeps the PredictAim lead in the yaw); on success the pitch
+    // carries the lob, otherwise fall back to the old fixed-lob shot for out-of-range targets.
+    if (M_CalculatePitchToFire(self, target, start, aim, speed, 2.5f, false))
+        monster_fire_grenade(self, start, aim, M_GRENADE_DMG(self), static_cast<int>(speed), flash_number,
+            (crandom_open() * 10.0f), frandom() * 10.0f);
+    else
+        monster_fire_grenade(self, start, aim, M_GRENADE_DMG(self), static_cast<int>(speed), flash_number,
+            (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
 }
 
 void hover_fire_weapon(edict_t* self)

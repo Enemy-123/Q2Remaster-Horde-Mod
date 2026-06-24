@@ -2658,7 +2658,7 @@ void Grenade_Explode(edict_t* ent);
 void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, gtime_t timer,
 	float damage_radius, float right_adjust, float up_adjust, bool monster);
 void fire_grenade2(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, gtime_t timer,
-	float damage_radius, bool held, bool from_upgraded_prox = false);
+	float damage_radius, bool held, bool from_upgraded_prox = false, float up_adjust = 200.f);
 void rocket_touch(edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self);
 void fireball_touch(edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self);
 edict_t* fire_rocket(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, float damage_radius,
@@ -2945,6 +2945,7 @@ void	 InitHintPaths();
 void PredictAim(edict_t* self, edict_t* target, const vec3_t& start, float bolt_speed, bool eye_height, float offset, vec3_t* aimdir,
 	vec3_t* aimpoint);
 bool M_CalculatePitchToFire(edict_t* self, const vec3_t& target, const vec3_t& start, vec3_t& aim, float speed, float time_remaining, bool mortar, bool destroy_on_touch = false);
+float M_BallisticSpeedForTarget(const vec3_t& start, const vec3_t& target, float min_speed, float max_speed);
 bool below(edict_t* self, edict_t* other);
 void drawbbox(edict_t* self);
 void M_MonsterDodge(edict_t* self, edict_t* attacker, gtime_t eta, trace_t* tr, bool gravity);

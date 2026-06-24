@@ -1261,7 +1261,7 @@ void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir,
 	gi.linkentity(grenade);
 }
 
-void fire_grenade2(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, gtime_t timer, float damage_radius, bool held, bool from_upgraded_prox)
+void fire_grenade2(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, gtime_t timer, float damage_radius, bool held, bool from_upgraded_prox, float up_adjust)
 {
 	if (!self)
 	{
@@ -1291,7 +1291,7 @@ void fire_grenade2(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int
 
 	float const gravityAdjustment = level.gravity / 800.f;
 
-	grenade->velocity += up * (200 + crandom() * 10.0f) * gravityAdjustment;
+	grenade->velocity += up * (up_adjust + crandom() * 10.0f) * gravityAdjustment;
 	grenade->velocity += right * (crandom() * 10.0f);
 
 	grenade->avelocity = { crandom() * 360, crandom() * 360, crandom() * 360 };

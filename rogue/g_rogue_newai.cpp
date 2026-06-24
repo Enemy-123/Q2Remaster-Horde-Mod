@@ -1150,96 +1150,67 @@ void PredictAim(edict_t* self, edict_t* target, const vec3_t& start, float bolt_
 		*aimpoint = predicted_pos;
 }
 
-// [Paril-KEX] find a pitch that will at some point land on or near the player.
-// very approximate. aim will be adjusted to the correct aim vector.
+// [Paril-KEX] find a pitch that will land on or near the player.
+// Closed-form ballistic solve (ported from Vortex BOT_DMclass_ThrowingPitch1): given the
+// projectile speed and gravity, solve the launch elevation directly instead of brute-forcing
+// trajectory simulations. Exact within the ideal model (launch velocity = speed along aim,
+// gravity = level.gravity). `aim` keeps its incoming yaw (so per-shot spread/lead is preserved)
+// and only its pitch is replaced. Returns false when the target is out of ballistic range
+// (or the arc outlasts the fuse), letting the caller fall back to its fixed-lob shot.
+// NOTE: no longer traces the arc, so it is not obstacle-aware; mortar (high-arc) callers should
+// still gate the result (see TankGrenadeArcLooksNatural).
 bool M_CalculatePitchToFire(edict_t* self, const vec3_t& target, const vec3_t& start, vec3_t& aim, float speed, float time_remaining, bool mortar, bool destroy_on_touch)
 {
-	// Define pitch angles to test, more granular for higher accuracy
-	constexpr float pitches[] = { -85.f, -80.f, -75.f, -70.f, -65.f, -60.f, -55.f, -50.f, -45.f, -40.f, -35.f, -30.f, -25.f, -20.f, -15.f, -10.f, -5.f };
-	float best_pitch = 0.f;
-	float best_dist = std::numeric_limits<float>::infinity();
+	if (speed <= 0.f)
+		return false;
 
-	// Adaptive simulation timestep based on projectile speed
-	const float sim_time = speed > 0.f ? std::min(0.1f, 5.0f / speed) : 0.1f; // Smaller timestep for faster projectiles
+	const float  g    = level.gravity;                          // 800 by default; grenade gravity scale = 1.0
+	const vec3_t diff = target - start;
+	const float  h    = diff[2];                                // +up: target above muzzle
+	const float  d    = sqrtf(diff[0] * diff[0] + diff[1] * diff[1]); // horizontal distance
+	if (d < 1.f)
+		return false;                                           // target directly above/below: bail
 
-	vec3_t pitched_aim = vectoangles(aim);
-	//const float target_dist_sq = (target - start).lengthSquared();
+	const double v2   = static_cast<double>(speed) * speed;
+	const double disc = v2 * v2 - g * (g * static_cast<double>(d) * d + 2.0 * h * v2);
+	if (disc <= 0.0)
+		return false;                                           // out of ballistic range -> caller fallback
 
-	for (auto& pitch : pitches)
+	const double root = std::sqrt(disc);
+	// low/flat arc for direct grenades; high/lob arc only when the caller asks for a mortar
+	const double numer     = mortar ? (v2 + root) : (v2 - root);
+	const double tan_theta = numer / (g * static_cast<double>(d)); // elevation tangent (+ = up)
+
+	// Reject arcs that would outlast the grenade fuse (uses the existing time_remaining param).
+	if (time_remaining > 0.f)
 	{
-		// Skip inappropriate angles for mortar fire
-		if (mortar && pitch >= -30.f)
-			break;
-
-		pitched_aim[PITCH] = pitch;
-		const vec3_t fwd = AngleVectors(pitched_aim).forward;
-		vec3_t velocity = fwd * speed;
-		vec3_t origin = start;
-		float t = time_remaining;
-		bool trajectory_valid = true;
-
-		while (t > 0.f && trajectory_valid)
-		{
-			// Apply gravity
-			velocity += vec3_t{ 0, 0, -1 } *level.gravity * sim_time;
-			const vec3_t end = origin + (velocity * sim_time);
-			const trace_t tr = gi.traceline(origin, end, nullptr, MASK_SHOT);
-
-			origin = tr.endpos;
-
-			if (tr.fraction < 1.0f)
-			{
-				// Hit something
-				if (tr.surface->flags & SURF_SKY)
-				{
-					// Skip trajectories that hit the sky
-					trajectory_valid = false;
-					break;
-				}
-
-				// Calculate bounce
-				origin += tr.plane.normal; // Move slightly away from surface
-				velocity = ClipVelocity(velocity, tr.plane.normal, 1.6f);
-
-				// Check if this is a good hit
-				const float dist = (origin - target).lengthSquared();
-
-				// Direct hit on enemy or client
-				if (tr.ent == self->enemy || (tr.ent && tr.ent->client))
-				{
-					best_pitch = pitch;
-					best_dist = 0; // Perfect hit
-					trajectory_valid = false;
-					break;
-				}
-
-				// Near hit on ground or surface near target
-				if (tr.plane.normal.z >= 0.7f && dist < (128.f * 128.f) && dist < best_dist)
-				{
-					best_pitch = pitch;
-					best_dist = dist;
-				}
-
-				// Stop simulation if projectile would be destroyed
-				if (destroy_on_touch || (tr.contents & (CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_DEADMONSTER)))
-				{
-					trajectory_valid = false;
-					break;
-				}
-			}
-
-			t -= sim_time;
-		}
+		const double cos_t = 1.0 / std::sqrt(1.0 + tan_theta * tan_theta);
+		const double tof   = d / (speed * cos_t);
+		if (tof > time_remaining)
+			return false;
 	}
 
-	if (!std::isinf(best_dist))
-	{
-		pitched_aim[PITCH] = best_pitch;
-		aim = AngleVectors(pitched_aim).forward;
-		return true;
-	}
+	// Apply the solved pitch to the caller's yaw. Q2 convention: negative pitch aims up.
+	vec3_t angles = vectoangles(aim);
+	angles[PITCH] = -RAD2DEG(static_cast<float>(std::atan(tan_theta)));
+	aim = AngleVectors(angles).forward;
+	return true;
+}
 
-	return false;
+// [Horde] Pick a launch speed that can reach `target` from `start` on a ballistic arc, scaled to
+// distance so grenade throws stay precise at any range (like Vortex picking velocity per range
+// instead of relying on a fixed speed + fixed lob). Returns the minimum-energy launch speed
+// (v_min² = g·(h + √(d²+h²))) times a small margin, so M_CalculatePitchToFire has a real,
+// non-degenerate low-arc solution, clamped to [min_speed, max_speed]. Assumes the solved shot is
+// fired with no extra up-boost (up_adjust ≈ 0); beyond max_speed's reach the caller still falls back.
+float M_BallisticSpeedForTarget(const vec3_t& start, const vec3_t& target, float min_speed, float max_speed)
+{
+	const vec3_t diff  = target - start;
+	const float  h     = diff[2];
+	const float  d     = sqrtf(diff[0] * diff[0] + diff[1] * diff[1]);
+	const float  reach = h + sqrtf(d * d + h * h);          // >= 0
+	const float  v_min = reach > 0.f ? sqrtf(level.gravity * reach) : min_speed;
+	return std::clamp(v_min * 1.06f, min_speed, max_speed); // margin -> discriminant > 0
 }
 
 bool below(edict_t *self, edict_t *other)

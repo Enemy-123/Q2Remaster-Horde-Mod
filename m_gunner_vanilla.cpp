@@ -435,9 +435,10 @@ bool gunner_vanilla_grenade_check(edict_t* self)
 		return false;
 
 	// check to see that we can trace to the player before we start
-	// tossing grenades around.
+	// tossing grenades around. Use the same distance-scaled speed the shot will use so the
+	// reachability test matches the fire.
 	vec3_t aim = dir.normalized();
-	return M_CalculatePitchToFire(self, target, start, aim, 600, 2.5f, false);
+	return M_CalculatePitchToFire(self, target, start, aim, M_BallisticSpeedForTarget(start, target, 550.f, 1100.f), 2.5f, false);
 }
 
 void gunner_vanillaGrenade(edict_t* self)
@@ -537,11 +538,15 @@ void gunner_vanillaGrenade(edict_t* self)
 	// try search for best pitch
 	int grenade_damage = M_GET_DMG_OR(self, GRENADE, 50);
 
-	if (M_CalculatePitchToFire(self, target, start, aim, 600, 2.5f, false))
-		monster_fire_grenade(self, start, aim, grenade_damage, 600, flash_number, (crandom_open() * 10.0f), frandom() * 10.f);
+	// Launch speed scales with range (M_BallisticSpeedForTarget) so throws stay precise at any
+	// distance instead of a fixed speed.
+	float grenade_speed = M_BallisticSpeedForTarget(start, target, 550.f, 1100.f);
+
+	if (M_CalculatePitchToFire(self, target, start, aim, grenade_speed, 2.5f, false))
+		monster_fire_grenade(self, start, aim, grenade_damage, static_cast<int>(grenade_speed), flash_number, (crandom_open() * 10.0f), frandom() * 10.f);
 	else
 		// normal shot
-		monster_fire_grenade(self, start, aim, grenade_damage, 600, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
+		monster_fire_grenade(self, start, aim, grenade_damage, static_cast<int>(grenade_speed), flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
 }
 
 mframe_t gunner_vanilla_frames_attack_chain[] = {

@@ -1500,7 +1500,7 @@ static constexpr auto monster_name_replacements = []() constexpr {
     set(horde::MonsterTypeID::MUTANT, "Mutant");
     set(horde::MonsterTypeID::REDMUTANT, "Raged Mutant");
     set(horde::MonsterTypeID::BERSERK, "Berserker");
-    set(horde::MonsterTypeID::BERSERKERKL, "Trespasser Hunter");
+    set(horde::MonsterTypeID::BERSERKERKL, "Trespasser Yeller");
     set(horde::MonsterTypeID::GEKK, "Gekk");
     set(horde::MonsterTypeID::GEKKKL, "Inferno Gekk");
     set(horde::MonsterTypeID::PARASITE, "Parasite");

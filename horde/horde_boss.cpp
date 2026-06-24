@@ -411,7 +411,7 @@ static constexpr std::array<boss_t, 12> BOSS_SMALL_SRC = {{
 	{horde::MonsterTypeID::MAKRON, 16, 26, 0.1f, BossSizeCategory::Small},
 	{horde::MonsterTypeID::PSX_ARACHNID, 15, -1, 0.1f, BossSizeCategory::Small},
 	{horde::MonsterTypeID::REDMUTANT, -1, 24, 0.1f, BossSizeCategory::Small},
-	// Hell Sisters mini-raid (3 buffed chicks). Intercepted in SpawnBossAutomatically and spawned as
+	// Hell Praetors mini-raid (3 buffed chicks). Intercepted in SpawnBossAutomatically and spawned as
 	// the trio; sits in the pool like any other boss so recent_bosses spaces it from repeating.
 	{horde::MonsterTypeID::CHICKKL, 15, -1, 0.15f, BossSizeCategory::Small}
 }};
@@ -428,7 +428,7 @@ static constexpr std::array<boss_t, 12> BOSS_MEDIUM_SRC = {{
 	{horde::MonsterTypeID::PSX_ARACHNID, 14, -1, 0.1f, BossSizeCategory::Medium},
 	{horde::MonsterTypeID::MAKRON_KL, 26, -1, 0.2f, BossSizeCategory::Medium},
 	{horde::MonsterTypeID::MAKRON, 16, 25, 0.1f, BossSizeCategory::Medium},
-	// Hell Sisters mini-raid (intercepted in SpawnBossAutomatically; see small pool note).
+	// Hell Praetors mini-raid (intercepted in SpawnBossAutomatically; see small pool note).
 	{horde::MonsterTypeID::CHICKKL, 15, -1, 0.15f, BossSizeCategory::Medium}
 }};
 
@@ -446,7 +446,7 @@ static constexpr std::array<boss_t, 14> BOSS_LARGE_SRC = {{
 	{horde::MonsterTypeID::JORG, 30, -1, 0.15f, BossSizeCategory::Large},
 	{horde::MonsterTypeID::MAKRON_KL, 30, -1, 0.2f, BossSizeCategory::Large},
 	{horde::MonsterTypeID::WIDOW2, 25, -1, 0.15f, BossSizeCategory::Large},
-	// Hell Sisters mini-raid (intercepted in SpawnBossAutomatically; see small pool note).
+	// Hell Praetors mini-raid (intercepted in SpawnBossAutomatically; see small pool note).
 	{horde::MonsterTypeID::CHICKKL, 15, -1, 0.15f, BossSizeCategory::Large}
 }};
 
@@ -1077,7 +1077,7 @@ void BossDeathHandler(edict_t *boss) noexcept
 		IT_ITEM_SPHERE_DEFENDER, IT_ARMOR_COMBAT, IT_ITEM_BANDOLIER,
 		IT_ITEM_INVULNERABILITY, IT_AMMO_NUKE, IT_ITEM_STROGGSUMM };
 
-	// Boss-group loot share: members of a multi-boss encounter (Hell Sisters, Fixer Trio) split a
+	// Boss-group loot share: members of a multi-boss encounter (Hell Praetors, Fixer Trio) split a
 	// single boss's loot so the group doesn't drop N x the items. A count of 0/1 is a lone boss and
 	// keeps the full drop. The weapon goes to member 0, the power-up to a different member, and the
 	// standard items are partitioned across the group by index.
@@ -1341,7 +1341,7 @@ namespace {
 	constexpr int32_t  HELL_MAIDEN_HEALTH      = 2500;
 	constexpr int32_t  HELL_MAIDEN_SHIELD      = 1750;
 	constexpr float    HELL_MAIDEN_SCALE       = 1.35f;   // "bit bigger"; tunable
-	constexpr const char *HELL_MAIDEN_NAME     = "Hell Sisters";
+	constexpr const char *HELL_MAIDEN_NAME     = "Hell Praetors";
 
 	// Three visually distinct, non-friendly modifiers (red fiery shell / green / dark tracker).
 	constexpr std::array<bonus_flags_t, HELL_MAIDEN_COUNT> HELL_MAIDEN_FLAGS = {
@@ -1683,8 +1683,8 @@ void SpawnHellMaidens()
 // ============================================================================================
 namespace {
 	constexpr int32_t FIXER_COUNT  = 3;
-	constexpr int32_t FIXER_HEALTH = 2500;   // same fixed value as the Hell Sisters (HELL_MAIDEN_HEALTH)
-	constexpr int32_t FIXER_SHIELD = 1750;   // same fixed value as the Hell Sisters (HELL_MAIDEN_SHIELD)
+	constexpr int32_t FIXER_HEALTH = 2500;   // same fixed value as the Hell Praetors (HELL_MAIDEN_HEALTH)
+	constexpr int32_t FIXER_SHIELD = 1750;   // same fixed value as the Hell Praetors (HELL_MAIDEN_SHIELD)
 	constexpr const char *FIXER_NAME = "The Fixers";
 
 	// Distinct visible/buff modifier per fixer (cosmetic only, no stat scaling) — mirrors the maidens.
@@ -1871,7 +1871,7 @@ THINK(FixersSpawnThink)(edict_t *self) -> void
 		// Distinct visible/buff modifier (sets bonus_flags + effects, no stat scaling) — like maidens.
 		ApplyBonusFlagVisuals(fixer, FIXER_FLAGS[i]);
 
-		// Same fixed boss-grade stats as the Hell Sisters: fixed health + power shield, no wave scaling
+		// Same fixed boss-grade stats as the Hell Praetors: fixed health + power shield, no wave scaling
 		// and no separate combat armor (the power shield is the only protection, exactly like a maiden).
 		fixer->health = fixer->max_health = FIXER_HEALTH;
 		fixer->monsterinfo.base_health = FIXER_HEALTH;

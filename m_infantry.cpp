@@ -937,19 +937,17 @@ static void infantry_grenade(edict_t* self)
 	if (!M_HasEnemy(self))
 		return;
 
-	constexpr float LOB_GRENADE_SPEED = 700.f;
-	constexpr float FAST_GRENADE_SPEED = 950.f;
-	constexpr float DIRECT_THROW_RANGE = 450.f;
-	constexpr float PREDICT_SPEED_SCALE = 0.70f;
-	constexpr float BLINDFIRE_LOB_MIN = 110.f;
-	constexpr float BLINDFIRE_LOB_MAX = 260.f;
+	// Launch speed is scaled to range (Vortex-style: pick velocity per distance instead of a
+	// fixed speed + fixed lob) so the ballistic solve stays precise at any range. The clamp keeps
+	// close throws from being too floaty and far throws inside the grenade fuse window.
+	constexpr float MIN_GRENADE_SPEED = 550.f;
+	constexpr float MAX_GRENADE_SPEED = 1100.f;
 
-	vec3_t start_pos;
-	vec3_t aim_dir;
-	float  effective_speed;
 	const vec3_t offset = { 24, 10, 10 };
 	bool const is_blindfire = (self->monsterinfo.aiflags & AI_MANUAL_STEERING);
 
+	// Resolve the point we are throwing at.
+	vec3_t target_pos;
 	if (is_blindfire)
 	{
 		if (!self->monsterinfo.blind_fire_target)
@@ -957,24 +955,7 @@ static void infantry_grenade(edict_t* self)
 			infantry_grenade_cleanup(self);
 			return;
 		}
-
-		const vec3_t target_pos = self->monsterinfo.blind_fire_target;
-		self->ideal_yaw = vectoyaw(target_pos - self->s.origin);
-		M_ChangeYaw(self);
-
-		vec3_t forward, right, up;
-		AngleVectors(self->s.angles, forward, right, up);
-		start_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
-
-		const float dist_to_target = (target_pos - start_pos).length();
-		vec3_t noisy_target = target_pos;
-		noisy_target += right * (crandom_open() * std::clamp(dist_to_target * 0.04f, 10.f, 32.f));
-		noisy_target[2] += crandom_open() * std::clamp(dist_to_target * 0.012f, 3.f, 12.f);
-
-		aim_dir = noisy_target - start_pos;
-		aim_dir[2] += std::clamp(dist_to_target * 0.26f, BLINDFIRE_LOB_MIN, BLINDFIRE_LOB_MAX);
-		aim_dir.normalize();
-		effective_speed = LOB_GRENADE_SPEED;
+		target_pos = self->monsterinfo.blind_fire_target;
 	}
 	else
 	{
@@ -983,40 +964,48 @@ static void infantry_grenade(edict_t* self)
 			infantry_grenade_cleanup(self);
 			return;
 		}
-
-		self->ideal_yaw = vectoyaw(self->enemy->s.origin - self->s.origin);
-		M_ChangeYaw(self);
-
-		vec3_t forward, right, up;
-		AngleVectors(self->s.angles, forward, right, up);
-		start_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
-		const float dist_to_target = range_to(self, self->enemy);
-
-		const trace_t tr = gi.traceline(start_pos, self->enemy->s.origin + vec3_t{ 0, 0, 16.f }, self, MASK_SOLID);
-		if (dist_to_target < DIRECT_THROW_RANGE && tr.ent == self->enemy)
-			effective_speed = FAST_GRENADE_SPEED;
-		else
-			effective_speed = LOB_GRENADE_SPEED;
-
-		const float predict_speed = std::max(1.f, effective_speed * PREDICT_SPEED_SCALE);
-		vec3_t aim_point;
-		PredictAim(self, self->enemy, start_pos, predict_speed, true, 0.0f, &aim_dir, &aim_point);
-
-		// Randomized aimpoint like guncmdr-style spread to avoid repeated deterministic misses.
-		const float horizontal_jitter = std::clamp(dist_to_target * 0.03f, 6.f, 24.f);
-		const float vertical_jitter = std::clamp(dist_to_target * 0.01f, 2.f, 10.f);
-		aim_point += right * (crandom_open() * horizontal_jitter);
-		aim_point[2] += crandom_open() * vertical_jitter;
-		aim_dir = aim_point - start_pos;
+		target_pos = self->enemy->s.origin;
+		target_pos[2] += self->enemy->viewheight;
 	}
 
-	// fire_grenade2 adds upward velocity internally; this keeps medium-range throws from sailing high.
-	const float dist_to_aim = (aim_dir.length() > 0.1f) ? aim_dir.length() : 0.f;
-	aim_dir[2] -= std::clamp(dist_to_aim * 0.00045f, 0.02f, 0.09f);
+	// Face the target, then derive the muzzle position.
+	self->ideal_yaw = vectoyaw(target_pos - self->s.origin);
+	M_ChangeYaw(self);
+
+	vec3_t forward, right, up;
+	AngleVectors(self->s.angles, forward, right, up);
+	const vec3_t start_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
+
+	// Distance-scaled launch speed (works at every range with good precision).
+	float speed = M_BallisticSpeedForTarget(start_pos, target_pos, MIN_GRENADE_SPEED, MAX_GRENADE_SPEED);
+
+	// Lead a moving target (not when blindfiring) using that speed.
+	vec3_t aim_point = target_pos;
+	if (!is_blindfire && self->enemy->velocity.lengthSquared() > 1.f)
+	{
+		vec3_t lead_dir;
+		PredictAim(self, self->enemy, start_pos, speed, true, 0.0f, &lead_dir, &aim_point);
+	}
+
+	// Small spread so repeated throws don't deterministically miss the same way.
+	const float dist_to_target = (aim_point - start_pos).length();
+	aim_point += right * (crandom_open() * std::clamp(dist_to_target * 0.03f, 6.f, 24.f));
+	aim_point[2] += crandom_open() * std::clamp(dist_to_target * 0.01f, 2.f, 10.f);
+
+	vec3_t aim_dir = aim_point - start_pos;
 	aim_dir.normalize();
 
-	int damage = M_GRENADE_DMG(self);
-	fire_grenade2(self, start_pos, aim_dir, damage > 0 ? damage : 40, effective_speed, 2.5_sec, damage > 0 ? (damage * 2) : 80, false);
+	int   damage = M_GRENADE_DMG(self);
+	float radius = damage > 0 ? (damage * 2.f) : 80.f;
+	damage = damage > 0 ? damage : 40;
+
+	// Solve the ballistic arc to the (led) target. On success fire with no internal up-boost so
+	// the launch is exactly the solved arc; otherwise keep fire_grenade2's default lob as fallback.
+	if (M_CalculatePitchToFire(self, aim_point, start_pos, aim_dir, speed, 2.5f, false))
+		fire_grenade2(self, start_pos, aim_dir, damage, static_cast<int>(speed), 2.5_sec, radius, false, false, 0.f);
+	else
+		fire_grenade2(self, start_pos, aim_dir, damage, static_cast<int>(speed), 2.5_sec, radius, false);
+
 	self->timestamp = 0_ms; // Grenade has been released.
 	gi.sound(self, CHAN_VOICE, sound_handgrenade, 1, ATTN_NORM, 0);
 }

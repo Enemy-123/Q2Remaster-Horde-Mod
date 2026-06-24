@@ -1052,22 +1052,20 @@ void GunnerCmdrGrenade(edict_t* self)
 	}
 	else
 	{
-		// Velocidad según tipo de disparo y estilo
-		float speed;
-		if (flash_number >= MZ2_GUNCMDR_GRENADE_MORTAR_1 &&
-			flash_number <= MZ2_GUNCMDR_GRENADE_MORTAR_3)
-			speed = GetMortarSpeed(self->style);
-		else
-			speed = GetGrenadeSpeed(self->style);
+		// Velocidad según tipo de disparo y estilo. Mortars keep their tuned steep-lob speed;
+		// front grenades scale speed to range (M_BallisticSpeedForTarget) so they stay precise
+		// at any distance instead of a fixed style speed.
+		const bool is_mortar = (flash_number >= MZ2_GUNCMDR_GRENADE_MORTAR_1 &&
+			flash_number <= MZ2_GUNCMDR_GRENADE_MORTAR_3);
+		float speed = is_mortar ? static_cast<float>(GetMortarSpeed(self->style))
+		                        : M_BallisticSpeedForTarget(start, target, 550.f, 1100.f);
 
 		// Calcular daño según tipo y calcular mejor trayectoria
 		int grenade_damage = M_GRENADE_DMG(self);
 		if (grenade_damage <= 0)
 			grenade_damage = GetGrenadeDamage(self);
 
-		if (M_CalculatePitchToFire(self, target, start, aim, speed, 2.5f,
-			(flash_number >= MZ2_GUNCMDR_GRENADE_MORTAR_1 &&
-				flash_number <= MZ2_GUNCMDR_GRENADE_MORTAR_3)))
+		if (M_CalculatePitchToFire(self, target, start, aim, speed, 2.5f, is_mortar))
 		{
 			monster_fire_grenade(self, start, aim, grenade_damage, speed, flash_number,
 				(crandom_open() * 10.0f), frandom() * 10.f);

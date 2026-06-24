@@ -308,11 +308,26 @@ void CarrierGrenade(edict_t *self)
 	int damage = M_GRENADE_DMG(self);
 	if (damage <= 0) damage = self->monsterinfo.IS_BOSS ? 50 : 45;
 
-	int speed = M_GRENADE_SPEED(self);
+	// Launch speed scales with range (M_BallisticSpeedForTarget) so the barrage stays precise at
+	// any distance; the second grenade is a touch faster so the two arcs visibly differ.
+	float speed1 = M_BallisticSpeedForTarget(start, self->enemy->s.origin, 650.f, 1300.f);
+	float speed2 = speed1 * 1.06f;
 
 	flash_number = MZ2_GUNNER_GRENADE_1;
-	monster_fire_grenade(self, start, aim, damage, speed > 0 ? speed : 1250, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
-	monster_fire_grenade(self, start, aim, damage, speed > 0 ? speed : 1150, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
+
+	// Solve each grenade's arc separately (different speeds). The yaw spread baked into `aim`
+	// is preserved; on success the solved pitch carries the lob, otherwise keep the fixed lob.
+	vec3_t aim1 = aim;
+	if (M_CalculatePitchToFire(self, self->enemy->s.origin, start, aim1, speed1, 2.5f, false))
+		monster_fire_grenade(self, start, aim1, damage, static_cast<int>(speed1), flash_number, (crandom_open() * 10.0f), frandom() * 10.0f);
+	else
+		monster_fire_grenade(self, start, aim1, damage, static_cast<int>(speed1), flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
+
+	vec3_t aim2 = aim;
+	if (M_CalculatePitchToFire(self, self->enemy->s.origin, start, aim2, speed2, 2.5f, false))
+		monster_fire_grenade(self, start, aim2, damage, static_cast<int>(speed2), flash_number, (crandom_open() * 10.0f), frandom() * 10.0f);
+	else
+		monster_fire_grenade(self, start, aim2, damage, static_cast<int>(speed2), flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
 }
 
 void CarrierPredictiveRocket(edict_t *self)
