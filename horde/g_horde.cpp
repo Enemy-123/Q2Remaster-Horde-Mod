@@ -7192,6 +7192,30 @@ bool CheckAndTeleportStuckMonster(edict_t* self, bool force_drowning)
 		// Reset check interval for next stuck check
 		self->monsterinfo.stuck_check_time = level.time + random_time(4.0_sec, 6.0_sec);
 		self->monsterinfo.no_enemy_timeout_start_time = 0_sec;
+
+		// Drop stale combat/animation state so the monster doesn't reappear
+		// mid-attack at the new location, and re-paths from scratch.
+		// Horde AI (g_ai.cpp) re-acquires a target automatically next think.
+		if (self->monsterinfo.run)
+			self->monsterinfo.run(self);            // switch to run anim on next 10hz frame
+
+		self->monsterinfo.aiflags |= AI_FORGET_ENEMY; // drop enemy next ai_run; re-acquire
+
+		// Suppress firing briefly so it can't blind-fire the old enemy position
+		// (into a wall) before it re-orients. attack_finished gates both normal
+		// and blind fire in M_CheckAttack; pushing it forward holds fire.
+		// attack_state itself is recomputed each frame, so AS_STRAIGHT is just a
+		// sane neutral reset (not what causes/prevents the shot).
+		self->monsterinfo.attack_state = AS_STRAIGHT;
+		self->monsterinfo.attack_finished = level.time + random_time(0.8_sec, 1.5_sec);
+
+		// reset goal + navigation so it computes a fresh path from here
+		self->goalentity = nullptr;
+		self->movetarget = nullptr;
+		self->monsterinfo.path_blocked_counter = 0_ms;
+		self->monsterinfo.path_wait_time = 0_ms;
+		self->monsterinfo.aiflags &= ~(AI_LOST_SIGHT | AI_PURSUE_NEXT |
+									   AI_PURSUE_TEMP | AI_PURSUIT_LAST_SEEN);
 		return true;
 	}
 
