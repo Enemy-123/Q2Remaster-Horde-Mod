@@ -1619,6 +1619,9 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 		if (ClassicPlayerHasBenefitStartArmor(ent)) {
 			client->pers.inventory[IT_ARMOR_BODY] = 100;
 		}
+		else if (g_horde->integer && !ClassicPlayerHasBenefitStartArmor(ent) && !ClientIsSpectating(ent->client))
+			client->pers.inventory[IT_ARMOR_JACKET] = (irandom(3, 15)) + current_wave_level/2;
+
 	} else {
 		// RPG Mode: Give 10 armor per skill level
 		if (client->pers.skills.start_armor > 0) {
