@@ -1151,6 +1151,8 @@ void PredictAim(edict_t* self, edict_t* target, const vec3_t& start, float bolt_
 }
 
 // [Paril-KEX] find a pitch that will land on or near the player.
+// 
+// modified to work different
 // Closed-form ballistic solve (ported from Vortex BOT_DMclass_ThrowingPitch1): given the
 // projectile speed and gravity, solve the launch elevation directly instead of brute-forcing
 // trajectory simulations. Exact within the ideal model (launch velocity = speed along aim,

@@ -532,8 +532,14 @@ void MonsterCastFireball(edict_t* self, const vec3_t& start, const vec3_t& targe
     if (radius == 0.0f) radius = FIREBALL_DEFAULT_RADIUS;
     if (speed == 0) speed = FIREBALL_DEFAULT_SPEED;
 
+    // Fireballs fall under gravity (MOVETYPE_TOSS) like grenades. Scale speed to range (floor =
+    // configured speed so they stay fast) and solve the launch pitch so they land on the target
+    // instead of arcing short.
+    const float launch_speed = M_BallisticSpeedForTarget(start, target_pos, static_cast<float>(speed), static_cast<float>(speed) + 400.f);
+    M_CalculatePitchToFire(self, target_pos, start, dir, launch_speed, 2.5f, false);
+
     // Fire the fireball
-    fire_fireball(self, start, dir, damage, radius, speed, flames, flame_dmg);
+    fire_fireball(self, start, dir, damage, radius, static_cast<int>(launch_speed), flames, flame_dmg);
 }
 
 // Simpler wrapper that calculates start position automatically

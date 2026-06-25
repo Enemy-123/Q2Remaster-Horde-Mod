@@ -590,6 +590,12 @@ void ShamblerCastFireballs(edict_t* self)
 	// Guardar última posición conocida para blindfire
 	self->monsterinfo.blind_fire_target = target;
 
+	// Fireballs fall under gravity (MOVETYPE_TOSS) like grenades. Scale speed to range (floor =
+	// rocketSpeed so they stay fast/threatening, only boosting for distant targets) and solve the
+	// launch pitch so they land on the target instead of arcing short. dir keeps its yaw/lead.
+	const float speed = M_BallisticSpeedForTarget(start, target, rocketSpeed, 1600.f);
+	M_CalculatePitchToFire(self, target, start, dir, speed, 2.5f, false);
+
 	// Lanzar fireballs
 	// Use the new fire_fireball function that spawns flames on explosion
 	const int num_fireballs = (g_hardcoop->integer || self->monsterinfo.IS_BOSS) ? 3 : 1;
@@ -617,7 +623,7 @@ void ShamblerCastFireballs(edict_t* self)
 		}
 
 		// Use new fire_fireball function - it spawns flames on explosion!
-		fire_fireball(self, start, spread_dir, base_damage, damage_radius, rocketSpeed, flames, flame_damage);
+		fire_fireball(self, start, spread_dir, base_damage, damage_radius, static_cast<int>(speed), flames, flame_damage);
 	}
 
 	gi.sound(self, CHAN_WEAPON, sound_fireball, 1, ATTN_NORM, 0);
