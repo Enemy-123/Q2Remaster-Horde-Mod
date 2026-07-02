@@ -12,20 +12,20 @@ GLOBAL_DAMAGE_BLUEBLASTER                        = 5
 GLOBAL_DAMAGE_HYPERBLASTER                       = 6
 GLOBAL_DAMAGE_SHOTGUN                            = 1
 GLOBAL_DAMAGE_MACHINEGUN                         = 3
-GLOBAL_DAMAGE_GRENADE                            = 25
-GLOBAL_DAMAGE_ROCKET                             = 25
-GLOBAL_DAMAGE_HEAT                               = 25
+GLOBAL_DAMAGE_GRENADE                            = 18
+GLOBAL_DAMAGE_ROCKET                             = 22
+GLOBAL_DAMAGE_HEAT                               = 20
 GLOBAL_DAMAGE_RAILGUN                            = 25
 GLOBAL_DAMAGE_BFG                                = 25
 GLOBAL_DAMAGE_IONRIPPER                          = 6
 GLOBAL_DAMAGE_FLECHETTE                          = 4
-GLOBAL_DAMAGE_PLASMA                             = 17
+GLOBAL_DAMAGE_PLASMA                             = 12
 GLOBAL_DAMAGE_TRACKER                            = 7
 GLOBAL_DAMAGE_HEATBEAM                           = 5
 GLOBAL_DAMAGE_DABEAM                             = 5
 GLOBAL_DAMAGE_LIGHTNING                          = 5
-GLOBAL_DAMAGE_FIREBALL                           = 17
-GLOBAL_DAMAGE_BOLT                               = 17
+GLOBAL_DAMAGE_FIREBALL                           = 12
+GLOBAL_DAMAGE_BOLT                               = 14
 
 -- Global Weapon Speed
 GLOBAL_SPEED_BLASTER                             = 1000
@@ -39,19 +39,19 @@ GLOBAL_SPEED_HEAT                                = 650
 GLOBAL_SPEED_BFG                                 = 400
 GLOBAL_SPEED_IONRIPPER                           = 1000
 GLOBAL_SPEED_FLECHETTE                           = 1150
-GLOBAL_SPEED_PLASMA                              = 725
+GLOBAL_SPEED_PLASMA                              = 700
 GLOBAL_SPEED_TRACKER                             = 500
 GLOBAL_SPEED_FIREBALL                            = 600
 GLOBAL_SPEED_BOLT                                = 600
 
 -- Global Weapon Radius
 GLOBAL_RADIUS_GRENADE                            = 140
-GLOBAL_RADIUS_ROCKET                             = 140
+GLOBAL_RADIUS_ROCKET                             = 120
 GLOBAL_RADIUS_HEAT                               = 140
-GLOBAL_RADIUS_BFG                                = 500
-GLOBAL_RADIUS_PLASMA                             = 140
+GLOBAL_RADIUS_BFG                                = 450
+GLOBAL_RADIUS_PLASMA                             = 120
 GLOBAL_RADIUS_TRACKER                            = 140
-GLOBAL_RADIUS_FIREBALL                           = 140
+GLOBAL_RADIUS_FIREBALL                           = 120
 
 -- ============================================================================
 -- BOSS-ONLY WEAPON DAMAGE OVERRIDES
@@ -75,7 +75,7 @@ MONSTER_TANK_64_BOSS_DAMAGE_SLAM                 = 175
 
 -- Runnertank
 MONSTER_RUNNERTANK_BOSS_DAMAGE_ROCKET            = 90
-MONSTER_RUNNERTANK_BOSS_DAMAGE_PLASMA            = 60
+MONSTER_RUNNERTANK_BOSS_DAMAGE_PLASMA            = 20
 MONSTER_RUNNERTANK_BOSS_DAMAGE_RAILGUN           = 70
 MONSTER_RUNNERTANK_BOSS_DAMAGE_SLAM              = 90
 
@@ -129,7 +129,7 @@ MONSTER_MAKRONKL_BOSS_DAMAGE_BLASTER             = 45
 
 -- Jorg
 MONSTER_JORG_BOSS_DAMAGE_BFG                     = 90
-MONSTER_JORG_BOSS_DAMAGE_PLASMA                  = 70
+MONSTER_JORG_BOSS_DAMAGE_PLASMA                  = 20
 
 -- Boss5
 MONSTER_BOSS5_BOSS_DAMAGE_HEAT                   = 90
@@ -321,7 +321,7 @@ MONSTER_GLADC_DAMAGE_SCALE                       = 1
 MONSTER_GLADC_DAMAGE_MELEE                       = 40
 MONSTER_GLADC_DAMAGE_MAX_MELEE                   = 25
 MONSTER_GLADC_ADDON_DAMAGE_MELEE                 = 0
-MONSTER_GLADC_DAMAGE_PLASMA                      = 28
+MONSTER_GLADC_DAMAGE_PLASMA                      = 20
 
 -- Tank
 MONSTER_TANK_HEALTH                              = 630
@@ -363,7 +363,7 @@ MONSTER_TANK_64_SPEED_GRENADE                    = 1500
 MONSTER_RUNNERTANK_HEALTH                        = 850
 MONSTER_RUNNERTANK_POWER_ARMOR_POWER             = 0
 MONSTER_RUNNERTANK_DAMAGE_SCALE                  = 1
-MONSTER_RUNNERTANK_DAMAGE_PLASMA                 = 27
+MONSTER_RUNNERTANK_DAMAGE_PLASMA                 = 18
 MONSTER_RUNNERTANK_DAMAGE_RAILGUN                = 45
 MONSTER_RUNNERTANK_DAMAGE_ROCKET                 = 35
 MONSTER_RUNNERTANK_DAMAGE_SLAM                   = 45
@@ -398,7 +398,7 @@ MONSTER_CHICKKL_DAMAGE_SCALE                     = 1.16
 MONSTER_CHICKKL_DAMAGE_MELEE                     = 30
 MONSTER_CHICKKL_DAMAGE_MAX_MELEE                 = 16
 MONSTER_CHICKKL_ADDON_DAMAGE_MELEE               = 0
-MONSTER_CHICKKL_DAMAGE_PLASMA                    = 65
+MONSTER_CHICKKL_DAMAGE_PLASMA                    = 23
 
 -- Parasite
 MONSTER_PARASITE_HEALTH                          = 115
@@ -453,7 +453,7 @@ MONSTER_FLYER_POWER_ARMOR_POWER                  = 0
 MONSTER_FLYER_DAMAGE_SCALE                       = 0.3
 MONSTER_FLYER_DAMAGE_BLASTER_BOLT                = 4
 MONSTER_FLYER_DAMAGE_DABEAM                      = 3
-MONSTER_FLYER_DAMAGE_ROCKET                      = 35
+MONSTER_FLYER_DAMAGE_ROCKET                      = 25
 
 -- Hover
 MONSTER_HOVER_HEALTH                             = 140
@@ -492,7 +492,7 @@ MONSTER_DAEDALUS_BOMBER_DAMAGE_MAX_BLASTER       = 1
 MONSTER_DAEDALUS_BOMBER_ADDON_DAMAGE_BLASTER     = 0
 MONSTER_DAEDALUS_BOMBER_DAMAGE_MAX_BLASTER2      = 1
 MONSTER_DAEDALUS_BOMBER_ADDON_DAMAGE_BLASTER2    = 0
-MONSTER_DAEDALUS_BOMBER_DAMAGE_GRENADE           = 23
+MONSTER_DAEDALUS_BOMBER_DAMAGE_GRENADE           = 18
 
 -- Floater
 MONSTER_FLOATER_HEALTH                           = 120
@@ -520,7 +520,7 @@ MONSTER_FIXBOT_DAMAGE_BLASTER_BOLT               = 8
 MONSTER_FIXBOT_DAMAGE_IONRIPPER                  = 25
 MONSTER_FIXBOT_DAMAGE_MAX_IONRIPPER              = 20
 MONSTER_FIXBOT_ADDON_DAMAGE_IONRIPPER            = 0
-MONSTER_FIXBOT_DAMAGE_PLASMA                     = 28
+MONSTER_FIXBOT_DAMAGE_PLASMA                     = 21
 MONSTER_FIXBOT_DAMAGE_MAX_PLASMA                 = 20
 MONSTER_FIXBOT_ADDON_DAMAGE_PLASMA               = 0
 
@@ -647,7 +647,7 @@ MONSTER_PSXARACHNID_POWER_ARMOR_POWER            = 500
 MONSTER_PSXARACHNID_POWER_ARMOR_TYPE             = "combat"
 MONSTER_PSXARACHNID_HEALTH_SCALE                 = 1.5
 MONSTER_PSXARACHNID_DAMAGE_SCALE                 = 1.2
-MONSTER_PSXARACHNID_DAMAGE_RAILGUN               = 50
+MONSTER_PSXARACHNID_DAMAGE_RAILGUN               = 30
 
 -- Shambler
 MONSTER_SHAMBLER_HEALTH                          = 950
@@ -665,11 +665,11 @@ MONSTER_SHAMBLER_SMALL_DAMAGE_SCALE              = 1
 MONSTER_SHAMBLER_SMALL_DAMAGE_MELEE              = 45
 
 -- Shamblerkl
-MONSTER_SHAMBLERKL_HEALTH                        = 3800
+MONSTER_SHAMBLERKL_HEALTH                        = 2500
 MONSTER_SHAMBLERKL_POWER_ARMOR_POWER             = 0
 MONSTER_SHAMBLERKL_HEALTH_SCALE                  = 1.4
 MONSTER_SHAMBLERKL_DAMAGE_SCALE                  = 1.2
-MONSTER_SHAMBLERKL_DAMAGE_FIREBALL               = 32
+MONSTER_SHAMBLERKL_DAMAGE_FIREBALL               = 24
 MONSTER_SHAMBLERKL_DAMAGE_MAX_FIREBALL           = 30
 MONSTER_SHAMBLERKL_ADDON_DAMAGE_FIREBALL         = 0
 MONSTER_SHAMBLERKL_DAMAGE_MELEE                  = 115
@@ -811,7 +811,7 @@ MONSTER_JANITOR_POWER_ARMOR_POWER                = 500
 MONSTER_JANITOR_POWER_ARMOR_TYPE                 = "screen"
 MONSTER_JANITOR_HEALTH_SCALE                     = 1
 MONSTER_JANITOR_DAMAGE_SCALE                     = 1.2
-MONSTER_JANITOR_DAMAGE_ROCKET                    = 40
+MONSTER_JANITOR_DAMAGE_ROCKET                    = 25
 
 -- Janitor2
 MONSTER_JANITOR2_HEALTH                          = 880

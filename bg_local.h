@@ -84,6 +84,14 @@ enum coop_respawn_t
 	COOP_RESPAWN_TOTAL
 };
 
+// horde: active-bonuses HUD panel. Rendered on the statusbar (CS_STATUSBAR),
+// a channel independent of the scoreboard's/menu's svc_layout budget, so a long
+// bonus list can never truncate player names, spectator names, or menu text.
+// One stat+configstring per displayed line, since stat_string can't render
+// embedded newlines; each connected client gets its own row of line slots.
+constexpr size_t MAX_BONUS_HUD_CLIENTS = 16; // horde player cap headroom (default maxclients is 16)
+constexpr size_t MAX_BONUS_HUD_LINES = 6;    // matches the stat budget available (see STAT_BONUS_LINE_0)
+
 // Original reserved general CS ranges
 enum
 {
@@ -105,6 +113,10 @@ enum
 	// Horde-specific configstrings (must be before CONFIG_LAST for bounds checking)
 	CONFIG_HORDEMSG,
 	CONFIG_VOTE_INFO,
+
+	// horde: per-client, per-line active-bonuses HUD panel text (see STAT_BONUS_LINE_0)
+	CONFIG_BONUS_LINE_STRING,
+	CONFIG_BONUS_LINE_STRING_END = CONFIG_BONUS_LINE_STRING + (MAX_BONUS_HUD_CLIENTS * MAX_BONUS_HUD_LINES) - 1,
 
 	CONFIG_LAST
 };
@@ -304,6 +316,11 @@ enum player_stat_t
 	//STAT_ID_DAMAGE,
 	STAT_VOTESTRING,
 	STAT_CUBES,
+
+	// horde: active-bonuses HUD panel, one stat per displayed line (see
+	// MAX_BONUS_HUD_LINES / CONFIG_BONUS_LINE_STRING). Uses all remaining stats.
+	STAT_BONUS_LINE_0,
+	STAT_BONUS_LINE_END = STAT_BONUS_LINE_0 + (MAX_BONUS_HUD_LINES - 1),
 
 	// Q2ETweaks game timer stat string id
 

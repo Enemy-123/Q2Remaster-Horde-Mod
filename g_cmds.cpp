@@ -1104,7 +1104,6 @@ void Cmd_Inven_f(edict_t* ent)
 	gclient_t* cl = ent->client;
 
 	cl->showscores = false;
-	cl->score_show_bonuses = false;
 	cl->showhelp = false;
 
 	globals.server_flags &= ~SERVER_FLAG_SLOW_TIME;
@@ -1611,7 +1610,6 @@ Cmd_PutAway_f
 void Cmd_PutAway_f(edict_t* ent)
 {
 	ent->client->showscores = false;
-	ent->client->score_show_bonuses = false;
 	ent->client->showhelp = false;
 	ent->client->showinventory = false;
 

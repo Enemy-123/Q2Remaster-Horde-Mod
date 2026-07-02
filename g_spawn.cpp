@@ -2111,6 +2111,19 @@ static void G_InitStatusbar()
 
 		// tech
 		sb.ifstat(STAT_CTF_TECH).yb(-137).xr(-26).pic(STAT_CTF_TECH).endifstat();
+
+		// Active bonuses panel: far-left column (same xv used for the scoreboard's
+		// player-name column / team icon), own statusbar channel (see
+		// STAT_BONUS_LINE_0 / G_SetStats), so a long list can't compete for the
+		// scoreboard's or menu's layout budget. Shown while the scoreboard or the
+		// horde upgrade menu is open. One stat_string per line (no embedded '\n'
+		// support), so this uses non-centering per-line draws, not cstring2.
+		sb.ifstat(STAT_BONUS_LINE_0).xl(2).yt(70).string2("Active Bonuses").endifstat();
+		for (int i = 0; i < static_cast<int>(MAX_BONUS_HUD_LINES); i++)
+		{
+			const player_stat_t stat = static_cast<player_stat_t>(STAT_BONUS_LINE_0 + i);
+			sb.ifstat(stat).xl(2).yt(80 + i * 8).stat_string(stat).endifstat();
+		}
 	}
 	else
 	{

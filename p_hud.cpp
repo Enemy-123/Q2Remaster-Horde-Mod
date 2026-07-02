@@ -4,7 +4,9 @@
 #include "g_statusbar.h"
 #include "shared.h"
 #include "horde/p_flyer_morph.h"
+#include "horde/g_horde_benefits.h"
 #include <boost/container/small_vector.hpp>
+#include <array>
 
 /*
 ======================================================================
@@ -44,7 +46,6 @@ void MoveClientToIntermission(edict_t* ent)
 
 	ent->client->showhelp = false;
 	ent->client->showscores = false; // Set to false, will be set to true later if deathmatch
-	ent->client->score_show_bonuses = false; // auto-shown intermission scoreboard starts on page 1
 
 	globals.server_flags &= ~SERVER_FLAG_SLOW_TIME;
 
@@ -630,31 +631,6 @@ void Cmd_Score_f(edict_t* ent)
 	if (!G_IsDeathmatch() && !G_IsCooperative())
 		return;
 
-	// Horde/teamplay: cycle closed -> scoreboard -> scoreboard+bonuses -> closed.
-	// The bonus column eats into the shared layout byte budget, so the first page
-	// omits it (full player list fits); a second press adds it.
-	if (G_TeamplayEnabled())
-	{
-		if (!ent->client->showscores)			// press 1: open, no bonuses
-		{
-			ent->client->showscores = true;
-			ent->client->score_show_bonuses = false;
-		}
-		else if (!ent->client->score_show_bonuses)	// press 2: add bonuses
-		{
-			ent->client->score_show_bonuses = true;
-		}
-		else						// press 3: close
-		{
-			ent->client->showscores = false;
-			ent->client->score_show_bonuses = false;
-			ent->client->update_chase = true;
-			return;
-		}
-		DeathmatchScoreboard(ent);
-		return;
-	}
-
 	if (ent->client->showscores)
 	{
 		ent->client->showscores = false;
@@ -782,7 +758,6 @@ void Cmd_Help_f(edict_t* ent)
 
 	ent->client->showinventory = false;
 	ent->client->showscores = false;
-	ent->client->score_show_bonuses = false;
 
 	if (ent->client->showhelp &&
 		(ent->client->pers.game_help1changed == game.help1changed ||
@@ -930,6 +905,60 @@ void G_SetStats(edict_t* ent)
 	}
 	else {
 		ent->client->ps.stats[STAT_HORDEMSG] = 0;
+	}
+
+	// Active bonuses HUD panel: rendered on the statusbar (its own configstring
+	// budget, independent of the scoreboard's/menu's svc_layout), so a long list
+	// can never truncate player names, spectator names, or menu text. Shown
+	// while the scoreboard or the horde upgrade menu is open.
+	for (size_t i = 0; i < MAX_BONUS_HUD_LINES; ++i)
+		ent->client->ps.stats[STAT_BONUS_LINE_0 + i] = 0;
+
+	if (G_TeamplayEnabled() && IsPlayerMenuProtected(ent))
+	{
+		const int client_index = static_cast<int>(ent - g_edicts - 1);
+		if (client_index >= 0 && client_index < static_cast<int>(MAX_BONUS_HUD_CLIENTS))
+		{
+			const std::string bonuses = GetPlayerActiveBonusesString(ent);
+			if (!bonuses.empty())
+			{
+				// Split on '\n' into individual lines (stat_string can't render
+				// embedded newlines). Cap at MAX_BONUS_HUD_LINES, summarizing any
+				// remainder on the last line instead of silently dropping it.
+				std::array<std::string_view, MAX_BONUS_HUD_LINES> lines{};
+				size_t line_count = 0;
+				size_t total_entries = 0;
+				std::string_view remaining(bonuses);
+				while (!remaining.empty())
+				{
+					const size_t nl = remaining.find('\n');
+					const std::string_view entry = (nl == std::string_view::npos)
+						? remaining : remaining.substr(0, nl);
+					if (line_count < MAX_BONUS_HUD_LINES)
+						lines[line_count++] = entry;
+					++total_entries;
+					if (nl == std::string_view::npos)
+						break;
+					remaining = remaining.substr(nl + 1);
+				}
+
+				std::string overflow_line;
+				if (total_entries > MAX_BONUS_HUD_LINES)
+				{
+					overflow_line = fmt::format("+{} more...", total_entries - (MAX_BONUS_HUD_LINES - 1));
+					line_count = MAX_BONUS_HUD_LINES - 1;
+					lines[line_count++] = overflow_line;
+				}
+
+				const int base_cs = CONFIG_BONUS_LINE_STRING + client_index * static_cast<int>(MAX_BONUS_HUD_LINES);
+				for (size_t i = 0; i < line_count; ++i)
+				{
+					const int cs = base_cs + static_cast<int>(i);
+					gi.configstring(cs, std::string(lines[i]).c_str());
+					ent->client->ps.stats[STAT_BONUS_LINE_0 + i] = cs;
+				}
+			}
+		}
 	}
 	//
 	// weapons

@@ -69,7 +69,6 @@ pmenuhnd_t* PMenu_Open(edict_t* ent, const pmenu_t* entries, int cur, int num, v
 		hnd->cur = i;
 
 	ent->client->showscores = true;
-	ent->client->score_show_bonuses = false;
 	ent->client->inmenu = true;
 	ent->client->menu = hnd;
 

@@ -3600,7 +3600,6 @@ struct gclient_t
 	pmove_state_t		old_pmove; // for detecting out-of-pmove changes
 
 	bool showscores;	// set layout stat
-	bool score_show_bonuses; // horde: page 2 of scoreboard cycle (show active bonuses)
 	bool showeou;       // end of unit screen
 	bool showinventory; // set layout stat
 	bool showhelp;

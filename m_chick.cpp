@@ -550,7 +550,8 @@ THINK(heat_chick_think) (edict_t* self) -> void
 // Save enemy location for bombspell targeting
 void ChickSaveLoc(edict_t* self)
 {
-	if (M_HasValidTarget(self))
+	if (M_HasValidTarget(self) &&
+		visible(self, self->enemy))
 	{
 		self->pos1 = self->enemy->s.origin;
 		self->pos1[2] += self->enemy->viewheight;
@@ -560,7 +561,8 @@ void ChickSaveLoc(edict_t* self)
 // Chickkl bomb spell - distance-based selection
 void ChickBombSpell(edict_t* self)
 {
-	if (!M_HasValidTarget(self))
+	if (!M_HasValidTarget(self) ||
+		(M_HasValidTarget(self) && !visible(self, self->enemy)))
 		return;
 
 	// Check if on cooldown using fire_wait (separate from dodge timestamp)
@@ -1044,6 +1046,10 @@ MMOVE_T(chick_move_end_attack1) = { FRAME_attak128, FRAME_attak132, chick_frames
 
 void chick_rerocket(edict_t* self)
 {
+	if (M_HasValidTarget(self) &&
+		!visible(self, self->enemy))
+		M_SetAnimation(self, &chick_move_start_run);
+
 	// PMM - blindfire support: continue attacking with probability during blindfire
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
 	{
