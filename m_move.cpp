@@ -2114,6 +2114,144 @@ bool SV_CloseEnough(edict_t* ent, edict_t* goal, float dist)
 	return true;
 }
 
+// [Horde] Elevator traversal helpers. The nav mesh plans PathLinkType::Elevator links but leaves
+// riding entirely to the game (bots get it engine-side via Bot_MoveToPoint; monsters only receive
+// the two move points), so we drive func_plats ourselves via Use_Plat's monster branch - the same
+// sanctioned trigger path rogue's blocked_checkplat uses.
+static bool M_EntityIsPlat(const edict_t* e)
+{
+	// prefix match covers func_plat and func_plat2, like rogue/g_rogue_newai.cpp's blocked_checkplat
+	return e && e != world && e->classname && !strncmp(e->classname, "func_plat", 9);
+}
+
+static bool M_OnPlat(const edict_t* self)
+{
+	return M_EntityIsPlat(self->groundentity);
+}
+
+static bool M_PlatIsMoving(const edict_t* plat)
+{
+	return plat->moveinfo.state == STATE_UP || plat->moveinfo.state == STATE_DOWN;
+}
+
+// Find the plat serving a nav elevator boarding point: xy box containment (bmodel absmin/absmax
+// are valid for MOVETYPE_PUSH), z anywhere within the plat's full travel range (pos1 = top,
+// pos2 = bottom) plus a margin - the plat may currently be parked at the other end. Ambiguity
+// (nested/adjacent plats) resolved by smallest xy distance from box center to the point.
+static edict_t* M_FindPlatForPoint(const vec3_t& point)
+{
+	edict_t* best = nullptr;
+	float best_dist_sq = 1e30f;
+
+	for (uint32_t i = 1; i < globals.num_edicts; i++)
+	{
+		edict_t* e = &g_edicts[i];
+		if (!e->inuse || !M_EntityIsPlat(e))
+			continue;
+
+		if (point.x < e->absmin.x - 32.f || point.x > e->absmax.x + 32.f ||
+			point.y < e->absmin.y - 32.f || point.y > e->absmax.y + 32.f)
+			continue;
+
+		const float surf_offset = e->maxs.z; // rider surface offset from origin
+		const float z_top = std::max(e->pos1.z, e->pos2.z) + surf_offset;
+		const float z_bottom = std::min(e->pos1.z, e->pos2.z) + surf_offset;
+		if (point.z < z_bottom - 64.f || point.z > z_top + 64.f)
+			continue;
+
+		const float cx = (e->absmin.x + e->absmax.x) * 0.5f - point.x;
+		const float cy = (e->absmin.y + e->absmax.y) * 0.5f - point.y;
+		const float dist_sq = cx * cx + cy * cy;
+		if (dist_sq < best_dist_sq)
+		{
+			best_dist_sq = dist_sq;
+			best = e;
+		}
+	}
+
+	return best;
+}
+
+// [Horde] While deliberately holding still for an elevator (riding it, or waiting for the plat
+// to arrive), play the stand animation instead of running in place - but only when there's no
+// visible enemy to keep engaging. Reuses the healing-pause mechanism: ai_stand/ai_run freeze
+// while healing_pause_time is active, and once it expires ai_stand's HuntTarget fix-up bounces
+// the monster back to run - which re-enters M_MoveToGoal and this machine, re-standing here if
+// the hold is still in effect. Net effect: standing pose with a 1-2 frame run tick every 400ms.
+static void M_PlatHoldStand(edict_t* self)
+{
+	if (self->monsterinfo.stand && self->enemy && self->enemy->inuse &&
+		!(self->monsterinfo.aiflags & AI_SOUND_TARGET) &&
+		!visible(self, self->enemy, false))
+	{
+		self->monsterinfo.stand(self);
+		self->monsterinfo.healing_pause_time = level.time + 400_ms;
+	}
+}
+
+// [Horde] Comrade nav breadcrumbs: positions monsters recently solved paths FROM. Paths can't
+// be shared between monsters (a path is specific to its start), but a solve POSITION transfers
+// perfectly - it's proven to have a start node AND to be in the component that can route to the
+// players. A pack cornered off-mesh/disconnected walks toward the nearest fresh crumb (dropped
+// by the one comrade that found a lane) instead of beelining into the same wall, then solves
+// from there. Freshness is time-based only to keep crumbs local to the action; the mesh itself
+// is static. Stale-map entries are rejected by the c.time <= level.time check (level.time
+// restarts per map).
+struct nav_crumb_t
+{
+	vec3_t pos;
+	gtime_t time;
+};
+static constexpr size_t NAV_CRUMB_MAX = 16;
+static constexpr gtime_t NAV_CRUMB_LIFETIME = 10_sec;
+static constexpr float NAV_CRUMB_RADIUS = 1024.f;
+static nav_crumb_t s_nav_crumbs[NAV_CRUMB_MAX];
+static size_t s_nav_crumb_head = 0;
+
+static bool NavCrumbFresh(const nav_crumb_t& c)
+{
+	return c.time > 0_ms && c.time <= level.time && level.time - c.time < NAV_CRUMB_LIFETIME;
+}
+
+static void M_RecordNavCrumb(const edict_t* self)
+{
+	if (self->flags & (FL_FLY | FL_SWIM))
+		return; // flyer/swimmer positions don't help ground monsters
+
+	for (nav_crumb_t& c : s_nav_crumbs)
+	{
+		if (NavCrumbFresh(c) && (c.pos - self->s.origin).lengthSquared() < 128.f * 128.f)
+		{
+			c.time = level.time; // refresh the nearby crumb instead of duplicating it
+			return;
+		}
+	}
+
+	s_nav_crumbs[s_nav_crumb_head] = { self->s.origin, level.time };
+	s_nav_crumb_head = (s_nav_crumb_head + 1) % NAV_CRUMB_MAX;
+}
+
+static bool M_FindNavCrumb(const edict_t* self, vec3_t& out)
+{
+	float best_sq = NAV_CRUMB_RADIUS * NAV_CRUMB_RADIUS;
+	bool found = false;
+
+	for (const nav_crumb_t& c : s_nav_crumbs)
+	{
+		if (!NavCrumbFresh(c))
+			continue;
+		const float d_sq = (c.pos - self->s.origin).lengthSquared();
+		if (d_sq < best_sq)
+		{
+			best_sq = d_sq;
+			out = c.pos;
+			found = true;
+		}
+	}
+
+	return found;
+}
+
 static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 {
 
@@ -2141,6 +2279,26 @@ static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 	// blocks are handled by SV_NewChaseDir + path_blocked_counter, not by re-solving here.
 	const vec3_t goal_pos = self->enemy ? self->enemy->s.origin : self->goalentity->s.origin;
 
+	// [Horde] While the plat under us is actually MOVING, ride it: don't step (we'd walk off
+	// mid-shaft), don't re-solve (a mid-shaft origin is off-mesh -> NoStartNode -> bench), and
+	// keep path_solve_z pinned so the elevation_changed re-solve below can't fire mid-ride.
+	// The hold is bounded: plat_hit_top/plat_hit_bottom flip moveinfo.state to an idle value and
+	// this predicate goes false on its own; the (by then expired) 2s cache re-solves from the new
+	// floor. Applies to ANY moving plat, not just elevator links - a stale path or a rogue
+	// blocked_checkplat boarding benefits identically.
+	if (M_OnPlat(self) && M_PlatIsMoving(self->groundentity))
+	{
+		const vec3_t to_exit = self->monsterinfo.nav_path.secondMovePoint - self->s.origin;
+		if (to_exit.x * to_exit.x + to_exit.y * to_exit.y > 1.f)
+		{
+			self->ideal_yaw = vectoyaw(to_exit);
+			M_ChangeYaw(self);
+		}
+		self->monsterinfo.path_solve_z = self->s.origin.z;
+		M_PlatHoldStand(self); // ride in the stand pose when no visible enemy
+		return true;
+	}
+
 	// Check if we need to recalculate path
 	const bool path_expired = self->monsterinfo.nav_path_cache_time <= level.time;
 	const bool reached_point = boxes_intersect(mon_mins, mon_maxs, path_to, path_to);
@@ -2162,23 +2320,51 @@ static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 	// never fires and it stays stuck (diag: janitor rc=2, hdist~1-3, dz=-32 so the point is below its
 	// feet). Fire when we're horizontally on the point and at/above it (reached or overshot the
 	// landing), regardless of exact box overlap.
-	const float trav_dx = path_to.x - self->s.origin.x;
-	const float trav_dy = path_to.y - self->s.origin.y;
-	const float trav_dz = path_to.z - self->s.origin.z; // <0 => point is below us (we reached/overshot up)
+	// LongJump gaps: path_to (= secondMovePoint) is ACROSS the gap and can't be reached by walking,
+	// so measure the trigger window against the near edge (firstMovePoint) instead. Elevator links
+	// are excluded entirely - a monster at a boarding point must ride, not launch into the shaft.
+	const bool gap_link = self->monsterinfo.nav_path.pathLinkType == PathLinkType::LongJump;
+	const vec3_t& trav_near = gap_link ? self->monsterinfo.nav_path.firstMovePoint : path_to;
+	const float trav_dx = trav_near.x - self->s.origin.x;
+	const float trav_dy = trav_near.y - self->s.origin.y;
+	const float trav_dz = trav_near.z - self->s.origin.z; // <0 => point is below us (we reached/overshot up)
 	const bool on_traversal_point = self->groundentity &&
 		self->monsterinfo.nav_path.returnCode == PathReturnCode::TraversalPending &&
+		self->monsterinfo.nav_path.pathLinkType != PathLinkType::Elevator &&
 		(trav_dx * trav_dx + trav_dy * trav_dy) < (32.f * 32.f) &&
 		trav_dz < 24.f && trav_dz > -80.f;
 	if (on_traversal_point)
 	{
-		const vec3_t jdir = goal_pos - self->s.origin; // vectoyaw uses x/y only, no normalize needed
+		// Barrier jumps aim at the goal (the barrier sits between us and it); gap jumps aim at the
+		// landing point so the monster crosses the gap the nav planned, not a beeline at the enemy.
+		const vec3_t& land = self->monsterinfo.nav_path.secondMovePoint;
+		const vec3_t jdir = gap_link ? (land - self->s.origin) : (goal_pos - self->s.origin); // vectoyaw uses x/y only
 		if (jdir.x * jdir.x + jdir.y * jdir.y > 1.f)
-			self->ideal_yaw = self->s.angles[YAW] = vectoyaw(jdir); // face the goal so the jump clears the barrier
+			self->ideal_yaw = self->s.angles[YAW] = vectoyaw(jdir); // face the jump so it clears
 		const float jh = std::max(static_cast<float>(self->monsterinfo.jump_height), 32.f);
-		const float up_vel = std::min(sqrtf(1600.f * (jh + 16.f)), 500.f); // clear ~jump_height (rise uses g=800*1.0)
+		float up_vel = std::min(sqrtf(1600.f * (jh + 16.f)), 500.f); // clear ~jump_height (rise uses g=800*1.0)
+		// WalkOffLedge traversals are DROPS (diag: gekk leapt up 408 for a dz=-40 ledge) - a
+		// small hop off the lip is enough, forward momentum carries it over the edge.
+		if (self->monsterinfo.nav_path.pathLinkType == PathLinkType::WalkOffLedge)
+			up_vel = std::min(up_vel, 220.f);
+		float fwd_vel = 180.f;
+		if (gap_link)
+		{
+			up_vel = std::max(up_vel, 260.f); // gaps need real hang time even for low jumpers
+			const float hdx = land.x - self->s.origin.x;
+			const float hdy = land.y - self->s.origin.y;
+			const float hdist = sqrtf(hdx * hdx + hdy * hdy);
+			// Air time under M_MonsterApplyJumpGravity: rise at g=800 (t=up/800), fall at g=1600
+			// back to launch level (t=up/(800*sqrt(2))) => ~1.707*up/800. A landing below launch
+			// level adds fall time, so this undershoots slightly on downward gaps - the clamp
+			// ceiling covers the slack.
+			const float air_time = 1.707f * up_vel / 800.f;
+			fwd_vel = std::min(std::max(hdist / air_time, 200.f), 480.f);
+		}
 		if (developer->integer >= 2)
-			gi.Com_PrintFmt("[NAV] {} traversal-jump (up_vel={:.0f}) over barrier\n", self->classname, up_vel);
-		M_MonsterJump(self, 180.f, up_vel);
+			gi.Com_PrintFmt("[NAV] {} traversal-jump link={} (fwd={:.0f} up={:.0f})\n",
+				self->classname, (int32_t)self->monsterinfo.nav_path.pathLinkType, fwd_vel, up_vel);
+		M_MonsterJump(self, fwd_vel, up_vel);
 		return true;
 	}
 
@@ -2232,7 +2418,20 @@ static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 				request.pathFlags |= PathFlags::WalkOffLedge;
 				request.traversals.dropHeight = std::min(self->monsterinfo.drop_height, height * 4);
 			}
+
+			// [Horde] Gap jumps for capable ground jumpers (flyers get LongJump below anyway).
+			// A gap jump is a jump PLUS a fall, so require both a meaningful jump and drop
+			// tolerance - weak or drop-averse monsters shouldn't attempt gaps.
+			if (!(self->flags & FL_FLY) && self->monsterinfo.can_jump &&
+				self->monsterinfo.jump_height >= 40 && self->monsterinfo.drop_height >= 128)
+				request.pathFlags |= PathFlags::LongJump;
 		}
+
+		// [Horde] Ground monsters can operate func_plats (Use_Plat's monster branch), so let the
+		// nav route them through elevator links; flyers/swimmers path over or around instead.
+		// The traversal itself is driven by the elevator machine + ride-hold above.
+		if (!(self->flags & (FL_FLY | FL_SWIM)))
+			request.pathFlags |= PathFlags::Elevator;
 
 		// Flying monsters get special treatment
 		if (self->flags & FL_FLY)
@@ -2244,15 +2443,80 @@ static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 
 		if (!gi.GetPathToGoal(request, self->monsterinfo.nav_path))
 		{
+			const PathReturnCode rc = self->monsterinfo.nav_path.returnCode;
+
 			// fatal error, don't bother ever trying nodes
-			if (self->monsterinfo.nav_path.returnCode == PathReturnCode::NoNavAvailable)
+			if (rc == PathReturnCode::NoNavAvailable)
+			{
 				self->monsterinfo.aiflags |= AI_NO_PATH_FINDING;
-			return false;
+				return false;
+			}
+
+			// Request built without Walk/Water flags - a bug in this function, not a map issue
+			if (rc == PathReturnCode::MissingWalkOrSwimFlag)
+			{
+				if (developer->integer)
+					gi.Com_PrintFmt("[NAV] {} MissingWalkOrSwimFlag - PathRequest built without Walk/Water flags\n", self->classname);
+				self->monsterinfo.aiflags |= AI_NO_PATH_FINDING;
+				return false;
+			}
+
+			// [Horde] A monster nudged slightly off-mesh (repulsion pressing it into a wall,
+			// standing on a crate it climbed) gets NoStartNode with the engine-default node
+			// search. Retry once with a widened search before giving up, so a barely-off-mesh
+			// monster re-acquires the mesh instead of being benched to classic wall-bumping.
+			// The failure code stays in nav_path.returnCode for M_MoveToPath's per-code bench.
+			bool solved = false;
+			if (rc == PathReturnCode::NoStartNode || rc == PathReturnCode::InvalidStart)
+			{
+				request.nodeSearch.radius = std::max(request.nodeSearch.radius, std::max(512.f, width * 4.f));
+				request.nodeSearch.minHeight = std::max(request.nodeSearch.minHeight, height * 3.f);
+				request.nodeSearch.maxHeight = std::max(request.nodeSearch.maxHeight, height * 4.f);
+				solved = gi.GetPathToGoal(request, self->monsterinfo.nav_path);
+			}
+			// [Horde] NoPathFound often means the ENEMY is momentarily somewhere unroutable
+			// (mid-jump, off-mesh ledge, sealed pocket) - not that WE are boxed in. Benching a
+			// whole pack 10s over it makes them all beeline into the same corner wall on classic
+			// movement. Retry once toward the last place we actually saw the enemy; arriving
+			// there re-engages the normal lost-sight pursuit. Skip when we're already close to
+			// it (a repeat solve to our own position degenerates into running in place) or when
+			// it's essentially the same spot as the failed goal.
+			else if (rc == PathReturnCode::NoPathFound && self->enemy)
+			{
+				const vec3_t& ls = self->monsterinfo.last_sighting;
+				const vec3_t ls_to_goal = ls - goal_pos;
+				const vec3_t ls_to_self = ls - self->s.origin;
+				if (ls_to_goal.lengthSquared() > 64.f * 64.f &&
+					ls_to_self.lengthSquared() > 64.f * 64.f)
+				{
+					request.goal = ls;
+					solved = gi.GetPathToGoal(request, self->monsterinfo.nav_path);
+				}
+			}
+
+			if (!solved)
+			{
+				// Routine chatter: failed solves are common near wave edges - dev>=2, throttled
+				if (developer->integer >= 2)
+				{
+					static gtime_t s_next_fail_dbg = 0_ms;
+					if (level.time >= s_next_fail_dbg)
+					{
+						s_next_fail_dbg = level.time + 500_ms;
+						gi.Com_PrintFmt("[NAV] {} solve failed rc={}{}\n", self->classname,
+							(int32_t)self->monsterinfo.nav_path.returnCode,
+							(rc == PathReturnCode::NoStartNode || rc == PathReturnCode::InvalidStart) ? " (after widened retry)" : "");
+					}
+				}
+				return false;
+			}
+			// widened retry succeeded - fall through and commit the route as normal
 		}
 
 		// Fixed cache time (PSX parity): commit to this route until it expires or we reach it.
 		self->monsterinfo.nav_path_cache_time = level.time + PATH_CACHE_TIME_NORMAL;
 		self->monsterinfo.path_solve_z = self->s.origin.z; // baseline for the elevation-change re-solve
+		M_RecordNavCrumb(self); // this position provably solves - share it with benched comrades
 	}
 
 	// TEMP NAV DIAG (developer 2): diagnose the vertical "edge of platform" stick. Throttled, and
@@ -2282,6 +2546,126 @@ static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 		}
 	}
 
+	// [Horde] Elevator traversal machine. Assumed engine semantics, verified via the [NAV-ELEV]
+	// diag: firstMovePoint = boarding point at our end of the shaft, secondMovePoint = exit at
+	// the other end. Direction (up vs down) is derived from the exit's Z relative to us - never
+	// from which point is "the bottom" - so this is direction-agnostic. It is also stateless: a
+	// re-solve that drops the elevator plan makes all of it evaporate; a rider knocked off
+	// mid-ride just falls, lands, and re-solves via elevation_changed.
+	vec3_t move_point = path_to; // what we actually steer toward this frame
+	const bool elevator_link = self->monsterinfo.nav_path.returnCode == PathReturnCode::TraversalPending &&
+		self->monsterinfo.nav_path.pathLinkType == PathLinkType::Elevator;
+	if (elevator_link)
+	{
+		const vec3_t& board = self->monsterinfo.nav_path.firstMovePoint;
+		const vec3_t& exit_pt = self->monsterinfo.nav_path.secondMovePoint;
+		const float exit_dz = exit_pt.z - self->s.origin.z;
+
+		// TEMP NAV DIAG (developer 2): empirically confirm the closed-source elevator traversal
+		// layout (boarding vs exit point, plat association) - read alongside the [NAV] diag above.
+		if (developer->integer >= 2)
+		{
+			static gtime_t s_next_elev_dbg = 0_ms;
+			if (level.time >= s_next_elev_dbg)
+			{
+				s_next_elev_dbg = level.time + 300_ms;
+				const edict_t* dbg_plat = M_OnPlat(self) ? self->groundentity : M_FindPlatForPoint(board);
+				gi.Com_PrintFmt("[NAV-ELEV] {} oz={:.0f} board=({:.0f} {:.0f} {:.0f}) exit=({:.0f} {:.0f} {:.0f}) plat={} state={} topz={:.0f}\n",
+					self->classname, self->s.origin.z,
+					board.x, board.y, board.z, exit_pt.x, exit_pt.y, exit_pt.z,
+					dbg_plat ? dbg_plat->classname : "none",
+					dbg_plat ? (int32_t)dbg_plat->moveinfo.state : -1,
+					dbg_plat ? dbg_plat->absmax.z : 0.f);
+			}
+		}
+
+		if (fabsf(exit_dz) <= 64.f) // SUPER_STEP stepsize: we're at the exit's level - ride done
+		{
+			// force a fresh solve from the new floor next frame; meanwhile walk toward the exit
+			self->monsterinfo.nav_path_cache_time = 0_ms;
+			move_point = exit_pt;
+		}
+		else
+		{
+			move_point = board; // not at exit level: steer at the boarding point, not the exit
+
+			edict_t* plat = M_OnPlat(self) ? self->groundentity : M_FindPlatForPoint(board);
+
+			if (plat && plat->spawnflags.has(SPAWNFLAG_PLAT_NO_MONSTER))
+			{
+				// Map forbids monsters operating this plat (and Use_Plat's monster branch is
+				// bypassed for it - a monster activator would wrongly run the player path).
+				// Bench nav briefly and let classic movement take over.
+				self->monsterinfo.path_wait_time = level.time + 3_sec;
+				return false;
+			}
+
+			if (plat && plat->use)
+			{
+				if (self->groundentity == plat)
+				{
+					// Standing on the plat. Idle at the wrong end for our exit -> operate it
+					// (Use_Plat's monster branch; naturally debounced - it only acts on idle
+					// states, and once moving the ride-hold above owns the frames).
+					if ((plat->moveinfo.state == STATE_BOTTOM && exit_dz > 0.f) ||
+						(plat->moveinfo.state == STATE_TOP && exit_dz < 0.f))
+						plat->use(plat, self, self);
+
+					// hold on the plat either way; face the exit for the ride
+					const vec3_t to_exit = exit_pt - self->s.origin;
+					if (to_exit.x * to_exit.x + to_exit.y * to_exit.y > 1.f)
+					{
+						self->ideal_yaw = vectoyaw(to_exit);
+						M_ChangeYaw(self);
+					}
+					M_PlatHoldStand(self);
+					return true;
+				}
+
+				// Not on the plat yet. If it's parked at another level, call it over; while it
+				// travels, wait NEAR the boarding point instead of pressing into the shaft (a
+				// descending plat crushes pit-standers via plat_blocked; riders on top are safe).
+				const bool plat_here = fabsf(plat->absmax.z - board.z) <= 64.f;
+				if (!plat_here)
+				{
+					if (!M_PlatIsMoving(plat))
+						plat->use(plat, self, self);
+
+					// Crush safety: plat_go_up spawns a bad_area over the pit (killed again at
+					// plat_hit_bottom), so if we're inside it we're standing where the plat will
+					// come down. Back out horizontally and wait BESIDE the shaft instead.
+					if (edict_t* bad = CheckForBadArea(self))
+					{
+						vec3_t away = self->s.origin - (bad->absmin + bad->absmax) * 0.5f;
+						away.z = 0.f;
+						if (away.lengthSquared() < 1.f)
+							away = { 1.f, 0.f, 0.f };
+						away.normalize();
+						move_point = self->s.origin + away * 64.f;
+						// fall through: WALK out of the danger area, never stand in it
+					}
+					else
+					{
+						const float bdx = board.x - self->s.origin.x;
+						const float bdy = board.y - self->s.origin.y;
+						if (bdx * bdx + bdy * bdy < 64.f * 64.f)
+						{
+							// close enough - stand and wait for the ride to arrive
+							self->ideal_yaw = vectoyaw(board - self->s.origin);
+							M_ChangeYaw(self);
+							M_PlatHoldStand(self);
+							return true;
+						}
+						// else keep walking toward the boarding point (move_point already = board)
+					}
+				}
+				// plat parked at our level: keep walking onto it (move_point = board)
+			}
+			// No plat found (a lift-style mover we don't recognize): fall through and walk
+			// toward the boarding point - worst case is pre-elevator behavior.
+		}
+	}
+
 	// Store original yaw values for potential restoration
 	float yaw;
 	const float old_yaw = self->s.angles[YAW];
@@ -2295,7 +2679,7 @@ static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 		!(self->monsterinfo.aiflags & AI_ALTERNATE_FLY))
 		yaw = self->ideal_yaw;
 	else
-		yaw = vectoyaw((path_to - self->s.origin).normalized());
+		yaw = vectoyaw((move_point - self->s.origin).normalized());
 
 	// Try primary movement
 	if (!SV_StepDirection(self, yaw, dist, true))
@@ -2371,7 +2755,42 @@ static bool M_MoveToPath(edict_t* self, float dist)
 	else if (self->monsterinfo.aiflags & AI_NO_PATH_FINDING)
 		return false;
 	else if (self->monsterinfo.path_wait_time > level.time)
+	{
+		// [Horde] Benched after a failed solve. Falling to classic movement means beelining at
+		// the enemy - for a cornered pack that's the same wall for everyone. If a comrade
+		// recently solved a path nearby, walk toward its crumb (a position proven on-mesh and
+		// in the routable component) and lift the bench on arrival; our own solve then tends
+		// to succeed from there. Skipped when the enemy is visible - direct chase is right then.
+		if (self->enemy && self->enemy->inuse && !visible(self, self->enemy, false))
+		{
+			vec3_t crumb;
+			if (M_FindNavCrumb(self, crumb))
+			{
+				const vec3_t to_crumb = crumb - self->s.origin;
+				if (to_crumb.lengthSquared() < 64.f * 64.f)
+				{
+					// At the proven-good spot: shorten the bench to a 1s retry cadence rather
+					// than lifting it outright - the crumb may be our OWN recent solve spot
+					// (solves fail here for goal-side reasons), and a full lift would re-solve
+					// every other frame.
+					self->monsterinfo.path_wait_time = std::min(self->monsterinfo.path_wait_time, level.time + 1_sec);
+					return false;
+				}
+
+				const float cyaw = vectoyaw(to_crumb.normalized());
+				if (SV_StepDirection(self, cyaw, dist, true))
+					return true;
+
+				if (self->monsterinfo.random_change_time < level.time)
+				{
+					self->monsterinfo.random_change_time = level.time + 1500_ms;
+					if (SV_NewChaseDir(self, crumb, dist))
+						return true;
+				}
+			}
+		}
 		return false;
+	}
 	else if (!self->enemy || !self->enemy->inuse)  // Añadir check de inuse
 		return false;
 	else if (self->enemy->client &&
@@ -2436,8 +2855,27 @@ static bool M_MoveToPath(edict_t* self, float dist)
 		return false;
 
 	if (self->monsterinfo.nav_path.returnCode > PathReturnCode::StartPathErrors) {
-		// Incrementar tiempo de espera si hay múltiples errores
-		self->monsterinfo.path_wait_time = level.time + 10_sec;
+		// Bench nav proportionally to how permanent the failure is:
+		//  - NoStartNode/InvalidStart: WE are momentarily off-mesh (shoved by the horde, on a
+		//    crate); the widened retry in M_NavPathToGoal already failed once, but we drift back
+		//    on-mesh quickly - short bench.
+		//  - NoGoalNode/InvalidGoal: the ENEMY is off-mesh; enemies move, retry moderately.
+		//  - NoPathFound and the rest: genuinely disconnected - keep the long bench.
+		gtime_t bench;
+		switch (self->monsterinfo.nav_path.returnCode) {
+		case PathReturnCode::NoStartNode:
+		case PathReturnCode::InvalidStart:
+			bench = 2_sec;
+			break;
+		case PathReturnCode::NoGoalNode:
+		case PathReturnCode::InvalidGoal:
+			bench = 3_sec;
+			break;
+		default:
+			bench = 10_sec;
+			break;
+		}
+		self->monsterinfo.path_wait_time = level.time + bench;
 		return false;
 	}
 

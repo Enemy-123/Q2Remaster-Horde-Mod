@@ -6857,6 +6857,24 @@ bool CheckAndTeleportStuckMonster(edict_t* self, bool force_drowning)
 	if (!force_drowning && self->teleport_time > level.time)
 		return false;
 
+	// [Horde] Elevator riding/boarding: standing on a func_plat (riding, or waiting at either
+	// end) or holding at an elevator nav traversal is deliberate stillness, not stuckness.
+	// Refresh the activity/unreachable timers so the LOS-based "Unreachable" and inactivity
+	// timeouts don't yank a rider out of the shaft (rides commonly exceed the 0.5-3s
+	// Unreachable window with zero player LOS). Hard physical reasons (geometry, drowning,
+	// sky) below stay fully active.
+	const bool riding_plat =
+		(self->groundentity && self->groundentity->classname &&
+			!strncmp(self->groundentity->classname, "func_plat", 9)) ||
+		(self->monsterinfo.nav_path.returnCode == PathReturnCode::TraversalPending &&
+			self->monsterinfo.nav_path.pathLinkType == PathLinkType::Elevator);
+	if (riding_plat)
+	{
+		self->monsterinfo.last_activity_time = level.time;
+		self->monsterinfo.unreachable_start_time = 0_sec;
+		self->monsterinfo.no_enemy_timeout_start_time = 0_sec;
+	}
+
 	// --- 2. Global Rate Limiting (ADAPTIVE BASED ON REMAINING MONSTERS) ---
 	const int32_t remaining_monsters = GetStroggsNum();
 
@@ -6966,7 +6984,8 @@ bool CheckAndTeleportStuckMonster(edict_t* self, bool force_drowning)
 		}
 	}
 	// Critical: No path AND no visibility to any player for 3 seconds
-	if (!needs_teleport)
+	// (skipped while riding/boarding a plat - a shaft blocks LOS by design)
+	if (!needs_teleport && !riding_plat)
 	{
 		bool has_path_or_visibility = false;
 

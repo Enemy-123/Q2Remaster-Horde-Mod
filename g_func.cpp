@@ -631,8 +631,7 @@ MOVEINFO_BLOCKED(plat_blocked) (edict_t* self, edict_t* other) -> void
 		plat_go_up(self);
 }
 
-constexpr spawnflags_t SPAWNFLAG_PLAT_LOW_TRIGGER = 1_spawnflag;
-constexpr spawnflags_t SPAWNFLAG_PLAT_NO_MONSTER = 2_spawnflag;
+// SPAWNFLAG_PLAT_LOW_TRIGGER / SPAWNFLAG_PLAT_NO_MONSTER moved to g_local.h (monster nav reads them)
 
 USE(Use_Plat) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 {

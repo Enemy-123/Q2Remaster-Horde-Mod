@@ -2126,6 +2126,17 @@ bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_ch
 							if (tr.allsolid || tr.startsolid || ((tr.fraction < 1.0f) && (tr.ent != self->enemy)))
 								return false;
 
+							// [Horde] ...and not going to empty the clip into a wall in our face.
+							// Vanilla blindfire never checked world geometry (deliberate corner
+							// suppression), but a cornered horde monster whose stale
+							// blind_fire_target sits fully behind a wall grinds against it for
+							// ages - the "attacking the wall" look. Require the shot to travel
+							// most of the way to the blind spot; near-target impacts (splash
+							// around a corner) still pass.
+							const trace_t wall_tr = gi.traceline(spot1, self->monsterinfo.blind_fire_target, self, MASK_SOLID);
+							if (wall_tr.fraction < 0.8f)
+								return false;
+
 							self->monsterinfo.attack_state = AS_BLIND;
 							return true;
 						}
