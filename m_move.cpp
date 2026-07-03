@@ -2345,11 +2345,12 @@ static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 
 			// Update blocked counter
 			self->monsterinfo.path_blocked_counter += FRAME_TIME_S * 3;
-
-			// Check if we've been blocked too long
-			if (self->monsterinfo.path_blocked_counter > 1.5_sec)
-				return false;
 		}
+
+		// Check if we've been blocked too long (PSX parity: evaluated on any primary-step failure,
+		// even when the firstMovePoint retry succeeded, so an accumulated counter still bails)
+		if (self->monsterinfo.path_blocked_counter > 1.5_sec)
+			return false;
 	}
 
 	return true;
@@ -2396,8 +2397,12 @@ static bool M_MoveToPath(edict_t* self, float dist)
 		else if (style == COMBAT_MELEE) {
 			// Ajustar rangos para melee más agresivo
 			if (dist_to_enemy > 240.f || height_diff > max_step_height) {
+				// PSX parity: no path_blocked_counter reset here. M_NavPathToGoal returns true even on
+				// blocked frames, so resetting on "success" zeroed the counter every frame and both
+				// escape hatches (the 1.5s internal bail and the 5s leash below) could never fire -
+				// a nav-blocked monster stayed glued to nav forever, grinding the wall until the
+				// teleport failsafe. The counter decays gradually in M_MoveToGoal instead.
 				if (M_NavPathToGoal(self, dist, self->enemy->s.origin)) {
-					self->monsterinfo.path_blocked_counter = 0_ms;  // Reset contador al encontrar camino
 					return true;
 				}
 				self->monsterinfo.aiflags &= ~AI_TEMP_MELEE_COMBAT;
@@ -2411,7 +2416,6 @@ static bool M_MoveToPath(edict_t* self, float dist)
 			// Ajustar rangos para combate mixto más dinámico
 			if (dist_to_enemy > RANGE_NEAR || height_diff > max_step_height * 2.0f) {
 				if (M_NavPathToGoal(self, dist, self->enemy->s.origin)) {
-					self->monsterinfo.path_blocked_counter = 0_ms;
 					return true;
 				}
 			}
@@ -2423,7 +2427,6 @@ static bool M_MoveToPath(edict_t* self, float dist)
 	else {
 		// 3. Mejorar el manejo de enemigos no visibles
 		if (M_NavPathToGoal(self, dist, self->enemy->s.origin)) {
-			self->monsterinfo.path_blocked_counter = 0_ms;
 			return true;
 		}
 	}
