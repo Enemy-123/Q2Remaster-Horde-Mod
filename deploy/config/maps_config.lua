@@ -156,4 +156,4 @@ MAP_Q2CTF4_MONSTER_CAP							 = -1
 MAP_Q2CTF4_SIZE									 = "medium"
 MAP_Q2CTF4_BOSS_SIZE							 = "small"
 MAP_Q2CTF4_ENABLE_LOADENT						 = true
-MAP_Q2CTF4`1_ENABLE_GRID						 = false
+MAP_Q2CTF4_ENABLE_GRID							 = false

@@ -1074,11 +1074,11 @@ void brain_jump_wait_land_attack(edict_t* self)
 	else
 	{
 		self->monsterinfo.nextframe = self->s.frame + 1;
+		// Restore full bbox only after landing (mirrors brain_jump_wait_land). Never re-expand
+		// while airborne — doing so near a ceiling embeds the box and gets the brain stuck.
+		// monster_duck_up is headroom-checked, so this is a no-op if there's no clearance yet.
+		monster_duck_up(self);
 	}
-
-	// This function always falls through to a M_SetAnimation transition below, so restore the
-	// full bbox here (no-op if not ducked) to avoid carrying the crouch box into attack3/run.
-	monster_duck_up(self);
 
 	// Determine the actual target. If the enemy is a laser beam,
 	// the real target for this animation check is its owner (the emitter).

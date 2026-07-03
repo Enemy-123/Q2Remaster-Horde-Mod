@@ -915,6 +915,11 @@ void BuildSpawnPointMap()
 	int bounds_source_count = 0;
 
 	// Method 1: Parse .ent file to get ALL entity positions (most comprehensive)
+	// Intentionally NOT gated by g_loadent / ENABLE_LOADENT: that flag only controls
+	// whether the .ent file's entity list replaces the map's real entity string
+	// (g_spawn.cpp SpawnEntities). Style-1 info_player_deathmatch markers (flying-monster
+	// spawn hints) usually don't exist as real entities in the compiled bsp, so we still
+	// need to read them from the .ent file even when the full override is disabled.
 	std::vector<char> ent_buffer;
 	std::string ent_filename;
 	extern bool LoadEntityFile(std::string_view mapname, std::vector<char>&buffer, std::string & outFilename);
