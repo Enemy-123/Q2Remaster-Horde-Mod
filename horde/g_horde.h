@@ -13,7 +13,7 @@
 #include <boost/container/small_vector.hpp>  // For small_vector optimization
 #include <boost/unordered/unordered_flat_set.hpp>  // Cache-friendly hash sets
 
-constexpr const char* HORDE_MOD_VERSION_STRING = "*Horde BETA MOD v0.01008";
+constexpr const char* HORDE_MOD_VERSION_STRING = "*Horde BETA MOD v0.01009";
 
 extern boost::container::small_vector<edict_t*, 64> g_spawn_point_list;
 extern size_t g_num_spawn_points;
@@ -83,7 +83,11 @@ extern int32_t CalculateRemainingMonsters() noexcept; // Changed from inline to 
 extern void Horde_CleanBodies();
 extern void ResetWaveAdvanceState() noexcept;
 
-// Monster wave type flags
+// Monster wave type flags.
+// When adding a flag, IsValidMonsterForWave (horde_monster_data.cpp) must learn about it or it
+// is silently ignored during wave filtering:
+//  - exclusive theme flags (like Gekk/Berserk/Mutant) go in its special_themes list
+//  - general category flags (like Light/Heavy/Ranged) go in its category_mask
 enum class MonsterWaveType : uint32_t {
 	None = 0,
 	Flying = 1 << 0,  // Flying units

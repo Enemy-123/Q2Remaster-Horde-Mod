@@ -33,6 +33,8 @@ constexpr float REPULSION_STRENGTH_CORRIDOR = 0.1f;       // Reduced from 0.3 to
 constexpr float REPULSION_STRENGTH_TIGHT_CORRIDOR = 0.0f; // New: completely disable in very tight spaces
 constexpr float REPULSION_LATERAL_MAX_FRACTION = 0.5f;    // cap sideways nudge to this fraction of the step length (keeps goal dominant)
 constexpr float REPULSION_MIN_THRESHOLD_SQ = 1.0f;
+constexpr float REPULSION_STRENGTH_PATHING_UNSEEN = 0.3f; // nav-marching with enemy out of sight: mostly follow the path
+constexpr gtime_t REPULSION_ENEMY_SEEN_RECENT = 2_sec;    // trail_time staleness that counts as "out of sight"
 
 // --- Hard separation: summoned Stroggs deeply overlapping a DIFFERENT-team monster ---
 // Lateral repulsion can't separate two mutual enemies (the push is anti-parallel to the goal, so
@@ -350,6 +352,13 @@ static void ApplyMonsterRepulsion(edict_t* ent, vec3_t& move, bool in_combat)
 	// Reduce repulsion in combat to maintain aggression
 	if (in_combat && ent->enemy && ent->enemy->inuse)
 		repulsion_strength *= REPULSION_STRENGTH_COMBAT;
+
+	// Nav-following with the enemy out of sight: mostly trust the path, minimal jostling.
+	// Hard separation below is untouched, so packs still un-pile.
+	if ((ent->monsterinfo.aiflags & AI_PATHING) &&
+		((ent->monsterinfo.aiflags & AI_LOST_SIGHT) ||
+		 ent->monsterinfo.trail_time + REPULSION_ENEMY_SEEN_RECENT <= level.time))
+		repulsion_strength *= REPULSION_STRENGTH_PATHING_UNSEEN;
 
 	// Cache corridor detection (and the push-off-walls vector) to reduce expensive trace calls.
 	// This runs regardless of nearby-monster repulsion: wall repulsion has to work in empty

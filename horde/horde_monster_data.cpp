@@ -6,7 +6,7 @@
 
 // Complete monster type definitions.
 // Note: order is not strictly by minWave; SoA lookups use typeId as the index.
-const MonsterTypeInfo monsterTypes[] = {
+constexpr MonsterTypeInfo monsterTypes[] = {
 	// --- WAVE 1 ---
 	{horde::MonsterTypeID::SOLDIER_LIGHT, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 1, 1.0f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
 	{horde::MonsterTypeID::SOLDIER, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 1, 0.9f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
@@ -141,6 +141,17 @@ const MonsterTypeInfo monsterTypes[] = {
 
 static_assert(std::size(monsterTypes) == MONSTER_DATA_COUNT,
 	"MONSTER_DATA_COUNT must match monsterTypes[]");
+
+// A duplicated typeId would silently overwrite the earlier row in create_monster_data_soa().
+constexpr bool monster_type_ids_unique()
+{
+	for (size_t i = 0; i < std::size(monsterTypes); ++i)
+		for (size_t j = i + 1; j < std::size(monsterTypes); ++j)
+			if (monsterTypes[i].typeId == monsterTypes[j].typeId)
+				return false;
+	return true;
+}
+static_assert(monster_type_ids_unique(), "duplicate typeId in monsterTypes[]");
 static_assert(static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES) == MonsterDataSoA::MONSTER_ARRAY_SIZE,
 	"MonsterDataSoA::MONSTER_ARRAY_SIZE must match MonsterTypeID::MAX_TYPES");
 

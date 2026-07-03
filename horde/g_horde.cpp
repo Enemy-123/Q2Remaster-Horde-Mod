@@ -9596,8 +9596,17 @@ bool Horde_TeleportMonster(edict_t* self, const vec3_t& destination_origin, cons
 		self->monsterinfo.nextframe = 0;
 		self->monsterinfo.next_move_time = level.time;
 		self->monsterinfo.attack_finished = level.time;
-		// Forget the stale blindfire target aimed at the old location.
+		// Forget the stale blindfire target aimed at the old location. had_visibility gates
+		// the whole blindfire branch (M_CheckAttack_Base), so blindfire stays off until the
+		// enemy is genuinely re-seen from the new position, which refreshes all these caches.
 		self->monsterinfo.blind_fire_delay = 0_ms;
+		self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
+		self->monsterinfo.had_visibility = false;
+		if (self->enemy && self->enemy->inuse)
+		{
+			self->monsterinfo.last_sighting = self->enemy->s.origin;
+			self->monsterinfo.blind_fire_target = self->enemy->s.origin;
+		}
 
 		if ((self->monsterinfo.aiflags & AI_STAND_GROUND) && self->monsterinfo.stand)
 			self->monsterinfo.stand(self);
