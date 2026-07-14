@@ -114,7 +114,7 @@ constexpr MonsterTypeInfo monsterTypes[] = {
 	// --- WAVE 27 ---
 	{horde::MonsterTypeID::MEDIC_COMMANDER, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Special | MonsterWaveType::Elite | MonsterWaveType::Spawner, 27, 0.3f, {-24, -24, -24}, {24, 24, 32}, 1.0f},
 	{horde::MonsterTypeID::CARRIER_MINI, MonsterWaveType::Flying | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Spawner, 27, 0.2f, {-56, -56, -44}, {56, 56, 44}, 0.6f },
-	{horde::MonsterTypeID::CHICKKL, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Medium, 28, 0.3f, {-16, -16, 0}, {16, 16, 56}, 1.5f },
+	{horde::MonsterTypeID::CHICKKL, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Medium, 28, 0.12f, {-16, -16, 0}, {16, 16, 56}, 1.5f },
 
 	// --- WAVE 28 ---
 	{horde::MonsterTypeID::TANK_64, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, 28, 0.3f, {-32, -32, -16}, {32, 32, 64}, 1.1f},
