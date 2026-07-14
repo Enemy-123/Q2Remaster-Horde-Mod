@@ -439,6 +439,7 @@ docs/dps_audit.md
 debug.py
 fire_results.txt
 memory
-claude.md
 scriptutf.py
-.vscode
+.vscode/
+CLAUDE.md
+scriptutf.py
