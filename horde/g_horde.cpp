@@ -1741,6 +1741,20 @@ static inline int32_t CalculateChaosInsanityBonus(int32_t lvl)
 	}
 }
 
+// Horde 2 wave rhythm: repeating 4-wave cycle. wave%4 == 1,2 -> build, 3 -> surge (short,
+// swarmy, fast spawns), 0 -> siege (long, tough; boss wave at >= 8 via IsBossWaveLevel).
+enum class Horde2Phase : uint8_t { Build, Surge, Siege };
+
+static Horde2Phase GetHorde2Phase(int32_t lvl) noexcept
+{
+	switch (lvl % 4)
+	{
+	case 3:  return Horde2Phase::Surge;
+	case 0:  return Horde2Phase::Siege;
+	default: return Horde2Phase::Build;
+	}
+}
+
 // Live-monster cap and reinforcement queue size for a fog / limit-break wave.
 // Below WAVE_SCALE_START both sit at their floor (~30/30); past it they ramp up per wave,
 // clamped to per-map ceilings (big maps reach ~80 alive / ~55 queued).
@@ -1783,7 +1797,14 @@ inline int32_t GetAdjustedMonsterCap(const horde::MapSize& mapSize, int32_t wave
 	int32_t baseCap = GetMonsterCapForMap(mapname, mapSize);
 
 	// Apply early wave reduction (only for non-big maps)
-	if (waveLevel <= 10 && !mapSize.isBigMap)
+	// Horde 2 ramps faster: 70% at wave 1 up to 100% by wave 8.
+	if (IsHorde2() && waveLevel <= 8 && !mapSize.isBigMap)
+	{
+		float reductionFactor = 0.7f + ((waveLevel - 1) * 0.043f); // (1.0 - 0.7) / 7 ~= 0.043
+		reductionFactor = std::clamp(reductionFactor, 0.7f, 1.0f);
+		baseCap = static_cast<int32_t>(baseCap * reductionFactor);
+	}
+	else if (!IsHorde2() && waveLevel <= 10 && !mapSize.isBigMap)
 	{
 		// Scale from 60% at wave 1 up to 100% at wave 10
 		float reductionFactor = 0.6f + ((waveLevel - 1) * 0.0444f); // (1.0 - 0.6) / 9 = 0.0444...
@@ -2033,7 +2054,19 @@ static void UnifiedAdjustSpawnRate(const horde::MapSize& mapSize, int32_t lvl, i
 	const int mapTypeIndex = mapSize.isSmallMap ? 0 : (mapSize.isBigMap ? 2 : 1);
 
 	// Get base values from cache
-	int32_t baseCount = g_waveScalingCache.baseCountsByLevel[mapTypeIndex][safeLevel];
+	int32_t baseCount;
+	if (IsHorde2())
+	{
+		// Horde 2: continuous curve replaces the bracketed BASE_COUNTS table
+		// (smooth ramp, no wave-16 plateau).
+		using namespace HordeConstants::Horde2;
+		baseCount = static_cast<int32_t>(BASE_COUNT_B0[mapTypeIndex] +
+			BASE_COUNT_K[mapTypeIndex] * std::sqrt(static_cast<float>(safeLevel)) + 0.5f);
+	}
+	else
+	{
+		baseCount = g_waveScalingCache.baseCountsByLevel[mapTypeIndex][safeLevel];
+	}
 
 	// Apply player multiplier using cached value
 	if (safePlayerCount > 1)
@@ -2045,7 +2078,14 @@ static void UnifiedAdjustSpawnRate(const horde::MapSize& mapSize, int32_t lvl, i
 	// --- CORRECTED SECTION ---
 	// Calculate additional spawn count directly, without using the removed cache array
 	int32_t additionalSpawn;
-	if (safeLevel < 8)
+	if (IsHorde2())
+	{
+		// Horde 2: smaller flat base that grows slowly with the wave number.
+		using namespace HordeConstants::Horde2;
+		additionalSpawn = ADDITIONAL_BASE[mapTypeIndex] +
+			std::min(safeLevel / ADDITIONAL_LEVEL_DIV, ADDITIONAL_LEVEL_CAP);
+	}
+	else if (safeLevel < 8)
 	{
 		additionalSpawn = 6; // Default for early levels
 	}
@@ -2098,6 +2138,24 @@ static void UnifiedAdjustSpawnRate(const horde::MapSize& mapSize, int32_t lvl, i
 		);
 	}
 
+	// Horde 2 rhythm: surges spawn more monsters faster, sieges fewer and slower.
+	// Applied before the final clamps so both still bound the result.
+	if (IsHorde2())
+	{
+		using namespace HordeConstants::Horde2;
+		const Horde2Phase phase = GetHorde2Phase(safeLevel);
+		if (phase == Horde2Phase::Surge)
+		{
+			baseCount = static_cast<int32_t>(baseCount * SURGE_COUNT_MULT);
+			SPAWN_POINT_COOLDOWN *= SURGE_COOLDOWN_MULT;
+		}
+		else if (phase == Horde2Phase::Siege)
+		{
+			baseCount = static_cast<int32_t>(baseCount * SIEGE_COUNT_MULT);
+			SPAWN_POINT_COOLDOWN *= SIEGE_COOLDOWN_MULT;
+		}
+	}
+
 	// Final cooldown clamping
 	SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN,
 		HordeConstants::MIN_GLOBAL_SPAWN_COOLDOWN, // Use the constant
@@ -2109,6 +2167,23 @@ static void UnifiedAdjustSpawnRate(const horde::MapSize& mapSize, int32_t lvl, i
 	// Calculate queued monsters
 	const bool isHardMode = g_insane->integer || g_chaotic->integer;
 	g_horde_local.queued_monsters = CalculateQueuedMonsters(mapSize, safeLevel, isHardMode);
+
+	// Horde 2 rhythm: surge waves lean on a bigger reinforcement queue (small maps can't
+	// raise num_to_spawn past the cap, so intensity flows through the queue instead).
+	if (IsHorde2())
+	{
+		using namespace HordeConstants::Horde2;
+		const Horde2Phase phase = GetHorde2Phase(safeLevel);
+		const float queueMult = (phase == Horde2Phase::Surge) ? SURGE_QUEUE_MULT
+		                      : (phase == Horde2Phase::Siege) ? SIEGE_QUEUE_MULT
+		                                                      : 1.0f;
+		g_horde_local.queued_monsters = static_cast<int32_t>(g_horde_local.queued_monsters * queueMult);
+
+		if (developer->integer > 1)
+			gi.Com_PrintFmt("Horde2: wave {} phase {} base {} add {} queue {} cooldown {:.2f}s\n",
+				safeLevel, static_cast<int>(phase), baseCount, additionalSpawn,
+				g_horde_local.queued_monsters, SPAWN_POINT_COOLDOWN.seconds());
+	}
 
 	// Fog / limit-break waves: fill all the way up to the (already-raised) live cap and stack a
 	// large reinforcement queue on top, so the swarm reaches ~80 alive and keeps replacing the dead.
@@ -2174,6 +2249,27 @@ static constexpr gtime_t calculate_max_wave_time(int32_t wave_level)
 
 	return base_time;
 }
+
+// Horde 2 wave time: rhythm-based instead of monotonic 130s + 3.2s/wave. Surges are
+// short and intense, sieges long; boss waves keep the classic time bonus.
+static gtime_t Horde2_CalculateMaxWaveTime(int32_t wave_level)
+{
+	using namespace HordeConstants::Horde2;
+
+	float base, per, cap;
+	switch (GetHorde2Phase(wave_level))
+	{
+	case Horde2Phase::Surge: base = SURGE_TIME_BASE; per = SURGE_TIME_PER_WAVE; cap = SURGE_TIME_CAP; break;
+	case Horde2Phase::Siege: base = SIEGE_TIME_BASE; per = SIEGE_TIME_PER_WAVE; cap = SIEGE_TIME_CAP; break;
+	default:                 base = BUILD_TIME_BASE; per = BUILD_TIME_PER_WAVE; cap = BUILD_TIME_CAP; break;
+	}
+
+	gtime_t max_time = gtime_t::from_sec(std::min(base + per * wave_level, cap));
+	if (IsBossWaveLevel(wave_level))
+		max_time += HordeConstants::BOSS_TIME_BONUS;
+
+	return max_time;
+}
 // Variables globales
 static gtime_t g_independent_timer_start; // wave-start clock
 static ConditionParams g_lastParams;
@@ -2227,8 +2323,10 @@ static ConditionParams GetConditionParams(const horde::MapSize& mapSize, int32_t
 		params.timeThreshold = random_time(24_sec, 31_sec); // From previous modification
 	}
 
-	// 2. Progressive adjustments based on level
-	params.maxMonsters += std::min(lvl / MAX_MONSTER_LEVEL_BONUS_DIV, MAX_MONSTER_LEVEL_BONUS_CAP);
+	// 2. Progressive adjustments based on level (Horde 2 grows the live cap faster)
+	params.maxMonsters += IsHorde2()
+		? std::min(lvl / HordeConstants::Horde2::MAX_MONSTER_LEVEL_DIV, HordeConstants::Horde2::MAX_MONSTER_LEVEL_CAP)
+		: std::min(lvl / MAX_MONSTER_LEVEL_BONUS_DIV, MAX_MONSTER_LEVEL_BONUS_CAP);
 	params.timeThreshold += gtime_t::from_ms(TIME_THRESHOLD_MS_PER_LEVEL * std::min(lvl / TIME_THRESHOLD_LEVEL_DIV, TIME_THRESHOLD_LEVEL_CAP));
 
 	// 3. High level adjustments (for levels > 10)
@@ -2311,7 +2409,8 @@ static ConditionParams GetConditionParams(const horde::MapSize& mapSize, int32_t
 	params.aggressiveTimeReductionThreshold = 0.3f;
 
 	// 10. Configure independent (absolute maximum) wave time
-	params.independentTimeThreshold = calculate_max_wave_time(lvl); // Uses the separately improved function
+	params.independentTimeThreshold = IsHorde2() ? Horde2_CalculateMaxWaveTime(lvl)
+	                                             : calculate_max_wave_time(lvl);
 
 	// 11. Final parameter validation (ensure reasonable minimums)
 	params.maxMonsters = std::max(1, params.maxMonsters);									// At least 1 monster
@@ -2663,6 +2762,32 @@ static constexpr std::array<SpecialWave, 7> SPECIAL_WAVES_SRC = { {{MonsterWaveT
 																  {MonsterWaveType::Heavy, 0.2f, 12, -1, "*** Heavy Armored Units incoming! ***\n"},
 																  {MonsterWaveType::Spawner | MonsterWaveType::Bomber, 0.3f, 25, -1, "*** Spawners & Bombers Deployed! ***\n"}} };;
 
+// --- Horde 2 themed wave deck ---
+// Each non-boss wave draws one theme; WasRecentlyUsed/StoreWaveType (3-wave memory)
+// prevents consecutive repeats. Surge waves draw from the Swarm pool, sieges from Tough.
+enum class Horde2ThemePool : uint8_t { Any, Swarm, Tough };
+
+struct Horde2Theme
+{
+	MonsterWaveType type;
+	int min_wave;
+	Horde2ThemePool pool;
+	const char* announce; // nullptr = silent
+};
+
+static constexpr std::array<Horde2Theme, 10> HORDE2_THEMES_SRC = { {
+	{ MonsterWaveType::Light | MonsterWaveType::Ground,                                                        1, Horde2ThemePool::Swarm, "*** Grunt push! ***\n" },
+	{ MonsterWaveType::Light | MonsterWaveType::Fast | MonsterWaveType::Ground | MonsterWaveType::Flying,      1, Horde2ThemePool::Swarm, "*** Skirmishers inbound! ***\n" },
+	{ MonsterWaveType::Small | MonsterWaveType::Melee | MonsterWaveType::Ground,                               3, Horde2ThemePool::Swarm, "*** Vermin underfoot! ***\n" },
+	{ MonsterWaveType::Flying | MonsterWaveType::Fast,                                                         4, Horde2ThemePool::Swarm, "*** Air raid! ***\n" },
+	{ MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ground | MonsterWaveType::Flying,    5, Horde2ThemePool::Any,   nullptr },
+	{ MonsterWaveType::Mutant | MonsterWaveType::Melee,                                                        6, Horde2ThemePool::Swarm, "*** Enraged pack! ***\n" },
+	{ MonsterWaveType::Bomber | MonsterWaveType::Ground | MonsterWaveType::Flying,                             8, Horde2ThemePool::Tough, "*** Bombardment! ***\n" },
+	{ MonsterWaveType::Heavy | MonsterWaveType::Ground,                                                        9, Horde2ThemePool::Tough, "*** Armor column! ***\n" },
+	{ MonsterWaveType::Medium | MonsterWaveType::Elite | MonsterWaveType::Ground | MonsterWaveType::Flying,   12, Horde2ThemePool::Tough, "*** Elite guard deployed! ***\n" },
+	{ MonsterWaveType::Spawner | MonsterWaveType::Bomber,                                                     19, Horde2ThemePool::Tough, "*** Hatchery units! ***\n" },
+} };
+
 // --- Step 3: Define  Data Structures (SoA) ---
 
 struct WaveDefinitionsSoA
@@ -2728,63 +2853,74 @@ static const SpecialWavesSoA g_specialWaves = create_special_waves_soa();
 
 // --- Step 6: REPLACEMENT for GetWaveComposition and InitializeWaveType ---
 
+// Rolls the SPECIAL_WAVES_SRC table (fog waves, mutant packs, ...). Returns None when no
+// special wave fires. Handles broadcast, StoreWaveType and Gekk/Berserk alternation itself.
+static MonsterWaveType TrySelectSpecialWave(int waveNumber)
+{
+	for (size_t i = 0; i < g_specialWaves.WAVE_COUNT; ++i)
+	{
+		// Fast checks on contiguous SoA data
+		if (waveNumber >= g_specialWaves.min_waves[i] &&
+			(g_specialWaves.max_waves[i] == -1 || waveNumber <= g_specialWaves.max_waves[i]))
+		{
+			// Slower checks only if level is valid
+			const MonsterWaveType type = g_specialWaves.types[i];
+
+			// Skip Gekk/Berserk special waves on boss waves
+			bool is_boss_wave = IsBossWaveLevel(waveNumber);
+			bool is_gekk_or_berserk = HasWaveType(type, MonsterWaveType::Gekk) ||
+				HasWaveType(type, MonsterWaveType::Berserk);
+			if (is_boss_wave && is_gekk_or_berserk)
+			{
+				continue; // Skip this special wave type
+			}
+
+			// Enforce alternation between Gekk and Berserk special waves
+			if (is_gekk_or_berserk && last_gekk_or_berserk_special != MonsterWaveType::None)
+			{
+				// Don't allow the same type to repeat
+				if ((HasWaveType(type, MonsterWaveType::Gekk) && HasWaveType(last_gekk_or_berserk_special, MonsterWaveType::Gekk)) ||
+					(HasWaveType(type, MonsterWaveType::Berserk) && HasWaveType(last_gekk_or_berserk_special, MonsterWaveType::Berserk)))
+				{
+					continue; // Skip - must alternate
+				}
+			}
+
+			if (!WasRecentlyUsed(type))
+			{
+				float chance = g_specialWaves.base_chances[i];
+
+				// Use base chance from special wave config (45% for Gekk/Berserk)
+				// No player count override - we want these waves to be frequent
+
+				if (frandom() < chance)
+				{
+					gi.LocBroadcast_Print(PRINT_HIGH, g_specialWaves.messages[i]);
+					StoreWaveType(type);
+
+					// Track Gekk/Berserk special waves for alternation
+					if (is_gekk_or_berserk)
+					{
+						last_gekk_or_berserk_special = type;
+					}
+
+					return type;
+				}
+			}
+		}
+	}
+
+	return MonsterWaveType::None;
+}
+
 static inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave = false)
 {
 	// --- Part 1: Check for Special Waves ---
 	if (!forceSpecialWave && !WasLastWaveSpecial())
 	{
-		for (size_t i = 0; i < g_specialWaves.WAVE_COUNT; ++i)
-		{
-			// Fast checks on contiguous SoA data
-			if (waveNumber >= g_specialWaves.min_waves[i] &&
-				(g_specialWaves.max_waves[i] == -1 || waveNumber <= g_specialWaves.max_waves[i]))
-			{
-				// Slower checks only if level is valid
-				const MonsterWaveType type = g_specialWaves.types[i];
-
-				// Skip Gekk/Berserk special waves on boss waves (every 5th wave)
-				bool is_boss_wave = (waveNumber >= 10 && waveNumber % 5 == 0);
-				bool is_gekk_or_berserk = HasWaveType(type, MonsterWaveType::Gekk) ||
-					HasWaveType(type, MonsterWaveType::Berserk);
-				if (is_boss_wave && is_gekk_or_berserk)
-				{
-					continue; // Skip this special wave type
-				}
-
-				// Enforce alternation between Gekk and Berserk special waves
-				if (is_gekk_or_berserk && last_gekk_or_berserk_special != MonsterWaveType::None)
-				{
-					// Don't allow the same type to repeat
-					if ((HasWaveType(type, MonsterWaveType::Gekk) && HasWaveType(last_gekk_or_berserk_special, MonsterWaveType::Gekk)) ||
-						(HasWaveType(type, MonsterWaveType::Berserk) && HasWaveType(last_gekk_or_berserk_special, MonsterWaveType::Berserk)))
-					{
-						continue; // Skip - must alternate
-					}
-				}
-
-				if (!WasRecentlyUsed(type))
-				{
-					float chance = g_specialWaves.base_chances[i];
-
-					// Use base chance from special wave config (45% for Gekk/Berserk)
-					// No player count override - we want these waves to be frequent
-
-					if (frandom() < chance)
-					{
-						gi.LocBroadcast_Print(PRINT_HIGH, g_specialWaves.messages[i]);
-						StoreWaveType(type);
-
-						// Track Gekk/Berserk special waves for alternation
-						if (is_gekk_or_berserk)
-						{
-							last_gekk_or_berserk_special = type;
-						}
-
-						return type;
-					}
-				}
-			}
-		}
+		const MonsterWaveType special = TrySelectSpecialWave(waveNumber);
+		if (special != MonsterWaveType::None)
+			return special;
 	}
 
 	// --- Part 2: Regular Wave Composition ---
@@ -2837,6 +2973,66 @@ static inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpeci
 	return selected_type;
 }
 
+// Horde 2 wave composition: draws one theme from HORDE2_THEMES_SRC, matched to the
+// rhythm phase (surge -> Swarm pool, siege -> Tough pool). Special waves (fog invasions
+// etc.) still fire first, same as classic.
+static MonsterWaveType Horde2_GetWaveComposition(int waveNumber)
+{
+	if (!WasLastWaveSpecial())
+	{
+		const MonsterWaveType special = TrySelectSpecialWave(waveNumber);
+		if (special != MonsterWaveType::None)
+			return special;
+	}
+
+	const Horde2Phase phase = GetHorde2Phase(waveNumber);
+	const Horde2ThemePool want = (phase == Horde2Phase::Surge) ? Horde2ThemePool::Swarm
+	                           : (phase == Horde2Phase::Siege) ? Horde2ThemePool::Tough
+	                                                           : Horde2ThemePool::Any;
+
+	// Three passes: (1) matching pool + not recently used, (2) any unlocked + not
+	// recently used, (3) any unlocked. Uniform random pick from the survivors.
+	const Horde2Theme* pick = nullptr;
+	for (int pass = 0; pass < 3 && !pick; ++pass)
+	{
+		std::array<const Horde2Theme*, HORDE2_THEMES_SRC.size()> candidates{};
+		size_t count = 0;
+		for (const Horde2Theme& theme : HORDE2_THEMES_SRC)
+		{
+			if (waveNumber < theme.min_wave)
+				continue;
+			if (pass == 0 && want != Horde2ThemePool::Any &&
+				theme.pool != want && theme.pool != Horde2ThemePool::Any)
+				continue;
+			if (pass <= 1 && WasRecentlyUsed(theme.type))
+				continue;
+			candidates[count++] = &theme;
+		}
+		if (count > 0)
+			pick = candidates[static_cast<size_t>(irandom(static_cast<int32_t>(count)))];
+	}
+
+	if (!pick) // unreachable (min_wave 1 entries always qualify), but stay safe
+	{
+		const MonsterWaveType fallback = MonsterWaveType::Light | MonsterWaveType::Ground | MonsterWaveType::Flying;
+		StoreWaveType(fallback);
+		return fallback;
+	}
+
+	if (pick->announce)
+		gi.LocBroadcast_Print(PRINT_HIGH, pick->announce);
+	if (HasWaveType(pick->type, MonsterWaveType::Flying) && incoming)
+		gi.sound(world, CHAN_VOICE, incoming, 1, ATTN_NONE, 0);
+
+	StoreWaveType(pick->type);
+
+	if (developer->integer > 1)
+		gi.Com_PrintFmt("Horde2: wave {} theme {:#x} (pool {})\n",
+			waveNumber, static_cast<uint32_t>(pick->type), static_cast<int>(pick->pool));
+
+	return pick->type;
+}
+
 void InitializeWaveType(int32_t waveLevel)
 {
 	bool forced_fog = false;
@@ -2861,7 +3057,8 @@ void InitializeWaveType(int32_t waveLevel)
 	}
 	else
 	{
-		current_wave_type = GetWaveComposition(waveLevel);
+		current_wave_type = IsHorde2() ? Horde2_GetWaveComposition(waveLevel)
+		                               : GetWaveComposition(waveLevel);
 	}
 
 	// Apply fog effect and special effects for Gekk/Berserk special waves (wave 15+),
@@ -4112,7 +4309,7 @@ horde::MonsterTypeID G_HordePickMonsterType(
 	ctx.isSpawnPointFlying = (spawn_point && spawn_point->style == 1);
 	ctx.isRetaliationActive = isRetaliationActive_param;
 	ctx.isRecoveryModeActive = isRecoveryModeActive_param;
-	ctx.isBossWaveMinionPhase = (ctx.currentActualLevel >= 10 && ctx.currentActualLevel % 5 == 0 && boss_spawned_for_wave);
+	ctx.isBossWaveMinionPhase = (IsBossWaveLevel(ctx.currentActualLevel) && boss_spawned_for_wave);
 	ctx.flyingAdjustmentFactor = adjustFlyingSpawnProbability(g_spawn_system.cached_flying_spawn_count);
 	ctx.waveTypeForFiltering = isRecoveryModeActive_param ? (HasWaveType(originalWaveTypeBeforeRecovery_param, MonsterWaveType::Flying) ? MonsterWaveType::Flying : MonsterWaveType::Ground) : currentActualWaveType_param;
 	if (ctx.isSpawnPointFlying)
@@ -4293,6 +4490,8 @@ void Horde_PreInit()
 		dm_monsters = gi.cvar("dm_monsters", "0", CVAR_SERVERINFO);
 
 		gi.Com_Print("Initializing Horde mode settings...\n");
+		if (g_horde->integer >= 2)
+			gi.Com_Print("Horde 2 (remix) progression active: 4-wave rhythm, boss every 4 waves from wave 8.\n");
 		// Configuración de tiempo y límites
 		gi.cvar_forceset("deathmatch", "1");
 		gi.cvar_forceset("coop", "0");
@@ -6123,20 +6322,24 @@ static void HandleWaveCleanupMessage(const horde::MapSize& mapSize)
 	const int8_t numHumanPlayers = GetNumHumanPlayers();
 
 	// Progresión de dificultad basada en número de ola (endless horde design)
-	// Waves 1-14: Chaotic mode (fast-paced continuous spawning)
-	if (current_wave_level <= 14)
+	// Horde 2 ramps faster: harder bands arrive ~5 waves sooner.
+	const int32_t chaotic_max = IsHorde2() ? HordeConstants::Horde2::CHAOTIC_MAX_WAVE : 14;
+	const int32_t insane1_max = IsHorde2() ? HordeConstants::Horde2::INSANE1_MAX_WAVE : 26;
+
+	// Chaotic mode (fast-paced continuous spawning)
+	if (current_wave_level <= chaotic_max)
 	{
 		gi.cvar_set("g_insane", "0");
 		// Activar chaotic2 si es mapa pequeño Y hay 2+ jugadores, sino chaotic1
 		gi.cvar_set("g_chaotic", (mapSize.isSmallMap && numHumanPlayers >= 2) ? "2" : "1");
 	}
-	// Waves 15-26: Insane 1 (moderate spawn boost)
-	else if (current_wave_level <= 26)
+	// Insane 1 (moderate spawn boost)
+	else if (current_wave_level <= insane1_max)
 	{
 		gi.cvar_set("g_insane", "1");
 		gi.cvar_set("g_chaotic", "0");
 	}
-	// Waves 27+: Insane 2 (maximum spawn boost)
+	// Insane 2 (maximum spawn boost)
 	else
 	{
 		gi.cvar_set("g_insane", "2");
@@ -9496,10 +9699,10 @@ int32_t GetStroggsNum() noexcept
 	return live_monster_count;
 }
 
-// Helper function to check if it's a boss wave
+// Helper function to check if it's a boss wave (cadence lives in IsBossWaveLevel, g_horde.h)
 inline bool IsBossWave() noexcept
 {
-	return g_horde_local.level >= 10 && g_horde_local.level % 5 == 0;
+	return IsBossWaveLevel(g_horde_local.level);
 }
 
 bool Horde_TeleportMonster(edict_t* self, const vec3_t& destination_origin, const vec3_t& destination_angles, bool play_effects, bool force_despite_visibility)
@@ -10295,8 +10498,11 @@ static void PrecacheCurrentWaveMonsters(int32_t lvl, float precache_budget, floa
 
 		float precache_cost = CalculatePrecacheCost(monster_info->typeId);
 
-		// Priority precache for monsters within a reasonable window
-		if (monster_info->minWave <= lvl && monster_info->minWave >= lvl - 10 &&
+		// Priority precache for monsters within a reasonable window.
+		// Use the adjusted unlock wave so the window matches eligibility (Horde 2
+		// accelerates unlocks; classic returns the raw minWave unchanged).
+		const int32_t effective_min_wave = GetAdjustedMinWave(monster_info->typeId, g_map_rotation_seed);
+		if (effective_min_wave <= lvl && effective_min_wave >= lvl - 10 &&
 			precache_cost_this_wave + precache_cost <= precache_budget)
 		{
 			if (developer->integer)
@@ -10331,8 +10537,10 @@ static void PrecacheFutureWaveMonsters(int32_t lvl, float precache_budget, float
 
 		float precache_cost = CalculatePrecacheCost(monster_info->typeId);
 
-		// Precache upcoming monsters within a narrow window
-		if (monster_info->minWave > lvl && monster_info->minWave <= lvl + 3 &&
+		// Precache upcoming monsters within a narrow window (adjusted unlock wave, so the
+		// window matches eligibility; classic returns the raw minWave unchanged)
+		const int32_t effective_min_wave = GetAdjustedMinWave(monster_info->typeId, g_map_rotation_seed);
+		if (effective_min_wave > lvl && effective_min_wave <= lvl + 3 &&
 			precache_cost_this_wave + precache_cost <= precache_budget)
 		{
 			if (developer->integer)
@@ -10408,6 +10616,29 @@ static void ApplyLegacyDamageScaling(int32_t lvl)
 	if (g_config.use_sigmoid_scaling)
 		return;
 
+	// Horde 2: breakpoints arrive earlier and are smoothed out.
+	if (IsHorde2())
+	{
+		switch (lvl)
+		{
+		case 12:
+			gi.cvar_set("g_damage_scale", "1.5");
+			break;
+		case 20:
+			gi.cvar_set("g_damage_scale", "2.0");
+			break;
+		case 28:
+			gi.cvar_set("g_damage_scale", "2.5");
+			break;
+		case 36:
+			gi.cvar_set("g_damage_scale", "3.0");
+			break;
+		default:
+			break;
+		}
+		return;
+	}
+
 	switch (lvl)
 	{
 	case 15:
@@ -10453,7 +10684,7 @@ static void Horde_InitLevel(const int32_t lvl)
 	// Determine the wave type. Boss waves start with no type; it's set when the boss spawns.
 	// Clear any explicit boss minion roster from a prior wave; the boss re-sets it when it commits.
 	current_boss_minion_source = horde::MonsterTypeID::UNKNOWN;
-	if (!(lvl >= 10 && lvl % 5 == 0))
+	if (!IsBossWaveLevel(lvl))
 	{
 		InitializeWaveType(lvl);
 	}
@@ -10484,6 +10715,17 @@ static void Horde_InitLevel(const int32_t lvl)
 			HasWaveType(current_wave_type, MonsterWaveType::Berserk)))
 		{
 			AddSpecialWaveMonsters(lvl, current_wave_type);
+		}
+
+		// Horde 2: themed decks are narrower than classic compositions; if a theme yields
+		// an empty pool on this map (per-map exclusions), fall back to a generic mix.
+		if (IsHorde2() && g_eligible_monsters_for_wave.empty() && current_wave_type != MonsterWaveType::None)
+		{
+			if (developer->integer > 1)
+				gi.Com_PrintFmt("Horde2: theme {:#x} yielded no eligible monsters, using fallback\n",
+					static_cast<uint32_t>(current_wave_type));
+			current_wave_type = MonsterWaveType::Light | MonsterWaveType::Ground | MonsterWaveType::Flying;
+			BuildEligibleMonstersNormal(current_wave_level, current_wave_type);
 		}
 	}
 

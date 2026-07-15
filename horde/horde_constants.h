@@ -182,6 +182,47 @@ namespace HordeConstants
 		}
 	}
 
+	// --- Horde 2 (remix mode, horde cvar >= 2; see IsHorde2() in g_horde.h) ---
+	// Repeating 4-wave rhythm (wave % 4: 1,2 = build, 3 = surge, 0 = siege) with a
+	// continuous count curve instead of the bracketed BASE_COUNTS table.
+	namespace Horde2 {
+		// Continuous count curve: base = B0 + K * sqrt(wave). Index 0=small, 1=medium,
+		// 2=large, matching mapTypeIndex in UnifiedAdjustSpawnRate.
+		inline constexpr std::array<float, 3> BASE_COUNT_B0 = { 3.0f, 4.0f, 9.0f };
+		inline constexpr std::array<float, 3> BASE_COUNT_K  = { 2.2f, 2.6f, 3.6f };
+		inline constexpr std::array<int32_t, 3> ADDITIONAL_BASE = { 4, 4, 6 };
+		inline constexpr int32_t ADDITIONAL_LEVEL_DIV = 6;   // +1 per 6 waves...
+		inline constexpr int32_t ADDITIONAL_LEVEL_CAP = 8;   // ...capped at +8
+
+		// Phase multipliers: surges are more-but-weaker with fast spawn cadence,
+		// sieges fewer-but-tougher and slower.
+		inline constexpr float SURGE_COUNT_MULT    = 1.35f;
+		inline constexpr float SIEGE_COUNT_MULT    = 0.80f;
+		inline constexpr float SURGE_COOLDOWN_MULT = 0.70f;
+		inline constexpr float SIEGE_COOLDOWN_MULT = 1.15f;
+		inline constexpr float SURGE_QUEUE_MULT    = 1.30f;
+		inline constexpr float SIEGE_QUEUE_MULT    = 0.85f;
+
+		// Wave time caps per phase: seconds = BASE + PER_WAVE * wave, clamped to CAP
+		inline constexpr float BUILD_TIME_BASE = 75.0f,  BUILD_TIME_PER_WAVE = 2.2f, BUILD_TIME_CAP = 150.0f;
+		inline constexpr float SURGE_TIME_BASE = 50.0f,  SURGE_TIME_PER_WAVE = 1.4f, SURGE_TIME_CAP = 100.0f;
+		inline constexpr float SIEGE_TIME_BASE = 110.0f, SIEGE_TIME_PER_WAVE = 3.0f, SIEGE_TIME_CAP = 200.0f;
+
+		// Earlier unlocks: effective minWave = raw * NUM / DEN (only for monsters at/above
+		// MonsterUnlockVariance::MIN_WAVE_FOR_VARIANCE), never below UNLOCK_FLOOR.
+		inline constexpr int32_t UNLOCK_SCALE_NUM = 3;
+		inline constexpr int32_t UNLOCK_SCALE_DEN = 4;
+		inline constexpr int32_t UNLOCK_FLOOR     = 3;
+
+		// Difficulty bands (classic: chaotic through 14, insane 1 through 26)
+		inline constexpr int32_t CHAOTIC_MAX_WAVE = 9;
+		inline constexpr int32_t INSANE1_MAX_WAVE = 21;
+
+		// Live-cap growth in GetConditionParams (classic: min(lvl/4, 8))
+		inline constexpr int32_t MAX_MONSTER_LEVEL_DIV = 3;
+		inline constexpr int32_t MAX_MONSTER_LEVEL_CAP = 12;
+	}
+
 } // namespace HordeConstants
 
 // Wave unlock variance settings - adds randomness to when monsters first appear

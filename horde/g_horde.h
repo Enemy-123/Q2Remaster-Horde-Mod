@@ -33,6 +33,22 @@ extern cvar_t* g_horde_nav_spawn_check;  // 1 = reject ground spawns the navmesh
 extern cvar_t* g_horde_spawn_dist_cap;  // 1 = cap how far from players a spawn point may be (anti far/closed-wing spawn)
 extern cvar_t* pvm;  // PvM mode (Player vs Monster with character persistence)
 
+// Horde 2 "remix" variant: horde cvar >= 2 (horde 1 = classic, untouched).
+// PvM drives its own monster selection, so it always uses classic behavior.
+inline bool IsHorde2() noexcept
+{
+	return g_horde && g_horde->integer >= 2 && !(pvm && pvm->integer);
+}
+
+// Single source of truth for boss cadence.
+// Classic: wave >= 10, every 5 waves. Horde 2: wave >= 8, every 4 waves
+// (the 4-wave rhythm cycle's "siege" slot: build, build, surge, siege).
+inline bool IsBossWaveLevel(int32_t lvl) noexcept
+{
+	return IsHorde2() ? (lvl >= 8 && lvl % 4 == 0)
+	                  : (lvl >= 10 && lvl % 5 == 0);
+}
+
 // True when the spawn grid is allowed as a fallback spawn source: only when grid is
 // enabled for the map, or when there are no usable spawn points at all. Stops emergency/
 // alternative spawns from forcing grid positions on grid-disabled maps.

@@ -210,8 +210,10 @@ static void HealFixerSurvivors(const edict_t *dead_fixer);
 // Boss spawning constants
 namespace {
 	// Wave configuration
-	constexpr int32_t MIN_BOSS_WAVE = 10;
-	constexpr int32_t BOSS_WAVE_INTERVAL = 5;
+	// NOTE: boss cadence checks now live in IsBossWaveLevel (g_horde.h), which also
+	// handles the Horde 2 variant (every 4 from wave 8). These document the classic values.
+	[[maybe_unused]] constexpr int32_t MIN_BOSS_WAVE = 10;
+	[[maybe_unused]] constexpr int32_t BOSS_WAVE_INTERVAL = 5;
 
 	// Item drop physics
 	constexpr int32_t DROP_MIN_VELOCITY = -800;
@@ -2050,8 +2052,8 @@ void SpawnBossAutomatically()
 		it = auto_spawned_bosses.erase(it);
 	}
 
-	// Basic wave check
-	if (current_wave_level < MIN_BOSS_WAVE || current_wave_level % BOSS_WAVE_INTERVAL != 0) {
+	// Basic wave check (cadence lives in IsBossWaveLevel, g_horde.h)
+	if (!IsBossWaveLevel(current_wave_level)) {
 		boss_spawned_for_wave = false;
 		return;
 	}
@@ -2502,7 +2504,9 @@ bool IsBossUnit(horde::MonsterTypeID typeId)
 
 bool IsBossWave() noexcept
 {
-	return current_wave_level >= MIN_BOSS_WAVE && current_wave_level % BOSS_WAVE_INTERVAL == 0;
+	// Cadence lives in IsBossWaveLevel (g_horde.h): classic every 5 from wave 10,
+	// Horde 2 every 4 from wave 8.
+	return IsBossWaveLevel(current_wave_level);
 }
 
 void ResetBosses()

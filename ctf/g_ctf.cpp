@@ -2728,17 +2728,19 @@ void CTFWinElection() {
 
 			// Set the appropriate cvars
 			if (strcmp(mode, "horde") == 0) {
-				// Horde mode
+				// Horde mode (preserve horde 2 remix if already active)
 				gi.cvar_forceset("g_instagib", "1");
 				gi.cvar_forceset("pvm", "0");
-				gi.cvar_forceset("horde", "1");
+				if (!g_horde->integer)
+					gi.cvar_forceset("horde", "1");
 				gi.cvar_forceset("coop", "0");
 				gi.cvar_forceset("deathmatch", "1");
 			} else {
-				// PvM mode
+				// PvM mode (preserve horde 2 remix if already active)
 				gi.cvar_forceset("g_instagib", "0");
 				gi.cvar_forceset("pvm", "1");
-				gi.cvar_forceset("horde", "1");
+				if (!g_horde->integer)
+					gi.cvar_forceset("horde", "1");
 				gi.cvar_forceset("coop", "0");
 				gi.cvar_forceset("deathmatch", "1");
 			}
@@ -2846,7 +2848,8 @@ void CTFWinElection() {
 		gi.LocBroadcast_Print(PRINT_HIGH, "Vote succeeded! Switching to PvM Mode...\n");
 		gi.cvar_forceset("g_instagib", "0");
 		gi.cvar_forceset("pvm", "1");
-		gi.cvar_forceset("horde", "1");  // Keep horde mode active, just disable instagib
+		if (!g_horde->integer)
+			gi.cvar_forceset("horde", "1");  // Keep horde mode active (preserve horde 2 remix), just disable instagib
 		gi.cvar_forceset("coop", "0");
 		gi.cvar_forceset("deathmatch", "1");
 		// Reload the current map to apply settings
@@ -2857,7 +2860,8 @@ void CTFWinElection() {
 		gi.LocBroadcast_Print(PRINT_HIGH, "Vote succeeded! Switching to Horde Mode...\n");
 		gi.cvar_forceset("g_instagib", "1");
 		gi.cvar_forceset("pvm", "0");
-		gi.cvar_forceset("horde", "1");  // Ensure horde mode is active
+		if (!g_horde->integer)
+			gi.cvar_forceset("horde", "1");  // Ensure horde mode is active (preserve horde 2 remix)
 		gi.cvar_forceset("coop", "0");
 		gi.cvar_forceset("deathmatch", "1");
 		// Reload the current map to apply settings

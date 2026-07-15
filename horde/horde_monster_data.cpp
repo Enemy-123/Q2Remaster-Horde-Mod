@@ -330,5 +330,13 @@ int32_t GetAdjustedMinWave(horde::MonsterTypeID typeId, int32_t map_seed)
 	if (base_wave <= 0)
 		return 999;
 
+	// Horde 2: variety arrives sooner -- scale unlocks to 75%, but never touch the
+	// true wave-1..3 starters (mirrors MonsterUnlockVariance::MIN_WAVE_FOR_VARIANCE).
+	if (IsHorde2() && base_wave >= MonsterUnlockVariance::MIN_WAVE_FOR_VARIANCE)
+	{
+		using namespace HordeConstants::Horde2;
+		return std::max(UNLOCK_FLOOR, (base_wave * UNLOCK_SCALE_NUM) / UNLOCK_SCALE_DEN);
+	}
+
 	return base_wave;
 }
