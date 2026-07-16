@@ -9,7 +9,7 @@ ScalingConfig g_scalingConfig;
 // External references
 extern cvar_t* g_chaotic;
 extern cvar_t* g_insane;
-extern cvar_t* g_hardcoop;
+extern cvar_t* g_swap_coop_monsters;
 extern cvar_t* developer;
 extern int16_t current_wave_level;
 
@@ -223,7 +223,7 @@ float GetDifficultyModifier() {
         modifier *= g_scalingConfig.insane_modifier;
     }
 
-    if (g_hardcoop && g_hardcoop->integer > 0) {
+    if (g_swap_coop_monsters && g_swap_coop_monsters->integer > 0) {
         modifier *= 1.05f; // Slight additional difficulty for hardcoop
     }
 

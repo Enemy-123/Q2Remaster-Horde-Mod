@@ -1787,8 +1787,8 @@ void MiscMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		shouldCloseMenu = false;			// Don't close, will reopen Misc Menu
 	}
 	// **** Check Stroggification command (morph/unmorph) ****
-	else if (strcmp(selected_text, "Stroggificate me!") == 0 ||
-			 strcmp(selected_text, "I hate stroggs!") == 0)
+	else if (strcmp(selected_text, "  Stroggificate me!") == 0 ||
+			 strcmp(selected_text, "  I hate stroggs!") == 0)
 	{
 		HordeMenu_StroggificationCommand(ent, p); // Call the morph command handler
 		shouldCloseMenu = false;				  // Don't close, will reopen Misc Menu
@@ -1815,6 +1815,174 @@ void MiscMenuHandler(edict_t *ent, pmenuhnd_t *p)
 	{
 		PMenu_Close(ent);
 	}
+}
+
+// === Coop Monster Swap Menu ===
+// Configures g_swap_coop_monsters (0=off, 1-3=difficulty); the host's choice
+// persists across sessions via the character DB server-settings row.
+
+void OpenCoopSwapMenu(edict_t *ent, int cursor_position = 0);
+
+// Toggle swap ON/OFF (host only). OFF stores 0 in the cvar but the chosen
+// difficulty stays remembered in the DB for the next time it's enabled.
+static void HordeMenu_CoopSwapToggle(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client)
+		return;
+
+	if (P_GetLobbyUserNum(ent) != 0)
+	{
+		gi.LocClient_Print(ent, PRINT_HIGH, "Only the host can change this option.\n");
+		return;
+	}
+
+	const bool enable = g_swap_coop_monsters->integer <= 0;
+	const int diff = std::clamp(Character_LoadServerSetting("coop_swap_difficulty", 1), 1, 3);
+
+	gi.cvar_forceset("g_swap_coop_monsters", G_Fmt("{}", enable ? diff : 0).data());
+	Character_SaveServerSetting("coop_swap_enabled", enable ? 1 : 0);
+
+	const size_t updated = Coop_ApplySwapToLiveMonsters();
+	gi.LocCenter_Print(ent, "\n\n\nCoop Monster Swap: {}\n{} idle monsters {}\n",
+		enable ? "ON" : "OFF", updated, enable ? "swapped" : "restored");
+	OpenCoopSwapMenu(ent, p->cur); // Reopen to show updated choice with cursor preserved
+}
+
+// Cycle difficulty 1 -> 2 -> 3 -> 1 (host only)
+static void HordeMenu_CoopSwapDifficulty(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client)
+		return;
+
+	if (P_GetLobbyUserNum(ent) != 0)
+	{
+		gi.LocClient_Print(ent, PRINT_HIGH, "Only the host can change this option.\n");
+		return;
+	}
+
+	const bool enabled = g_swap_coop_monsters->integer > 0;
+	int diff = enabled ? std::clamp(g_swap_coop_monsters->integer, 1, 3)
+		: std::clamp(Character_LoadServerSetting("coop_swap_difficulty", 1), 1, 3);
+	diff = (diff % 3) + 1;
+
+	Character_SaveServerSetting("coop_swap_difficulty", diff);
+	if (enabled)
+	{
+		gi.cvar_forceset("g_swap_coop_monsters", G_Fmt("{}", diff).data());
+		// The swap set is identical at every difficulty - only roll new elites.
+		const size_t new_elites = Coop_ApplySwapToLiveMonsters(true);
+		gi.LocCenter_Print(ent, "\n\n\nSwap difficulty set to: {}\n{} new elites\n", diff, new_elites);
+	}
+	else
+	{
+		gi.LocCenter_Print(ent, "\n\n\nSwap difficulty set to: {}\n", diff);
+	}
+	OpenCoopSwapMenu(ent, p->cur); // Reopen to show updated choice with cursor preserved
+}
+
+// Handler for the Coop Monster Swap submenu
+static void CoopSwapMenuHandler(edict_t *ent, pmenuhnd_t *p)
+{
+	if (!ent || !ent->client || !p || p->cur < 0 || p->cur >= p->num)
+	{
+		if (ent && ent->client && ent->client->menu)
+			PMenu_Close(ent);
+		return;
+	}
+
+	const char *selected_text = p->entries[p->cur].text;
+	bool shouldCloseMenu = true;
+
+	// strncmp with the two-space prefix so the centered "*Coop Monster Swap*" title never matches
+	if (strncmp(selected_text, "  Monster Swap", strlen("  Monster Swap")) == 0)
+	{
+		HordeMenu_CoopSwapToggle(ent, p);
+		shouldCloseMenu = false; // Handler reopens this menu
+	}
+	else if (strncmp(selected_text, "  Difficulty", strlen("  Difficulty")) == 0)
+	{
+		HordeMenu_CoopSwapDifficulty(ent, p);
+		shouldCloseMenu = false; // Handler reopens this menu
+	}
+	else if (strcmp(selected_text, "Back") == 0)
+	{
+		PMenu_Close(ent);
+		OpenHordeMenu(ent);
+		shouldCloseMenu = false;
+	}
+	else if (strcmp(selected_text, "Close") == 0)
+	{
+		// Default close behavior
+	}
+	else
+	{
+		// Title, separator, or explanation line - keep the menu open
+		shouldCloseMenu = false;
+	}
+
+	if (shouldCloseMenu && ent->client && ent->client->menu)
+	{
+		PMenu_Close(ent);
+	}
+}
+
+void OpenCoopSwapMenu(edict_t *ent, int cursor_position)
+{
+	if (!ent || !ent->client)
+		return;
+
+	if (ent->client->menu)
+		PMenu_Close(ent);
+
+	// Set menu protection
+	ent->client->menu_protected = true;
+	ent->client->menu_protection_start = level.time;
+
+	static pmenu_t entries[14];
+	for (auto& e : entries) e = {};
+	int count = 0;
+
+	auto add_entry = [&](const char *text, int align, SelectFunc_t func = nullptr)
+	{
+		if (count < static_cast<int>(std::size(entries)))
+		{
+			Q_strlcpy(entries[count].text, text, sizeof(entries[count].text));
+			entries[count].align = align;
+			entries[count].SelectFunc = func;
+			count++;
+		}
+		else
+		{
+			gi.Com_Print("Warning: OpenCoopSwapMenu exceeded static entry buffer size.\n");
+		}
+	};
+
+	add_entry("*Coop Monster Swap", PMENU_ALIGN_CENTER);
+	add_entry("", PMENU_ALIGN_CENTER);
+
+	const bool enabled = g_swap_coop_monsters->integer > 0;
+	const int diff = enabled ? std::clamp(g_swap_coop_monsters->integer, 1, 3)
+		: std::clamp(Character_LoadServerSetting("coop_swap_difficulty", 1), 1, 3);
+
+	char buffer[128];
+	MenuFormatItemWithCustomNoNumber(buffer, sizeof(buffer), "Monster Swap", enabled ? "[ON]" : "[OFF]");
+	add_entry(buffer, PMENU_ALIGN_LEFT, CoopSwapMenuHandler);
+
+	MenuFormatItemWithCustomNoNumber(buffer, sizeof(buffer), "Difficulty", G_Fmt("[{}]", diff).data());
+	add_entry(buffer, PMENU_ALIGN_LEFT, CoopSwapMenuHandler);
+
+	add_entry("", PMENU_ALIGN_CENTER);
+	add_entry("Swaps map monsters for", PMENU_ALIGN_LEFT);
+	add_entry("variants, harder attacks.", PMENU_ALIGN_LEFT);
+	add_entry("Difficulty = elite chance:", PMENU_ALIGN_LEFT);
+	add_entry("1=1%  2=10%  3=50%", PMENU_ALIGN_LEFT);
+	add_entry("Idle monsters change at once,", PMENU_ALIGN_LEFT);
+	add_entry("busy ones on next map.", PMENU_ALIGN_LEFT);
+	add_entry("", PMENU_ALIGN_CENTER);
+
+	add_entry("Back", PMENU_ALIGN_LEFT, CoopSwapMenuHandler);
+
+	PMenu_Open(ent, entries, cursor_position, count, nullptr, nullptr);
 }
 
 // Handler for respawn weapon selection menu
@@ -2595,6 +2763,12 @@ void HordeMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		OpenMiscMenu(ent);
 		shouldCloseMenu = false;
 	}
+	// Coop Monster Swap submenu (coop only)
+	else if (strcmp(selected_text, "Coop Monster Swap") == 0)
+	{
+		OpenCoopSwapMenu(ent);
+		shouldCloseMenu = false;
+	}
 	// Vote Mode/Map
 	else if (ctfgame.election == ELECT_NONE && strcmp(selected_text, "Vote Mode/Map") == 0)
 	{
@@ -2773,6 +2947,12 @@ pmenuhnd_t *CreateHordeMenu(edict_t *ent)
 
 	add_entry("Misc Options", PMENU_ALIGN_LEFT, HordeMenuHandler);
 	add_entry("HUD Options", PMENU_ALIGN_LEFT, HordeMenuHandler);
+
+	// Coop-only: monster swap difficulty settings (host-writable, saved to characters.db)
+	if (coop->integer)
+	{
+		add_entry("Coop Monster Swap", PMENU_ALIGN_LEFT, HordeMenuHandler);
+	}
 
 	// Show Set Respawn Weapon in PvM mode (horde+pvm or pvm alone, but not horde alone)
 	if (pvm->integer)

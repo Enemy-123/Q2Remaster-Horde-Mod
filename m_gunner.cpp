@@ -403,7 +403,7 @@ void GunnerFire(edict_t* self)
 		return;
 	}
 
-	const bool bullet_mode = (g_hardcoop->integer > 3 && current_wave_level <= 12);
+	const bool bullet_mode = (g_swap_coop_monsters->integer > 3 && current_wave_level <= 12);
 	const bool blindfire = (self->monsterinfo.aiflags & AI_MANUAL_STEERING);
 
 	vec3_t start;

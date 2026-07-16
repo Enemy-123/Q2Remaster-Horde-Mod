@@ -186,7 +186,7 @@ cvar_t* g_special_key;
 cvar_t* g_loadent;
 cvar_t* g_chaotic;
 cvar_t* g_insane;
-cvar_t* g_hardcoop;
+cvar_t* g_swap_coop_monsters;
 //cvar_t* g_ammoregen;
 cvar_t* sv_wave_timer;
 //cvar_t* g_tracedbullets;
@@ -468,7 +468,7 @@ void InitGame()
 	g_loadent = gi.cvar("g_loadent", "1", CVAR_LATCH);
 	g_chaotic = gi.cvar("g_chaotic", "0", CVAR_NOFLAGS);
 	g_insane = gi.cvar("g_insane", "0", CVAR_NOFLAGS);
-	g_hardcoop = gi.cvar("g_hardcoop", "1", CVAR_NOFLAGS);
+	g_swap_coop_monsters = gi.cvar("g_swap_coop_monsters", "1", CVAR_NOFLAGS);
 	//g_ammoregen = gi.cvar("g_ammoregen", "0", CVAR_NOFLAGS);
 	sv_wave_timer = gi.cvar("sv_wave_timer", "1", CVAR_NOFLAGS);
 	//g_tracedbullets = gi.cvar("g_tracedbullets", "1", CVAR_NOFLAGS);
@@ -644,7 +644,7 @@ static void QueueSinglePlayerModeSettings()
 		"ctf 0; teamplay 0; pvm 0; horde 0; coop 0; deathmatch 0; "
 		"g_instagib 0; g_dm_spawns 0; g_dm_spawn_farthest 0; "
 		"g_use_hook 0; g_hook_wave 0; g_allow_grapple 0; g_allow_techs 0; "
-		"g_loadent 0; dm_monsters 0; g_hardcoop 0; vortex 0; "
+		"g_loadent 0; dm_monsters 0; g_swap_coop_monsters 0; vortex 0; "
 		"g_disable_player_collision 0; g_damage_scale 1; ai_damage_scale 1; ai_allow_dm_spawn 0; "
 		"timelimit 0; fraglimit 0; capturelimit 0; maxspectators 0; "
 		"set g_start_items \"\"; set cheats 0 s; maxclients 1; kexmultiplayer maxplayers 1\n");
@@ -1157,8 +1157,9 @@ void ExitLevel()
 		// Extract the actual map name after "horde:"
 		const char* map = level.changemap + start_offset + 6;
 
-		// Apply horde mode settings first
-		gi.AddCommandString("horde 1; coop 0; deathmatch 1; g_allow_techs 1; timelimit 0; g_dm_spawn_farthest 0\n"); //; maxclients 32; kexmultiplayer maxplayers 32
+		// Apply horde mode settings first (preserve horde 2 remix if already active)
+		gi.AddCommandString(G_Fmt("horde {}; coop 0; deathmatch 1; g_allow_techs 1; timelimit 0; g_dm_spawn_farthest 0\n",
+			g_horde->integer >= 2 ? g_horde->integer : 1).data()); //; maxclients 32; kexmultiplayer maxplayers 32
 
 		// Clear the election level after successful horde switch
 		extern ctfgame_t ctfgame;

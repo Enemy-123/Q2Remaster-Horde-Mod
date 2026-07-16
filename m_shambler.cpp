@@ -447,7 +447,7 @@ void ShamblerCastLightning(edict_t* self)
 	start = M_ProjectFlashSource(self, offset, forward, right);
 
 	// calc direction to where we targted
-	if (g_hardcoop->integer || current_wave_level >= 22 || self->monsterinfo.IS_BOSS)
+	if (g_swap_coop_monsters->integer || current_wave_level >= 22 || self->monsterinfo.IS_BOSS)
 	{
 		PredictAim(self, self->enemy, start, 0, false, 0.f, &dir, nullptr);
 	}
@@ -598,8 +598,8 @@ void ShamblerCastFireballs(edict_t* self)
 
 	// Lanzar fireballs
 	// Use the new fire_fireball function that spawns flames on explosion
-	const int num_fireballs = (g_hardcoop->integer || self->monsterinfo.IS_BOSS) ? 3 : 1;
-	const float spread_base = g_hardcoop->integer ? 0.03f : 0.06f;
+	const int num_fireballs = (g_swap_coop_monsters->integer || self->monsterinfo.IS_BOSS) ? 3 : 1;
+	const float spread_base = g_swap_coop_monsters->integer ? 0.03f : 0.06f;
 
 	// Get damage values
 	int base_damage = M_GET_DMG_OR(self, FIREBALL, 30);

@@ -21,6 +21,7 @@
 #include "horde_monster_data.h"
 #include "g_horde_scaling.h"
 #include "g_pvm.h"  // For PvM mode checks
+#include "g_character.h"  // For Character_Load/SaveServerSetting
 #include "p_flyer_morph.h"  // For ResetAllMorphData()
 #include "../m_tank.h"  // For ResetTankTeleportCache()
 #include <string_view>
@@ -4446,7 +4447,7 @@ void Horde_PreInit()
 		gi.cvar_forceset("g_allow_techs", "0");
 		gi.cvar_forceset("g_loadent", "0");
 		gi.cvar_forceset("dm_monsters", "0");
-		gi.cvar_forceset("g_hardcoop", "0");
+		gi.cvar_forceset("g_swap_coop_monsters", "0");
 		gi.cvar_forceset("vortex", "0");
 		gi.cvar_forceset("g_disable_player_collision", "0");
 		gi.cvar_forceset("g_damage_scale", "1");
@@ -4472,8 +4473,14 @@ void Horde_PreInit()
 
 	if (!g_horde->integer)
 	{
-		// Coop/non-Horde modes own their own difficulty settings. Do not force
-		// g_hardcoop here, otherwise switching out of Horde makes that cvar sticky.
+		if (coop->integer && !ctf->integer && !teamplay->integer)
+		{
+			// Coop monster swap: default ON at difficulty 1; the host's menu
+			// choice persists in characters.db and overrides the default.
+			const int enabled = Character_LoadServerSetting("coop_swap_enabled", 1);
+			const int diff = std::clamp(Character_LoadServerSetting("coop_swap_difficulty", 1), 1, 3);
+			gi.cvar_forceset("g_swap_coop_monsters", G_Fmt("{}", enabled ? diff : 0).data());
+		}
 		gi.cvar_forceset("deathmatch", "0");
 		return;
 	}
@@ -4536,7 +4543,7 @@ void Horde_PreInit()
 		// gi.cvar_forceset("g_autohaste", "0");
 		gi.cvar_forceset("g_chaotic", "0");
 		gi.cvar_forceset("g_insane", "0");
-		gi.cvar_forceset("g_hardcoop", "0");
+		gi.cvar_forceset("g_swap_coop_monsters", "0");
 
 		// Configuración de IA y bots
 		gi.cvar_forceset("g_dm_spawns", "0");
@@ -5681,7 +5688,7 @@ void ResetGame()
 	gi.cvar_set("g_start_items", "weapon_blaster 1");
 	if (g_chaotic) gi.cvar_set("g_chaotic", "0");
 	if (g_insane) gi.cvar_set("g_insane", "0");
-	if (g_hardcoop) gi.cvar_set("g_hardcoop", "0");
+	if (g_swap_coop_monsters) gi.cvar_set("g_swap_coop_monsters", "0");
 	if (dm_monsters) gi.cvar_set("dm_monsters", "0");
 	if (timelimit) gi.cvar_set("timelimit", "60");
 	if (ai_damage_scale) gi.cvar_set("ai_damage_scale", "1");
@@ -8044,7 +8051,7 @@ static constexpr ChampionBonusEntry CHAMPION_BONUS_TABLE[] = {
 	{BF_POSSESSED, 1.0f - ChampionBonusThresholds::CHAMPION}
 };
 
-static int SelectChampionBonusType() {
+int SelectChampionBonusType() {
 	// Compile-time validation: weights should sum to ~1.0
 	// Note: Due to floating-point precision, we allow a small epsilon
 	constexpr float total_weight =

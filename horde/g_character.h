@@ -41,6 +41,11 @@ struct CharacterData
 // Character system initialization
 void Character_Init();
 
+// Server-wide settings stored in the character DB under a fixed "__server" row
+// (available before any client connects; missing keys return default_value).
+int Character_LoadServerSetting(const char* key, int default_value);
+bool Character_SaveServerSetting(const char* key, int value);
+
 // Load character from SQLite (called on player connect)
 bool Character_Load(edict_t* player);
 

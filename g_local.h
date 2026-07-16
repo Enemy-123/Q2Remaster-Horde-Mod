@@ -2202,7 +2202,7 @@ extern cvar_t* g_spectator_teleport;    // Allow spectators to use teleporters
 
 extern cvar_t* g_chaotic;
 extern cvar_t* g_insane;
-extern cvar_t* g_hardcoop;
+extern cvar_t* g_swap_coop_monsters;
 // extern cvar_t* g_ammoregen;
 extern cvar_t* sv_wave_timer;
 // extern cvar_t* g_tracedbullets;
@@ -2400,6 +2400,10 @@ const spawn_temp_t& ED_GetSpawnTemp();
 void  ED_ParseField(const char* key, const char* value, edict_t* ent, spawn_temp_t& st);
 void  ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp);
 void  ED_CallSpawn(edict_t* ent);
+// Coop monster swap: re-apply the current g_swap_coop_monsters setting to idle
+// live map monsters (menu toggle without a map change). Returns monsters changed.
+// elites_only skips classname re-rolls and only grants new elite flags in place.
+size_t Coop_ApplySwapToLiveMonsters(bool elites_only = false);
 char* ED_NewString(char* string);
 
 //
@@ -4106,6 +4110,11 @@ struct edict_t
 	uint8_t projectile_attacker_type_id; // monster type id if attacker was monster
 	bool projectile_was_player_attacker; // true if attacker was a player
 	int16_t projectile_attacker_level; // pvm_level of monster attacker (for obituary)
+
+	// Coop monster swap: the map's original classname when this monster was swapped
+	// (points to the static replacement table). Lets the live toggle restore originals.
+	// Not serialized: after a save/load the swap simply can't be undone mid-map.
+	const char* coop_swap_original;
 
 	// NOTE: Grid tracking data (grid_cells, grid_cell_count, cached_entity_type) is stored
 	// in HordePhys::ProximityGrid/EntityGrid, not on edict_t. See g_horde_phys.h.

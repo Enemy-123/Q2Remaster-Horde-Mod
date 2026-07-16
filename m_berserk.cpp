@@ -780,8 +780,8 @@ void BerserkCastFireballs(edict_t* self)
 	M_CalculatePitchToFire(self, target, start, dir, speed, 2.5f, false);
 
 	// Use the new fire_fireball function that spawns flames on explosion
-	const int num_fireballs = (g_hardcoop->integer || self->monsterinfo.IS_BOSS) ? 3 : 1;
-	const float spread_base = g_hardcoop->integer ? 0.03f : 0.06f;
+	const int num_fireballs = (g_swap_coop_monsters->integer || self->monsterinfo.IS_BOSS) ? 3 : 1;
+	const float spread_base = g_swap_coop_monsters->integer ? 0.03f : 0.06f;
 
 	// Get damage values
 	int base_damage = M_GET_DMG_OR(self, FIREBALL, 45);

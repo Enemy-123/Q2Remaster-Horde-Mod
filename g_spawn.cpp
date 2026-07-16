@@ -666,63 +666,182 @@ std::span<const MonsterReplacement> GetHardCoopReplacements()
 
     return hardcoop_replacements;
 }
-// Función modernizada para aplicar reemplazos
-static bool perform_replacement(edict_t* ent, std::span<const MonsterReplacement> replacements, float prob) {
-	// Use a static random engine for better randomness per spawn
-
-	if (!ent || !ent->classname) {
-		return false;
-	}
+// Roll a random replacement for classname from the table, or nullptr if it has none.
+// The returned string (and *out_original, the matched table key) are static literals.
+static const char* select_replacement_classname(const char* classname, std::span<const MonsterReplacement> replacements, const char** out_original = nullptr) {
+	if (!classname)
+		return nullptr;
 
 	for (const auto& repl : replacements) {
-		if (repl.original != ent->classname) {
+		if (repl.original != classname) {
 			continue;
 		}
 
 		if (repl.replacement_count == 0) {
-			continue; // No replacement available
+			return nullptr; // No replacement available
 		}
 
-		// Use std::span for available replacements
 		std::span<const char* const> available_replacements(repl.replacements.data(), repl.replacement_count);
 
-		if (available_replacements.empty()) {
-			return false; // No valid replacements in this set
+		// Select a random replacement using the Mersenne Twister engine,
+		// scanning forward if the chosen slot happens to be invalid.
+		std::uniform_int_distribution<size_t> distrib(0, available_replacements.size() - 1);
+		const size_t index = distrib(mt_rand);
+
+		for (size_t i = 0; i < available_replacements.size(); ++i) {
+			const size_t next_index = (index + i) % available_replacements.size();
+			if (available_replacements[next_index] && available_replacements[next_index][0] != '\0') {
+				if (out_original)
+					*out_original = repl.original.data();
+				return available_replacements[next_index];
+			}
 		}
 
-		// Select a random replacement using the Mersenne Twister engine
-		std::uniform_int_distribution<size_t> distrib(0, available_replacements.size() - 1);
-		size_t index = distrib(mt_rand);
+		return nullptr; // No valid replacement found in the list
+	}
 
-		// Ensure the selected replacement is not null or empty before assigning
-		if (available_replacements[index] && available_replacements[index][0] != '\0') {
-			ent->classname = G_CopyString(available_replacements[index], TAG_LEVEL);
+	return nullptr; // No matching original classname found
+}
 
-			// Bonus effect application (only if a replacement happened)
-			if (frandom() < prob) {
-				ApplyMonsterBonusFlags(ent);
+// Función modernizada para aplicar reemplazos
+static bool perform_replacement(edict_t* ent, std::span<const MonsterReplacement> replacements) {
+	if (!ent || !ent->classname) {
+		return false;
+	}
+
+	const char* original = nullptr;
+	const char* chosen = select_replacement_classname(ent->classname, replacements, &original);
+	if (!chosen) {
+		return false;
+	}
+
+	// Remember the map's original monster so the live toggle can restore it.
+	if (!ent->coop_swap_original)
+		ent->coop_swap_original = original;
+
+	ent->classname = G_CopyString(chosen, TAG_LEVEL);
+	return true; // Replacement occurred
+}
+
+// Replace a live map monster with a freshly spawned one of new_classname at the
+// same spot, carrying over the map-logic fields (targets, spawnflags, etc.) so
+// triggers and killtargets keep working. Returns nullptr and leaves the old
+// monster untouched if the spawn fails.
+static edict_t* Coop_RespawnLiveMonster(edict_t* old, const char* new_classname, bonus_flags_t flags, const char* original) {
+	edict_t* newent = G_Spawn();
+	newent->classname = new_classname;
+	newent->s.origin = old->s.origin;
+	newent->s.angles = old->s.angles;
+	newent->spawnflags = old->spawnflags;
+	newent->message = old->message;
+	newent->target = old->target;
+	newent->targetname = old->targetname;
+	newent->killtarget = old->killtarget;
+	newent->pathtarget = old->pathtarget;
+	newent->deathtarget = old->deathtarget;
+	newent->healthtarget = old->healthtarget;
+	newent->itemtarget = old->itemtarget;
+	newent->combattarget = old->combattarget;
+	newent->team = old->team;
+	newent->wait = old->wait;
+	newent->delay = old->delay;
+	newent->count = old->count;
+	newent->item = old->item;
+	newent->gravityVector = old->gravityVector;
+	newent->monsterinfo.bonus_flags = flags; // applied by the spawn function's ApplyMonsterBonusFlags call
+	newent->coop_swap_original = original;
+
+	// Keep the old monster out of the way so the replacement doesn't spawn
+	// inside it; restore it if the spawn fails.
+	gi.unlinkentity(old);
+	ED_CallSpawn(newent);
+
+	if (!newent->inuse || !(newent->svflags & SVF_MONSTER)) {
+		if (newent->inuse)
+			G_FreeEdict(newent);
+		gi.linkentity(old);
+		return nullptr;
+	}
+
+	// The old monster was already counted at map spawn and the replacement's
+	// spawn function counted again; removing the old one without killing it
+	// must not inflate the level totals.
+	if (level.total_monsters > 0)
+		level.total_monsters--;
+
+	G_FreeEdict(old);
+	return newent;
+}
+
+// Re-apply the current g_swap_coop_monsters setting to monsters already alive in
+// the map, so the menu toggle takes effect without a map change. Only idle map
+// monsters are touched: anything fighting, dead, friendly, summoned or boss keeps
+// its current form until the next map. Classname changes need a fresh spawn
+// (model/AI come from the spawn function); elite flags on otherwise-unchanged
+// monsters are applied in place, same as ApplyHordeBonuses does post-spawn.
+// elites_only: difficulty change while already enabled - the swap set is the same
+// at every difficulty, so don't churn classnames; only roll new elites in place.
+size_t Coop_ApplySwapToLiveMonsters(bool elites_only) {
+	if (!coop->integer)
+		return 0;
+
+	const int setting = g_swap_coop_monsters->integer;
+	const bool enabled = setting > 0;
+	static constexpr float elite_chance[3] = { 0.01f, 0.10f, 0.50f };
+	const float chance = enabled ? elite_chance[std::clamp(setting, 1, 3) - 1] : 0.0f;
+
+	size_t changed = 0;
+	const size_t initial_count = globals.num_edicts; // replacements append past this
+	for (size_t i = game.maxclients + 1; i < initial_count; i++) {
+		edict_t* old = &g_edicts[i];
+		if (!old->inuse || !(old->svflags & SVF_MONSTER) || !old->classname)
+			continue;
+		if (old->health <= 0 || old->deadflag || old->enemy)
+			continue;
+		if (old->monsterinfo.IS_BOSS || old->monsterinfo.isfriendlyspawn || old->monsterinfo.commander)
+			continue;
+		if (old->monsterinfo.bonus_flags & BF_FRIENDLY)
+			continue;
+		if (old->monsterinfo.aiflags & (AI_DO_NOT_COUNT | AI_GOOD_GUY))
+			continue; // summoned/companion monsters, not map monsters
+		if (strncmp(old->classname, "monster_", 8) != 0)
+			continue;
+
+		const char* base = old->coop_swap_original ? old->coop_swap_original : old->classname;
+
+		if (!enabled) {
+			// Restore the map's original monster; elites are rebuilt clean too.
+			const bool swapped = old->coop_swap_original && strcmp(old->coop_swap_original, old->classname) != 0;
+			if ((swapped || old->monsterinfo.bonus_flags != BF_NONE) &&
+				Coop_RespawnLiveMonster(old, base, BF_NONE, nullptr))
+				changed++;
+			continue;
+		}
+
+		const bonus_flags_t flags = (frandom() < chance)
+			? static_cast<bonus_flags_t>(SelectChampionBonusType())
+			: BF_NONE;
+
+		if (!elites_only) {
+			const char* original = nullptr;
+			const char* rolled = select_replacement_classname(base, GetHardCoopReplacements(), &original);
+			const char* target_classname = rolled ? rolled : base;
+
+			if (strcmp(target_classname, old->classname) != 0) {
+				if (Coop_RespawnLiveMonster(old, target_classname, flags, rolled ? original : nullptr))
+					changed++;
+				continue;
 			}
-			return true; // Replacement occurred
-		} else {
-			// If the chosen replacement is invalid, try finding the next valid one or default back
-			// This part might need refinement based on desired behavior for empty slots
-			for(size_t i = 1; i < available_replacements.size(); ++i) {
-				size_t next_index = (index + i) % available_replacements.size();
-				if (available_replacements[next_index] && available_replacements[next_index][0] != '\0') {
-					ent->classname = G_CopyString(available_replacements[next_index], TAG_LEVEL);
-					if (frandom() < prob) {
-						ApplyMonsterBonusFlags(ent);
-					}
-					return true; // Replacement occurred
-				}
-			}
-			// If no valid replacement found in the list, maybe keep original? Or log error?
-			// For now, let's just not replace if the random pick was invalid and no other valid option found.
-			return false;
+		}
+
+		if (flags != BF_NONE && old->monsterinfo.bonus_flags == BF_NONE) {
+			old->monsterinfo.bonus_flags = flags;
+			ApplyMonsterBonusFlags(old);
+			changed++;
 		}
 	}
 
-	return false; // No matching original classname found
+	return changed;
 }
 
 void ED_CallSpawnMonsterByID(edict_t* ent, horde::MonsterTypeID typeId)
@@ -1370,9 +1489,17 @@ const char* ED_ParseEdict(const char* data, edict_t* ent, spawn_temp_t& st)
 #pragma GCC diagnostic pop
 #endif
 
-	if (coop->integer && g_hardcoop->integer && ent->classname) {
-		perform_replacement(ent, GetHardCoopReplacements(),
-			g_hardcoop->integer == 3 ? 0.50f : 0.0f);
+	if (coop->integer && g_swap_coop_monsters->integer && ent->classname) {
+		perform_replacement(ent, GetHardCoopReplacements());
+
+		// Elite (bonus-flag) chance per map monster, by difficulty: 1% -> 10% -> 50%.
+		// The flag must be set BEFORE ED_CallSpawn; the spawn function's end-of-spawn
+		// ApplyMonsterBonusFlags call applies the health/armor/skin/effects.
+		static constexpr float elite_chance[3] = { 0.01f, 0.10f, 0.50f };
+		const int lvl = std::clamp(g_swap_coop_monsters->integer, 1, 3);
+		if (!strncmp(ent->classname, "monster_", 8) && frandom() < elite_chance[lvl - 1])
+			ent->monsterinfo.bonus_flags = static_cast<bonus_flags_t>(
+				ent->monsterinfo.bonus_flags | SelectChampionBonusType());
 	}
 	return data;
 }

@@ -831,7 +831,7 @@ void TankBlaster(edict_t* self)
 	// Boss lightning attack
 	const bool isBoss =
 		(horde::IsMonsterType(self, horde::MonsterTypeID::TANK_64) && self->monsterinfo.IS_BOSS) ||
-		(g_hardcoop->integer && horde::IsMonsterType(self, horde::MonsterTypeID::TANK_64));
+		(g_swap_coop_monsters->integer && horde::IsMonsterType(self, horde::MonsterTypeID::TANK_64));
 
 	if (isBoss)
 	{

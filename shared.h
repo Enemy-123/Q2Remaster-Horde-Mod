@@ -124,6 +124,8 @@ extern void SetHealthBarName(const edict_t* boss);
 
 //DMG & POWERUP
 void ApplyMonsterBonusFlags(edict_t* monster);
+// Weighted random elite bonus flag (BF_GHOSTLY/STYGIAN/CORRUPTED/CHAMPION/POSSESSED); defined in g_horde.cpp
+int SelectChampionBonusType();
 void ApplyBossEffects(edict_t* boss);
 // Apply ONLY the cosmetic + timed-buff effects of a single bonus flag (no health/armor scaling),
 // for special encounters that set their own fixed stats (e.g. the Hell Maidens).

@@ -329,6 +329,30 @@ void Character_Init()
         gi.Com_PrintFmt("Character system: Initialized SQLite database ({})\n", s_character_db_path);
 }
 
+// Server-wide settings (not tied to a player) stored in the character_values
+// table under a fixed "__server" row so they are available before any client
+// connects (e.g. at Horde_PreInit, before SpawnEntities parses the map).
+static constexpr const char* SERVER_SETTINGS_NAME = "__server";
+static constexpr const char* SERVER_SETTINGS_SCOPE = "settings";
+
+int Character_LoadServerSetting(const char* key, int default_value)
+{
+    if (!key || !EnsureCharacterDatabase())
+        return default_value;
+
+    auto values = LoadScopedValues(SERVER_SETTINGS_NAME, SERVER_SETTINGS_SCOPE);
+    auto it = values.find(key);
+    return it != values.end() ? it->second : default_value;
+}
+
+bool Character_SaveServerSetting(const char* key, int value)
+{
+    if (!key || !EnsureCharacterDatabase())
+        return false;
+
+    return SaveScopedValue(SERVER_SETTINGS_NAME, SERVER_SETTINGS_SCOPE, key, value);
+}
+
 std::string Character_SanitizeName(const char* name)
 {
     if (!name || !name[0])

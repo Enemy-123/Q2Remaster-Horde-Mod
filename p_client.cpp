@@ -3771,7 +3771,7 @@ bool ClientConnect(edict_t* ent, char* userinfo, const char* social_id, bool isB
 		// ZOID -- force team join
 		ent->client->resp.ctf_team = CTF_NOTEAM;
 		ent->client->pers.id_state = true; // here we set ID or IDDMG enabled or not by default
-		ent->client->pers.iddmg_state = g_horde->integer ? true : false;
+		ent->client->pers.iddmg_state = false; // dmg numbers off unless the player enables them in the menu
 		// ZOID
 		InitClientResp(ent->client);
 		if (!game.autosaved || !ent->client->pers.weapon)
@@ -4569,8 +4569,14 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 	}
 
 	// Handle menu protection - block attack/jump but allow menu navigation
+	// Tracks whether this block already ran HandleMenuMovement: running it a
+	// second time this frame with the stripped/zeroed ucmd resets the inmenu /
+	// menu_sign latches, making a held click or held arrow retrigger every frame.
+	bool menu_input_handled = false;
 	if (client->menu_protected && (client->menu || client->showinventory))
 	{
+		menu_input_handled = true;
+
 		// Let menu handle the input
 		if (HandleMenuMovement(ent, ucmd))
 		{
@@ -4585,6 +4591,17 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 
 		// Wait for player to land before freezing to prevent awkward mid-air freeze
 		bool should_freeze = ent->groundentity != nullptr;
+
+		// Morphed flyers never touch the ground, so they'd never freeze and could
+		// fly around with the menu open. Don't PM_FREEZE them (that would skip the
+		// morph pipeline below, breaking unmorph/menu handling) - just cancel their
+		// movement input; spectator-physics friction glides them to a stop.
+		if (!should_freeze && IsMorphed(ent))
+		{
+			ucmd->forwardmove = 0;
+			ucmd->sidemove = 0;
+			ucmd->buttons &= ~BUTTON_CROUCH; // flyer descend
+		}
 
 		if (should_freeze)
 		{
@@ -4637,8 +4654,9 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 	}
 	else
 	{
-		// Handle menu movement if the menu is open
-		if (ent->client->menu)
+		// Handle menu movement if the menu is open (unless the menu-protection
+		// block above already processed this frame's input - see note there)
+		if (ent->client->menu && !menu_input_handled)
 		{
 			// Just pass the original ucmd directly
 			if (HandleMenuMovement(ent, ucmd))
@@ -4926,7 +4944,11 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		}
 	}
 
-	if (client->resp.spectator || (G_TeamplayEnabled() && ent->client->resp.ctf_team == CTF_NOTEAM))
+	// Skip when the menu-protection block already handled this frame's menu input:
+	// re-running HandleMenuMovement with the stripped ucmd resets its latches
+	// (held click/arrow would retrigger every frame).
+	if (!menu_input_handled &&
+		(client->resp.spectator || (G_TeamplayEnabled() && ent->client->resp.ctf_team == CTF_NOTEAM)))
 	{
 		usercmd_t spec_menu_ucmd = *ucmd;
 		if (!HandleMenuMovement(ent, &spec_menu_ucmd))
