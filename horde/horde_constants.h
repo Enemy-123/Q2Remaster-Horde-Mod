@@ -283,7 +283,4 @@ namespace LimitBreakWave {
 	// reads as a fresh, enraged push rather than trickling from the same nearby spots.
 	inline constexpr float   FARTHEST_SPAWN_CHANCE_FOG = 0.9f;
 	inline constexpr gtime_t ALT_SUCCESS_COOLDOWN_FOG  = 0.75_sec;
-
-	// Weight multiplier so chickkl spawns far more often than other monsters where eligible.
-	inline constexpr float CHICKKL_WEIGHT_BOOST = 3.0f;
 }

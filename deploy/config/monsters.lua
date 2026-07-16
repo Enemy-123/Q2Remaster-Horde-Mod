@@ -138,6 +138,10 @@ MONSTER_BOSS5_BOSS_DAMAGE_HEAT                   = 90
 MONSTER_SHAMBLER_BOSS_DAMAGE_LIGHTNING           = 25
 MONSTER_SHAMBLERKL_BOSS_DAMAGE_LIGHTNING         = 30
 
+-- Chickkl (Hell Maidens boss trio; each volley is 4 heat-seeking bolts, so the boss keeps the
+-- old per-bolt 23 while normal field chickkls drop to 15)
+MONSTER_CHICKKL_BOSS_DAMAGE_PLASMA               = 23
+
 -- Guardian
 MONSTER_GUARDIAN_BOSS_DAMAGE_BLASTER             = 35
 MONSTER_GUARDIAN_BOSS_DAMAGE_DABEAM              = 45
@@ -398,7 +402,7 @@ MONSTER_CHICKKL_DAMAGE_SCALE                     = 1.16
 MONSTER_CHICKKL_DAMAGE_MELEE                     = 30
 MONSTER_CHICKKL_DAMAGE_MAX_MELEE                 = 16
 MONSTER_CHICKKL_ADDON_DAMAGE_MELEE               = 0
-MONSTER_CHICKKL_DAMAGE_PLASMA                    = 23
+MONSTER_CHICKKL_DAMAGE_PLASMA                    = 15
 
 -- Parasite
 MONSTER_PARASITE_HEALTH                          = 115

@@ -3740,19 +3740,14 @@ static float ApplyMonsterWeightModifiers(
 {
 	float weight = base_weight;
 
-	// Apply spawn history penalty (chickkl is exempt so it's allowed to dominate / repeat).
+	// Apply spawn history penalty
 	AssetFamilyID monster_family = GetMonsterAssetFamily(monster_info->typeId);
-	if (monster_family != AssetFamilyID::UNKNOWN_FAMILY &&
-		monster_info->typeId != horde::MonsterTypeID::CHICKKL)
+	if (monster_family != AssetFamilyID::UNKNOWN_FAMILY)
 	{
 		int32_t recent_spawn_count = GetFamilySpawnCountInHistory(monster_family);
 		if (recent_spawn_count >= 2)
 			weight *= 0.3f;
 	}
-
-	// Boost chickkl so it spawns far more often than other monsters wherever it's eligible.
-	if (monster_info->typeId == horde::MonsterTypeID::CHICKKL)
-		weight *= LimitBreakWave::CHICKKL_WEIGHT_BOOST;
 
 	// Soldier weight reduction for waves 5+
 	if (ctx.currentActualLevel >= 5 && monster_family == AssetFamilyID::SOLDIER_FAMILY)

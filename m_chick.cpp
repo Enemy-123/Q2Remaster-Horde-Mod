@@ -633,8 +633,8 @@ void ChickBombSpell(edict_t* self)
 
 		gi.linkentity(spell);
 
-		// Set cooldown using fire_wait
-		self->monsterinfo.fire_wait = level.time + 2_sec;
+		// Set cooldown using fire_wait (longer than the 3s carpet duration so casts never overlap)
+		self->monsterinfo.fire_wait = level.time + 5_sec;
 
 		// Next time try area bomb
 		self->monsterinfo.lefty = 1;
@@ -679,8 +679,8 @@ void ChickBombSpell(edict_t* self)
 		spell->s.angles = vectoangles(ground_tr.plane.normal);
 		gi.linkentity(spell);
 
-		// Set cooldown using fire_wait
-		self->monsterinfo.fire_wait = level.time + 2_sec;
+		// Set cooldown using fire_wait (longer than the 4s area duration so casts never overlap)
+		self->monsterinfo.fire_wait = level.time + 5_sec;
 
 		// Next time try carpet bomb
 		self->monsterinfo.lefty = 0;
