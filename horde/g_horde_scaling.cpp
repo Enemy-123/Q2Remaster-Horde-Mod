@@ -104,10 +104,6 @@ void InitializeScalingSystem() {
 
 // Scaling JSON has been retired. Keep the hooks disabled until a future Lua scaling system opts in.
 void LoadScalingConfig() {
-    g_config.use_sigmoid_scaling = false;
-    g_config.use_sigmoid_scaling_bosses_only = false;
-    g_config.use_sigmoid_scaling_except_bosses = false;
-
     if (developer && developer->integer) {
         gi.Com_Print("Scaling: external scaling config disabled; using unscaled Lua monster damage caps\n");
     }
@@ -184,74 +180,23 @@ float GetItemDropScale(int wave_level, int item_tier) {
     return CalculateSigmoid(static_cast<float>(wave_level), *params);
 }
 
-// Scale monster health with sigmoid curve
+// Sigmoid scaling is retired: these are unconditional pass-throughs kept so the
+// many monster-file call sites don't need touching. Re-wire to the sigmoid
+// helpers above if a future Lua scaling system opts back in.
 int ScaleMonsterHealth(int base_health, int wave_level, bool is_boss) {
-    if (!g_config.use_sigmoid_scaling) {
-        // if (developer && developer->integer) {
-        //     gi.Com_PrintFmt("ScaleMonsterHealth: Scaling disabled (use_sigmoid_scaling=false)\n");
-        // }
-        return base_health;
-    }
-
-    if (g_config.use_sigmoid_scaling_bosses_only && !is_boss) {
-        return base_health;
-    }
-
-    if (g_config.use_sigmoid_scaling_except_bosses && is_boss) {
-        return base_health;
-    }
-
-    float scale = GetMonsterHealthScale(wave_level);
-
-    // Bosses get additional scaling
-    if (is_boss) {
-        scale *= 1.5f;
-
-        // Add some linear scaling for bosses to maintain challenge
-        scale += (wave_level - 10) * 0.02f;
-    }
-
-    int scaled_health = static_cast<int>(base_health * scale);
-
-    // if (developer && developer->integer) {
-    //     gi.Com_PrintFmt("ScaleMonsterHealth: wave={}, base={}, scale={:.2f}, scaled={}, is_boss={}\n",
-    //         wave_level, base_health, scale, scaled_health, is_boss);
-    // }
-
-    return scaled_health;
+    return base_health;
 }
 
-// Scale monster armor with sigmoid curve
 int ScaleMonsterArmor(int base_armor, int wave_level) {
-    if (!g_config.use_sigmoid_scaling) {
-        return base_armor;
-    }
-
-    float scale = GetMonsterArmorScale(wave_level);
-    return static_cast<int>(base_armor * scale);
+    return base_armor;
 }
 
-// Scale weapon damage with sigmoid curve
 int ScaleWeaponDamage(int base_damage, int wave_level, bool is_player_weapon) {
-    if (!g_config.use_sigmoid_scaling) {
-        return base_damage;
-    }
-
-    float scale = is_player_weapon ?
-        GetPlayerWeaponScale(wave_level) :
-        GetMonsterDamageScale(wave_level);
-
-    return static_cast<int>(base_damage * scale);
+    return base_damage;
 }
 
-// Scale item drop weight based on tier
 float ScaleItemDropWeight(float base_weight, int wave_level, int item_tier) {
-    if (!g_config.use_sigmoid_scaling) {
-        return base_weight;
-    }
-
-    float scale = GetItemDropScale(wave_level, item_tier);
-    return base_weight * scale;
+    return base_weight;
 }
 
 // Get map size modifier

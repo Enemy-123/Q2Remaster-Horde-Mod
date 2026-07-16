@@ -110,6 +110,8 @@ cvar_t* g_coop_player_collision;
 cvar_t* g_coop_squad_respawn;
 cvar_t* g_coop_enable_lives;
 cvar_t* g_coop_num_lives;
+cvar_t* g_coop_damage_respawn_time;
+cvar_t* g_coop_bad_area_time;
 cvar_t* g_coop_instanced_items;
 cvar_t* g_allow_grapple;
 cvar_t* g_grapple_fly_speed;
@@ -348,6 +350,9 @@ void InitGame()
 	g_coop_squad_respawn = gi.cvar("g_coop_squad_respawn", "1", CVAR_LATCH);
 	g_coop_enable_lives = gi.cvar("g_coop_enable_lives", "0", CVAR_LATCH);
 	g_coop_num_lives = gi.cvar("g_coop_num_lives", "2", CVAR_LATCH);
+	// squad respawn timers in seconds; -1 = unset (fall back to lua config, then compiled default)
+	g_coop_damage_respawn_time = gi.cvar("g_coop_damage_respawn_time", "-1", CVAR_NOFLAGS);
+	g_coop_bad_area_time = gi.cvar("g_coop_bad_area_time", "-1", CVAR_NOFLAGS);
 	g_coop_instanced_items = gi.cvar("g_coop_instanced_items", "1", CVAR_LATCH);
 	g_allow_grapple = gi.cvar("g_allow_grapple", "auto", CVAR_NOFLAGS);
 	// Initialize grapple cvars from g_config values (loaded from JSON)
@@ -1375,14 +1380,8 @@ static void ProcessHordePerFrameLogic(const MonstersT& monsters, const PlayersT&
         last_player_count_check = level.time;
     }
 
-    // Player scale configuration
-    if (g_horde && g_horde->integer && g_config.use_sigmoid_scaling) {
-        // In horde mode with sigmoid scaling, disable coop scaling
-        level.coop_scale_players = 1;  // No additional coop scaling
-    } else {
-        // Non-horde modes or sigmoid scaling disabled use traditional coop scaling
-        level.coop_scale_players = 2 + cached_human_player_count;
-    }
+    // Player scale configuration (sigmoid scaling retired; traditional coop scaling always applies)
+    level.coop_scale_players = 2 + cached_human_player_count;
     G_Monster_CheckCoopHealthScaling();
 
     // Update deployables based on adrenaline changes (cached for performance)

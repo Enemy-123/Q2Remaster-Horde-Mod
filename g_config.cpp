@@ -412,19 +412,6 @@ static void ParseFlatPlayerGlobal(Json::Value& root, std::string_view name, cons
 		{"SUMMON", "summon"},
 	};
 
-	static constexpr LuaNameMap kAmmoRates[] = {
-		{"GRENADES", "grenades"},
-		{"BULLETS", "bullets"},
-		{"ROCKETS", "rockets"},
-		{"SHELLS", "shells"},
-		{"CELLS", "cells"},
-		{"SLUGS", "slugs"},
-		{"MAGSLUG", "magslug"},
-		{"TESLA", "tesla"},
-		{"PROX", "prox"},
-		{"TRAP", "trap"},
-	};
-
 	if (StartsWith(name, "ENTITY_LIMIT_"))
 	{
 		root["entity_limits"][ToLowerAscii(name.substr(strlen("ENTITY_LIMIT_")))] = value;
@@ -450,24 +437,10 @@ static void ParseFlatPlayerGlobal(Json::Value& root, std::string_view name, cons
 		return;
 	}
 
-	if (name == "AMMO_REGEN_ENABLED")
+	if (StartsWith(name, "RESPAWN_"))
 	{
-		root["ammo_regen"]["enabled"] = value;
+		root["respawn"][ToLowerAscii(name.substr(strlen("RESPAWN_")))] = value;
 		return;
-	}
-
-	if (StartsWith(name, "AMMO_REGEN_"))
-	{
-		std::string_view body = name.substr(strlen("AMMO_REGEN_"));
-		for (const LuaNameMap& ammo : kAmmoRates)
-		{
-			std::string ammo_prefix = std::string(ammo.lua_name) + "_";
-			if (StartsWith(body, ammo_prefix))
-			{
-				root["ammo_regen"]["rates"][ammo.json_name][ToLowerAscii(body.substr(ammo_prefix.size()))] = value;
-				return;
-			}
-		}
 	}
 
 	if (StartsWith(name, "POWER_CUBES_REGEN_"))
@@ -594,9 +567,6 @@ void Config_SetDefaults()
 {
 	// Reset to default values (already set in struct definitions)
 	g_config = GameConfig();
-	g_config.use_sigmoid_scaling = false;
-	g_config.use_sigmoid_scaling_bosses_only = false;
-	g_config.use_sigmoid_scaling_except_bosses = false;
 }
 
 void Config_LoadMonsters(const char* basedir)
@@ -1238,8 +1208,6 @@ void Config_Load(const char* basedir)
 			g_config.bfg.damage = GetJsonInt(w, "damage", 700);
 			g_config.bfg.radius = GetJsonFloat(w, "radius", 1000.0f);
 			g_config.bfg.speed = GetJsonInt(w, "speed", 650);
-			g_config.bfg.ammo_normal = GetJsonInt(w, "ammo_normal", 50);
-			g_config.bfg.ammo_slide = GetJsonInt(w, "ammo_slide", 25);
 			g_config.bfg.damage_addon = GetJsonInt(w, "damage_addon", 2);
 			g_config.bfg.speed_addon = GetJsonInt(w, "speed_addon", 35);
 		}
@@ -1290,7 +1258,6 @@ void Config_Load(const char* basedir)
 			g_config.etfrifle.damage_min = GetJsonInt(w, "damage_min", 9);
 			g_config.etfrifle.damage_max = GetJsonInt(w, "damage_max", 13);
 			g_config.etfrifle.kick_normal = GetJsonInt(w, "kick_normal", 3);
-			g_config.etfrifle.kick_homing = GetJsonInt(w, "kick_homing", 75);
 			g_config.etfrifle.damage_addon = GetJsonInt(w, "damage_addon", 1);
 			g_config.etfrifle.init_speed = GetJsonInt(w, "init_speed", 1450);
 			g_config.etfrifle.speed_addon = GetJsonInt(w, "speed_addon", 40);
@@ -1335,7 +1302,6 @@ void Config_Load(const char* basedir)
 			g_config.trap.minspeed = GetJsonFloat(t, "minspeed", 500.0f);
 			g_config.trap.maxspeed = GetJsonFloat(t, "maxspeed", 900.0f);
 			g_config.trap.speed_addon = GetJsonFloat(t, "speed_addon", 30.0f);
-			g_config.trap.timer_sec = GetJsonInt(t, "timer_sec", 5);
 			g_config.trap.pull_radius = GetJsonFloat(t, "pull_radius", 400.0f);
 			g_config.trap.pull_speed_monster = GetJsonFloat(t, "pull_speed_monster", 210.0f);
 			g_config.trap.pull_speed_player = GetJsonFloat(t, "pull_speed_player", 290.0f);
@@ -1345,19 +1311,10 @@ void Config_Load(const char* basedir)
 			g_config.trap.explosion_radius = GetJsonInt(t, "explosion_radius", 100);
 		}
 
-		// Tesla
+		// Tesla (only throw speed is configurable; the rest comes from the skill system)
 		if (deployables.isMember("tesla") && deployables["tesla"].isObject())
 		{
 			const Json::Value& t = deployables["tesla"];
-			g_config.tesla.damage = GetJsonInt(t, "damage", 4);
-			g_config.tesla.damage_radius = GetJsonInt(t, "damage_radius", 200);
-			g_config.tesla.health = GetJsonInt(t, "health", 50);
-			g_config.tesla.time_to_live_sec = GetJsonInt(t, "time_to_live_sec", 30);
-			g_config.tesla.activate_time_ms = GetJsonInt(t, "activate_time_ms", 1200);
-			g_config.tesla.explosion_damage_multiplier = GetJsonInt(t, "explosion_damage_multiplier", 50);
-			g_config.tesla.explosion_radius = GetJsonInt(t, "explosion_radius", 200);
-			g_config.tesla.knockback = GetJsonInt(t, "knockback", 8);
-			g_config.tesla.damage_addon = GetJsonInt(t, "damage_addon", 0);
 			g_config.tesla.minspeed = GetJsonFloat(t, "minspeed", 600.0f);
 			g_config.tesla.maxspeed = GetJsonFloat(t, "maxspeed", 900.0f);
 			g_config.tesla.speed_addon = GetJsonFloat(t, "speed_addon", 30.0f);
@@ -1415,7 +1372,6 @@ void Config_Load(const char* basedir)
 			g_config.bomb_spell.duration_sec = GetJsonInt(b, "duration_sec", 5);
 			g_config.bomb_spell.forward_cooldown_ms = GetJsonInt(b, "forward_cooldown_ms", 1500);
 			g_config.bomb_spell.area_cooldown_ms = GetJsonInt(b, "area_cooldown_ms", 10000);
-			g_config.bomb_spell.max_height = GetJsonInt(b, "max_height", 256);
 			g_config.bomb_spell.step_size = GetJsonInt(b, "step_size", 96);
 			g_config.bomb_spell.carpet_width = GetJsonInt(b, "carpet_width", 200);
 		}
@@ -1485,37 +1441,6 @@ void Config_Load(const char* basedir)
 		g_config.grapple.damage = GetJsonInt(g, "damage", 10);
 	}
 
-	// Load ammo regeneration config
-	if (root.isMember("ammo_regen") && root["ammo_regen"].isObject())
-	{
-		const Json::Value& ammo_regen = root["ammo_regen"];
-		g_config.ammo_regen.enabled = ammo_regen.get("enabled", true).asBool();
-
-		if (ammo_regen.isMember("rates") && ammo_regen["rates"].isObject())
-		{
-			const Json::Value& rates = ammo_regen["rates"];
-
-			// Helper lambda to parse rate config
-			auto parseRate = [](const Json::Value& rate, int defaultQty, int defaultInterval) -> AmmoRegenRateConfig {
-				AmmoRegenRateConfig config;
-				config.quantity = GetJsonInt(rate, "quantity", defaultQty);
-				config.interval_ms = GetJsonInt(rate, "interval_ms", defaultInterval);
-				return config;
-			};
-
-			if (rates.isMember("bullets")) g_config.ammo_regen.bullets = parseRate(rates["bullets"], 10, 3000);
-			if (rates.isMember("shells")) g_config.ammo_regen.shells = parseRate(rates["shells"], 5, 3000);
-			if (rates.isMember("grenades")) g_config.ammo_regen.grenades = parseRate(rates["grenades"], 3, 4000);
-			if (rates.isMember("rockets")) g_config.ammo_regen.rockets = parseRate(rates["rockets"], 2, 5000);
-			if (rates.isMember("cells")) g_config.ammo_regen.cells = parseRate(rates["cells"], 10, 3000);
-			if (rates.isMember("slugs")) g_config.ammo_regen.slugs = parseRate(rates["slugs"], 5, 4000);
-			if (rates.isMember("magslug")) g_config.ammo_regen.magslug = parseRate(rates["magslug"], 3, 5000);
-			if (rates.isMember("prox")) g_config.ammo_regen.prox = parseRate(rates["prox"], 1, 6000);
-			if (rates.isMember("trap")) g_config.ammo_regen.trap = parseRate(rates["trap"], 1, 6000);
-			if (rates.isMember("tesla")) g_config.ammo_regen.tesla = parseRate(rates["tesla"], 2, 5000);
-		}
-	}
-
 	// Load power cubes config
 	if (root.isMember("power_cubes") && root["power_cubes"].isObject())
 	{
@@ -1532,6 +1457,14 @@ void Config_Load(const char* basedir)
 		const Json::Value& pcr = root["power_cubes_regen"];
 		g_config.power_cubes_regen.base_regen_time = GetJsonFloat(pcr, "base_regen_time", 5.0f);
 		g_config.power_cubes_regen.cubes_per_regen = GetJsonInt(pcr, "cubes_per_regen", 5);
+	}
+
+	// Load squad respawn timers (seconds; 0 = unset, use compiled defaults)
+	if (root.isMember("respawn") && root["respawn"].isObject())
+	{
+		const Json::Value& r = root["respawn"];
+		g_config.respawn_damage_time_sec = GetJsonFloat(r, "damage_time", 0.0f);
+		g_config.respawn_bad_area_time_sec = GetJsonFloat(r, "bad_area_time", 0.0f);
 	}
 
 	if (player_config_loaded)
@@ -1552,6 +1485,25 @@ void Config_Load(const char* basedir)
 
 	// Load map configs
 	Config_LoadMaps(basedir);
+}
+
+// Squad respawn timers with runtime override chain: cvar (>= 0) -> lua (> 0) -> compiled default
+gtime_t G_CoopDamageRespawnTime()
+{
+	if (g_coop_damage_respawn_time && g_coop_damage_respawn_time->value >= 0.0f)
+		return gtime_t::from_sec(g_coop_damage_respawn_time->value);
+	if (g_config.respawn_damage_time_sec > 0.0f)
+		return gtime_t::from_sec(g_config.respawn_damage_time_sec);
+	return COOP_DAMAGE_RESPAWN_TIME;
+}
+
+gtime_t G_CoopBadAreaTime()
+{
+	if (g_coop_bad_area_time && g_coop_bad_area_time->value >= 0.0f)
+		return gtime_t::from_sec(g_coop_bad_area_time->value);
+	if (g_config.respawn_bad_area_time_sec > 0.0f)
+		return gtime_t::from_sec(g_config.respawn_bad_area_time_sec);
+	return COOP_BAD_AREA_TIME;
 }
 
 void Config_Reload()
@@ -1596,9 +1548,6 @@ const MonsterStatsConfig* GetMonsterConfig(uint8_t monster_type_id)
 	}
 	return nullptr;
 }
-
-// Include for sigmoid scaling
-#include "horde/g_horde_scaling.h"
 
 // Get specific weapon damage for a monster - FULLY OPTIMIZED with enum-based O(1) lookups
 // CRITICAL HOT PATH: Called on every monster weapon attack (10-60 times per second)
@@ -1834,16 +1783,6 @@ int GetScaledArmor(int base_armor, float armor_scale, int wave_level, bool is_bo
 	// Apply monster-specific armor scale
 	int scaled_armor = static_cast<int>(base_armor * armor_scale);
 
-	// Apply wave scaling if enabled
-	if (g_config.use_sigmoid_scaling && wave_level > 0)
-	{
-		scaled_armor = ScaleMonsterArmor(scaled_armor, wave_level);
-		if (is_boss)
-		{
-			scaled_armor = static_cast<int>(scaled_armor * 1.5f);
-		}
-	}
-
 	return scaled_armor;
 }
 
@@ -1854,16 +1793,6 @@ int GetScaledPowerArmor(int base_power_armor, float power_armor_scale, int wave_
 
 	// Apply monster-specific power armor scale
 	int scaled_power_armor = static_cast<int>(base_power_armor * power_armor_scale);
-
-	// Apply wave scaling if enabled
-	if (g_config.use_sigmoid_scaling && wave_level > 0)
-	{
-		scaled_power_armor = ScaleMonsterArmor(scaled_power_armor, wave_level);
-		if (is_boss)
-		{
-			scaled_power_armor = static_cast<int>(scaled_power_armor * 1.5f);
-		}
-	}
 
 	return scaled_power_armor;
 }

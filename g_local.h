@@ -2261,6 +2261,8 @@ extern cvar_t* g_coop_player_collision;
 extern cvar_t* g_coop_squad_respawn;
 extern cvar_t* g_coop_enable_lives;
 extern cvar_t* g_coop_num_lives;
+extern cvar_t* g_coop_damage_respawn_time;
+extern cvar_t* g_coop_bad_area_time;
 extern cvar_t* g_coop_instanced_items;
 extern cvar_t* g_allow_grapple;
 extern cvar_t* g_grapple_fly_speed;
@@ -3584,6 +3586,14 @@ constexpr gtime_t LADDER_SOUND_TIME = 300_ms;
 
 // time after damage that we can't respawn on a player for
 constexpr gtime_t COOP_DAMAGE_RESPAWN_TIME = 4000_ms;
+
+// time stuck in a bad area (swimming/falling) before forcing a squad respawn
+constexpr gtime_t COOP_BAD_AREA_TIME = 2000_ms;
+
+// runtime-configurable versions of the two timers above:
+// cvar (>= 0) -> lua config (> 0) -> compiled default
+gtime_t G_CoopDamageRespawnTime();
+gtime_t G_CoopBadAreaTime();
 
 // time after firing that we can't respawn on a player for
 constexpr gtime_t COOP_DAMAGE_FIRING_TIME = 500_ms;

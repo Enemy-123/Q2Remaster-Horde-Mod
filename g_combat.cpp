@@ -1428,10 +1428,11 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 
 	if (targ && targ->client) {
 		targ->client->last_attacker_time = level.time;
+		// Falling damage doesn't count as combat for squad respawn purposes
 		if ((take > 0 || psave > 0 || asave > 0) &&
 			!(targ->client->invincible_time > level.time) &&
-			!(dflags & DAMAGE_NO_PROTECTION)) {
-			targ->client->last_damage_time = level.time + COOP_DAMAGE_RESPAWN_TIME;
+			!(dflags & DAMAGE_NO_PROTECTION) && mod.id != MOD_FALLING) {
+			targ->client->last_damage_time = level.time + G_CoopDamageRespawnTime();
 		}
 	}
 

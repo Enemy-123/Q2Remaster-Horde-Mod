@@ -87,8 +87,6 @@ WEAPON_CANNON20MM_RECOIL_FORCE                   = 250
 WEAPON_BFG_DAMAGE                                = 700
 WEAPON_BFG_RADIUS                                = 1000.0
 WEAPON_BFG_SPEED                                 = 600
-WEAPON_BFG_AMMO_NORMAL                           = 50
-WEAPON_BFG_AMMO_SLIDE                            = 25
 
 -- Ion Ripper
 WEAPON_IONRIPPER_DAMAGE                          = 50
@@ -112,7 +110,6 @@ WEAPON_TRACKER_SPEED                             = 1000
 WEAPON_ETFRIFLE_DAMAGE_MIN                       = 9
 WEAPON_ETFRIFLE_DAMAGE_MAX                       = 13
 WEAPON_ETFRIFLE_KICK_NORMAL                      = 3
-WEAPON_ETFRIFLE_KICK_HOMING                      = 75
 
 -- Deployables
 
@@ -125,16 +122,7 @@ DEPLOYABLE_PROX_MINE_TIME_DELAY_MS               = 350
 DEPLOYABLE_PROX_MINE_DAMAGE_OPEN_MULTIPLIER      = 1.5
 DEPLOYABLE_PROX_MINE_BOUND_SIZE                  = 96
 
--- Laser
-DEPLOYABLE_LASER_HEALTH_BASE                     = 150
-DEPLOYABLE_LASER_HEALTH_ADDON_PER_WAVE           = 120
-DEPLOYABLE_LASER_DAMAGE_INITIAL                  = 1
-DEPLOYABLE_LASER_DAMAGE_ADDON_PER_WAVE           = 4
-
 -- Trap
-DEPLOYABLE_TRAP_SPEED_MIN                        = 500
-DEPLOYABLE_TRAP_SPEED_MAX                        = 900
-DEPLOYABLE_TRAP_TIMER_SEC                        = 5
 DEPLOYABLE_TRAP_PULL_RADIUS                      = 350.0
 DEPLOYABLE_TRAP_PULL_SPEED_MONSTER               = 210.0
 DEPLOYABLE_TRAP_PULL_SPEED_PLAYER                = 290.0
@@ -142,16 +130,6 @@ DEPLOYABLE_TRAP_DURATION_SEC                     = 80
 DEPLOYABLE_TRAP_HEALTH                           = 125
 DEPLOYABLE_TRAP_EXPLOSION_DAMAGE                 = 300
 DEPLOYABLE_TRAP_EXPLOSION_RADIUS                 = 100
-
--- Tesla
-DEPLOYABLE_TESLA_DAMAGE                          = 4
-DEPLOYABLE_TESLA_DAMAGE_RADIUS                   = 200
-DEPLOYABLE_TESLA_HEALTH                          = 50
-DEPLOYABLE_TESLA_TIME_TO_LIVE_SEC                = 30
-DEPLOYABLE_TESLA_ACTIVATE_TIME_MS                = 1200
-DEPLOYABLE_TESLA_EXPLOSION_DAMAGE_MULTIPLIER     = 50
-DEPLOYABLE_TESLA_EXPLOSION_RADIUS                = 200
-DEPLOYABLE_TESLA_KNOCKBACK                       = 8
 
 -- Sentrygun
 DEPLOYABLE_SENTRYGUN_INITIAL_HEALTH              = 50
@@ -189,7 +167,6 @@ ABILITY_BOMB_SPELL_DAMAGE_RADIUS                 = 150
 ABILITY_BOMB_SPELL_DURATION_SEC                  = 5
 ABILITY_BOMB_SPELL_FORWARD_COOLDOWN_MS           = 1500
 ABILITY_BOMB_SPELL_AREA_COOLDOWN_MS              = 10000
-ABILITY_BOMB_SPELL_MAX_HEIGHT                    = 256
 ABILITY_BOMB_SPELL_STEP_SIZE                     = 128
 ABILITY_BOMB_SPELL_CARPET_WIDTH                  = 200
 
@@ -210,49 +187,12 @@ GRAPPLE_FLY_SPEED                                = 650
 GRAPPLE_PULL_SPEED                               = 650
 GRAPPLE_DAMAGE                                   = 10
 
--- Ammo Regen
-AMMO_REGEN_ENABLED                               = true
-
--- Bullets Regen
-AMMO_REGEN_BULLETS_QUANTITY                      = 10
-AMMO_REGEN_BULLETS_INTERVAL_MS                   = 3000
-
--- Shells Regen
-AMMO_REGEN_SHELLS_QUANTITY                       = 5
-AMMO_REGEN_SHELLS_INTERVAL_MS                    = 3000
-
--- Grenades Regen
-AMMO_REGEN_GRENADES_QUANTITY                     = 3
-AMMO_REGEN_GRENADES_INTERVAL_MS                  = 4000
-
--- Rockets Regen
-AMMO_REGEN_ROCKETS_QUANTITY                      = 2
-AMMO_REGEN_ROCKETS_INTERVAL_MS                   = 5000
-
--- Cells Regen
-AMMO_REGEN_CELLS_QUANTITY                        = 10
-AMMO_REGEN_CELLS_INTERVAL_MS                     = 3000
-
--- Slugs Regen
-AMMO_REGEN_SLUGS_QUANTITY                        = 5
-AMMO_REGEN_SLUGS_INTERVAL_MS                     = 4000
-
--- Magslug Regen
-AMMO_REGEN_MAGSLUG_QUANTITY                      = 3
-AMMO_REGEN_MAGSLUG_INTERVAL_MS                   = 5000
-
--- Prox Regen
-AMMO_REGEN_PROX_QUANTITY                         = 1
-AMMO_REGEN_PROX_INTERVAL_MS                      = 6000
-
--- Trap Regen
-AMMO_REGEN_TRAP_QUANTITY                         = 1
-AMMO_REGEN_TRAP_INTERVAL_MS                      = 6000
-
--- Tesla Regen
-AMMO_REGEN_TESLA_QUANTITY                        = 2
-AMMO_REGEN_TESLA_INTERVAL_MS                     = 5000
-
 -- Power Cubes Regen
 POWER_CUBES_REGEN_BASE_REGEN_TIME                = 5.0
 POWER_CUBES_REGEN_CUBES_PER_REGEN                = 5
+
+-- Squad Respawn Timers (seconds)
+-- Overridden by the g_coop_damage_respawn_time / g_coop_bad_area_time cvars when those are >= 0.
+-- Remove/comment a line to use the built-in default (damage 4.0, bad area 2.0).
+RESPAWN_DAMAGE_TIME                              = 4.0
+RESPAWN_BAD_AREA_TIME                            = 2.0

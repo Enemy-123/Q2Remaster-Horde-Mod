@@ -10605,12 +10605,9 @@ static void FinalizeWaveSetup(int32_t lvl, int32_t numHumanPlayers)
 		std::min(total_planned_for_wave, static_cast<int32_t>(std::numeric_limits<uint16_t>::max())));
 }
 
-// Apply legacy damage scaling for specific waves (when sigmoid scaling is disabled)
+// Apply legacy damage scaling for specific waves
 static void ApplyLegacyDamageScaling(int32_t lvl)
 {
-	if (g_config.use_sigmoid_scaling)
-		return;
-
 	// Horde 2: breakpoints arrive earlier and are smoothed out.
 	if (IsHorde2())
 	{

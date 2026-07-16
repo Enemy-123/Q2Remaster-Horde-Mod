@@ -137,11 +137,9 @@ struct BFGConfig
 	int damage = 700;
 	float radius = 1000.0f;
 	int speed = 650;  // Initial speed (was hardcoded as BFG10K_INITIAL_SPEED)
-	int ammo_normal = 50;
-	int ammo_slide = 25;
 	int damage_addon = 2;   // Damage added per upgrade level
 	int speed_addon = 35;   // Speed added per upgrade level
-};;
+};
 
 // Xatrix expansion weapon configurations
 struct IonRipperConfig
@@ -187,7 +185,6 @@ struct ETFRifleConfig
 	int damage_min = 9;   // Base per-shot damage roll minimum
 	int damage_max = 13;  // Base per-shot damage roll maximum
 	int kick_normal = 3;
-	int kick_homing = 75;
 	int damage_addon = 1;  // Damage added per upgrade level (was 1.0 hardcoded, comment said 1.25)
 	int init_speed = 1450;  // Initial projectile speed
 	int speed_addon = 40;   // Speed added per upgrade level
@@ -221,7 +218,6 @@ struct TrapConfig
 	float minspeed = 500.0f;   // Min throw speed
 	float maxspeed = 900.0f;   // Max throw speed
 	float speed_addon = 30.0f; // Speed added per upgrade level
-	int timer_sec = 5;
 	float pull_radius = 400.0f;
 	float pull_speed_monster = 210.0f;
 	float pull_speed_player = 290.0f;
@@ -233,15 +229,7 @@ struct TrapConfig
 
 struct TeslaConfig
 {
-	int damage = 4;
-	int damage_radius = 200;
-	int health = 50;
-	int time_to_live_sec = 30;
-	int activate_time_ms = 1200;
-	int explosion_damage_multiplier = 50;
-	int explosion_radius = 200;
-	int knockback = 8;
-	int damage_addon = 0;  // Damage added per upgrade level (currently uses multiplier from skill system)
+	// Only throw speed is configurable; damage/health/etc. come from the skill system
 	float minspeed = 600.0f;   // Min throw speed
 	float maxspeed = 900.0f;   // Max throw speed
 	float speed_addon = 30.0f; // Speed added per upgrade level
@@ -288,7 +276,6 @@ struct BombSpellConfig
 	int duration_sec = 5;
 	int forward_cooldown_ms = 1500;
 	int area_cooldown_ms = 10000;
-	int max_height = 256;
 	int step_size = 128;  // Vortex CARPETBOMB_STEP_SIZE
 	int carpet_width = 200;
 };
@@ -353,27 +340,6 @@ struct GrappleConfig
 };
 
 // Ammo regeneration configuration
-struct AmmoRegenRateConfig
-{
-	int quantity = 0;
-	int interval_ms = 0;
-};
-
-struct AmmoRegenConfig
-{
-	bool enabled = true;
-	AmmoRegenRateConfig bullets{10, 3000};
-	AmmoRegenRateConfig shells{5, 3000};
-	AmmoRegenRateConfig grenades{3, 4000};
-	AmmoRegenRateConfig rockets{2, 5000};
-	AmmoRegenRateConfig cells{10, 3000};
-	AmmoRegenRateConfig slugs{5, 4000};
-	AmmoRegenRateConfig magslug{3, 5000};
-	AmmoRegenRateConfig prox{1, 6000};
-	AmmoRegenRateConfig trap{1, 6000};
-	AmmoRegenRateConfig tesla{2, 5000};
-};
-
 // Global weapon damage configuration (base values for all monsters)
 // OPTIMIZED: Array-based O(1) lookups instead of O(log n) string lookups
 struct GlobalWeaponDamage
@@ -637,9 +603,6 @@ struct GameConfig
 	HookConfig hook;
 	GrappleConfig grapple;
 
-	// Ammo regeneration
-	AmmoRegenConfig ammo_regen;
-
 	// Power cubes currency
 	PowerCubesConfig power_cubes;
 	PowerCubesRegenConfig power_cubes_regen;
@@ -655,10 +618,9 @@ struct GameConfig
 	// Maps
 	MapsConfig maps;
 
-	// Scaling system
-	bool use_sigmoid_scaling = false;
-	bool use_sigmoid_scaling_bosses_only = false;
-	bool use_sigmoid_scaling_except_bosses = false;
+	// Squad respawn timers (seconds; 0 = unset, use compiled defaults)
+	float respawn_damage_time_sec = 0.f;
+	float respawn_bad_area_time_sec = 0.f;
 };
 
 // Global config instance
