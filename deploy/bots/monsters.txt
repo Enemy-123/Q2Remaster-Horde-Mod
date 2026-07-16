@@ -282,7 +282,10 @@
   flags			melee | ranged
 }
 
-
+{ // Beta hell maiden
+  classname		"monster_chickkl"
+  flags			melee | ranged
+}
 
 { // Beta Class Iron Maiden
   classname		"monster_chick_heat"
