@@ -914,8 +914,11 @@ void ProximityGrid::Reset()
             }
         }
 
-        // Fallback: return any random position
-        return GetRandomPosition(out_pos);
+        // No node within the requested ring. Do NOT fall back to a random node anywhere on
+        // the map: callers use this as "position near center", and a whole-map position
+        // bypasses every distance expectation (it could land right next to a player and it
+        // silently discarded the far-spawn selection). Let the caller use its own fallback.
+        return false;
     }
 
     // Check if a spawn position is in the Potentially Visible Set (PVS) of any active player

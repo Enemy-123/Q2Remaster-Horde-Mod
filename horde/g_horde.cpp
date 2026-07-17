@@ -8280,10 +8280,25 @@ static bool FindValidSpawnLocation(
 		constexpr float GRID_MIN_DIST = 64.0f;
 		constexpr float GRID_MAX_DIST = 512.0f;
 
+		// Grid positions bypass the spawn-point proximity gates (IsPositionPhysicallyValid is
+		// geometry-only), so enforce the min player distance here - otherwise a grid node
+		// picked "near" a far-selected point can still land right next to a player.
+		const float grid_min_player_dist = HordeConstants::GetMinPlayerDistSpawnpoint(g_horde_local.current_map_size);
+		const float grid_min_player_dist_sq = grid_min_player_dist * grid_min_player_dist;
+		auto grid_pos_too_close_to_player = [&](const vec3_t& pos) {
+			for (const auto* player : active_players_no_spect())
+				if (DistanceSquared(pos, player->s.origin) < grid_min_player_dist_sq)
+					return true;
+			return false;
+		};
+
 		for (int attempt = 0; attempt < GRID_ATTEMPTS; ++attempt)
 		{
 			vec3_t grid_pos;
 			if (!HordePhys::g_spawn_grid.GetRandomPositionNear(base_origin, GRID_MIN_DIST, GRID_MAX_DIST, grid_pos))
+				continue;
+
+			if (grid_pos_too_close_to_player(grid_pos))
 				continue;
 
 			const auto validation = IsPositionPhysicallyValid(grid_pos, predicted_mins, predicted_maxs, is_flying);

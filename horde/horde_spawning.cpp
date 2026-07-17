@@ -13,6 +13,7 @@
 #include "../memory_safety.h"
 #include "horde_constants.h"
 #include <algorithm>
+#include <cmath>
 
 // NOTE: horde_state_t is now defined in g_horde.h
 
@@ -268,6 +269,28 @@ static float MinDistSqToActivePlayer(const vec3_t& pos) noexcept
         }
     }
     return found ? min_sq : 0.0f;
+}
+
+/// Squared distance to the nearest HUMAN player, for the far-spawn scoring. Bots roam the
+/// whole map, so measuring "far" against them collapses the achievable distance (~300-700u
+/// even at far_chance 1.0) and the horde never reads as coming from afar for the humans
+/// actually playing. Falls back to all active players when no humans are in (bot-only test).
+static float MinDistSqToHumanPlayer(const vec3_t& pos) noexcept
+{
+    float min_sq = std::numeric_limits<float>::max();
+    bool found = false;
+    for (const auto* player : active_players_no_spect())
+    {
+        if (player->svflags & SVF_BOT)
+            continue;
+        const float d = DistanceSquared(pos, player->s.origin);
+        if (d < min_sq)
+        {
+            min_sq = d;
+            found = true;
+        }
+    }
+    return found ? min_sq : MinDistSqToActivePlayer(pos);
 }
 
 /// Checks if spawn point is too close to players and optionally checks visibility
@@ -715,6 +738,12 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID type
             if (!got_position)
                 continue;
 
+            // Grid nodes bypass the spawn-point gates: re-apply the player proximity rules
+            // (min distance, distance cap, out-of-PVS chance) so an alternative grid position
+            // can't land next to a player.
+            if (!CheckSpawnPointPlayerProximity(grid_pos, false, false))
+                continue;
+
             // Validate grid position
             const auto validation = IsPositionPhysicallyValid(grid_pos, predicted_mins, predicted_maxs, is_flying);
             if (validation.is_valid)
@@ -836,6 +865,13 @@ void PlanMonsterSpawnBatch(
         edict_t* farthest_spaced = nullptr;       float farthest_spaced_dist_sq = -1.0f; // preferred: far AND spaced from batch-mates
         int candidates_seen = 0;
 
+        // Debug: which selection path produced the pick, and how far from the nearest human.
+        auto log_pick = [&](const edict_t* sp, const char* how) {
+            if (developer->integer > 1)
+                gi.Com_PrintFmt("SPAWN PICK [{}]: {:.0f}u from nearest human (far_chance {:.2f})\n",
+                    how, std::sqrt(MinDistSqToHumanPlayer(sp->s.origin)), farthest_chance);
+        };
+
         // Spread the far-biased picks: a batch shouldn't pile its far spawns into one wing (the
         // farthest points on a big map tend to be geographically bunched). Prefer the farthest point
         // that's also at least a batch-spacing away from points already used this batch; fall back to
@@ -853,8 +889,19 @@ void PlanMonsterSpawnBatch(
         // spawn (so domination/fog waves never stall) by reusing the point whose cooldown is oldest.
         // Prefer one not used this batch (better spread); else the global oldest, so a batch larger
         // than the point count still deploys. A relaxed proximity gate keeps us off players' heads.
+        // When the far-bias roll won, the fallback prefers the FARTHEST eligible point instead of
+        // the oldest: mid-wave the points are usually all cooling, so this fallback is the COMMON
+        // path - without the distance preference here, g_horde_far_spawn_chance had almost no
+        // visible effect during an active wave (cooldown is being bypassed either way).
         edict_t* oldest_unused = nullptr; gtime_t oldest_unused_end = gtime_t::from_sec(1e9f);
         edict_t* oldest_any = nullptr;    gtime_t oldest_any_end = gtime_t::from_sec(1e9f);
+        edict_t* farthest_fallback = nullptr; float farthest_fallback_dist_sq = -1.0f;
+
+        // The far-fallback must not inherit the relaxed (emergency 0.35x) proximity that the
+        // oldest-cooldown fallbacks use: a "far" pick 161u from a player is nonsense. Require
+        // the normal min distance (vs ANY player, bots included) for far-fallback eligibility.
+        const float normal_min_player_dist = HordeConstants::GetMinPlayerDistSpawnpoint(g_horde_local.current_map_size);
+        const float normal_min_player_dist_sq = normal_min_player_dist * normal_min_player_dist;
 
         for (size_t i = 0; i < total_potential_points; ++i)
         {
@@ -889,6 +936,16 @@ void PlanMonsterSpawnBatch(
                 const gtime_t cd_end = effective_cooldown_end(spawn_point);
                 if (cd_end < oldest_any_end) { oldest_any_end = cd_end; oldest_any = spawn_point; }
                 if (!already_used && cd_end < oldest_unused_end) { oldest_unused_end = cd_end; oldest_unused = spawn_point; }
+                if (prefer_farthest && !already_used &&
+                    MinDistSqToActivePlayer(spawn_point->s.origin) >= normal_min_player_dist_sq)
+                {
+                    const float fb_dist_sq = MinDistSqToHumanPlayer(spawn_point->s.origin);
+                    if (fb_dist_sq > farthest_fallback_dist_sq)
+                    {
+                        farthest_fallback_dist_sq = fb_dist_sq;
+                        farthest_fallback = spawn_point;
+                    }
+                }
             }
 
             // Prefer points not yet used this batch so the batch disperses across distinct points.
@@ -920,10 +977,11 @@ void PlanMonsterSpawnBatch(
             if (!prefer_farthest)
             {
                 used_spawn_points_this_batch.push_back(spawn_point);
+                log_pick(spawn_point, "first-fit");
                 return spawn_point;
             }
 
-            const float dist_sq = MinDistSqToActivePlayer(spawn_point->s.origin);
+            const float dist_sq = MinDistSqToHumanPlayer(spawn_point->s.origin);
             if (dist_sq > farthest_dist_sq)
             {
                 farthest_dist_sq = dist_sq;
@@ -938,6 +996,7 @@ void PlanMonsterSpawnBatch(
             {
                 edict_t* pick = farthest_spaced ? farthest_spaced : farthest_point;
                 used_spawn_points_this_batch.push_back(pick);
+                log_pick(pick, "farthest");
                 return pick;
             }
         }
@@ -950,14 +1009,16 @@ void PlanMonsterSpawnBatch(
             if (pick)
             {
                 used_spawn_points_this_batch.push_back(pick);
+                log_pick(pick, "farthest-fullscan");
                 return pick;
             }
         }
 
-        // No valid unused point this scan. Keep the wave flowing by reusing the oldest-cooldown
-        // point. Execution ignores cooldown, so the monster still deploys and OnSuccessfulSpawn
-        // then refreshes that point's cooldown for the next batch.
-        edict_t* fallback = oldest_unused;
+        // No valid unused point this scan. Keep the wave flowing by reusing a cooling point.
+        // Execution ignores cooldown, so the monster still deploys and OnSuccessfulSpawn then
+        // refreshes that point's cooldown for the next batch. Far-biased picks take the farthest
+        // eligible point (this is the common mid-wave path); otherwise the oldest-cooldown one.
+        edict_t* fallback = (prefer_farthest && farthest_fallback) ? farthest_fallback : oldest_unused;
         if (!fallback)
         {
             // Every style-compatible point has already been used this batch (batch larger than the
@@ -969,6 +1030,7 @@ void PlanMonsterSpawnBatch(
         if (fallback)
         {
             used_spawn_points_this_batch.push_back(fallback);
+            log_pick(fallback, (prefer_farthest && fallback == farthest_fallback) ? "fallback-far" : "fallback-oldest");
             return fallback;
         }
         return nullptr;
