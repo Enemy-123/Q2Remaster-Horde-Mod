@@ -133,6 +133,11 @@ struct MapFamilyUsage {
 static std::array<MapFamilyUsage, MAP_HISTORY_SIZE> g_map_family_history;
 static size_t g_map_history_index = 0;
 
+// Families dropped from the previous map's rotation. Excluded from this map's drop
+// candidates so no family disappears two maps in a row (the usage bias otherwise tends
+// to re-drop popular families like Gladiator, making them feel gone for whole sessions).
+static boost::container::flat_set<AssetFamilyID> g_last_map_dropped_families;
+
 // --- Precache Family Limit System ---
 // Tracks which model families are precached this map to enforce the limit
 static boost::container::flat_set<AssetFamilyID> g_precached_families_this_map;
@@ -146,7 +151,7 @@ static constexpr std::array<AssetFamilyID, 6> CORE_FAMILIES = { {
 	AssetFamilyID::TANK_FAMILY,         // Core heavy benchmark
 } };
 
-static constexpr std::array<AssetFamilyID, 17> ROTATING_FAMILIES = { {
+static constexpr std::array<AssetFamilyID, 19> ROTATING_FAMILIES = { {
 		// Shifting these from Core to Rotating splits them up across maps:
 		AssetFamilyID::BERSERK_FAMILY,
 		AssetFamilyID::BRAIN_FAMILY,
@@ -165,7 +170,13 @@ static constexpr std::array<AssetFamilyID, 17> ROTATING_FAMILIES = { {
 		AssetFamilyID::INSANE_FAMILY,
 		AssetFamilyID::GUARDIAN_FAMILY,
 		AssetFamilyID::SUPERTANK_FAMILY,
-		AssetFamilyID::SHAMBLER_FAMILY
+		AssetFamilyID::SHAMBLER_FAMILY,
+		// Boss-model families whose mini variants (hornet-mini, carrier-mini) should also
+		// appear in normal flying waves, not only around their boss waves. Without a slot
+		// here they were never precached outside the boss-unlock path, so they could never
+		// pass BuildMonsterCache's precache check on ordinary waves.
+		AssetFamilyID::BOSS2_FAMILY,
+		AssetFamilyID::CARRIER_FAMILY
 	} };
 
 // Rotating families that must never be dropped from a map's rotation. These either
@@ -1647,6 +1658,7 @@ cvar_t* g_horde_force_domination;  // Test cvar: force the domination flag to ar
 cvar_t* g_horde_grid_first;  // Test cvar: prioritize grid spawning
 cvar_t* g_horde_nav_spawn_check;  // 1 = reject ground spawns the navmesh can't reach (anti unreachable-spawn)
 cvar_t* g_horde_spawn_dist_cap;  // 1 = cap how far from players a spawn point may be (anti far/closed-wing spawn)
+cvar_t* g_horde_far_spawn_chance;  // 0..1 chance a normal-wave pick prefers the farthest spawn point (fog waves floor at 0.9)
 
 // NOTE: horde_state_t enum and HordeState struct moved to g_horde.h
 
@@ -4406,6 +4418,7 @@ void Horde_PreInit()
 	g_horde_grid_first = gi.cvar("g_horde_grid_first", "0", CVAR_NOFLAGS);
 	g_horde_nav_spawn_check = gi.cvar("g_horde_nav_spawn_check", "1", CVAR_NOFLAGS);
 	g_horde_spawn_dist_cap = gi.cvar("g_horde_spawn_dist_cap", "1", CVAR_NOFLAGS);
+	g_horde_far_spawn_chance = gi.cvar("g_horde_far_spawn_chance", "0.65", CVAR_NOFLAGS);
 	g_horde_force_fog_wave = gi.cvar("g_horde_force_fog_wave", "0", CVAR_NOFLAGS);
 	g_horde_force_domination = gi.cvar("g_horde_force_domination", "0", CVAR_NOFLAGS);
 	pvm = gi.cvar("pvm", "0", CVAR_LATCH);
@@ -4482,8 +4495,8 @@ void Horde_PreInit()
 		dm_monsters = gi.cvar("dm_monsters", "0", CVAR_SERVERINFO);
 
 		gi.Com_Print("Initializing Horde mode settings...\n");
-		if (g_horde->integer >= 2)
-			gi.Com_Print("Horde 2 (remix) progression active: 4-wave rhythm, boss every 4 waves from wave 8.\n");
+		if (IsHorde2())
+			gi.Com_Print("Horde 2 progression active: 4-wave rhythm, boss every 4 waves from wave 8.\n");
 		// Configuración de tiempo y límites
 		gi.cvar_forceset("deathmatch", "1");
 		gi.cvar_forceset("coop", "0");
@@ -7015,6 +7028,121 @@ static void ResetStroggCleanup()
 	g_horde_local.lastStroggKillTime = 0_sec;
 }
 
+// Finds a destination and performs the actual stuck-monster teleport with all its success
+// bookkeeping (cooldown stamps, counters, anim/nav reset). Shared by the periodic stuck
+// checker and the mover-crush path. Because a successful teleport stamps the destination
+// point's teleport_cooldown before returning, sequential batch calls naturally spread
+// across distinct points.
+// force_despite_visibility: Horde_TeleportMonster refuses to yank a monster that can
+// still see its enemy; a crush victim must leave anyway (it usually CAN see the player
+// it was waiting for at the lift), so the crush path forces past that gate.
+static bool ExecuteStuckMonsterTeleport(edict_t* self, bool force_despite_visibility = false)
+{
+	// Mirror Horde_TeleportMonster's enemy-visibility gate up front: when it would refuse
+	// anyway, don't waste a destination search (and its "Selected spot" debug print).
+	if (!force_despite_visibility && self->enemy && self->enemy->inuse && visible(self, self->enemy, false))
+	{
+		self->teleport_time = level.time + HordeConstants::MAX_TELEPORT_COOLDOWN_MONSTER;
+		return false;
+	}
+
+	vec3_t dest_origin = vec3_origin;
+	vec3_t dest_angles = self->s.angles;
+	edict_t* used_spawn_point = nullptr;
+
+	// A selected point can still fail Horde_TeleportMonster's physical validation (its
+	// MASK_MONSTERSOLID startsolid test is stricter than selection's occupancy check - e.g.
+	// another monster loitering on the point). Bench each failed point briefly so the next
+	// search picks a different one, and try a few before falling back to an emergency spot.
+	constexpr int MAX_DEST_ATTEMPTS = 3;
+	bool teleported = false;
+	for (int attempt = 0; attempt < MAX_DEST_ATTEMPTS && !teleported; ++attempt)
+	{
+		used_spawn_point = FindSafeTeleportDestination(self);
+		if (!used_spawn_point)
+			break;
+
+		dest_origin = used_spawn_point->s.origin;
+		dest_angles = used_spawn_point->s.angles;
+		dest_angles[PITCH] = 0;
+
+		teleported = Horde_TeleportMonster(self, dest_origin, dest_angles, true, force_despite_visibility);
+		if (!teleported)
+		{
+			const uint16_t index = GetSpawnPointIndexSafe(used_spawn_point);
+			if (index != 0xFFFF && index < g_spawn_system.spawn_points_data.teleport_cooldown.size())
+			{
+				auto& cd = g_spawn_system.spawn_points_data.teleport_cooldown[index];
+				cd = std::max(cd, level.time + 1_sec);
+			}
+			if (developer->integer > 1)
+				gi.Com_PrintFmt("ExecuteStuckMonsterTeleport: spot {} failed validation for {}, retrying\n",
+					dest_origin, self->classname);
+		}
+	}
+
+	if (!teleported)
+	{
+		used_spawn_point = nullptr;
+		if (!FindEmergencySpawnPositionNearPlayer(dest_origin, dest_angles, static_cast<horde::MonsterTypeID>(self->monsterinfo.monster_type_id)))
+		{
+			self->teleport_time = level.time + 5.0_sec;
+			return false;
+		}
+		dest_angles[PITCH] = 0;
+		teleported = Horde_TeleportMonster(self, dest_origin, dest_angles, true, force_despite_visibility);
+	}
+
+	if (teleported)
+	{
+		MarkPositionAsRecentlyTeleported(self->s.origin);
+		if (used_spawn_point)
+		{
+			const uint16_t index = GetSpawnPointIndexSafe(used_spawn_point);
+			if (index != 0xFFFF && index < g_spawn_system.spawn_points_data.teleport_cooldown.size()) {
+				g_spawn_system.spawn_points_data.teleport_cooldown[index] = level.time + HordeConstants::SPAWN_POINT_TELEPORT_COOLDOWN;
+			}
+			ApplyLongFlyingLaneCooldown(used_spawn_point);
+
+		}
+		HordeConstants::g_teleport_rate_count++;
+		self->monsterinfo.failsafe_teleport_count++; // Track per-monster teleport count
+		self->monsterinfo.was_stuck = false;
+		self->monsterinfo.fly_wall_stuck_time = 0_ms;
+		self->monsterinfo.wall_stuck_time = 0_ms;
+		// Reset check interval for next stuck check
+		self->monsterinfo.stuck_check_time = level.time + random_time(4.0_sec, 6.0_sec);
+		self->monsterinfo.no_enemy_timeout_start_time = 0_sec;
+
+		// Drop stale combat/animation state so the monster doesn't reappear
+		// mid-attack at the new location, and re-paths from scratch.
+		// Horde AI (g_ai.cpp) re-acquires a target automatically next think.
+		if (self->monsterinfo.run)
+			self->monsterinfo.run(self);            // switch to run anim on next 10hz frame
+
+		self->monsterinfo.aiflags |= AI_FORGET_ENEMY; // drop enemy next ai_run; re-acquire
+
+		// Suppress firing briefly so it can't blind-fire the old enemy position
+		// (into a wall) before it re-orients. attack_finished gates both normal
+		// and blind fire in M_CheckAttack; pushing it forward holds fire.
+		// attack_state itself is recomputed each frame, so AS_STRAIGHT is just a
+		// sane neutral reset (not what causes/prevents the shot).
+		self->monsterinfo.attack_state = AS_STRAIGHT;
+		self->monsterinfo.attack_finished = level.time + random_time(0.8_sec, 1.5_sec);
+
+		// reset goal + navigation so it computes a fresh path from here
+		self->goalentity = nullptr;
+		self->movetarget = nullptr;
+		self->monsterinfo.path_blocked_counter = 0_ms;
+		self->monsterinfo.path_wait_time = 0_ms;
+		self->monsterinfo.aiflags &= ~(AI_LOST_SIGHT | AI_PURSUE_NEXT |
+									   AI_PURSUE_TEMP | AI_PURSUIT_LAST_SEEN);
+		return true;
+	}
+
+	return false;
+}
+
 bool CheckAndTeleportStuckMonster(edict_t* self, bool force_drowning)
 {
 	if (developer->integer >= 3)
@@ -7370,74 +7498,83 @@ bool CheckAndTeleportStuckMonster(edict_t* self, bool force_drowning)
 	}
 
 	// --- 4. Find Teleport Destination & Execute ---
-	vec3_t dest_origin = vec3_origin;
-	vec3_t dest_angles = self->s.angles;
-	edict_t* used_spawn_point = FindSafeTeleportDestination(self);
+	return ExecuteStuckMonsterTeleport(self);
+}
 
-	if (used_spawn_point)
+// Eligibility shared by the mover-crush escape below: same exclusions the periodic
+// checker applies (bosses, friendlies, stationary special types never teleport).
+static bool CrushTeleportEligible(edict_t* mon)
+{
+	if (!mon || !mon->inuse || mon->deadflag || mon->health <= 0)
+		return false;
+	if (!(mon->svflags & SVF_MONSTER))
+		return false;
+	if (mon->monsterinfo.IS_BOSS || mon->monsterinfo.isfriendlyspawn)
+		return false;
+	if (horde::IsMonsterType(mon, horde::MonsterTypeID::MISC_INSANE) ||
+		horde::IsMonsterType(mon, horde::MonsterTypeID::SENTRYGUN) ||
+		horde::IsMonsterType(mon, horde::MonsterTypeID::TURRET) ||
+		horde::IsMonsterType(mon, horde::MonsterTypeID::FLIPPER))
+		return false;
+	return true;
+}
+
+// Relocate every eligible monster caught inside a mover's travel volume (the crush path
+// for its next cycles). Riders standing ON the mover are exempt - they're safe and often
+// legitimately traveling. Sequential ExecuteStuckMonsterTeleport calls spread the group
+// across distinct points because each success stamps its point's teleport_cooldown.
+static void BatchUnstuckMoverVolume(edict_t* mover, edict_t* skip)
+{
+	constexpr int MAX_BATCH_UNSTUCK = 16;
+
+	// World-space travel volume: the mover's XY footprint, Z swept across both end positions.
+	const float z_lo = std::min(mover->moveinfo.start_origin.z, mover->moveinfo.end_origin.z) + mover->mins.z;
+	const float z_hi = std::max(mover->moveinfo.start_origin.z, mover->moveinfo.end_origin.z) + mover->maxs.z;
+
+	int teleported = 0;
+	for (edict_t* mon : active_monsters())
 	{
-		dest_origin = used_spawn_point->s.origin;
-		dest_angles = used_spawn_point->s.angles;
-	}
-	else
-	{
-		if (!FindEmergencySpawnPositionNearPlayer(dest_origin, dest_angles, static_cast<horde::MonsterTypeID>(self->monsterinfo.monster_type_id)))
-		{
-			self->teleport_time = level.time + 5.0_sec;
-			return false;
-		}
-	}
-
-	dest_angles[PITCH] = 0;
-
-	if (Horde_TeleportMonster(self, dest_origin, dest_angles, true, false))
-	{
-		MarkPositionAsRecentlyTeleported(self->s.origin);
-		if (used_spawn_point)
-		{
-			const uint16_t index = GetSpawnPointIndexSafe(used_spawn_point);
-			if (index != 0xFFFF && index < g_spawn_system.spawn_points_data.teleport_cooldown.size()) {
-				g_spawn_system.spawn_points_data.teleport_cooldown[index] = level.time + HordeConstants::SPAWN_POINT_TELEPORT_COOLDOWN;
-			}
-			ApplyLongFlyingLaneCooldown(used_spawn_point);
-
-		}
-		HordeConstants::g_teleport_rate_count++;
-		self->monsterinfo.failsafe_teleport_count++; // Track per-monster teleport count
-		self->monsterinfo.was_stuck = false;
-		self->monsterinfo.fly_wall_stuck_time = 0_ms;
-		self->monsterinfo.wall_stuck_time = 0_ms;
-		// Reset check interval for next stuck check
-		self->monsterinfo.stuck_check_time = level.time + random_time(4.0_sec, 6.0_sec);
-		self->monsterinfo.no_enemy_timeout_start_time = 0_sec;
-
-		// Drop stale combat/animation state so the monster doesn't reappear
-		// mid-attack at the new location, and re-paths from scratch.
-		// Horde AI (g_ai.cpp) re-acquires a target automatically next think.
-		if (self->monsterinfo.run)
-			self->monsterinfo.run(self);            // switch to run anim on next 10hz frame
-
-		self->monsterinfo.aiflags |= AI_FORGET_ENEMY; // drop enemy next ai_run; re-acquire
-
-		// Suppress firing briefly so it can't blind-fire the old enemy position
-		// (into a wall) before it re-orients. attack_finished gates both normal
-		// and blind fire in M_CheckAttack; pushing it forward holds fire.
-		// attack_state itself is recomputed each frame, so AS_STRAIGHT is just a
-		// sane neutral reset (not what causes/prevents the shot).
-		self->monsterinfo.attack_state = AS_STRAIGHT;
-		self->monsterinfo.attack_finished = level.time + random_time(0.8_sec, 1.5_sec);
-
-		// reset goal + navigation so it computes a fresh path from here
-		self->goalentity = nullptr;
-		self->movetarget = nullptr;
-		self->monsterinfo.path_blocked_counter = 0_ms;
-		self->monsterinfo.path_wait_time = 0_ms;
-		self->monsterinfo.aiflags &= ~(AI_LOST_SIGHT | AI_PURSUE_NEXT |
-									   AI_PURSUE_TEMP | AI_PURSUIT_LAST_SEEN);
-		return true;
+		if (teleported >= MAX_BATCH_UNSTUCK)
+			break;
+		if (mon == skip || !CrushTeleportEligible(mon))
+			continue;
+		if (mon->groundentity == mover)
+			continue; // riding on top, not in the pit
+		if (mon->absmax.x < mover->absmin.x || mon->absmin.x > mover->absmax.x ||
+			mon->absmax.y < mover->absmin.y || mon->absmin.y > mover->absmax.y ||
+			mon->absmax.z < z_lo || mon->absmin.z > z_hi)
+			continue;
+		if (ExecuteStuckMonsterTeleport(mon, true))
+			teleported++;
 	}
 
-	return false;
+	if (teleported && developer->integer > 1)
+		gi.Com_PrintFmt("CRUSH UNSTUCK: batch-teleported {} additional monster(s) out of {} travel volume\n",
+			teleported, mover->classname ? mover->classname : "mover");
+}
+
+// [Horde] Mover-crush escape, called from plat blocked callbacks on actual crush contact.
+// A live monster pit-stuck under a descending plat just gets pressed again every cycle:
+// the plat reverses on block, and the elevator-riding exemption in the periodic checker
+// deliberately keeps soft-reason teleports away from plat-associated monsters, so nothing
+// ever rescued it. Teleport it immediately (bypassing the periodic throttle and per-monster
+// teleport cooldown), then sweep the mover's travel volume so a pack crowded into the pit
+// relocates in the same pass, each to a distinct destination.
+void Horde_CrushUnstuck(edict_t* self, edict_t* mover)
+{
+	if (!g_horde || !g_horde->integer || level.intermissiontime)
+		return;
+	if (!CrushTeleportEligible(self))
+		return;
+
+	if (ExecuteStuckMonsterTeleport(self, true))
+	{
+		if (developer->integer > 1)
+			gi.Com_PrintFmt("CRUSH UNSTUCK: teleported {} crushed by {}\n",
+				self->classname, mover && mover->classname ? mover->classname : "mover");
+		if (mover && mover->inuse)
+			BatchUnstuckMoverVolume(mover, self);
+	}
 }
 
 // Helper function to select a retaliation-themed monster
@@ -8349,6 +8486,37 @@ static void SetMonsterArmor(edict_t* monster)
 	}
 }
 
+// Count live player-owned deployables (teslas, traps, sentries, lasers, mines...) for
+// defense-aware pacing. Cached with a short refresh: the count changes slowly and this
+// would otherwise be an O(num_edicts) sweep on every spawn tick.
+static int CountPlayerDeployables()
+{
+	static gtime_t next_recount = 0_sec;
+	static int cached_count = 0;
+
+	// level.time restarts on map change; a stale future stamp would freeze the cache.
+	if (next_recount > level.time + DefensePacing::RECOUNT_INTERVAL)
+		next_recount = 0_sec;
+	if (level.time < next_recount)
+		return cached_count;
+	next_recount = level.time + DefensePacing::RECOUNT_INTERVAL;
+
+	int count = 0;
+	for (int i = game.maxclients + static_cast<int>(BODY_QUEUE_SIZE) + 1; i < static_cast<int>(globals.num_edicts); i++)
+	{
+		const edict_t* ent = &g_edicts[i];
+		if (!ent->inuse)
+			continue;
+		// Owner must be a client: excludes map-spawned barrels and monster-owned entities.
+		if (!ent->owner || !ent->owner->client)
+			continue;
+		if (IsRemovableEntity(ent))
+			++count;
+	}
+	cached_count = count;
+	return cached_count;
+}
+
 void SetNextMonsterSpawnTime(const horde::MapSize& mapSize)
 {
 	// Original spawn time ranges (Big maps are faster)
@@ -8376,7 +8544,28 @@ void SetNextMonsterSpawnTime(const horde::MapSize& mapSize)
 
 	// Apply extra slowdown for small maps (tighter spaces need more time between spawns)
 	float mapSizeMultiplier = mapSize.isSmallMap ? HordeConstants::SMALL_MAP_EXTRA_SLOWDOWN : 1.0f;
-	float combinedMultiplier = earlyWaveMultiplier * mapSizeMultiplier;
+
+	// Defense-aware pacing: when the arena is saturated with player deployables, stretch the
+	// cadence (ramping to MAX_SLOWDOWN_MULT) so the wave outlasts the defenses rather than
+	// feeding the kill zone. defense_saturated also suppresses the controlled-rush boost below.
+	const int deployables = CountPlayerDeployables();
+	const int active_players = std::max<int>(1, GetNumActivePlayers());
+	const int defense_start = DefensePacing::START_PER_PLAYER * active_players;
+	const int defense_full = DefensePacing::FULL_PER_PLAYER * active_players;
+	const bool defense_saturated = deployables >= defense_start;
+	float defenseMultiplier = 1.0f;
+	if (defense_saturated)
+	{
+		const float t = (defense_full > defense_start)
+			? std::clamp(static_cast<float>(deployables - defense_start) / static_cast<float>(defense_full - defense_start), 0.0f, 1.0f)
+			: 1.0f;
+		defenseMultiplier = 1.0f + t * (DefensePacing::MAX_SLOWDOWN_MULT - 1.0f);
+		if (developer->integer > 1)
+			gi.Com_PrintFmt("DEFENSE PACING: {} deployables ({} players, start {}, full {}), spawn interval x{:.2f}\n",
+				deployables, active_players, defense_start, defense_full, defenseMultiplier);
+	}
+
+	float combinedMultiplier = earlyWaveMultiplier * mapSizeMultiplier * defenseMultiplier;
 
 	// Apply the combined multiplier to get the target time range
 	const gtime_t min_time = gtime_t::from_sec(base_min_time.seconds() * combinedMultiplier);
@@ -8401,7 +8590,10 @@ void SetNextMonsterSpawnTime(const horde::MapSize& mapSize)
 	// Always-on anti-domination cadence: when the arena is drained below the cadence threshold while
 	// monsters still wait to deploy, players are clearing faster than the wave fills -- tighten the
 	// interval so monsters arrive quicker. Independent of the gated domination flag and any wave.
+	// Suppressed while defenses are saturated: a drained arena is expected when deployables are
+	// doing the clearing, and rushing the queue would just feed it faster.
 	const bool boost_cadence =
+		!defense_saturated &&
 		GetStroggsNum() < HordeConstants::CADENCE_BOOST_THRESHOLD &&
 		(g_horde_local.num_to_spawn > 0 || g_horde_local.queued_monsters > 0);
 	if (boost_cadence)
@@ -10136,9 +10328,12 @@ static void InitializeMonsterRotation()
 		AssetFamilyID family;
 		int32_t prev_map_usage; // How much this family was used in previous maps
 	};
-	boost::container::small_vector<ExcludableFamilyInfo, 17> excludable_families;
+	boost::container::small_vector<ExcludableFamilyInfo, 19> excludable_families;
 	for (const auto& family : ROTATING_FAMILIES) {
 		if (IsProtectedFamily(family))
+			continue;
+		// No back-to-back drops: a family benched last map is guaranteed back this map.
+		if (g_last_map_dropped_families.find(family) != g_last_map_dropped_families.end())
 			continue;
 		excludable_families.push_back({ family, GetFamilyUsageInPreviousMaps(family) });
 	}
@@ -10167,9 +10362,13 @@ static void InitializeMonsterRotation()
 		}
 	}
 
+	// Remember this map's drops so next map's candidate list can skip them (no family
+	// vanishes two maps in a row).
+	g_last_map_dropped_families = dropped_families;
+
 	// Pre-mark core + every non-dropped rotating family as allowed. Only these families'
 	// models get loaded, so fewer distinct models load per map and the set varies by seed.
-	boost::container::small_vector<AssetFamilyID, 17> available_rotating;
+	boost::container::small_vector<AssetFamilyID, 19> available_rotating;
 	for (const auto& family : ROTATING_FAMILIES) {
 		if (dropped_families.find(family) != dropped_families.end())
 			continue;

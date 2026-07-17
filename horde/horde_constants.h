@@ -275,12 +275,24 @@ namespace LimitBreakWave {
 
 	// Spawn-point bias: chance to use the farthest spawn point (so the horde "comes from
 	// nowhere"), and how many valid candidates to consider when that bias is active.
+	// The chance is a fallback only - g_horde_far_spawn_chance (default 0.65) overrides it.
 	inline constexpr float FARTHEST_SPAWN_CHANCE     = 0.25f;
-	inline constexpr int   FARTHEST_SPAWN_CANDIDATES = 6;
+	inline constexpr int   FARTHEST_SPAWN_CANDIDATES = 10;
 
 	// Fog waves bias even harder toward the farthest point, and re-fire its alternatives quickly
 	// (vs the normal >=3s success cooldown) so the swarm keeps pouring from the far edge and
 	// reads as a fresh, enraged push rather than trickling from the same nearby spots.
 	inline constexpr float   FARTHEST_SPAWN_CHANCE_FOG = 0.9f;
 	inline constexpr gtime_t ALT_SUCCESS_COOLDOWN_FOG  = 0.75_sec;
+}
+
+// Defense-aware pacing: when players saturate the arena with deployables (teslas, traps,
+// sentries, lasers...), stretch the spawn cadence and suppress the controlled-rush boost so
+// monsters keep arriving after the deployables expire instead of feeding the kill zone all
+// at once. Thresholds scale with active player count.
+namespace DefensePacing {
+	inline constexpr int   START_PER_PLAYER   = 2;    // deployables per player before slowdown begins
+	inline constexpr int   FULL_PER_PLAYER    = 5;    // deployables per player at which slowdown maxes out
+	inline constexpr float MAX_SLOWDOWN_MULT  = 1.6f; // spawn-interval multiplier at full saturation
+	inline constexpr gtime_t RECOUNT_INTERVAL = 1_sec; // deployable-count cache refresh
 }

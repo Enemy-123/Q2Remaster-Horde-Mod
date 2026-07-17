@@ -1157,9 +1157,9 @@ void ExitLevel()
 		// Extract the actual map name after "horde:"
 		const char* map = level.changemap + start_offset + 6;
 
-		// Apply horde mode settings first (preserve horde 2 remix if already active)
+		// Apply horde mode settings first (any horde value >= 1 gets Horde 2 behavior now)
 		gi.AddCommandString(G_Fmt("horde {}; coop 0; deathmatch 1; g_allow_techs 1; timelimit 0; g_dm_spawn_farthest 0\n",
-			g_horde->integer >= 2 ? g_horde->integer : 1).data()); //; maxclients 32; kexmultiplayer maxplayers 32
+			g_horde->integer >= 1 ? g_horde->integer : 1).data()); //; maxclients 32; kexmultiplayer maxplayers 32
 
 		// Clear the election level after successful horde switch
 		extern ctfgame_t ctfgame;

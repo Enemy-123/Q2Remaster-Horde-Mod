@@ -4355,6 +4355,11 @@ inline bool IsBonusMonster(const edict_t* ent)
 	return (ent->monsterinfo.bonus_flags != BF_NONE && !(ent->monsterinfo.bonus_flags & BF_FRIENDLY));
 }
 
+// [Horde] Mover-crush escape (defined in horde/g_horde.cpp): teleports a live monster
+// being crushed by a plat/lift out of the descent pit, then batch-relocates any pack-mates
+// crowded into the mover's travel volume to distinct destinations in the same pass.
+void Horde_CrushUnstuck(edict_t* self, edict_t* mover);
+
 // Check if entity is a body queue entity (cannot be freed via G_FreeEdict)
 inline bool IsBodyQueueEntity(const edict_t* ent)
 {

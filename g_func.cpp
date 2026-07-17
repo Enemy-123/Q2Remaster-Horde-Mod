@@ -619,6 +619,12 @@ MOVEINFO_BLOCKED(plat_blocked) (edict_t* self, edict_t* other) -> void
 		// PGM
 
 		T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MOD_CRUSH);
+
+		// [Horde] A live monster pressed by the plat is pit-stuck (waiting under the lift):
+		// left alone it just gets crushed again every cycle. Teleport it (and any pack-mates
+		// caught in the travel volume) out instead.
+		if ((other->svflags & SVF_MONSTER) && other->inuse && other->health > 0)
+			Horde_CrushUnstuck(other, self);
 	}
 
 	// [Paril-KEX] killed/destroyed the thing, so don't switch directions

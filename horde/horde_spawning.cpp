@@ -822,11 +822,15 @@ void PlanMonsterSpawnBatch(
 
         // With some chance, bias toward the farthest spawn point so the horde appears to come from
         // nowhere. We scan a short run of valid candidates and keep the one farthest from the nearest
-        // player instead of taking the first valid one. Normal waves use a 50/50 near/far mix; fog /
-        // limit-break waves bias hard toward the far edge so the swarm pours from a distance.
+        // player instead of taking the first valid one. Normal waves use the tunable
+        // g_horde_far_spawn_chance; fog / limit-break waves bias at least 0.9 toward the far edge so
+        // the swarm pours from a distance.
+        const float base_far_chance = g_horde_far_spawn_chance
+            ? std::clamp(g_horde_far_spawn_chance->value, 0.0f, 1.0f)
+            : LimitBreakWave::FARTHEST_SPAWN_CHANCE;
         const float farthest_chance = IsLimitBreakWave(current_wave_type)
-            ? LimitBreakWave::FARTHEST_SPAWN_CHANCE_FOG   // 0.9 -- fog / limit-break
-            : LimitBreakWave::FARTHEST_SPAWN_CHANCE;       // 0.25 -- normal waves
+            ? std::max(base_far_chance, LimitBreakWave::FARTHEST_SPAWN_CHANCE_FOG)
+            : base_far_chance;
         const bool prefer_farthest = frandom() < farthest_chance;
         edict_t* farthest_point = nullptr;        float farthest_dist_sq = -1.0f;        // fallback: plain farthest
         edict_t* farthest_spaced = nullptr;       float farthest_spaced_dist_sq = -1.0f; // preferred: far AND spaced from batch-mates

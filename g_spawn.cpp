@@ -720,6 +720,12 @@ static bool perform_replacement(edict_t* ent, std::span<const MonsterReplacement
 		ent->coop_swap_original = original;
 
 	ent->classname = G_CopyString(chosen, TAG_LEVEL);
+
+	// The map's "scale" key (parsed before the swap) belongs to the ORIGINAL monster.
+	// monster_start only applies the per-type scale when s.scale is 0, so a leftover
+	// value would make the replacement inherit the original's size. Reset it so the
+	// new spawn function derives its own scale.
+	ent->s.scale = 0;
 	return true; // Replacement occurred
 }
 

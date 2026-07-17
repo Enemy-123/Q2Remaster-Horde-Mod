@@ -144,6 +144,10 @@ extern void ConfigureBossArmor(edict_t* self);
 // When true, die handlers should use BecomeTE instead of BecomeExplosion1
 extern thread_local bool g_use_quiet_deployable_removal;
 
+// True for player-deployable special entities (teslas, traps, sentries, lasers, mines...).
+// Defined in shared.cpp (REMOVABLE_MASK).
+[[nodiscard]] bool IsRemovableEntity(const edict_t* ent);
+
 extern void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, float push_strength, float horizontal_push_strength, float vertical_push_strength);
 extern horde::MapSize GetMapSize(const char* mapname) noexcept;
 // Map size to use for boss-pool selection; honors a per-map boss_size override.

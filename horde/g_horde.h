@@ -31,13 +31,15 @@ extern cvar_t* g_horde_force_fog_wave;  // Test cvar: force the next wave to be 
 extern cvar_t* g_horde_force_domination;  // Test cvar: force the domination flag to arm on the current wave
 extern cvar_t* g_horde_nav_spawn_check;  // 1 = reject ground spawns the navmesh can't reach (anti unreachable-spawn)
 extern cvar_t* g_horde_spawn_dist_cap;  // 1 = cap how far from players a spawn point may be (anti far/closed-wing spawn)
+extern cvar_t* g_horde_far_spawn_chance;  // 0..1 chance a normal-wave pick prefers the farthest spawn point (fog waves floor at 0.9)
 extern cvar_t* pvm;  // PvM mode (Player vs Monster with character persistence)
 
-// Horde 2 "remix" variant: horde cvar >= 2 (horde 1 = classic, untouched).
-// PvM drives its own monster selection, so it always uses classic behavior.
+// Horde 2 is now the standard horde behavior: any active horde value gets the
+// 4-wave rhythm, themed decks and continuous curves. The classic code paths are
+// kept only for PvM, which drives its own monster selection.
 inline bool IsHorde2() noexcept
 {
-	return g_horde && g_horde->integer >= 2 && !(pvm && pvm->integer);
+	return g_horde && g_horde->integer >= 1 && !(pvm && pvm->integer);
 }
 
 // Single source of truth for boss cadence.
