@@ -19,6 +19,18 @@ inline void G_EntMidPoint(const edict_t* ent, vec3_t& point)
 // Forward declaration
 static void BrainFindTarget(edict_t* self);
 
+// Player-owned summons and deployables are teammates, but OnSameTeam can't see that
+// in horde (players are CTF_NOTEAM), so the tongue must skip them explicitly.
+static bool BrainTongueIsFriendly(const edict_t* ent) {
+    return ent->monsterinfo.isfriendlyspawn ||
+           horde::IsSpecialType(ent, horde::SpecialEntityTypeID::TESLA_MINE) ||
+           horde::IsSpecialType(ent, horde::SpecialEntityTypeID::SENTRY_GUN) ||
+           horde::IsSpecialType(ent, horde::SpecialEntityTypeID::LASER_EMITTER) ||
+           horde::IsSpecialType(ent, horde::SpecialEntityTypeID::DOPPLEGANGER) ||
+           horde::IsSpecialType(ent, horde::SpecialEntityTypeID::STROGG_SUMMONER) ||
+           horde::IsSpecialType(ent, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP);
+}
+
 static void BrainTongueAttack(edict_t* self, morph_data_t* data) {
     // Allow attack animation even without target
     data->tongue_active = true;
@@ -47,8 +59,9 @@ static void BrainTongueAttackContinue(edict_t* self, morph_data_t* data) {
     if (level.time < data->attack_finished)
         return;
 
-    // Check if target is still valid
-    if (!data->tongue_target->inuse || data->tongue_target->health <= 0) {
+    // Check if target is still valid (and didn't become friendly, e.g. via summon)
+    if (!data->tongue_target->inuse || data->tongue_target->health <= 0 ||
+        BrainTongueIsFriendly(data->tongue_target)) {
         data->tongue_active = false;
         data->tongue_target = nullptr;
         return;
@@ -198,12 +211,13 @@ static void BrainFindTarget(edict_t* self) {
 
         // Check if it's a monster
         if (target->svflags & SVF_MONSTER) {
-            if (!OnSameTeam(self, target))
+            if (!OnSameTeam(self, target) && !BrainTongueIsFriendly(target))
                 is_valid_target = true;
         }
         // Check if it's a player
         else if (target->client) {
-            if (!OnSameTeam(self, target))
+            // In horde every player is a teammate, whatever their ctf_team says
+            if (!g_horde->integer && !OnSameTeam(self, target))
                 is_valid_target = true;
         }
         // Check if it's a damageable entity like barrel, explosive box, etc.
@@ -233,7 +247,8 @@ static void BrainFindTarget(edict_t* self) {
     }
 
     // Also check players specifically (in case they're not in the monster grid)
-    for (int i = 1; i <= static_cast<int>(game.maxclients); i++) {
+    // -- never in horde, where every player is a teammate
+    for (int i = 1; !g_horde->integer && i <= static_cast<int>(game.maxclients); i++) {
         edict_t* ent = &g_edicts[i];
 
         if (!ent || !ent->inuse || !ent->client || ent == self)
@@ -284,6 +299,10 @@ static void BrainFindTarget(edict_t* self) {
 
         // Skip entities with teams, monsters, and players (already handled above)
         if (ent->svflags & SVF_MONSTER || ent->client)
+            continue;
+
+        // Player deployables carry FL_TRAP/FL_DAMAGEABLE but are teammates, not prey
+        if (BrainTongueIsFriendly(ent))
             continue;
 
         // Check if it's a destructible object (barrels, func_explosive, windows, etc)
