@@ -693,7 +693,7 @@ bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 
 #include <span>
 
-static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_damage, const mod_t& mod);
+static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_damage);
 void ApplyGradualArmor(edict_t* ent);
 
 
@@ -826,11 +826,10 @@ static constexpr float GetWeaponVampireMultiplier(item_id_t weapon_id) {
 // - Calculating actual damage dealt to entity accounting for overkill/gibs
 // - Used for damage tracking/statistics systems
 
-static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_damage, const mod_t& mod) {
+static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_damage) {
     // Fast path early returns for improved performance
-    if (!attacker || !attacker->client || !g_iddmg || !g_iddmg->integer ||
-        !attacker->client->pers.iddmg_state || !targ ||
-        targ->monsterinfo.invincible_time > level.time || mod.id == MOD_TRAP ||
+    if (!attacker || !attacker->client || !targ ||
+        targ->monsterinfo.invincible_time > level.time ||
         (targ->flags & FL_TRAP) || // Don't count damage to traps/barrels/grenades
         targ == attacker) { // Don't count self-damage
         return;
@@ -844,6 +843,17 @@ static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_dama
 
     auto& client = *attacker->client;
 
+    // Wave top-damage stat: tracked for every human player regardless of the
+    // ID-DMG display toggle (bots stay out of the top-damager reward race).
+    if ((targ->svflags & SVF_MONSTER) && targ->health >= 1 && !(attacker->svflags & SVF_BOT)) {
+        client.total_damage += static_cast<uint64_t>(capped_damage);
+    }
+
+    // On-screen damage counter: only when the ID-DMG display is enabled.
+    if (!g_iddmg || !g_iddmg->integer || !client.pers.iddmg_state) {
+        return;
+    }
+
     // This is the logic from the vrx_do_dmg_counter function you want.
     // If the time since the last shot is within 0.2 seconds, add to the counter.
     if (level.time - client.lastdmg <= 0.2_sec) {
@@ -856,11 +866,6 @@ static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_dama
 
     // Update the time of the last damage dealt
     client.lastdmg = level.time;
-
-    // This part handles total damage statistics and can remain as is.
-    if ((targ->svflags & SVF_MONSTER) && targ->health >= 1) {
-        client.total_damage += static_cast<uint64_t>(capped_damage);
-    }
 }
 
 static void HandleAutoHaste(edict_t* attacker, const edict_t* targ, int damage) {
@@ -1298,7 +1303,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	}
 
 	if (attacker && attacker->client)
-	HandleIDDamage(attacker, targ, take, mod);
+	HandleIDDamage(attacker, targ, take);
 
 	if (G_TeamplayEnabled() && targ->client && attacker->client &&
 		targ->client->resp.ctf_team == attacker->client->resp.ctf_team && targ != attacker &&

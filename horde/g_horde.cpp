@@ -9255,8 +9255,9 @@ static void SendCleanupMessage(WaveEndReason reason)
 	float percentage = 0.0f;
 	CalculateTopDamager(topDamager, percentage);
 
-	// Only process if we have a valid player
-	if (topDamager.player && topDamager.player->inuse && topDamager.player->client)
+	// Only process if we have a valid player who actually dealt damage this wave
+	// (skips the "dealt 0 damage" broadcast/reward when nobody registered damage)
+	if (topDamager.player && topDamager.total_damage > 0 && topDamager.player->inuse && topDamager.player->client)
 	{
 		// Get player name once
 		const char* playerName = GetPlayerName(topDamager.player);
