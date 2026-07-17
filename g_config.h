@@ -18,27 +18,27 @@ struct EntityLimitsConfig
 {
 	int32_t max_sentries = 3;
 	int32_t max_lasers = 6;
-	int32_t max_teslas = 12;
-	int32_t max_barrels = 10;
-	int32_t max_prox = 20;
+	int32_t max_teslas = 11;
+	int32_t max_barrels = 4;
+	int32_t max_prox = 12;
 	int32_t max_traps = 8;
-	int32_t max_summons = 8;
+	int32_t max_summons = 3;
 };
 
 // Base weapon configurations
 struct BlasterConfig
 {
-	int damage_min = 16;
-	int damage_max = 18;
-	int speed = 1300;
+	int damage_min = 12;
+	int damage_max = 16;
+	int speed = 1200;
 	int bounces = 5;
 	int speed_addon = 40;  // Speed added per upgrade level
 };
 
 struct HyperBlasterConfig
 {
-	int damage_min = 16;
-	int damage_max = 18;
+	int damage_min = 12;
+	int damage_max = 14;
 	int speed = 1700;
 	int bounces = 3;
 	int speed_addon = 40;  // Speed added per upgrade level
@@ -52,13 +52,13 @@ struct ShotgunConfig
 	int damage_energy_max = 11;
 	int kick = 8;
 	int pellet_count_deathmatch = 12;
-	int pellet_count_normal = 20;
+	int pellet_count_normal = 18;
 };
 
 struct SuperShotgunConfig
 {
-	int damage_min = 7;
-	int damage_max = 10;
+	int damage_min = 5;
+	int damage_max = 9;
 	int damage_energy_min = 14;
 	int damage_energy_max = 16;
 	int kick = 17;
@@ -67,20 +67,20 @@ struct SuperShotgunConfig
 
 struct MachinegunConfig
 {
-	int damage_min = 7;
-	int damage_max = 10;
+	int damage_min = 4;
+	int damage_max = 8;
 	int kick = 2;
-	int tracer_damage = 40;
+	int tracer_damage = 12;
 	int tracer_cooldown_ms = 500;
 	int tracer_damage_per_level = 4;  // Damage added per tracer upgrade level (max 40 at level 10)
 };;
 
 struct ChaingunConfig
 {
-	int damage_min = 7;
-	int damage_max = 11;
-	int kick = 2;
-	int tracer_damage = 20;
+	int damage_min = 6;
+	int damage_max = 9;
+	int kick = 3;
+	int tracer_damage = 10;
 	int tracer_cooldown_ms = 300;
 	int tracer_damage_per_level = 2;  // Damage added per tracer upgrade level (max 20 at level 10)
 };;
@@ -96,20 +96,20 @@ struct GrenadeConfig
 
 struct GrenadeLauncherConfig
 {
-	int damage_normal = 115;
+	int damage_normal = 100;
 	int damage_napalm = 95;
-	float radius_normal = 155.0f;
-	float radius_napalm = 135.0f;
-	int speed = 900;       // Base speed (reaches 1200 at level 10)
+	float radius_normal = 135.0f;
+	float radius_napalm = 115.0f;
+	int speed = 1200;
 	int speed_addon = 30;  // Speed added per upgrade level
 };
 
 struct RocketLauncherConfig
 {
 	int damage_min = 100;
-	int damage_max = 120;
+	int damage_max = 125;
 	int speed = 1230;
-	int radius = 125;
+	int radius = 115;
 	int damage_addon = 3;      // Damage added per upgrade level (was 3.5 hardcoded)
 	int radius_addon = 3;      // Radius damage added per upgrade level (was 3.5 hardcoded)
 	int speed_addon = 28;      // Speed added per upgrade level
@@ -125,10 +125,10 @@ struct RailgunConfig
 
 struct Cannon20mmConfig
 {
-	int damage = 35;
+	int damage = 22;
 	int kick = 35;
 	int range = 650;
-	int recoil_force = 500;
+	int recoil_force = 250;
 	int range_addon = 30;  // Range added per upgrade level
 };
 
@@ -136,7 +136,7 @@ struct BFGConfig
 {
 	int damage = 700;
 	float radius = 1000.0f;
-	int speed = 650;  // Initial speed (was hardcoded as BFG10K_INITIAL_SPEED)
+	int speed = 600;  // Initial speed (was hardcoded as BFG10K_INITIAL_SPEED)
 	int damage_addon = 2;   // Damage added per upgrade level
 	int speed_addon = 35;   // Speed added per upgrade level
 };
@@ -164,8 +164,8 @@ struct PhalanxConfig
 // Rogue expansion weapon configurations
 struct PlasmaBeamConfig
 {
-	int damage = 145;
-	int damage_singleplayer = 135;
+	int damage = 15;
+	int damage_singleplayer = 15;
 	int kick = 3;
 	int kick_singleplayer = 3;
 	int damage_addon = 1;  // Damage added per upgrade level (was hardcoded +1)
@@ -218,7 +218,7 @@ struct TrapConfig
 	float minspeed = 500.0f;   // Min throw speed
 	float maxspeed = 900.0f;   // Max throw speed
 	float speed_addon = 30.0f; // Speed added per upgrade level
-	float pull_radius = 400.0f;
+	float pull_radius = 350.0f;
 	float pull_speed_monster = 210.0f;
 	float pull_speed_player = 290.0f;
 	int duration_sec = 80;
@@ -237,18 +237,18 @@ struct TeslaConfig
 
 struct SentryGunConfig
 {
-	int initial_health = 40;
-	int addon_health = 5;
-	int initial_armor = 30;
-	int addon_armor = 10;
+	int initial_health = 50;
+	int addon_health = 15;
+	int initial_armor = 50;
+	int addon_armor = 30;
 	int max_health = 200;
 	int max_armor = 350;
 	// Weapon damage scaling
-	int initial_bullet = 10;      // Machinegun base damage
+	int initial_bullet = 6;       // Machinegun base damage
 	int addon_bullet = 1;         // Machinegun damage per level
-	int initial_heatbeam = 10;    // Heatbeam base damage
+	int initial_heatbeam = 3;     // Heatbeam base damage
 	int addon_heatbeam = 1;       // Heatbeam damage per level
-	int initial_flechette = 10;   // Flechette base damage
+	int initial_flechette = 6;    // Flechette base damage
 	int addon_flechette = 1;      // Flechette damage per level
 	int initial_rocket = 50;      // Rocket base damage
 	int addon_rocket = 15;        // Rocket damage per level
@@ -348,30 +348,30 @@ struct GlobalWeaponDamage
 
 	// Constructor with default values matching original named fields
 	GlobalWeaponDamage() {
-		values[0]  = 10;  // MELEE
-		values[1]  = 15;  // BLASTER
-		values[2]  = 20;  // BLASTER2
-		values[3]  = 18;  // BLASTER_BOLT
-		values[4]  = 20;  // BLUEBLASTER
-		values[5]  = 4;   // SHOTGUN
-		values[6]  = 8;   // MACHINEGUN
-		values[7]  = 50;  // GRENADE
-		values[8]  = 100; // ROCKET
-		values[9]  = 15;  // HEAT
-		values[10] = 150; // RAILGUN
-		values[11] = 500; // BFG
-		values[12] = 50;  // IONRIPPER
-		values[13] = 15;  // HYPERBLASTER
-		values[14] = 20;  // BOLT
-		values[15] = 30;  // TRACKER
-		values[16] = 40;  // PLASMA
-		values[17] = 30;  // DABEAM
-		values[18] = 30;  // HEATBEAM
-		values[19] = 25;  // SLAM
-		values[20] = 12;  // LIGHTNING
-		values[21] = 12;  // FLECHETTE
-		values[22] = 40;  // FIREBALL
-		values[23] = 20;  // PROBOSCIS
+		values[0]  = 7;   // MELEE
+		values[1]  = 5;   // BLASTER
+		values[2]  = 7;   // BLASTER2
+		values[3]  = 8;   // BLASTER_BOLT
+		values[4]  = 5;   // BLUEBLASTER
+		values[5]  = 1;   // SHOTGUN
+		values[6]  = 3;   // MACHINEGUN
+		values[7]  = 18;  // GRENADE
+		values[8]  = 22;  // ROCKET
+		values[9]  = 20;  // HEAT
+		values[10] = 25;  // RAILGUN
+		values[11] = 25;  // BFG
+		values[12] = 6;   // IONRIPPER
+		values[13] = 6;   // HYPERBLASTER
+		values[14] = 14;  // BOLT
+		values[15] = 7;   // TRACKER
+		values[16] = 12;  // PLASMA
+		values[17] = 5;   // DABEAM
+		values[18] = 5;   // HEATBEAM
+		values[19] = 30;  // SLAM
+		values[20] = 5;   // LIGHTNING
+		values[21] = 4;   // FLECHETTE
+		values[22] = 12;  // FIREBALL
+		values[23] = 7;   // PROBOSCIS
 	}
 
 	// Helper for JSON loading
@@ -392,27 +392,27 @@ struct GlobalWeaponSpeed
 	GlobalWeaponSpeed() {
 		values[0]  = 0;    // MELEE - melee
 		values[1]  = 1000; // BLASTER
-		values[2]  = 1100; // BLASTER2
+		values[2]  = 1000; // BLASTER2
 		values[3]  = 1000; // BLASTER_BOLT
-		values[4]  = 1100; // BLUEBLASTER
+		values[4]  = 1000; // BLUEBLASTER
 		values[5]  = 0;    // SHOTGUN - instant hit
 		values[6]  = 0;    // MACHINEGUN - instant hit
 		values[7]  = 600;  // GRENADE
 		values[8]  = 650;  // ROCKET
-		values[9]  = 1000; // HEAT
+		values[9]  = 650;  // HEAT
 		values[10] = 0;    // RAILGUN - instant hit
 		values[11] = 400;  // BFG
-		values[12] = 500;  // IONRIPPER
+		values[12] = 1000; // IONRIPPER
 		values[13] = 1000; // HYPERBLASTER
-		values[14] = 800;  // BOLT
+		values[14] = 600;  // BOLT
 		values[15] = 500;  // TRACKER
-		values[16] = 1200; // PLASMA
+		values[16] = 700;  // PLASMA
 		values[17] = 0;    // DABEAM - beam weapon
 		values[18] = 0;    // HEATBEAM - beam weapon
 		values[19] = 0;    // SLAM - melee
 		values[20] = 0;    // LIGHTNING - instant hit
 		values[21] = 1150; // FLECHETTE
-		values[22] = 400;  // FIREBALL
+		values[22] = 600;  // FIREBALL
 		values[23] = 0;    // PROBOSCIS - melee
 	}
 
@@ -433,12 +433,13 @@ struct GlobalWeaponRadius
 	// Constructor with default values (most weapons have 0 radius)
 	GlobalWeaponRadius() {
 		// All values default to 0.0f, only set non-zero ones
-		values[7]  = 150.0f;  // GRENADE
-		values[8]  = 140.0f;  // ROCKET
-		values[11] = 1000.0f; // BFG
-		values[15] = 120.0f;  // TRACKER
-		values[16] = 100.0f;  // PLASMA
-		values[22] = 125.0f;  // FIREBALL
+		values[7]  = 140.0f;  // GRENADE
+		values[8]  = 120.0f;  // ROCKET
+		values[9]  = 140.0f;  // HEAT
+		values[11] = 450.0f;  // BFG
+		values[15] = 140.0f;  // TRACKER
+		values[16] = 120.0f;  // PLASMA
+		values[22] = 120.0f;  // FIREBALL
 	}
 
 	// Helper for JSON loading

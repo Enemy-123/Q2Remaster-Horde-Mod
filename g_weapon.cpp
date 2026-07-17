@@ -106,6 +106,26 @@ void pierce_trace(const vec3_t& start, const vec3_t& end, edict_t* ignore, pierc
 		// Point trace (zero extents) == traceline; note the (start, mins, maxs, end, ...) arg order.
 		pierce.tr = G_TraceSqueezeAware(own_start, vec3_origin, vec3_origin, own_end, ignore, mask);
 
+		// [Horde] point-blank fix: a trace that STARTS inside a damageable entity's bbox
+		// (e.g. player dragged into a brain's box by its tongue) reports startsolid with
+		// fraction 1.0, so the shot would pass straight through. Register the overlapped
+		// entity as a hit at the start point. Player shooters only: horde monsters overlap
+		// each other by design and their shots must keep passing through packmates.
+		if (pierce.tr.startsolid && ignore && ignore->client &&
+			pierce.tr.ent && pierce.tr.ent->takedamage)
+		{
+			pierce.tr.endpos = own_start;
+			pierce.tr.fraction = 0.0f;
+
+			// hit callback said we're done
+			if (!pierce.hit(mask, own_end))
+				return;
+
+			// piercing callbacks mark() the entity non-solid, so re-trace from here
+			own_start = pierce.tr.endpos;
+			continue;
+		}
+
 		// didn't hit anything, so we're done
 		if (!pierce.tr.ent || pierce.tr.fraction == 1.0f)
 			return;
@@ -939,7 +959,9 @@ edict_t* fire_blaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int
 	gi.linkentity(bolt);
 
 	trace_t tr = gi.traceline(self->s.origin, bolt->s.origin, bolt, bolt->clipmask);
-	if (tr.fraction < 1.0f) {
+	// [Horde] startsolid: player is overlapping a damageable entity (brain tongue pull),
+	// so detonate on it instead of spawning the bolt inside and flying through.
+	if (tr.fraction < 1.0f || (tr.startsolid && self->client && tr.ent && tr.ent->takedamage)) {
 		bolt->s.origin = tr.endpos + (tr.plane.normal * 1.f);
 		bolt->touch(bolt, tr.ent, tr, false);
 	}

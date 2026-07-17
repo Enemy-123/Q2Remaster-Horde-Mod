@@ -13,7 +13,6 @@ All tank variants unified in a single file
 #include "m_tank.h"
 #include "m_flash.h"
 #include "shared.h"
-#include "horde/g_horde_scaling.h"
 #include "monster_constants.h"
 #include <algorithm>
 #include <numeric>
@@ -3453,7 +3452,7 @@ void SP_monster_tank_commander(edict_t* self)
 	int base_health = M_TANK_COMMANDER_INITIAL_HEALTH;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
 		bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
-		self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+		self->health = base_health;
 	} else {
 		self->health = base_health * st.health_multiplier;
 	}

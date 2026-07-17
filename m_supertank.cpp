@@ -12,7 +12,6 @@ SUPERTANK
 #include "m_supertank.h"
 #include "m_flash.h"
 #include "shared.h"
-#include "horde/g_horde_scaling.h"
 #include "monster_constants.h"
 
 constexpr spawnflags_t SPAWNFLAG_SUPERTANK_POWERSHIELD = 8_spawnflag;
@@ -835,7 +834,7 @@ void SP_monster_supertank(edict_t* self)
 	int base_health = M_SUPERTANK_INITIAL_HEALTH;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
 		bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
-		self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+		self->health = base_health;
 	} else {
 		self->health = base_health * st.health_multiplier;
 	}
@@ -905,7 +904,7 @@ void SP_monster_boss5(edict_t* self)
 	SP_monster_supertank(self);
 	gi.soundindex("weapons/railgr1a.wav");
 	self->s.skinnum = 2;
-	self->health = ScaleMonsterHealth(5600, current_wave_level, true);  // Boss5 supertank is a boss
+	self->health = 5600;
 	ApplyMonsterBonusFlags(self);
 }
 

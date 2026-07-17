@@ -1060,11 +1060,11 @@ void Config_Load(const char* basedir)
 		const Json::Value& limits = root["entity_limits"];
 		g_config.entity_limits.max_sentries = GetJsonInt(limits, "max_sentries", 3);
 		g_config.entity_limits.max_lasers = GetJsonInt(limits, "max_lasers", 6);
-		g_config.entity_limits.max_teslas = GetJsonInt(limits, "max_teslas", 12);
-		g_config.entity_limits.max_barrels = GetJsonInt(limits, "max_barrels", 10);
-		g_config.entity_limits.max_prox = GetJsonInt(limits, "max_prox", 50);
+		g_config.entity_limits.max_teslas = GetJsonInt(limits, "max_teslas", 11);
+		g_config.entity_limits.max_barrels = GetJsonInt(limits, "max_barrels", 4);
+		g_config.entity_limits.max_prox = GetJsonInt(limits, "max_prox", 12);
 		g_config.entity_limits.max_traps = GetJsonInt(limits, "max_traps", 8);
-		g_config.entity_limits.max_summons = GetJsonInt(limits, "max_summons", 8);
+		g_config.entity_limits.max_summons = GetJsonInt(limits, "max_summons", 3);
 	}
 
 	// Load weapon configs
@@ -1077,9 +1077,9 @@ void Config_Load(const char* basedir)
 		{
 			const Json::Value& w = weapons["blaster"];
 
-			g_config.blaster.damage_min = GetJsonInt(w, "damage_min", 5);
-			g_config.blaster.damage_max = GetJsonInt(w, "damage_max", 42);
-			g_config.blaster.speed = GetJsonInt(w, "speed", 1300);
+			g_config.blaster.damage_min = GetJsonInt(w, "damage_min", 12);
+			g_config.blaster.damage_max = GetJsonInt(w, "damage_max", 16);
+			g_config.blaster.speed = GetJsonInt(w, "speed", 1200);
 			g_config.blaster.bounces = GetJsonInt(w, "bounces", 5);
 			g_config.blaster.speed_addon = GetJsonInt(w, "speed_addon", 40);
 		}
@@ -1088,8 +1088,8 @@ void Config_Load(const char* basedir)
 		if (weapons.isMember("hyperblaster") && weapons["hyperblaster"].isObject())
 		{
 			const Json::Value& w = weapons["hyperblaster"];
-			g_config.hyperblaster.damage_min = GetJsonInt(w, "damage_min", 16);
-			g_config.hyperblaster.damage_max = GetJsonInt(w, "damage_max", 18);
+			g_config.hyperblaster.damage_min = GetJsonInt(w, "damage_min", 12);
+			g_config.hyperblaster.damage_max = GetJsonInt(w, "damage_max", 14);
 			g_config.hyperblaster.speed = GetJsonInt(w, "speed", 1700);
 			g_config.hyperblaster.bounces = GetJsonInt(w, "bounces", 3);
 			g_config.hyperblaster.speed_addon = GetJsonInt(w, "speed_addon", 40);
@@ -1105,15 +1105,15 @@ void Config_Load(const char* basedir)
 			g_config.shotgun.damage_energy_max = GetJsonInt(w, "damage_energy_max", 11);
 			g_config.shotgun.kick = GetJsonInt(w, "kick", 8);
 			g_config.shotgun.pellet_count_deathmatch = GetJsonInt(w, "pellet_count_deathmatch", 12);
-			g_config.shotgun.pellet_count_normal = GetJsonInt(w, "pellet_count_normal", 20);
+			g_config.shotgun.pellet_count_normal = GetJsonInt(w, "pellet_count_normal", 18);
 		}
 
 		// Super Shotgun
 		if (weapons.isMember("supershotgun") && weapons["supershotgun"].isObject())
 		{
 			const Json::Value& w = weapons["supershotgun"];
-			g_config.supershotgun.damage_min = GetJsonInt(w, "damage_min", 7);
-			g_config.supershotgun.damage_max = GetJsonInt(w, "damage_max", 10);
+			g_config.supershotgun.damage_min = GetJsonInt(w, "damage_min", 5);
+			g_config.supershotgun.damage_max = GetJsonInt(w, "damage_max", 9);
 			g_config.supershotgun.damage_energy_min = GetJsonInt(w, "damage_energy_min", 14);
 			g_config.supershotgun.damage_energy_max = GetJsonInt(w, "damage_energy_max", 16);
 			g_config.supershotgun.kick = GetJsonInt(w, "kick", 17);
@@ -1124,10 +1124,10 @@ void Config_Load(const char* basedir)
 		if (weapons.isMember("machinegun") && weapons["machinegun"].isObject())
 		{
 			const Json::Value& w = weapons["machinegun"];
-			g_config.machinegun.damage_min = GetJsonInt(w, "damage_min", 7);
-			g_config.machinegun.damage_max = GetJsonInt(w, "damage_max", 10);
+			g_config.machinegun.damage_min = GetJsonInt(w, "damage_min", 4);
+			g_config.machinegun.damage_max = GetJsonInt(w, "damage_max", 8);
 			g_config.machinegun.kick = GetJsonInt(w, "kick", 2);
-			g_config.machinegun.tracer_damage = GetJsonInt(w, "tracer_damage", 40);
+			g_config.machinegun.tracer_damage = GetJsonInt(w, "tracer_damage", 12);
 			g_config.machinegun.tracer_cooldown_ms = GetJsonInt(w, "tracer_cooldown_ms", 500);
 			g_config.machinegun.tracer_damage_per_level = GetJsonInt(w, "tracer_damage_per_level", 4);
 		}
@@ -1136,10 +1136,10 @@ void Config_Load(const char* basedir)
 		if (weapons.isMember("chaingun") && weapons["chaingun"].isObject())
 		{
 			const Json::Value& w = weapons["chaingun"];
-			g_config.chaingun.damage_min = GetJsonInt(w, "damage_min", 7);
-			g_config.chaingun.damage_max = GetJsonInt(w, "damage_max", 11);
-			g_config.chaingun.kick = GetJsonInt(w, "kick", 2);
-			g_config.chaingun.tracer_damage = GetJsonInt(w, "tracer_damage", 20);
+			g_config.chaingun.damage_min = GetJsonInt(w, "damage_min", 6);
+			g_config.chaingun.damage_max = GetJsonInt(w, "damage_max", 9);
+			g_config.chaingun.kick = GetJsonInt(w, "kick", 3);
+			g_config.chaingun.tracer_damage = GetJsonInt(w, "tracer_damage", 10);
 			g_config.chaingun.tracer_cooldown_ms = GetJsonInt(w, "tracer_cooldown_ms", 300);
 			g_config.chaingun.tracer_damage_per_level = GetJsonInt(w, "tracer_damage_per_level", 2);
 		}
@@ -1159,10 +1159,10 @@ void Config_Load(const char* basedir)
 		if (weapons.isMember("grenadelauncher") && weapons["grenadelauncher"].isObject())
 		{
 			const Json::Value& w = weapons["grenadelauncher"];
-			g_config.grenadelauncher.damage_normal = GetJsonInt(w, "damage_normal", 115);
+			g_config.grenadelauncher.damage_normal = GetJsonInt(w, "damage_normal", 100);
 			g_config.grenadelauncher.damage_napalm = GetJsonInt(w, "damage_napalm", 95);
-			g_config.grenadelauncher.radius_normal = GetJsonFloat(w, "radius_normal", 155.0f);
-			g_config.grenadelauncher.radius_napalm = GetJsonFloat(w, "radius_napalm", 135.0f);
+			g_config.grenadelauncher.radius_normal = GetJsonFloat(w, "radius_normal", 135.0f);
+			g_config.grenadelauncher.radius_napalm = GetJsonFloat(w, "radius_napalm", 115.0f);
 			g_config.grenadelauncher.speed = GetJsonInt(w, "speed", 1200);
 			g_config.grenadelauncher.speed_addon = GetJsonInt(w, "speed_addon", 30);
 		}
@@ -1172,9 +1172,9 @@ void Config_Load(const char* basedir)
 		{
 			const Json::Value& w = weapons["rocket"];
 			g_config.rocket.damage_min = GetJsonInt(w, "damage_min", 100);
-			g_config.rocket.damage_max = GetJsonInt(w, "damage_max", 120);
+			g_config.rocket.damage_max = GetJsonInt(w, "damage_max", 125);
 			g_config.rocket.speed = GetJsonInt(w, "speed", 1230);
-			g_config.rocket.radius = GetJsonInt(w, "radius", 125);
+			g_config.rocket.radius = GetJsonInt(w, "radius", 115);
 			g_config.rocket.damage_addon = GetJsonInt(w, "damage_addon", 3);
 			g_config.rocket.radius_addon = GetJsonInt(w, "radius_addon", 3);
 			g_config.rocket.speed_addon = GetJsonInt(w, "speed_addon", 28);
@@ -1194,10 +1194,10 @@ void Config_Load(const char* basedir)
 		if (weapons.isMember("cannon20mm") && weapons["cannon20mm"].isObject())
 		{
 			const Json::Value& w = weapons["cannon20mm"];
-			g_config.cannon20mm.damage = GetJsonInt(w, "damage", 35);
+			g_config.cannon20mm.damage = GetJsonInt(w, "damage", 22);
 			g_config.cannon20mm.kick = GetJsonInt(w, "kick", 35);
 			g_config.cannon20mm.range = GetJsonInt(w, "range", 650);
-			g_config.cannon20mm.recoil_force = GetJsonInt(w, "recoil_force", 500);
+			g_config.cannon20mm.recoil_force = GetJsonInt(w, "recoil_force", 250);
 			g_config.cannon20mm.range_addon = GetJsonInt(w, "range_addon", 30);
 		}
 
@@ -1207,7 +1207,7 @@ void Config_Load(const char* basedir)
 			const Json::Value& w = weapons["bfg"];
 			g_config.bfg.damage = GetJsonInt(w, "damage", 700);
 			g_config.bfg.radius = GetJsonFloat(w, "radius", 1000.0f);
-			g_config.bfg.speed = GetJsonInt(w, "speed", 650);
+			g_config.bfg.speed = GetJsonInt(w, "speed", 600);
 			g_config.bfg.damage_addon = GetJsonInt(w, "damage_addon", 2);
 			g_config.bfg.speed_addon = GetJsonInt(w, "speed_addon", 35);
 		}
@@ -1236,8 +1236,8 @@ void Config_Load(const char* basedir)
 		if (weapons.isMember("plasmabeam") && weapons["plasmabeam"].isObject())
 		{
 			const Json::Value& w = weapons["plasmabeam"];
-			g_config.plasmabeam.damage = GetJsonInt(w, "damage", 145);
-			g_config.plasmabeam.damage_singleplayer = GetJsonInt(w, "damage_singleplayer", 135);
+			g_config.plasmabeam.damage = GetJsonInt(w, "damage", 15);
+			g_config.plasmabeam.damage_singleplayer = GetJsonInt(w, "damage_singleplayer", 15);
 			g_config.plasmabeam.kick = GetJsonInt(w, "kick", 3);
 			g_config.plasmabeam.kick_singleplayer = GetJsonInt(w, "kick_singleplayer", 3);
 			g_config.plasmabeam.damage_addon = GetJsonInt(w, "damage_addon", 1);
@@ -1302,7 +1302,7 @@ void Config_Load(const char* basedir)
 			g_config.trap.minspeed = GetJsonFloat(t, "minspeed", 500.0f);
 			g_config.trap.maxspeed = GetJsonFloat(t, "maxspeed", 900.0f);
 			g_config.trap.speed_addon = GetJsonFloat(t, "speed_addon", 30.0f);
-			g_config.trap.pull_radius = GetJsonFloat(t, "pull_radius", 400.0f);
+			g_config.trap.pull_radius = GetJsonFloat(t, "pull_radius", 350.0f);
 			g_config.trap.pull_speed_monster = GetJsonFloat(t, "pull_speed_monster", 210.0f);
 			g_config.trap.pull_speed_player = GetJsonFloat(t, "pull_speed_player", 290.0f);
 			g_config.trap.duration_sec = GetJsonInt(t, "duration_sec", 80);
@@ -1324,18 +1324,18 @@ void Config_Load(const char* basedir)
 		if (deployables.isMember("sentrygun") && deployables["sentrygun"].isObject())
 		{
 			const Json::Value& s = deployables["sentrygun"];
-			g_config.sentrygun.initial_health = GetJsonInt(s, "initial_health", 40);
-			g_config.sentrygun.addon_health = GetJsonInt(s, "addon_health", 5);
+			g_config.sentrygun.initial_health = GetJsonInt(s, "initial_health", 50);
+			g_config.sentrygun.addon_health = GetJsonInt(s, "addon_health", 15);
 			g_config.sentrygun.initial_armor = GetJsonInt(s, "initial_armor", 50);
-			g_config.sentrygun.addon_armor = GetJsonInt(s, "addon_armor", 25);
-			g_config.sentrygun.max_health = GetJsonInt(s, "max_health", 125);
-			g_config.sentrygun.max_armor = GetJsonInt(s, "max_armor", 175);
+			g_config.sentrygun.addon_armor = GetJsonInt(s, "addon_armor", 30);
+			g_config.sentrygun.max_health = GetJsonInt(s, "max_health", 200);
+			g_config.sentrygun.max_armor = GetJsonInt(s, "max_armor", 350);
 			// Weapon damage configs
-			g_config.sentrygun.initial_bullet = GetJsonInt(s, "initial_bullet", 9);
+			g_config.sentrygun.initial_bullet = GetJsonInt(s, "initial_bullet", 6);
 			g_config.sentrygun.addon_bullet = GetJsonInt(s, "addon_bullet", 1);
-			g_config.sentrygun.initial_heatbeam = GetJsonInt(s, "initial_heatbeam", 10);
+			g_config.sentrygun.initial_heatbeam = GetJsonInt(s, "initial_heatbeam", 3);
 			g_config.sentrygun.addon_heatbeam = GetJsonInt(s, "addon_heatbeam", 1);
-			g_config.sentrygun.initial_flechette = GetJsonInt(s, "initial_flechette", 8);
+			g_config.sentrygun.initial_flechette = GetJsonInt(s, "initial_flechette", 6);
 			g_config.sentrygun.addon_flechette = GetJsonInt(s, "addon_flechette", 1);
 			g_config.sentrygun.initial_rocket = GetJsonInt(s, "initial_rocket", 50);
 			g_config.sentrygun.addon_rocket = GetJsonInt(s, "addon_rocket", 15);
@@ -1372,7 +1372,7 @@ void Config_Load(const char* basedir)
 			g_config.bomb_spell.duration_sec = GetJsonInt(b, "duration_sec", 5);
 			g_config.bomb_spell.forward_cooldown_ms = GetJsonInt(b, "forward_cooldown_ms", 1500);
 			g_config.bomb_spell.area_cooldown_ms = GetJsonInt(b, "area_cooldown_ms", 10000);
-			g_config.bomb_spell.step_size = GetJsonInt(b, "step_size", 96);
+			g_config.bomb_spell.step_size = GetJsonInt(b, "step_size", 128);
 			g_config.bomb_spell.carpet_width = GetJsonInt(b, "carpet_width", 200);
 		}
 
@@ -1759,18 +1759,6 @@ int GetScaledHealth(int base_health, float health_scale, int wave_level, bool is
 {
 	// Apply monster-specific health scale
 	int scaled_health = static_cast<int>(base_health * health_scale);
-
-	// WAVE-BASED SCALING DISABLED - Using PvM level-based scaling instead
-	// Apply wave scaling if enabled
-	// if (g_config.use_sigmoid_scaling && wave_level > 0)
-	// {
-	// 	scaled_health = ScaleMonsterHealth(scaled_health, wave_level, is_boss);
-	// }
-	// else if (wave_level > 0)
-	// {
-	// 	// Fallback: basic scaling if sigmoid is disabled
-	// 	scaled_health = ScaleMonsterHealth(scaled_health, wave_level, is_boss);
-	// }
 
 	return scaled_health;
 }

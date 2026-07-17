@@ -11,7 +11,6 @@ parasite
 #include "g_local.h"
 #include "m_parasite.h"
 #include "shared.h"
-#include "horde/g_horde_scaling.h"
 #include "monster_constants.h"
 
 constexpr float g_athena_parasite_miss_chance = 0.1f;
@@ -1080,7 +1079,7 @@ void SP_monster_parasite(edict_t* self)
 	int base_health = M_PARASITE_INITIAL_HEALTH;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
 		bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
-		self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+		self->health = base_health;
 	} else {
 		self->health = base_health * st.health_multiplier;
 	}
@@ -1129,7 +1128,7 @@ void SP_monster_perrokl(edict_t* self)
 
 		int base_health = M_PARASITE_INITIAL_HEALTH;
 		if (g_horde->integer && current_wave_level > 0) {
-			self->health = ScaleMonsterHealth(base_health, current_wave_level, true);  // perrokl is a boss variant
+			self->health = base_health;
 		} else if (G_IsCooperative()) {
 			self->health = M_PARASITE_INITIAL_HEALTH * st.health_multiplier;
 		} else {

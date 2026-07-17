@@ -12,7 +12,6 @@ stalker
 #include "m_rogue_stalker.h"
 #include <float.h>
 #include "../shared.h"
-#include "../horde/g_horde_scaling.h"
 #include "../monster_constants.h"
 
 static cached_soundindex sound_pain;
@@ -1077,7 +1076,7 @@ void SP_monster_stalker(edict_t* self)
 
 	int base_health = M_STALKER_INITIAL_HEALTH;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
-		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+		self->health = base_health;
 	} else {
 		self->health = base_health * st.health_multiplier;
 	}

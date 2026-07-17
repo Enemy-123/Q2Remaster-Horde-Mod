@@ -1214,11 +1214,14 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 			damage = 1;
 	}
 
-	if ((targ->svflags & SVF_MONSTER) != 0) {
-		damage *= ai_damage_scale->integer;
-	}
-	else {
-		damage *= g_damage_scale->integer;
+	// Float scales so fractional values work (0.5 halves instead of truncating to 0);
+	// scale <= 0 still fully disables damage to that side.
+	const float dmg_scale = (targ->svflags & SVF_MONSTER) ? ai_damage_scale->value : g_damage_scale->value;
+	if (dmg_scale != 1.0f && damage) {
+		if (dmg_scale <= 0)
+			damage = 0;
+		else
+			damage = std::max(1, static_cast<int>(damage * dmg_scale));
 	}
 
 	client = targ->client;

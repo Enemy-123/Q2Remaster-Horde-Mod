@@ -12,7 +12,6 @@ MEDIC
 #include "m_medic.h"
 #include "m_flash.h"
 #include "shared.h"
-#include "horde/g_horde_scaling.h"
 #include "monster_constants.h"
 #include <boost/container/small_vector.hpp>
 

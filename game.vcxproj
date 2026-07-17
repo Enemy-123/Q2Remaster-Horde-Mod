@@ -153,7 +153,6 @@ exit /b 0</Command>
     <ClInclude Include="horde\g_horde.h" />
     <ClInclude Include="horde\g_horde_benefits.h" />
     <ClInclude Include="horde\g_horde_phys.h" />
-    <ClInclude Include="horde\g_horde_scaling.h" />
     <ClInclude Include="horde\g_laser.h" />
     <ClInclude Include="horde\g_pvm.h" />
     <ClInclude Include="horde\g_pvm_menu.h" />
@@ -226,7 +225,6 @@ exit /b 0</Command>
     <ClCompile Include="horde\g_fire.cpp" />
     <ClCompile Include="horde\g_horde_benefits.cpp" />
     <ClCompile Include="horde\g_horde_phys.cpp" />
-    <ClCompile Include="horde\g_horde_scaling.cpp" />
     <ClCompile Include="horde\g_idview.cpp" />
     <ClCompile Include="horde\g_laser.cpp" />
     <ClCompile Include="horde\g_pvm.cpp" />

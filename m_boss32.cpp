@@ -12,7 +12,6 @@ Makron -- Final Boss
 #include "m_boss32.h"
 #include "m_flash.h"
 #include "shared.h"
-#include "horde/g_horde_scaling.h"
 #include "monster_constants.h"
 void SP_monster_makronkl(edict_t* self);
 void MakronRailgun(edict_t *self);
@@ -977,8 +976,7 @@ void SP_monster_makron(edict_t* self)
 	}
 
 	if (g_horde->integer && !self->monsterinfo.IS_BOSS) {
-		// Use sigmoid scaling instead of linear
-		self->health = ScaleMonsterHealth(3500, current_wave_level, true);
+		self->health = 3500;
 		if (self->health >= 6500)
 			self->health = 6500;
 	}

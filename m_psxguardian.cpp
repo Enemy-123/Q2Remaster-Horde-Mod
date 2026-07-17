@@ -13,7 +13,6 @@ GUARDIAN
 #include "m_flash.h"
 #include "shared.h"
 #include <cfloat>
-#include "horde/g_horde_scaling.h"
 #include "monster_constants.h"
 static cached_soundindex sound_sight;
 //static cached_soundindex sound_pain1;
@@ -1161,7 +1160,7 @@ void SP_monster_psxguardian(edict_t* self)
 
 	int base_health = M_PSX_GUARDIAN_INITIAL_HEALTH;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
-		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+		self->health = base_health;
 	} else {
 		self->health = base_health * st.health_multiplier;
 	}

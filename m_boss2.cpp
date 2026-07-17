@@ -12,7 +12,6 @@ boss2
 #include "m_boss2.h"
 #include "m_flash.h"
 #include "shared.h"
-#include "horde/g_horde_scaling.h"
 #include "monster_constants.h"
 
 // [Paril-KEX]
@@ -787,7 +786,7 @@ void SP_monster_boss2(edict_t *self)
 	int base_health = M_BOSS2_INITIAL_HEALTH;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
 		bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
-		self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+		self->health = base_health;
 	} else {
 		self->health = base_health * st.health_multiplier;
 	}
@@ -859,7 +858,7 @@ void SP_monster_boss2_64(edict_t *self)
 	int base_health = M_BOSS2_64_INITIAL_HEALTH;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
 		bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
-		self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+		self->health = base_health;
 	} else {
 		self->health = base_health * st.health_multiplier;
 	}
@@ -900,7 +899,7 @@ void SP_monster_boss2_mini(edict_t *self)
 	int base_health = M_BOSS2_MINI_INITIAL_HEALTH;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
 		bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
-		self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+		self->health = base_health;
 	} else {
 		self->health = base_health * st.health_multiplier;
 	}
@@ -944,7 +943,7 @@ void SP_monster_boss2kl(edict_t *self)
 	int base_health = M_BOSS2_KL_INITIAL_HEALTH;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
 		bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
-		self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+		self->health = base_health;
 	} else {
 		self->health = base_health * st.health_multiplier;
 	}

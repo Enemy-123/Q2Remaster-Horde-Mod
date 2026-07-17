@@ -19,7 +19,6 @@ This file contains all arachnid variants:
 #include "m_arachnid.h"
 #include "m_flash.h"
 #include "shared.h"
-#include "horde/g_horde_scaling.h"
 #include "monster_constants.h"
 
 // Common spawn flags
@@ -2022,7 +2021,7 @@ void SP_monster_arachnid(edict_t* self)
         int base_health = M_ARACHNID_INITIAL_HEALTH;
         if (g_horde && g_horde->integer && current_wave_level > 0) {
             bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
-            self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+            self->health = base_health;
         } else {
             self->health = base_health * st.health_multiplier;
         }
@@ -2064,7 +2063,7 @@ void SP_monster_arachnid(edict_t* self)
     // This check is now clean and clear. It only applies to the base arachnid
     // when it's spawned as a boss.
     if (horde::IsMonsterType(self, horde::MonsterTypeID::ARACHNID) && self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
-        self->health = ScaleMonsterHealth(3500, current_wave_level, true);  // Arachnid boss
+        self->health = 3500;
         self->gib_health = -99999;
     }
     ApplyMonsterBonusFlags(self);
@@ -2104,7 +2103,7 @@ void SP_monster_spider(edict_t* self)
     int base_health = M_SPIDER_INITIAL_HEALTH;
     if (g_horde && g_horde->integer && current_wave_level > 0) {
         bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
-        self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+        self->health = base_health;
     } else {
         self->health = base_health * st.health_multiplier;
     }
@@ -2168,7 +2167,7 @@ void SP_monster_arachnid2(edict_t* self)
     int base_health = M_INITIAL_HEALTH(self);
     if (g_horde && g_horde->integer && current_wave_level > 0) {
         bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
-        self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+        self->health = base_health;
     } else {
         self->health = base_health * st.health_multiplier;
     }
@@ -2255,7 +2254,7 @@ void SP_monster_psxarachnid(edict_t* self)
     int base_health = M_ARACHNID2_INITIAL_HEALTH;
     if (g_horde && g_horde->integer && current_wave_level > 0) {
         bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
-        self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+        self->health = base_health;
     } else {
         self->health = base_health * st.health_multiplier;
     }

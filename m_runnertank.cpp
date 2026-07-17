@@ -14,7 +14,6 @@ runnertank
 
 #include "m_flash.h"
 #include "shared.h"
-#include "horde/g_horde_scaling.h"
 #include "monster_constants.h"
 void runnertankStrike(edict_t* self);
 void runnertank_refire_rocket(edict_t* self);
@@ -1697,7 +1696,7 @@ void SP_monster_runnertank(edict_t* self)
 	{
 		int base_health = M_RUNNERTANK_INITIAL_HEALTH;
 		if (g_horde && g_horde->integer && current_wave_level > 0) {
-			self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+			self->health = base_health;
 		} else {
 			self->health = base_health * st.health_multiplier;
 		}
@@ -1714,7 +1713,7 @@ void SP_monster_runnertank(edict_t* self)
 			self->s.scale = 1.5f;
 		int base_health = M_RUNNERTANK_INITIAL_HEALTH;
 		if (g_horde && g_horde->integer && current_wave_level > 0) {
-			self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+			self->health = base_health;
 		} else {
 			self->health = base_health * st.health_multiplier;
 		}

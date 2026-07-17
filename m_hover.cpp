@@ -15,7 +15,6 @@ hover (rocket), as well as daedalus variants (blaster2 and grenades).
 #include "m_hover.h"
 #include "m_flash.h"
 #include "shared.h"
-#include "horde/g_horde_scaling.h"
 #include "monster_constants.h"
 
 static cached_soundindex sound_pain1;
@@ -637,7 +636,7 @@ void SP_monster_hover(edict_t* self)
     int base_health = M_HOVER_INITIAL_HEALTH;
     if (g_horde && g_horde->integer && current_wave_level > 0) {
         bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
-        self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+        self->health = base_health;
     } else {
         self->health = base_health * st.health_multiplier;
     }
@@ -744,7 +743,7 @@ void SP_monster_daedalus(edict_t* self)
     int base_health = M_DAEDALUS_INITIAL_HEALTH;
     if (g_horde && g_horde->integer && current_wave_level > 0) {
         bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
-        self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+        self->health = base_health;
     } else {
         self->health = base_health * st.health_multiplier;
     }
@@ -806,7 +805,7 @@ void SP_monster_daedalus_bomber(edict_t* self)
 	int base_health = M_DAEDALUS_BOMBER_INITIAL_HEALTH;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
 		bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
-		self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+		self->health = base_health;
 	} else {
 		self->health = base_health * st.health_multiplier;
 	}

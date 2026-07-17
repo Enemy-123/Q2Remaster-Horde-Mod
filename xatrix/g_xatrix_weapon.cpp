@@ -38,7 +38,8 @@ void fire_blueblaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int
 
 	tr = gi.traceline(self->s.origin, bolt->s.origin, bolt, bolt->clipmask);
 
-	if (tr.fraction < 1.0f)
+	// [Horde] startsolid: player overlapping a damageable entity -> hit it at spawn
+	if (tr.fraction < 1.0f || (tr.startsolid && self->client && tr.ent && tr.ent->takedamage))
 	{
 		bolt->s.origin = tr.endpos + (tr.plane.normal * 1.f);
 		bolt->touch(bolt, tr.ent, tr, false);

@@ -86,6 +86,7 @@ item_id_t Horde_GetNextAlternateWeapon(item_id_t current_id) noexcept;
 // Game mode checks
 bool G_IsDeathmatch() noexcept;
 bool G_IsCooperative() noexcept;
+bool G_IsHorde() noexcept;
 
 // HORDE CS
 //extern void ClearHordeMessage();

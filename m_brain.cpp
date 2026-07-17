@@ -11,7 +11,6 @@ brain
 #include "g_local.h"
 #include "m_brain.h"
 #include "shared.h"
-#include "horde/g_horde_scaling.h"
 #include "monster_constants.h"
 
 static cached_soundindex sound_chest_open;
@@ -429,6 +428,12 @@ void brain_tounge_attack(edict_t* self)
 		return; // Can't at a non-existent or dead target.
 	}
 
+	// The jump-attack lands in the duck box and its unduck is headroom-checked, so it can
+	// fail (e.g. the victim standing over us) and we'd tongue with a shin-height bbox that
+	// body shots fly over. Attack frames run ai_charge (no unduck retry), so retry here
+	// every frame; it's a no-op once standing.
+	monster_duck_up(self);
+
 	// Calculate enemy position and direction
 	vec3_t start;
 	G_EntMidPoint(self->enemy, start);
@@ -452,6 +457,11 @@ void brain_tounge_attack(edict_t* self)
 		// Double pull force if on ground
 		if (self->enemy->groundentity)
 			pull *= 2;
+
+		// Keep-out: stop dragging once the victim is already at point-blank so the pull
+		// can't stuff them inside our bbox (weapons fired from inside a bbox misbehave)
+		if (range < 40)
+			pull = 0;
 
 		// Apply damage only if close enough
 		if (range <= 64) {
@@ -515,6 +525,9 @@ void brain_tounge_attack_continue(edict_t* self)
 		return;
 	}
 
+	// Keep retrying the headroom-checked unduck during the tongue loop (see brain_tounge_attack)
+	monster_duck_up(self);
+
 	// Get enemy position and calculate distance
 	vec3_t start;
 	G_EntMidPoint(self->enemy, start);
@@ -536,6 +549,11 @@ void brain_tounge_attack_continue(edict_t* self)
 	// Increase pull if on ground
 	if (self->enemy->groundentity)
 		pull *= 2;
+
+	// Keep-out: stop dragging once the victim is already at point-blank so the pull
+	// can't stuff them inside our bbox (weapons fired from inside a bbox misbehave)
+	if (dist < 40)
+		pull = 0;
 
 	// Apply effects if in close range
 	if (dist <= 64) {

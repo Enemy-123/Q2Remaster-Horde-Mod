@@ -16,7 +16,6 @@ carrier
 #include "m_rogue_carrier.h"
 #include "../m_flash.h"
 #include "../shared.h"
-#include "../horde/g_horde_scaling.h"
 #include "../monster_constants.h"
 
 // Reinforcements
@@ -1470,7 +1469,7 @@ void SP_monster_carrier_mini(edict_t* self)
 
 	int base_health = M_CARRIER_MINI_INITIAL_HEALTH;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
-		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+		self->health = base_health;
 	} else {
 		self->health = base_health * st.health_multiplier;
 	}

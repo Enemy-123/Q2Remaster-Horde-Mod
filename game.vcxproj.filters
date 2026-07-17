@@ -104,9 +104,6 @@
     <ClInclude Include="horde\g_horde_phys.h">
       <Filter>horde</Filter>
     </ClInclude>
-    <ClInclude Include="horde\g_horde_scaling.h">
-      <Filter>horde</Filter>
-    </ClInclude>
     <ClInclude Include="horde\g_laser.h">
       <Filter>horde</Filter>
     </ClInclude>
@@ -275,9 +272,6 @@
       <Filter>horde</Filter>
     </ClCompile>
     <ClCompile Include="horde\g_horde_phys.cpp">
-      <Filter>horde</Filter>
-    </ClCompile>
-    <ClCompile Include="horde\g_horde_scaling.cpp">
       <Filter>horde</Filter>
     </ClCompile>
     <ClCompile Include="horde\g_idview.cpp">

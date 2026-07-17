@@ -12,7 +12,6 @@ flyer
 #include "m_flyer.h"
 #include "m_flash.h"
 #include "shared.h"
-#include "horde/g_horde_scaling.h"
 #include "monster_constants.h"
 
 static cached_soundindex sound_sight;

@@ -12,7 +12,6 @@ chick
 #include "m_chick.h"
 #include "m_flash.h"
 #include "shared.h"
-#include "horde/g_horde_scaling.h"
 #include "monster_constants.h"
 
 // Forward declare plasma_touch from xatrix

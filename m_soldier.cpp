@@ -12,7 +12,6 @@ SOLDIER
 #include "m_soldier.h"
 #include "m_flash.h"
 #include "shared.h"
-#include "horde/g_horde_scaling.h"
 #include "monster_constants.h"
 
 static cached_soundindex sound_idle;
@@ -2399,10 +2398,19 @@ void SP_monster_soldier_light(edict_t* self)
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER_LIGHT);
 
 	// Power armor
-	if (!st.was_key_specified("power_armor_type") && M_SOLDIER_LIGHT_POWER_ARMOR_TYPE != IT_NULL) {
-		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_SOLDIER_LIGHT_POWER_ARMOR_TYPE);
+	if (G_IsHorde() && !IsFirstThreeWaves(current_wave_level))
+	{
+		if (!st.was_key_specified("power_armor_type") && M_SOLDIER_LIGHT_POWER_ARMOR_TYPE != IT_NULL) {
+			self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_SOLDIER_LIGHT_POWER_ARMOR_TYPE);
+			if (!st.was_key_specified("power_armor_power"))
+				self->monsterinfo.power_armor_power = M_SOLDIER_LIGHT_ADDON_POWER_ARMOR(self);
+		}
+		else
+		{
+		self->monsterinfo.power_armor_type = IT_NULL;
 		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = M_SOLDIER_LIGHT_ADDON_POWER_ARMOR(self);
+			self->monsterinfo.power_armor_power = 0;
+		}
 	}
 
 	self->s.skinnum = 0;
@@ -2486,10 +2494,13 @@ void SP_monster_soldier_ss(edict_t* self)
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER_SS);
 
 	// Regular combat armor (not power armor)
-	if (!st.was_key_specified("armor_type") && M_SOLDIER_SS_INITIAL_ARMOR > 0) {
-		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
-		if (!st.was_key_specified("armor_power"))
-			self->monsterinfo.armor_power = M_SOLDIER_SS_ADDON_ARMOR(self);
+	if (G_IsHorde() && !IsFirstThreeWaves(current_wave_level) || !G_IsHorde())
+	{
+		if (!st.was_key_specified("armor_type") && M_SOLDIER_SS_INITIAL_ARMOR > 0) {
+			self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+			if (!st.was_key_specified("armor_power"))
+				self->monsterinfo.armor_power = M_SOLDIER_SS_ADDON_ARMOR(self);
+		}
 	}
 
 	self->s.skinnum = 4;
@@ -2547,10 +2558,13 @@ void SP_monster_soldier_ripper(edict_t* self)
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER_RIPPER);
 
 	// Power armor
-	if (!st.was_key_specified("power_armor_type") && M_SOLDIER_RIPPER_POWER_ARMOR_TYPE != IT_NULL) {
-		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_SOLDIER_RIPPER_POWER_ARMOR_TYPE);
-		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = M_SOLDIER_RIPPER_ADDON_POWER_ARMOR(self);
+	if (G_IsHorde() && !IsFirstThreeWaves(current_wave_level) || !G_IsHorde())
+	{
+		if (!st.was_key_specified("power_armor_type") && M_SOLDIER_RIPPER_POWER_ARMOR_TYPE != IT_NULL) {
+			self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_SOLDIER_RIPPER_POWER_ARMOR_TYPE);
+			if (!st.was_key_specified("power_armor_power"))
+				self->monsterinfo.power_armor_power = M_SOLDIER_RIPPER_ADDON_POWER_ARMOR(self);
+		}
 	}
 
 	self->s.skinnum = 6;

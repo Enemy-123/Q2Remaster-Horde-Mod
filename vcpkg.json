@@ -1,7 +1,7 @@
 {
     "name": "quake2-remaster-horde",
     "version-string": "1.0.0",
-    "builtin-baseline": "a0b1c8d3a477c1cb4813d8e127a56961707ca42b",
+    "builtin-baseline": "ec62869cdd9f80413abb5e4c1d8b68688df932f4",
     "dependencies": [
         {
             "name": "fmt",

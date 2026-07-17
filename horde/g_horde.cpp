@@ -19,7 +19,6 @@
 #include "horde_spawning.h"
 #include "horde_constants.h"
 #include "horde_monster_data.h"
-#include "g_horde_scaling.h"
 #include "g_pvm.h"  // For PvM mode checks
 #include "g_character.h"  // For Character_Load/SaveServerSetting
 #include "p_flyer_morph.h"  // For ResetAllMorphData()
@@ -2443,6 +2442,11 @@ bool G_IsCooperative() noexcept
 	return coop->integer && !g_horde->integer && !pvm->integer;
 }
 
+bool G_IsHorde() noexcept
+{
+	return g_horde && g_horde->integer;
+}
+
 // Structure definition (as you provided)
 struct HordeItemInfo
 {
@@ -3148,20 +3152,6 @@ gitem_t* G_HordePickItem()
 
 		// We access the SoA data using the pre-filtered index.
 		float adjusted_weight = g_hordeItemDataSoA.weights[item_index];
-
-		// Apply sigmoid scaling to item drop weights based on item tier
-		if (g_horde && g_horde->integer && current_wave_level > 0) {
-			// Determine item tier based on minimum wave requirement
-			int item_tier = 0; // Default to common
-			if (g_hordeItemDataSoA.minWaves[item_index] >= 15) {
-				item_tier = 2; // Legendary tier (late game items)
-			}
-			else if (g_hordeItemDataSoA.minWaves[item_index] >= 7) {
-				item_tier = 1; // Rare tier (mid game items)
-			}
-
-			adjusted_weight = ScaleItemDropWeight(adjusted_weight, current_wave_level, item_tier);
-		}
 
 		if (adjusted_weight > 0.0f)
 		{
@@ -5179,7 +5169,6 @@ void Horde_Init()
 	// safe to run before clients connect. Must run AFTER ResetGame() (which clears the
 	// family/precache/spatial-index state these populate).
 	InitializeMonsterRotation();       // picks this map's allowed families (advances rotation seed once)
-	InitializeScalingSystem();         // cheap, stateless config setup
 	BuildSpawnPointMap();              // parse .ent file + build spatial index once
 	g_spawn_system.spawn_map_needs_build = false;
 	PrecacheAllMonsters();             // temp-spawn wave 1-3 monsters to register their assets

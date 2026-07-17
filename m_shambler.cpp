@@ -12,7 +12,6 @@ SHAMBLER
 #include "m_shambler.h"
 #include "m_flash.h"
 #include "shared.h"
-#include "horde/g_horde_scaling.h"
 #include "monster_constants.h"
 
 static cached_soundindex sound_pain;
@@ -976,7 +975,7 @@ void SP_monster_shamblerkl(edict_t* self)
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SHAMBLER_KL);	SP_monster_shambler(self);
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::SHAMBLER_KL)) {
 		int base_health = M_SHAMBLER_KL_INITIAL_HEALTH;
-		self->health = ScaleMonsterHealth(base_health, current_wave_level, true);  // Shambler boss
+		self->health = base_health;
 		self->gib_health = -190;
 	}
 	if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {

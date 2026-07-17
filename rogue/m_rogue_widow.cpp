@@ -15,7 +15,6 @@ black widow
 #include "m_rogue_widow.h"
 #include "../m_flash.h"
 #include "../shared.h"
-#include "../horde/g_horde_scaling.h"
 #include "../monster_constants.h"
 
 

@@ -1478,8 +1478,12 @@ MONSTERINFO_UNDUCK(monster_duck_up) (edict_t *self) -> void
 	// ceiling and getting embedded/stuck.
 	vec3_t full_maxs = self->maxs;
 	full_maxs[2] = self->monsterinfo.base_height;
+	// Exclude CONTENTS_MONSTER from the headroom check: horde packmates overlap by design
+	// (repulsion-only spacing), and an overlapping packmate must not pin us in the duck box —
+	// a ducked box tops out at z=0 and body-height shots fly over the standing model. Players
+	// still block: re-expanding into one would trap them inside our solid box.
 	trace_t const tr = gi.trace(self->s.origin, self->mins, full_maxs,
-		self->s.origin, self, MASK_MONSTERSOLID);
+		self->s.origin, self, MASK_MONSTERSOLID & ~CONTENTS_MONSTER);
 	if (tr.startsolid || tr.allsolid)
 		return; // no headroom — remain crouched, retry later
 

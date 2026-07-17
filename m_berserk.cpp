@@ -11,7 +11,6 @@ BERSERK
 #include "g_local.h"
 #include "m_berserk.h"
 #include "shared.h"
-#include "horde/g_horde_scaling.h"
 #include "monster_constants.h"
 #include "horde/g_horde.h"   // current_wave_type, HasWaveType, MonsterWaveType
 

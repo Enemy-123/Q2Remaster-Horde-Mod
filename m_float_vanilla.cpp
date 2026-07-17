@@ -12,7 +12,6 @@ floater
 #include "m_float.h"
 #include "m_flash.h"
 #include "shared.h"
-#include "horde/g_horde_scaling.h"
 #include "monster_constants.h"
 
 static cached_soundindex sound_attack2;

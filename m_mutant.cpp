@@ -11,7 +11,6 @@ mutant
 #include "g_local.h"
 #include "m_mutant.h"
 #include "shared.h"
-#include "horde/g_horde_scaling.h"
 #include "monster_constants.h"
 
 constexpr spawnflags_t SPAWNFLAG_MUTANT_NOJUMPING = 8_spawnflag;
@@ -745,7 +744,7 @@ void SP_monster_mutant(edict_t* self)
 	// BALANCE FIX: Wave 9 should have better health progression from Wave 5 Parasite (150 HP)
 	int base_health = M_MUTANT_INITIAL_HEALTH;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
-		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+		self->health = base_health;
 	} else {
 		self->health = base_health * st.health_multiplier;
 	}

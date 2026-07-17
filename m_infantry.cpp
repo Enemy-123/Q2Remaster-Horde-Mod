@@ -12,7 +12,6 @@ INFANTRY BLASTER2
 #include "m_infantry.h"
 #include "m_flash.h"
 #include "shared.h"
-#include "horde/g_horde_scaling.h"
 #include "monster_constants.h"
 #include <algorithm>
 
@@ -1313,7 +1312,7 @@ void SP_monster_infantry_vanilla(edict_t* self)
 
 	int base_health = M_INFANTRY_VANILLA_INITIAL_HEALTH;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
-		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+		self->health = base_health;
 	} else {
 		self->health = base_health * st.health_multiplier;
 	}
@@ -1389,7 +1388,7 @@ void SP_monster_infantry(edict_t* self)
 
 		int base_health = M_INFANTRY_INITIAL_HEALTH;
 		if (current_wave_level > 0) {
-			self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+			self->health = base_health;
 		} else {
 			self->health = base_health * st.health_multiplier;
 		}

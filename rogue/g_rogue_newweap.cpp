@@ -108,7 +108,8 @@ void fire_flechette(edict_t *self, const vec3_t &start, const vec3_t &dir, int d
 	gi.linkentity(flechette);
 
 	trace_t tr = gi.traceline(self->s.origin, flechette->s.origin, flechette, flechette->clipmask);
-	if (tr.fraction < 1.0f)
+	// [Horde] startsolid: player overlapping a damageable entity -> hit it at spawn
+	if (tr.fraction < 1.0f || (tr.startsolid && self->client && tr.ent && tr.ent->takedamage))
 	{
 		flechette->s.origin = tr.endpos + (tr.plane.normal * 1.f);
 		flechette->touch(flechette, tr.ent, tr, false);
@@ -1440,7 +1441,8 @@ void fire_blaster2(edict_t *self, const vec3_t &start, const vec3_t &dir, int da
 	gi.linkentity(bolt);
 
 	tr = gi.traceline(self->s.origin, bolt->s.origin, bolt, bolt->clipmask);
-	if (tr.fraction < 1.0f)
+	// [Horde] startsolid: player overlapping a damageable entity -> hit it at spawn
+	if (tr.fraction < 1.0f || (tr.startsolid && self->client && tr.ent && tr.ent->takedamage))
 	{
 		bolt->s.origin = tr.endpos + (tr.plane.normal * 1.f);
 		bolt->touch(bolt, tr.ent, tr, false);
@@ -1685,7 +1687,8 @@ void fire_tracker(edict_t *self, const vec3_t &start, const vec3_t &dir, int dam
 	}
 
 	tr = gi.traceline(self->s.origin, bolt->s.origin, bolt, bolt->clipmask);
-	if (tr.fraction < 1.0f)
+	// [Horde] startsolid: player overlapping a damageable entity -> hit it at spawn
+	if (tr.fraction < 1.0f || (tr.startsolid && self->client && tr.ent && tr.ent->takedamage))
 	{
 		bolt->s.origin = tr.endpos + (tr.plane.normal * 1.f);
 		bolt->touch(bolt, tr.ent, tr, false);
