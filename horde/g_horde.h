@@ -13,7 +13,7 @@
 #include <boost/container/small_vector.hpp>  // For small_vector optimization
 #include <boost/unordered/unordered_flat_set.hpp>  // Cache-friendly hash sets
 
-constexpr const char* HORDE_MOD_VERSION_STRING = "*Horde BETA MOD v0.01011";
+constexpr const char* HORDE_MOD_VERSION_STRING = "*Horde BETA MOD v0.01012";
 
 extern boost::container::small_vector<edict_t*, 64> g_spawn_point_list;
 extern size_t g_num_spawn_points;
@@ -32,6 +32,9 @@ extern cvar_t* g_horde_force_domination;  // Test cvar: force the domination fla
 extern cvar_t* g_horde_nav_spawn_check;  // 1 = reject ground spawns the navmesh can't reach (anti unreachable-spawn)
 extern cvar_t* g_horde_spawn_dist_cap;  // 1 = cap how far from players a spawn point may be (anti far/closed-wing spawn)
 extern cvar_t* g_horde_far_spawn_chance;  // 0..1 chance a normal-wave pick prefers the farthest spawn point (fog waves floor at 0.9)
+extern cvar_t* g_horde_precache_max_models;  // soft cap on registered CS_MODELS entries; 0 = no cap (see PrecacheBudgetExhausted)
+extern cvar_t* g_horde_precache_max_sounds;  // soft cap on registered CS_SOUNDS entries; 0 = no cap
+extern cvar_t* g_horde_precache_limits_enabled;  // 1 = enforce the precache budget + family variety cap (default); 0 = uncapped variety, connecting-client crash risk on long games
 extern cvar_t* pvm;  // PvM mode (Player vs Monster with character persistence)
 
 // Horde 2 is now the standard horde behavior: any active horde value gets the
@@ -61,6 +64,11 @@ bool ShouldUseFallbackGrid();
 void Horde_RebuildSpawnPointMapNow();
 void Horde_PreInit();
 void Horde_Init();
+// Print the cumulative model/sound configstring load (what a connecting client must
+// download) vs engine limits and the precache budget cvars. "sv precache_status".
+void Horde_PrintPrecacheStatus();
+// Dump every registered model/sound configstring with its index. "sv precache_list [models|sounds]".
+void Horde_PrintPrecacheList(const char* which);
 void Horde_RunFrame();
 void ResetGame();
 void HandleResetEvent();
@@ -273,8 +281,8 @@ struct MonsterAssetFamily {
 };
 
 // Global asset tracking (defined in g_horde.cpp)
-extern boost::unordered::unordered_flat_set<std::string> g_precached_models;
-extern boost::unordered::unordered_flat_set<std::string> g_precached_sounds;
+// True engine-side configstring totals (refreshed from gi.get_configstring scans);
+// the connecting-client load that the precache budget cvars bound.
 extern int32_t g_total_precached_models;
 extern int32_t g_total_precached_sounds;
 extern std::array<bool, 128> g_precached_monster_types_flags; // Precache flags for each monster type

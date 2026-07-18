@@ -114,10 +114,10 @@ constexpr int MIN_MONSTERS_AVAILABLE = 12; // Always have at least 12 monster ty
 
 // --- Asset Family System Implementation ---
 std::array<AssetFamilyID, 128> g_monster_to_family; // 128 = MAX_TYPES from horde_ids.h
-boost::unordered::unordered_flat_set<std::string> g_precached_models;
-boost::unordered::unordered_flat_set<std::string> g_precached_sounds;
+// True engine-side configstring totals, refreshed by RecountPrecachedConfigstrings()
 int32_t g_total_precached_models = 0;
 int32_t g_total_precached_sounds = 0;
+static int32_t g_total_precached_images = 0; // diagnostic only, no cap yet
 
 // --- Spawn History Tracking ---
 std::array<SpawnHistoryEntry, SPAWN_HISTORY_SIZE> g_spawn_history;
@@ -206,6 +206,10 @@ static bool IsProtectedFamily(AssetFamilyID family) {
 	return false;
 }
 
+static bool PrecacheBudgetExhausted(); // defined below (needs the tracking helpers)
+static bool CanAffordNewModelDir();    // defined below
+static bool CanAffordNewSounds();      // defined below
+
 // Helper to check if we can precache a new family
 static bool CanPrecacheFamily(AssetFamilyID family) {
 	// Core families are always allowed
@@ -213,6 +217,13 @@ static bool CanPrecacheFamily(AssetFamilyID family) {
 
 	// Already precached? Allow it
 	if (g_precached_families_this_map.find(family) != g_precached_families_this_map.end()) return true;
+
+	// A new family means new model dirs and new sounds; refuse when the connecting-client
+	// cap headroom is spent (the budget check also fires the once-per-wave warning)
+	if (PrecacheBudgetExhausted() || !CanAffordNewModelDir() || !CanAffordNewSounds()) return false;
+
+	// Family variety cap is part of the same limiting system - bypass with it disabled
+	if (g_horde_precache_limits_enabled && !g_horde_precache_limits_enabled->integer) return true;
 
 	// Check if we've hit the limit
 	return static_cast<int32_t>(g_precached_families_this_map.size()) < PrecacheLimits::MAX_PRECACHED_MODEL_FAMILIES;
@@ -228,6 +239,147 @@ static void MarkFamilyPrecached(AssetFamilyID family) {
 // Get current precached family count
 static int32_t GetPrecachedFamilyCount() {
 	return static_cast<int32_t>(g_precached_families_this_map.size());
+}
+
+// Recount the model/sound configstrings actually registered with the engine - the true
+// cumulative load a connecting client must perform (the family/type tracking above only
+// covers monsters; items, effects and world assets land here too). Index 0 is unused.
+static void RecountPrecachedConfigstrings(const char* context)
+{
+	int32_t models = 0, sounds = 0, images = 0;
+	for (int32_t i = 1; i < MAX_MODELS; ++i)
+		if (const char* cs = gi.get_configstring(CS_MODELS + i); cs && *cs)
+			++models;
+	for (int32_t i = 1; i < MAX_SOUNDS; ++i)
+		if (const char* cs = gi.get_configstring(CS_SOUNDS + i); cs && *cs)
+			++sounds;
+	for (int32_t i = 1; i < MAX_IMAGES; ++i)
+		if (const char* cs = gi.get_configstring(CS_IMAGES + i); cs && *cs)
+			++images;
+	g_total_precached_models = models;
+	g_total_precached_sounds = sounds;
+	g_total_precached_images = images;
+	if (developer->integer > 1)
+		gi.Com_PrintFmt("Precache totals ({}): {} models, {} sounds, {} images\n", context, models, sounds, images);
+}
+
+extern int16_t current_wave_level; // defined later in this file, declared in monster_constants.h
+
+// True when the cumulative configstring load has crossed the connecting-client safety
+// budget (the Kex client bad_alloc's loading a too-large precache list on connect).
+// Speculative precaching must stop; current-wave-required precaching never checks this.
+static bool PrecacheBudgetExhausted()
+{
+	if (g_horde_precache_limits_enabled && !g_horde_precache_limits_enabled->integer)
+		return false;
+
+	const bool over_models = g_horde_precache_max_models && g_horde_precache_max_models->integer > 0 &&
+		g_total_precached_models >= g_horde_precache_max_models->integer;
+	const bool over_sounds = g_horde_precache_max_sounds && g_horde_precache_max_sounds->integer > 0 &&
+		g_total_precached_sounds >= g_horde_precache_max_sounds->integer;
+
+	if (over_models || over_sounds)
+	{
+		static int16_t last_budget_warn_wave = -1;
+		if (developer->integer && last_budget_warn_wave != current_wave_level)
+		{
+			last_budget_warn_wave = current_wave_level;
+			gi.Com_PrintFmt("PRECACHE BUDGET: over budget ({}/{} models, {}/{} sounds) - speculative precaching stopped\n",
+				g_total_precached_models, g_horde_precache_max_models->integer,
+				g_total_precached_sounds, g_horde_precache_max_sounds->integer);
+		}
+		return true;
+	}
+	return false;
+}
+
+// Headroom margins under the hard caps. A single monster type registers several
+// CS_MODELS entries beyond its main model (gib/head models) and 10-40 sounds, and boss
+// spawns register their assets unconditionally at spawn time (bosses must never be
+// blocked) - the margins keep those from overshooting the client's real ceiling.
+constexpr int32_t MODEL_CAP_SAFETY_MARGIN = 12;
+constexpr int32_t SOUND_CAP_SAFETY_MARGIN = 48;
+
+// Hard connecting-client cap checks. The Kex client crashes (bad_alloc) connecting to a
+// server with more than ~256 model configstrings (legacy MAX_MODELS_OLD-sized structures
+// survive in its connect path), so unlike PrecacheBudgetExhausted these gate even
+// current-wave precaching: a type sharing an already-loaded model costs no CS_MODELS
+// headroom and stays allowed, so wave variety degrades gracefully instead of crashing
+// every late joiner.
+static bool CanAffordNewModelDir()
+{
+	if (g_horde_precache_limits_enabled && !g_horde_precache_limits_enabled->integer)
+		return true;
+	return !(g_horde_precache_max_models && g_horde_precache_max_models->integer > 0 &&
+		g_total_precached_models >= g_horde_precache_max_models->integer - MODEL_CAP_SAFETY_MARGIN);
+}
+
+static bool CanAffordNewSounds()
+{
+	if (g_horde_precache_limits_enabled && !g_horde_precache_limits_enabled->integer)
+		return true;
+	return !(g_horde_precache_max_sounds && g_horde_precache_max_sounds->integer > 0 &&
+		g_total_precached_sounds >= g_horde_precache_max_sounds->integer - SOUND_CAP_SAFETY_MARGIN);
+}
+
+// Diagnostic for "sv precache_list [models|sounds]": dump every registered model/sound
+// configstring with its index. Used to spot what is eating the count (inline bmodels vs
+// monsters vs items), garbage/duplicate entries, and whether the reserved player model
+// slot (MODELINDEX_PLAYER = 255) got claimed by a real model.
+void Horde_PrintPrecacheList(const char* which)
+{
+	const bool do_models = !which || !*which || Q_strcasecmp(which, "models") == 0;
+	const bool do_sounds = !which || !*which || Q_strcasecmp(which, "sounds") == 0;
+
+	if (do_models)
+	{
+		gi.Com_Print("=== CS_MODELS ===\n");
+		for (int32_t i = 1; i < MAX_MODELS; ++i)
+		{
+			if (const char* cs = gi.get_configstring(CS_MODELS + i); cs && *cs)
+			{
+				if (i == MODELINDEX_PLAYER)
+					gi.Com_PrintFmt("model {:4}: {} <-- WARNING: reserved player-model slot occupied!\n", i, cs);
+				else
+					gi.Com_PrintFmt("model {:4}: {}\n", i, cs);
+			}
+		}
+	}
+	if (do_sounds)
+	{
+		gi.Com_Print("=== CS_SOUNDS ===\n");
+		for (int32_t i = 1; i < MAX_SOUNDS; ++i)
+			if (const char* cs = gi.get_configstring(CS_SOUNDS + i); cs && *cs)
+				gi.Com_PrintFmt("sound {:4}: {}\n", i, cs);
+	}
+	if (!which || !*which || Q_strcasecmp(which, "images") == 0)
+	{
+		gi.Com_Print("=== CS_IMAGES ===\n");
+		for (int32_t i = 1; i < MAX_IMAGES; ++i)
+			if (const char* cs = gi.get_configstring(CS_IMAGES + i); cs && *cs)
+				gi.Com_PrintFmt("image {:4}: {}\n", i, cs);
+	}
+	RecountPrecachedConfigstrings("list command");
+	gi.Com_PrintFmt("Totals: {} models, {} sounds, {} images (old-protocol/legacy client arrays hold 256 each)\n",
+		g_total_precached_models, g_total_precached_sounds, g_total_precached_images);
+}
+
+// Diagnostic for "sv precache_status": the cumulative configstring load a client
+// connecting right now would have to perform, vs the engine limits and budget caps
+void Horde_PrintPrecacheStatus()
+{
+	RecountPrecachedConfigstrings("status command");
+	gi.Com_PrintFmt("=== Horde Precache Status (wave {}) ===\n", current_wave_level);
+	gi.Com_PrintFmt("Configstrings: {} / {} models (cap {}), {} / {} sounds (cap {}), {} / {} images\n",
+		g_total_precached_models, MAX_MODELS, g_horde_precache_max_models ? g_horde_precache_max_models->integer : 0,
+		g_total_precached_sounds, MAX_SOUNDS, g_horde_precache_max_sounds ? g_horde_precache_max_sounds->integer : 0,
+		g_total_precached_images, MAX_IMAGES);
+	gi.Com_PrintFmt("Families allowed: {} / {}; monster types precached: {}; model dirs: {}\n",
+		GetPrecachedFamilyCount(), PrecacheLimits::MAX_PRECACHED_MODEL_FAMILIES,
+		g_precached_monsters_this_map.size(), g_precached_models_this_map.size());
+	gi.Com_PrintFmt("Budget exhausted: {}\n", PrecacheBudgetExhausted() ? "YES (speculative precache stopped)" : "no");
+	gi.Com_PrintFmt("Precache limits enabled (g_horde_precache_limits_enabled): {}\n",
+		(g_horde_precache_limits_enabled && g_horde_precache_limits_enabled->integer) ? "yes" : "NO (uncapped variety)");
 }
 
 int32_t monsters_spawned_in_current_phase = 0;
@@ -1659,6 +1811,9 @@ cvar_t* g_horde_grid_first;  // Test cvar: prioritize grid spawning
 cvar_t* g_horde_nav_spawn_check;  // 1 = reject ground spawns the navmesh can't reach (anti unreachable-spawn)
 cvar_t* g_horde_spawn_dist_cap;  // 1 = cap how far from players a spawn point may be (anti far/closed-wing spawn)
 cvar_t* g_horde_far_spawn_chance;  // 0..1 chance a normal-wave pick prefers the farthest spawn point (fog waves floor at 0.9)
+cvar_t* g_horde_precache_max_models;  // soft cap on registered CS_MODELS entries; 0 = no cap
+cvar_t* g_horde_precache_max_sounds;  // soft cap on registered CS_SOUNDS entries; 0 = no cap
+cvar_t* g_horde_precache_limits_enabled;  // 1 = enforce precache budget + family variety cap (default); 0 = uncapped
 
 // NOTE: horde_state_t enum and HordeState struct moved to g_horde.h
 
@@ -3671,6 +3826,17 @@ static AssetFamilyID PrecacheEliteMonster(
 
 	const bool already_precached = g_precached_monster_types_flags[array_index];
 
+	// A not-yet-loaded elite spends connecting-client cap headroom; skip when it's gone.
+	// The caller reverts to normal spawning when we return UNKNOWN_FAMILY.
+	const bool elite_new_model_dir =
+		g_precached_models_this_map.find(model_path) == g_precached_models_this_map.end();
+	if (!already_precached && ((elite_new_model_dir && !CanAffordNewModelDir()) || !CanAffordNewSounds()))
+	{
+		if (developer->integer)
+			gi.Com_PrintFmt("Dynamic Precache: SKIPPED '{}' - connecting-client cap headroom spent\n", classname);
+		return AssetFamilyID::UNKNOWN_FAMILY;
+	}
+
 	//if (developer->integer > 1)
 	//{
 	//	if (already_precached)
@@ -4419,6 +4585,18 @@ void Horde_PreInit()
 	g_horde_nav_spawn_check = gi.cvar("g_horde_nav_spawn_check", "1", CVAR_NOFLAGS);
 	g_horde_spawn_dist_cap = gi.cvar("g_horde_spawn_dist_cap", "1", CVAR_NOFLAGS);
 	g_horde_far_spawn_chance = gi.cvar("g_horde_far_spawn_chance", "0.65", CVAR_NOFLAGS);
+	// Connecting-client hard caps: the Kex client bad_alloc's connecting to a server whose
+	// precache list grows too large. Empirical bracket so far: 240 and 257 models connect
+	// fine, ~304 crashes - exact ceiling (and whether sounds/images contribute) still being
+	// bracketed; 240 is a known-safe default. All monster precache paths refuse NEW model
+	// dirs near the model cap (shared-model variants stay free), and new types near the
+	// sound cap; see CanAffordNewModelDir/CanAffordNewSounds.
+	g_horde_precache_max_models = gi.cvar("g_horde_precache_max_models", "240", CVAR_NOFLAGS);
+	g_horde_precache_max_sounds = gi.cvar("g_horde_precache_max_sounds", "1100", CVAR_NOFLAGS);
+	// Master switch for the whole precache-budget + family-variety-cap system. Default on
+	// (safe for public servers with late joiners); turning it off restores unlimited
+	// monster variety at the cost of the connecting-client bad_alloc risk on long games.
+	g_horde_precache_limits_enabled = gi.cvar("g_horde_precache_limits_enabled", "1", CVAR_NOFLAGS);
 	g_horde_force_fog_wave = gi.cvar("g_horde_force_fog_wave", "0", CVAR_NOFLAGS);
 	g_horde_force_domination = gi.cvar("g_horde_force_domination", "0", CVAR_NOFLAGS);
 	pvm = gi.cvar("pvm", "0", CVAR_LATCH);
@@ -4942,73 +5120,20 @@ static void PrecacheAllMonsters()
 			precached_count, skipped_family_limit);
 	}
 
-	// Phase 2: Precache one monster from each priority family for variety
-	// Only precache families that are in the allowed list for this map
-	static constexpr AssetFamilyID priority_families[] = {
-		AssetFamilyID::GUNNER_FAMILY,
-		AssetFamilyID::TANK_FAMILY,
-		AssetFamilyID::FIXBOT_FAMILY,
-		AssetFamilyID::GLADIATOR_FAMILY,
-		AssetFamilyID::BERSERK_FAMILY,
-		AssetFamilyID::MUTANT_FAMILY,
-		AssetFamilyID::FLYER_FAMILY
-	};
+	// NOTE: the old "Phase 2" (one representative per priority family at map load) was
+	// removed: those reps were speculative load that every connecting client had to pay
+	// for regardless of whether the monsters ever appeared. They are now loaded just-in-
+	// time by PrecacheCurrentWaveMonsters at the wave transition where they first become
+	// eligible (same temp-spawn mechanism, executed between waves).
+
+	// Baseline totals after map-load precache (items + world + wave 1-3 monsters); the
+	// key tuning number for the g_horde_precache_max_* budget cvars
+	RecountPrecachedConfigstrings("map-load baseline");
 
 	if (developer->integer)
 	{
-		gi.Com_Print("INITIAL PRECACHE: Loading priority family representatives (if allowed)...\n");
-	}
-
-	for (const auto family : priority_families)
-	{
-		// Skip if this family is not in the allowed list for this map
-		if (g_precached_families_this_map.find(family) == g_precached_families_this_map.end())
-		{
-			if (developer->integer)
-			{
-				gi.Com_PrintFmt("  - SKIPPED family {} (not in allowed list)\n", static_cast<int>(family));
-			}
-			continue;
-		}
-
-		// Find the lowest minWave monster in this family that isn't already precached
-		for (size_t i = 0; i < MONSTER_DATA_COUNT; ++i)
-		{
-			const auto& monster = monsterTypes[i];
-			if (GetMonsterAssetFamily(monster.typeId) == family &&
-				monster.minWave < 999 &&
-				!g_precached_monster_types_flags[static_cast<size_t>(monster.typeId)])
-			{
-				const char* classname = horde::MonsterTypeRegistry::GetClassname(monster.typeId);
-				if (classname && *classname)
-				{
-					edict_t* temp_monster = G_Spawn();
-					if (temp_monster)
-					{
-						temp_monster->classname = classname;
-						temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-						ED_CallSpawn(temp_monster);
-						if (temp_monster->inuse)
-						{
-							G_FreeEdict(temp_monster);
-						}
-						MarkMonsterTypePrecached(monster.typeId);
-
-						if (developer->integer)
-						{
-							gi.Com_PrintFmt("  - Precached family rep (wave {}): {}\n", monster.minWave, classname);
-						}
-					}
-				}
-				break; // One per family
-			}
-		}
-	}
-
-	if (developer->integer)
-	{
-		gi.Com_PrintFmt("PRECACHE COMPLETE: {} total families allowed for this map\n",
-			g_precached_families_this_map.size());
+		gi.Com_PrintFmt("PRECACHE COMPLETE: {} total families allowed for this map, baseline {} models / {} sounds\n",
+			g_precached_families_this_map.size(), g_total_precached_models, g_total_precached_sounds);
 	}
 
 	monsters_precached = true;
@@ -5553,7 +5678,6 @@ void ResetGame()
 	//   - g_map_rotation_seed: Maintains rotation consistency across waves
 	//   - g_map_family_history: Maintains variety across maps
 	//   - Lookup tables (weapon IDs, monster IDs, etc.): Const-like data
-	//   - g_precached_models/g_precached_sounds: Engine-cached assets persist
 	//
 	// PER-WAVE RESET (cleared each wave, not here):
 	//   - g_eligible_monsters_for_wave: Rebuilt each wave
@@ -5576,6 +5700,11 @@ void ResetGame()
 	g_precached_families_this_map.clear();  // Reset family tracking for precache limit
 	g_precached_monster_types_flags.fill(false);
 	monsters_precached = false;
+	// A map change resets the engine's configstrings; clear the measured totals so a
+	// previous map's over-budget reading can't block family seeding on the fresh map
+	g_total_precached_models = 0;
+	g_total_precached_sounds = 0;
+	g_total_precached_images = 0;
 	// Note: g_map_rotation_seed is intentionally NOT reset here to maintain rotation across waves
 
 	// recent spawns
@@ -5615,7 +5744,7 @@ void ResetGame()
 	// --- FIX: Clear memory leak sources ---
 	LaserPool_Clear();  // FIX: Clear BFG laser pool to prevent dangling entity pointers
 	Profiler_Reset();  // FIX: Clear profiling data to prevent unbounded memory growth
-	HordePhys::g_entity_grid.Reset();  // FIX: Clear general entity grid to prevent stale entity references
+	HordePhys::g_entity_grid.Reset();  // FIX: Clear proximity grid to prevent stale entity references
 	HordePhys::g_spawn_grid.Clear();  // FIX: Clear spawn position grid to free cached spawn nodes
 
 	// --- FIX: Clear performance cache systems to prevent stale data ---
@@ -10196,6 +10325,10 @@ void UnlockModelFamilyMembers(horde::MonsterTypeID boss_typeId, int32_t current_
 		return; // No model path, nothing to unlock
 	}
 
+	// Refresh the true configstring totals so the family-slot claim below (via
+	// CanPrecacheFamily's budget gate) decides on current numbers
+	RecountPrecachedConfigstrings("family unlock");
+
 	// Check if the boss's family is allowed for this map. If it isn't pre-marked, try to
 	// claim a free precache slot for it: boss families (widow/makron/carrier/boss2/etc.)
 	// are not in the rotation, so they rely on the headroom the family rotation leaves
@@ -10664,6 +10797,20 @@ static bool PrecacheMonsterForWave(const MonsterTypeInfo* monster_info, float& p
 		return false;
 
 	float precache_cost = CalculatePrecacheCost(monster_info->typeId);
+	const char* model_path = GetMonsterModelPath(monster_info->typeId);
+	const bool new_model_dir = !model_path ||
+		g_precached_models_this_map.find(model_path) == g_precached_models_this_map.end();
+
+	// Hard connecting-client cap: a new model dir spends CS_MODELS headroom, any new type
+	// spends CS_SOUNDS headroom. Refusing here only keeps the type out of the wave pool;
+	// monster counts and already-loaded variety are unaffected.
+	if ((new_model_dir && !CanAffordNewModelDir()) || !CanAffordNewSounds())
+	{
+		if (developer->integer)
+			gi.Com_PrintFmt("Precache: SKIPPED '{}' - connecting-client cap headroom spent ({} models, {} sounds)\n",
+				classname, g_total_precached_models, g_total_precached_sounds);
+		return false;
+	}
 
 	edict_t* temp_monster = G_Spawn();
 	if (!temp_monster)
@@ -10674,8 +10821,10 @@ static bool PrecacheMonsterForWave(const MonsterTypeInfo* monster_info, float& p
 	ED_CallSpawnMonsterByID(temp_monster, monster_info->typeId);
 	G_FreeEdict(temp_monster);
 
-	const char* model_path = GetMonsterModelPath(monster_info->typeId);
 	MarkMonsterTypePrecached(monster_info->typeId, model_path);
+
+	// Keep the totals truthful while spending headroom so the cap checks above stay exact
+	RecountPrecachedConfigstrings(classname);
 
 	precache_cost_this_wave += precache_cost;
 	precached_count++;
@@ -10684,39 +10833,50 @@ static bool PrecacheMonsterForWave(const MonsterTypeInfo* monster_info, float& p
 
 // Progressive precache - first pass: current wave monsters
 // Respects family limit - only precaches monsters whose families are allowed
-static void PrecacheCurrentWaveMonsters(int32_t lvl, float precache_budget, float& precache_cost_this_wave, int& precached_count)
+static void PrecacheCurrentWaveMonsters(int32_t lvl, float& precache_cost_this_wave, int& precached_count)
 {
-	for (const MonsterTypeInfo* monster_info : g_eligible_monsters_for_wave)
+	// Two passes: types sharing an already-loaded model first (they add no CS_MODELS
+	// entries, only sounds), then new-model types while hard cap headroom remains.
+	// Maximizes wave variety under the connecting-client model cap.
+	for (int pass = 0; pass < 2; ++pass)
 	{
-		if (g_precached_monster_types_flags[static_cast<size_t>(monster_info->typeId)])
+		for (const MonsterTypeInfo* monster_info : g_eligible_monsters_for_wave)
 		{
-			MarkMonsterTypePrecached(monster_info->typeId);
-			continue;
-		}
-
-		// Check family limit - skip if family not allowed for this map
-		AssetFamilyID family = GetMonsterAssetFamily(monster_info->typeId);
-		if (g_precached_families_this_map.find(family) == g_precached_families_this_map.end())
-		{
-			continue; // Family not allowed, skip silently
-		}
-
-		float precache_cost = CalculatePrecacheCost(monster_info->typeId);
-
-		// Priority precache for monsters within a reasonable window.
-		// Use the adjusted unlock wave so the window matches eligibility (Horde 2
-		// accelerates unlocks; classic returns the raw minWave unchanged).
-		const int32_t effective_min_wave = GetAdjustedMinWave(monster_info->typeId, g_map_rotation_seed);
-		if (effective_min_wave <= lvl && effective_min_wave >= lvl - 10 &&
-			precache_cost_this_wave + precache_cost <= precache_budget)
-		{
-			if (developer->integer)
+			if (g_precached_monster_types_flags[static_cast<size_t>(monster_info->typeId)])
 			{
-				const char* classname = horde::MonsterTypeRegistry::GetClassname(monster_info->typeId);
-				gi.Com_PrintFmt("Progressive Precache: Loading '{}' for wave {} (cost: {:.1f})\n",
-					classname ? classname : "unknown", lvl, precache_cost);
+				MarkMonsterTypePrecached(monster_info->typeId);
+				continue;
 			}
-			PrecacheMonsterForWave(monster_info, precache_cost_this_wave, precached_count);
+
+			// Check family limit - skip if family not allowed for this map
+			AssetFamilyID family = GetMonsterAssetFamily(monster_info->typeId);
+			if (g_precached_families_this_map.find(family) == g_precached_families_this_map.end())
+			{
+				continue; // Family not allowed, skip silently
+			}
+
+			float precache_cost = CalculatePrecacheCost(monster_info->typeId);
+			const bool new_model_dir = precache_cost >= 1.0f;
+			if ((pass == 0) == new_model_dir)
+				continue; // pass 0: shared-model types; pass 1: new-model types
+
+			// Current-wave-required: precache every eligible, family-allowed monster or
+			// BuildMonsterCache silently drops it from the wave. Only the hard connecting-
+			// client cap (inside PrecacheMonsterForWave) may refuse; never the old float
+			// budget or the lvl-10 window (which silently shrank variety).
+			// (Adjusted unlock wave so the check matches eligibility; Horde 2 accelerates
+			// unlocks, classic returns the raw minWave unchanged.)
+			const int32_t effective_min_wave = GetAdjustedMinWave(monster_info->typeId, g_map_rotation_seed);
+			if (effective_min_wave <= lvl)
+			{
+				if (developer->integer)
+				{
+					const char* classname = horde::MonsterTypeRegistry::GetClassname(monster_info->typeId);
+					gi.Com_PrintFmt("Progressive Precache: Loading '{}' for wave {} (cost: {:.1f})\n",
+						classname ? classname : "unknown", lvl, precache_cost);
+				}
+				PrecacheMonsterForWave(monster_info, precache_cost_this_wave, precached_count);
+			}
 		}
 	}
 }
@@ -10725,7 +10885,9 @@ static void PrecacheCurrentWaveMonsters(int32_t lvl, float precache_budget, floa
 // Respects family limit - only precaches monsters whose families are allowed
 static void PrecacheFutureWaveMonsters(int32_t lvl, float precache_budget, float& precache_cost_this_wave, int& precached_count)
 {
-	if (precache_cost_this_wave >= precache_budget || !ShouldPrecacheMoreMonsters(lvl))
+	// Future-wave monsters are pure speculation for a connecting client; skip entirely
+	// when over the connecting-client precache budget
+	if (precache_cost_this_wave >= precache_budget || PrecacheBudgetExhausted() || !ShouldPrecacheMoreMonsters(lvl))
 		return;
 
 	for (const MonsterTypeInfo* monster_info : g_eligible_monsters_for_wave)
@@ -10769,16 +10931,21 @@ static void ProgressivePrecacheMonsters(int32_t lvl)
 	int precached_count = 0;
 
 	// First pass: precache critical monsters for this wave
-	PrecacheCurrentWaveMonsters(lvl, precache_budget, precache_cost_this_wave, precached_count);
+	PrecacheCurrentWaveMonsters(lvl, precache_cost_this_wave, precached_count);
+
+	// Refresh totals so the future pass's budget gate sees what the current pass just added
+	RecountPrecachedConfigstrings("wave init");
 
 	// Second pass: precache future monsters if we have budget remaining
 	PrecacheFutureWaveMonsters(lvl, precache_budget, precache_cost_this_wave, precached_count);
 
+	RecountPrecachedConfigstrings("wave init done");
+
 	if (developer->integer)
 	{
-		gi.Com_PrintFmt("Progressive Precache: {} monsters precached (cost: {:.1f}), {} total, {} models loaded\n",
+		gi.Com_PrintFmt("Progressive Precache: {} monsters precached (cost: {:.1f}), {} total, {} models loaded, CS totals: {} models / {} sounds\n",
 			precached_count, precache_cost_this_wave, g_precached_monsters_this_map.size(),
-			g_precached_models_this_map.size());
+			g_precached_models_this_map.size(), g_total_precached_models, g_total_precached_sounds);
 	}
 }
 
