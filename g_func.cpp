@@ -785,8 +785,8 @@ void SP_func_plat(edict_t* ent)
 
 	float lip = st.lip;
 
-//	if (!st.was_key_specified("lip")) // commented to fix some lifts on early base SP maps
-	//	lip = 8;
+	if (!st.was_key_specified("lip")) // commented to fix some lifts on early base SP maps
+		lip = 8;
 
 	// pos1 is the top position, pos2 is the bottom
 	ent->pos1 = ent->s.origin;
