@@ -13,7 +13,7 @@
 #include <boost/container/small_vector.hpp>  // For small_vector optimization
 #include <boost/unordered/unordered_flat_set.hpp>  // Cache-friendly hash sets
 
-constexpr const char* HORDE_MOD_VERSION_STRING = "*Horde BETA MOD v0.01012";
+constexpr const char* HORDE_MOD_VERSION_STRING = "*Horde BETA MOD v0.01013";
 
 extern boost::container::small_vector<edict_t*, 64> g_spawn_point_list;
 extern size_t g_num_spawn_points;
@@ -35,6 +35,9 @@ extern cvar_t* g_horde_far_spawn_chance;  // 0..1 chance a normal-wave pick pref
 extern cvar_t* g_horde_precache_max_models;  // soft cap on registered CS_MODELS entries; 0 = no cap (see PrecacheBudgetExhausted)
 extern cvar_t* g_horde_precache_max_sounds;  // soft cap on registered CS_SOUNDS entries; 0 = no cap
 extern cvar_t* g_horde_precache_limits_enabled;  // 1 = enforce the precache budget + family variety cap (default); 0 = uncapped variety, connecting-client crash risk on long games
+extern cvar_t* g_horde_original_m_health;  // 1 = non-boss monsters use vanilla original health/armor instead of the Lua-tuned values
+extern cvar_t* g_horde_original_m_damage;  // 1 = non-boss monsters use vanilla original weapon damage instead of the Lua-tuned values
+extern cvar_t* g_horde_original_p_damage;  // 1 = player weapons deal vanilla/PSX original damage instead of the Lua-tuned values
 extern cvar_t* pvm;  // PvM mode (Player vs Monster with character persistence)
 
 // Horde 2 is now the standard horde behavior: any active horde value gets the
@@ -238,7 +241,6 @@ enum class AssetFamilyID : uint8_t {
 	SUPERTANK_FAMILY,    // Janitor, Supertank (Boss5)
 	FIXBOT_FAMILY,       // Fixbot, Fixbot KL
 	TURRET_FAMILY,       // Sentrygun, Turret
-	DAEDALUS_FAMILY,     // Daedalus, Daedalus Bomber
 	PARASITE_FAMILY,     // Parasite, Perro KL
 	BOSS2_FAMILY,        // Boss2, Boss2_64, Boss2_Mini, Boss2_KL
 	CARRIER_FAMILY,      // Carrier, Carrier Mini

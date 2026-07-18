@@ -89,8 +89,15 @@ enum coop_respawn_t
 // bonus list can never truncate player names, spectator names, or menu text.
 // One stat+configstring per displayed line, since stat_string can't render
 // embedded newlines; each connected client gets its own row of line slots.
+// Must use only native layout tokens (stat_string/loc_stat_cstring2) - this
+// server is crossplay, so other players render the layout with the stock
+// client's own cgame, which won't recognize any custom token we add here.
+// 7 is the max this can be: player_state_t.stats is a hard 64-slot budget
+// (see static_assert on STAT_LAST below) and this already uses all but one
+// of the slots left after ammo/powerup/wheel/etc, so there is no room for a
+// per-player "no truncation" list without dropping other stats.
 constexpr size_t MAX_BONUS_HUD_CLIENTS = 16; // horde player cap headroom (default maxclients is 16)
-constexpr size_t MAX_BONUS_HUD_LINES = 6;    // matches the stat budget available (see STAT_BONUS_LINE_0)
+constexpr size_t MAX_BONUS_HUD_LINES = 7;    // matches the stat budget available (see STAT_BONUS_LINE_0)
 
 // Original reserved general CS ranges
 enum

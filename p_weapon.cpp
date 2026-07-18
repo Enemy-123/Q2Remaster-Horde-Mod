@@ -1067,7 +1067,7 @@ GRENADE
 
 void weapon_grenade_fire(edict_t* ent, bool held)
 {
-	int	  damage = g_config.grenade.damage;
+	int	  damage = GetPlayerGrenadeDamage(g_config.grenade.damage);
 	int	  speed;
 	float radius;
 
@@ -1343,7 +1343,7 @@ GRENADE LAUNCHER
 void weapon_grenadelauncher_fire(edict_t* ent)
 {
 	bool napalm = ClassicPlayerHasBenefitNapalmGL(ent) || (ent->client && ent->client->pers.skills.gl_bouncy);
-	int	  damage = napalm ? g_config.grenadelauncher.damage_napalm : g_config.grenadelauncher.damage_normal;
+	int	  damage = napalm ? g_config.grenadelauncher.damage_napalm : GetPlayerGrenadeLauncherDamage(g_config.grenadelauncher.damage_normal);
 	float radius = napalm ? g_config.grenadelauncher.radius_napalm : g_config.grenadelauncher.radius_normal;
 
 	// Apply weapon upgrades from player skills
@@ -1413,8 +1413,8 @@ void Weapon_RocketLauncher_Fire(edict_t* ent)
 	float damage_radius;
 	int	  radius_damage;
 
-	damage = irandom(g_config.rocket.damage_min, g_config.rocket.damage_max);
-	radius_damage = g_config.rocket.radius;
+	damage = irandom(GetPlayerRocketDamageMin(g_config.rocket.damage_min), GetPlayerRocketDamageMax(g_config.rocket.damage_max));
+	radius_damage = GetPlayerRocketRadiusDamage(g_config.rocket.radius);
 	damage_radius = g_config.rocket.radius;
 
 	// Apply weapon upgrades from player skills
@@ -1548,8 +1548,8 @@ void Weapon_Blaster_Fire(edict_t* ent)
 	ent->client->blaster_ammo--;
 
 	// reduced damage to balance with Strength Tech (4x multiplier)
-	int damage_min = g_config.blaster.damage_min;
-	int damage_max = g_config.blaster.damage_max;
+	int damage_min = GetPlayerBlasterDamageMin(g_config.blaster.damage_min);
+	int damage_max = GetPlayerBlasterDamageMax(g_config.blaster.damage_max);
 
 	// Apply Blaster upgrades
 	if (ent && ent->client)
@@ -1560,6 +1560,16 @@ void Weapon_Blaster_Fire(edict_t* ent)
 	}
 
 	int const damage = irandom(damage_min, damage_max);
+
+	if (developer->integer > 1)
+	{
+		gi.Com_PrintFmt("BLASTER DEBUG: g_horde_original_p_damage={} lua_min={} lua_max={} wired_min={} wired_max={} bl_damage_skill={} rolled_damage={}\n",
+			g_horde_original_p_damage ? g_horde_original_p_damage->integer : -1,
+			g_config.blaster.damage_min, g_config.blaster.damage_max,
+			damage_min, damage_max,
+			ent && ent->client ? (int)ent->client->pers.skills.bl_damage : -1,
+			damage);
+	}
 
 	// Determine effect based on trails setting
 	effects_t effect = EF_BLASTER;
@@ -1626,8 +1636,8 @@ void Weapon_HyperBlaster_Fire(edict_t* ent)
 			offset[1] = 4 * cosf(rotation);
 
 			// Apply Hyperblaster damage upgrades
-			int damage_min = g_config.hyperblaster.damage_min;
-			int damage_max = g_config.hyperblaster.damage_max;
+			int damage_min = GetPlayerHyperblasterDamageMin(g_config.hyperblaster.damage_min);
+			int damage_max = GetPlayerHyperblasterDamageMax(g_config.hyperblaster.damage_max);
 			if (ent && ent->client)
 			{
 				// Damage upgrade varies by config - using the difference between min and max
@@ -1772,7 +1782,7 @@ void Machinegun_Fire(edict_t* ent)
 	if (!ent || !ent->client)
 		return;
 
-	int damage = irandom(g_config.machinegun.damage_min, g_config.machinegun.damage_max);
+	int damage = irandom(GetPlayerMachinegunDamageMin(g_config.machinegun.damage_min), GetPlayerMachinegunDamageMax(g_config.machinegun.damage_max));
 	int kick = g_config.machinegun.kick;
 
 	// Handle not firing
@@ -1911,7 +1921,7 @@ void Chaingun_Fire(edict_t* ent)
 		return;
 
 	int shots;
-	int damage = irandom(g_config.chaingun.damage_min, g_config.chaingun.damage_max);
+	int damage = irandom(GetPlayerChaingunDamageMin(g_config.chaingun.damage_min), GetPlayerChaingunDamageMax(g_config.chaingun.damage_max));
 	int kick = g_config.chaingun.kick;
 
 	// Apply chaingun damage upgrade (add 1 damage per level)
@@ -2162,7 +2172,7 @@ void weapon_shotgun_fire(edict_t* ent)
 
 	// Check if using energy shells (global benefit or weapon-specific upgrade)
 	bool use_energy = ClassicPlayerHasBenefitEnergyShells(ent) || (ent->client && ent->client->pers.skills.sg_energized);
-	damage = !use_energy ? irandom(g_config.shotgun.damage_min, g_config.shotgun.damage_max) : irandom(g_config.shotgun.damage_energy_min, g_config.shotgun.damage_energy_max);
+	damage = !use_energy ? irandom(GetPlayerShotgunPelletDamageMin(g_config.shotgun.damage_min), GetPlayerShotgunPelletDamageMax(g_config.shotgun.damage_max)) : irandom(g_config.shotgun.damage_energy_min, g_config.shotgun.damage_energy_max);
 
 	// Apply damage upgrade (+0.2 per level, max 10 levels = +2.0 damage)
 	if (ent->client && ent->client->pers.skills.sg_damage > 0)
@@ -2239,7 +2249,7 @@ void weapon_supershotgun_fire(edict_t* ent)
 
 	// Check if using energy shells (global benefit or weapon-specific upgrade)
 	bool use_energy = ClassicPlayerHasBenefitEnergyShells(ent) || (ent->client && ent->client->pers.skills.ssg_energized);
-	damage = !use_energy ? irandom(g_config.supershotgun.damage_min, g_config.supershotgun.damage_max) : irandom(g_config.supershotgun.damage_energy_min, g_config.supershotgun.damage_energy_max);
+	damage = !use_energy ? irandom(GetPlayerSuperShotgunPelletDamageMin(g_config.supershotgun.damage_min), GetPlayerSuperShotgunPelletDamageMax(g_config.supershotgun.damage_max)) : irandom(g_config.supershotgun.damage_energy_min, g_config.supershotgun.damage_energy_max);
 
 	// Apply damage upgrade (+0.4 per level, max 10 levels = +4.0 damage)
 	if (ent->client && ent->client->pers.skills.ssg_damage > 0)
@@ -2332,12 +2342,12 @@ void weapon_railgun_fire(edict_t* ent)
 
 	if (G_IsDeathmatch() && g_horde->integer)
 	{
-		damage = g_config.railgun.damage_horde;
+		damage = GetPlayerRailgunDamage(g_config.railgun.damage_horde);
 		kick = g_config.railgun.kick;
 	}
 	else
 	{
-		damage = g_config.railgun.damage;
+		damage = GetPlayerRailgunDamage(g_config.railgun.damage);
 		kick = g_config.railgun.kick;
 	}
 
@@ -2499,9 +2509,9 @@ void weapon_bfg_fire(edict_t* ent)
 	float const damage_radius = g_config.bfg.radius;
 
 	if (G_IsDeathmatch())
-		damage = g_config.bfg.damage;
+		damage = GetPlayerBFGDamage(g_config.bfg.damage);
 	else
-		damage = g_config.bfg.damage;
+		damage = GetPlayerBFGDamage(g_config.bfg.damage);
 
 	// Apply BFG damage upgrade
 	if (ent->client && ent->client->pers.skills.bfg_damage > 0)

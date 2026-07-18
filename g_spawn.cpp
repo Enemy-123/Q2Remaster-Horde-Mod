@@ -2251,6 +2251,8 @@ static void G_InitStatusbar()
 		// scoreboard's or menu's layout budget. Shown while the scoreboard or the
 		// horde upgrade menu is open. One stat_string per line (no embedded '\n'
 		// support), so this uses non-centering per-line draws, not cstring2.
+		// Native tokens only - crossplay clients render this with their own
+		// stock cgame, so a custom multi-line token would never show for them.
 		sb.ifstat(STAT_BONUS_LINE_0).xl(2).yt(70).string2("Active Bonuses").endifstat();
 		for (int i = 0; i < static_cast<int>(MAX_BONUS_HUD_LINES); i++)
 		{

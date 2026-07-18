@@ -1,6 +1,7 @@
 // Copyright (c) ZeniMax Media Inc.
 // Licensed under the GNU General Public License 2.0.
 #include "g_local.h"
+#include "horde/g_horde.h"
 #include "horde/g_horde_benefits.h"
 #include "horde/g_pvm_menu.h"
 #include "bots/bot_includes.h"
@@ -1806,6 +1807,13 @@ void G_Monster_ScaleCoopHealth(edict_t* self)
 	// No escalar si es una entidad amigable (como sentry guns)
 	if (self->monsterinfo.bonus_flags & BF_FRIENDLY)
 		return;;
+
+	// g_horde_original_m_health already pinned this monster's health to the sourced original
+	// value; don't let the per-player coop scaling (g_coop_health_scaling, set in horde.cfg)
+	// tack additional health on top of it.
+	if (g_horde_original_m_health && g_horde_original_m_health->integer &&
+		HasOriginalMonsterHealth(self->monsterinfo.monster_type_id))
+		return;
 
 	// already scaled
 	if (self->monsterinfo.health_scaling >= level.coop_scale_players)

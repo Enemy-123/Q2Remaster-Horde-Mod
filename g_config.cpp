@@ -5,6 +5,7 @@
 #include "horde/horde_monster_data.h"
 #include "horde/weapon_id.h"
 #include "horde/g_pvm.h"
+#include "horde/g_horde.h"
 #include <json/json.h>
 #include <fstream>
 #include <cmath>
@@ -16,6 +17,7 @@
 #include <cctype>
 #include <cstring>
 #include <iterator>
+#include <algorithm>
 
 extern "C" {
 #include "lua.h"
@@ -1549,6 +1551,293 @@ const MonsterStatsConfig* GetMonsterConfig(uint8_t monster_type_id)
 	return nullptr;
 }
 
+// ============================================================================
+// ORIGINAL (VANILLA) MONSTER STATS
+// ============================================================================
+// Backing data for g_horde_original_m_health / g_horde_original_m_damage. Values are sourced
+// from the unmodified Quake2 monster spawn/attack code (see Quake2psx reference tree), NOT from
+// this mod's Lua tuning. Only monster types with a real vanilla counterpart get a direct entry;
+// horde-exclusive reskins/tiers with no vanilla equivalent (gladc, floater_tracker, etc.) derive
+// a scaled-down value from their nearest real parent instead of being fabricated outright, and
+// true boss/miniboss types (see horde::MonsterTypeID's "Boss monsters" block, plus tank
+// commander/64, runnertank, supertank, shambler, chickkl and similar wave-boss tiers) get no
+// entry at all so the cvars never touch them, matching "except for bosses". The runtime is_boss
+// instance flag is also checked at each call site as a second safety net.
+namespace {
+
+struct OriginalMonsterStats
+{
+	int health = 0;                      // 0 = no sourced original value for this monster type
+	int32_t power_armor_type = IT_NULL;  // vanilla Quake2 monsters almost never carried power armor
+	int power_armor_power = 0;
+	std::array<int, 24> weapon_damage{};  // indexed by horde::WeaponID; 0 = no sourced value
+};
+
+using horde::MonsterTypeID;
+using horde::WeaponID;
+
+constexpr size_t kMaxMonsterTypes = static_cast<size_t>(MonsterTypeID::MAX_TYPES);
+
+std::array<OriginalMonsterStats, kMaxMonsterTypes> BuildOriginalMonsterStatsTable()
+{
+	std::array<OriginalMonsterStats, kMaxMonsterTypes> t{};
+
+	auto set = [&](MonsterTypeID id, int health, int32_t armor_type = IT_NULL, int armor_power = 0)
+	{
+		OriginalMonsterStats& s = t[static_cast<size_t>(id)];
+		s.health = health;
+		s.power_armor_type = armor_type;
+		s.power_armor_power = armor_power;
+	};
+	auto dmg = [&](MonsterTypeID id, WeaponID w, int val)
+	{
+		t[static_cast<size_t>(id)].weapon_damage[static_cast<size_t>(w)] = val;
+	};
+
+	set(MonsterTypeID::SOLDIER_LIGHT, 20);
+	dmg(MonsterTypeID::SOLDIER_LIGHT, WeaponID::BLASTER, 5);
+
+	set(MonsterTypeID::SOLDIER, 30);
+	dmg(MonsterTypeID::SOLDIER, WeaponID::SHOTGUN, 2);
+	dmg(MonsterTypeID::SOLDIER, WeaponID::MACHINEGUN, 2);
+	dmg(MonsterTypeID::SOLDIER, WeaponID::BLASTER, 5);
+
+	set(MonsterTypeID::SOLDIER_SS, 40);
+	dmg(MonsterTypeID::SOLDIER_SS, WeaponID::MACHINEGUN, 2);
+
+	set(MonsterTypeID::SOLDIER_HYPERGUN, 60);
+	set(MonsterTypeID::SOLDIER_RIPPER, 50);
+	dmg(MonsterTypeID::SOLDIER_RIPPER, WeaponID::IONRIPPER, 5);
+	set(MonsterTypeID::SOLDIER_LASERGUN, 70);
+
+	set(MonsterTypeID::INFANTRY, 100);
+	dmg(MonsterTypeID::INFANTRY, WeaponID::MACHINEGUN, 3);
+	dmg(MonsterTypeID::INFANTRY, WeaponID::MELEE, 8);
+	set(MonsterTypeID::INFANTRY_VANILLA, 100);
+	dmg(MonsterTypeID::INFANTRY_VANILLA, WeaponID::MACHINEGUN, 3);
+	dmg(MonsterTypeID::INFANTRY_VANILLA, WeaponID::MELEE, 8);
+
+	set(MonsterTypeID::GUNNER, 175);
+	dmg(MonsterTypeID::GUNNER, WeaponID::MACHINEGUN, 3);
+	dmg(MonsterTypeID::GUNNER, WeaponID::GRENADE, 50);
+	set(MonsterTypeID::GUNNER_VANILLA, 175);
+	dmg(MonsterTypeID::GUNNER_VANILLA, WeaponID::MACHINEGUN, 3);
+	dmg(MonsterTypeID::GUNNER_VANILLA, WeaponID::GRENADE, 50);
+
+	set(MonsterTypeID::MEDIC, 300);
+	dmg(MonsterTypeID::MEDIC, WeaponID::BLASTER2, 2);
+	set(MonsterTypeID::MEDIC_COMMANDER, 600);
+	dmg(MonsterTypeID::MEDIC_COMMANDER, WeaponID::BLASTER2, 2);
+
+	set(MonsterTypeID::GLADIATOR, 400);
+	dmg(MonsterTypeID::GLADIATOR, WeaponID::MELEE, 22);
+	dmg(MonsterTypeID::GLADIATOR, WeaponID::RAILGUN, 50);
+	set(MonsterTypeID::GLADIATOR_B, 250, IT_ITEM_POWER_SHIELD, 250);
+	dmg(MonsterTypeID::GLADIATOR_B, WeaponID::MELEE, 22);
+	dmg(MonsterTypeID::GLADIATOR_B, WeaponID::PLASMA, 35);
+	// GLADIATOR_C has no direct vanilla counterpart -- derived from GLADIATOR_B below.
+
+	set(MonsterTypeID::TANK, 750);
+	dmg(MonsterTypeID::TANK, WeaponID::BLASTER2, 30);
+	dmg(MonsterTypeID::TANK, WeaponID::HEAT, 50);
+	dmg(MonsterTypeID::TANK, WeaponID::ROCKET, 50);
+	dmg(MonsterTypeID::TANK, WeaponID::MACHINEGUN, 20);
+
+	set(MonsterTypeID::CHICK, 175);
+	dmg(MonsterTypeID::CHICK, WeaponID::MELEE, 13);
+	dmg(MonsterTypeID::CHICK, WeaponID::ROCKET, 50);
+	// CHICK_HEAT has no direct vanilla counterpart -- derived from CHICK below.
+
+	set(MonsterTypeID::PARASITE, 175);
+	dmg(MonsterTypeID::PARASITE, WeaponID::PROBOSCIS, 5);
+
+	set(MonsterTypeID::BRAIN, 300, IT_ITEM_POWER_SCREEN, 100);
+	dmg(MonsterTypeID::BRAIN, WeaponID::MELEE, 17);
+
+	set(MonsterTypeID::FLYER, 50);
+	dmg(MonsterTypeID::FLYER, WeaponID::BLASTER_BOLT, 1);
+
+	set(MonsterTypeID::HOVER, 240);
+	dmg(MonsterTypeID::HOVER, WeaponID::BLASTER, 1);
+	set(MonsterTypeID::HOVER_VANILLA, 240);
+	dmg(MonsterTypeID::HOVER_VANILLA, WeaponID::BLASTER, 1);
+
+	set(MonsterTypeID::MUTANT, 300);
+	dmg(MonsterTypeID::MUTANT, WeaponID::MELEE, 10);
+	// REDMUTANT has no direct vanilla counterpart -- derived from MUTANT below.
+
+	set(MonsterTypeID::BERSERK, 240);
+	dmg(MonsterTypeID::BERSERK, WeaponID::MELEE, 8);
+	dmg(MonsterTypeID::BERSERK, WeaponID::SLAM, 18);
+
+	set(MonsterTypeID::FIXBOT, 150);
+	dmg(MonsterTypeID::FIXBOT, WeaponID::BLASTER_BOLT, 15);
+	// FIXBOT_KL has no direct vanilla counterpart -- derived from FIXBOT below.
+
+	set(MonsterTypeID::FLOATER, 200);
+	dmg(MonsterTypeID::FLOATER, WeaponID::BLASTER, 1);
+	dmg(MonsterTypeID::FLOATER, WeaponID::MELEE, 8);
+	// FLOATER_TRACKER has no direct vanilla counterpart -- derived from FLOATER below.
+
+	set(MonsterTypeID::STALKER, 250);
+	dmg(MonsterTypeID::STALKER, WeaponID::BLASTER2, 5);
+	dmg(MonsterTypeID::STALKER, WeaponID::MELEE, 8);
+
+	set(MonsterTypeID::GEKK, 125);
+	dmg(MonsterTypeID::GEKK, WeaponID::PLASMA, 5);
+	dmg(MonsterTypeID::GEKK, WeaponID::MELEE, 8);
+	// GEKKKL has no direct vanilla counterpart -- derived from GEKK below.
+
+	set(MonsterTypeID::ARACHNID, 1000);
+	dmg(MonsterTypeID::ARACHNID, WeaponID::RAILGUN, 50);
+	dmg(MonsterTypeID::ARACHNID, WeaponID::MELEE, 15);
+	// SPIDER/ARACHNID2/GM_ARACHNID/PSX_ARACHNID have no direct vanilla counterpart -- derived
+	// from ARACHNID below.
+
+	set(MonsterTypeID::FLIPPER, 50);
+	dmg(MonsterTypeID::FLIPPER, WeaponID::MELEE, 5);
+
+	set(MonsterTypeID::DAEDALUS, 450, IT_ITEM_POWER_SCREEN, 100);
+	dmg(MonsterTypeID::DAEDALUS, WeaponID::BLASTER2, 1);
+	// DAEDALUS_BOMBER has no direct vanilla counterpart -- derived from DAEDALUS below.
+
+	set(MonsterTypeID::GUNCMDR, 325, IT_ITEM_POWER_SHIELD, 200);
+	set(MonsterTypeID::GUNCMDR_VANILLA, 325, IT_ITEM_POWER_SHIELD, 200);
+	// GUNCMDR_KL has no direct vanilla counterpart -- derived from GUNCMDR below.
+
+	return t;
+}
+
+// Horde-exclusive tiers/reskins with no sourced vanilla data of their own, mapped to the
+// nearest real monster they were built from. Health/armor and per-weapon damage are derived by
+// scaling the parent's sourced value by this monster's current ratio to its parent in the Lua
+// config (health ratio for health, damage_scale ratio for damage), so the derived "alternative"
+// stays proportionate instead of being an arbitrary guess. Types absent from this map (bosses,
+// or anything with no sensible parent) are left completely untouched by the cvars.
+std::array<uint8_t, kMaxMonsterTypes> BuildOriginalStatsParentTable()
+{
+	std::array<uint8_t, kMaxMonsterTypes> t{};
+	t.fill(static_cast<uint8_t>(MonsterTypeID::UNKNOWN));
+
+	auto link = [&](MonsterTypeID child, MonsterTypeID parent)
+	{
+		t[static_cast<size_t>(child)] = static_cast<uint8_t>(parent);
+	};
+
+	link(MonsterTypeID::GLADIATOR_C, MonsterTypeID::GLADIATOR_B);
+	link(MonsterTypeID::CHICK_HEAT, MonsterTypeID::CHICK);
+	link(MonsterTypeID::REDMUTANT, MonsterTypeID::MUTANT);
+	link(MonsterTypeID::FIXBOT_KL, MonsterTypeID::FIXBOT);
+	link(MonsterTypeID::FLOATER_TRACKER, MonsterTypeID::FLOATER);
+	link(MonsterTypeID::GEKKKL, MonsterTypeID::GEKK);
+	link(MonsterTypeID::SPIDER, MonsterTypeID::ARACHNID);
+	link(MonsterTypeID::ARACHNID2, MonsterTypeID::ARACHNID);
+	link(MonsterTypeID::GM_ARACHNID, MonsterTypeID::ARACHNID);
+	link(MonsterTypeID::PSX_ARACHNID, MonsterTypeID::ARACHNID);
+	link(MonsterTypeID::DAEDALUS_BOMBER, MonsterTypeID::DAEDALUS);
+	link(MonsterTypeID::GUNCMDR_KL, MonsterTypeID::GUNCMDR);
+	link(MonsterTypeID::BERSERKERKL, MonsterTypeID::BERSERK);
+
+	return t;
+}
+
+const std::array<OriginalMonsterStats, kMaxMonsterTypes>& OriginalStatsTable()
+{
+	static const std::array<OriginalMonsterStats, kMaxMonsterTypes> table = BuildOriginalMonsterStatsTable();
+	return table;
+}
+
+const std::array<uint8_t, kMaxMonsterTypes>& OriginalStatsParentTable()
+{
+	static const std::array<uint8_t, kMaxMonsterTypes> table = BuildOriginalStatsParentTable();
+	return table;
+}
+
+// Resolves sourced original health, directly or derived from a parent. Returns false if no
+// sourced data exists at all (bosses and undocumented monster types fall through untouched).
+bool GetOriginalMonsterHealth(uint8_t monster_type_id, int& out_health)
+{
+	if (monster_type_id >= kMaxMonsterTypes)
+		return false;
+
+	const OriginalMonsterStats& direct = OriginalStatsTable()[monster_type_id];
+	if (direct.health > 0)
+	{
+		out_health = direct.health;
+		return true;
+	}
+
+	uint8_t parent_id = OriginalStatsParentTable()[monster_type_id];
+	if (parent_id == static_cast<uint8_t>(MonsterTypeID::UNKNOWN))
+		return false;
+
+	const OriginalMonsterStats& parent = OriginalStatsTable()[parent_id];
+	if (parent.health <= 0)
+		return false;
+
+	const MonsterStatsConfig* my_cfg = GetMonsterConfig(monster_type_id);
+	const MonsterStatsConfig* parent_cfg = GetMonsterConfig(parent_id);
+	if (!my_cfg || !parent_cfg || parent_cfg->health <= 0)
+		return false;
+
+	float ratio = static_cast<float>(my_cfg->health) / static_cast<float>(parent_cfg->health);
+	out_health = std::max(1, static_cast<int>(parent.health * ratio));
+	return true;
+}
+
+// Resolves sourced original power armor for a monster type. Derived tiers deliberately do NOT
+// inherit a scaled shield/screen from their parent: no sourced entry means the vanilla monster
+// carried none, so a tier without its own entry is stripped to none as well.
+void GetOriginalMonsterPowerArmor(uint8_t monster_type_id, int32_t& out_type, int& out_power)
+{
+	out_type = IT_NULL;
+	out_power = 0;
+	if (monster_type_id >= kMaxMonsterTypes)
+		return;
+
+	const OriginalMonsterStats& direct = OriginalStatsTable()[monster_type_id];
+	out_type = direct.power_armor_type;
+	out_power = direct.power_armor_power;
+}
+
+// Resolves sourced original damage for one weapon slot, directly or derived from a parent.
+bool GetOriginalMonsterWeaponDamage(uint8_t monster_type_id, size_t weapon_idx, int& out_damage)
+{
+	if (monster_type_id >= kMaxMonsterTypes || weapon_idx >= 24)
+		return false;
+
+	const OriginalMonsterStats& direct = OriginalStatsTable()[monster_type_id];
+	if (direct.weapon_damage[weapon_idx] > 0)
+	{
+		out_damage = direct.weapon_damage[weapon_idx];
+		return true;
+	}
+
+	uint8_t parent_id = OriginalStatsParentTable()[monster_type_id];
+	if (parent_id == static_cast<uint8_t>(MonsterTypeID::UNKNOWN))
+		return false;
+
+	const OriginalMonsterStats& parent = OriginalStatsTable()[parent_id];
+	if (parent.weapon_damage[weapon_idx] <= 0)
+		return false;
+
+	const MonsterStatsConfig* my_cfg = GetMonsterConfig(monster_type_id);
+	const MonsterStatsConfig* parent_cfg = GetMonsterConfig(parent_id);
+	float my_scale = my_cfg ? my_cfg->damage_scale : 1.0f;
+	float parent_scale = (parent_cfg && parent_cfg->damage_scale > 0.0f) ? parent_cfg->damage_scale : 1.0f;
+
+	out_damage = std::max(1, static_cast<int>(parent.weapon_damage[weapon_idx] * (my_scale / parent_scale)));
+	return true;
+}
+
+} // namespace
+
+bool HasOriginalMonsterHealth(uint8_t monster_type_id)
+{
+	int unused_health;
+	return GetOriginalMonsterHealth(monster_type_id, unused_health);
+}
+
 // Get specific weapon damage for a monster - FULLY OPTIMIZED with enum-based O(1) lookups
 // CRITICAL HOT PATH: Called on every monster weapon attack (10-60 times per second)
 int GetMonsterWeaponDamage(uint8_t monster_type_id, horde::WeaponID weapon_id, bool is_boss)
@@ -1556,8 +1845,16 @@ int GetMonsterWeaponDamage(uint8_t monster_type_id, horde::WeaponID weapon_id, b
 	if (weapon_id == horde::WeaponID::UNKNOWN) [[unlikely]]
 		return 0;
 
-	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
 	size_t idx = static_cast<size_t>(weapon_id);
+
+	if (!is_boss && g_horde_original_m_damage && g_horde_original_m_damage->integer) [[unlikely]]
+	{
+		int original_damage;
+		if (GetOriginalMonsterWeaponDamage(monster_type_id, idx, original_damage))
+			return original_damage;
+	}
+
+	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
 
 	// Step 0: Boss instances use their exact per-weapon override when set. This is the final
 	// damage value - no damage_scale and no Remaster max clamp - so bosses can hit harder
@@ -1788,12 +2085,26 @@ int GetScaledPowerArmor(int base_power_armor, float power_armor_scale, int wave_
 // Monster health/armor helpers (for macros)
 int GetMonsterBaseHealth(uint8_t monster_type_id)
 {
+	if (g_horde_original_m_health && g_horde_original_m_health->integer) [[unlikely]]
+	{
+		int original_health;
+		if (GetOriginalMonsterHealth(monster_type_id, original_health))
+			return original_health;
+	}
+
 	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
 	return config ? config->health : 100; // Default fallback
 }
 
 int GetMonsterScaledHealth(uint8_t monster_type_id, int wave_level, bool is_boss)
 {
+	if (!is_boss && g_horde_original_m_health && g_horde_original_m_health->integer) [[unlikely]]
+	{
+		int original_health;
+		if (GetOriginalMonsterHealth(monster_type_id, original_health))
+			return original_health;
+	}
+
 	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
 	if (!config)
 		return 100;
@@ -1833,12 +2144,26 @@ int GetMonsterScaledHealth(uint8_t monster_type_id, int wave_level, bool is_boss
 
 int GetMonsterBaseArmor(uint8_t monster_type_id)
 {
+	if (g_horde_original_m_health && g_horde_original_m_health->integer) [[unlikely]]
+	{
+		int unused_health;
+		if (GetOriginalMonsterHealth(monster_type_id, unused_health))
+			return 0; // vanilla monsters carried no body armor
+	}
+
 	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
 	return config ? config->armor_power : 0;
 }
 
 int GetMonsterScaledArmor(uint8_t monster_type_id, int wave_level, bool is_boss)
 {
+	if (!is_boss && g_horde_original_m_health && g_horde_original_m_health->integer) [[unlikely]]
+	{
+		int unused_health;
+		if (GetOriginalMonsterHealth(monster_type_id, unused_health))
+			return 0;
+	}
+
 	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
 	if (!config)
 		return 0;
@@ -1882,12 +2207,36 @@ int GetMonsterScaledArmor(uint8_t monster_type_id, int wave_level, bool is_boss)
 
 int GetMonsterBasePowerArmor(uint8_t monster_type_id)
 {
+	if (g_horde_original_m_health && g_horde_original_m_health->integer) [[unlikely]]
+	{
+		int unused_health;
+		if (GetOriginalMonsterHealth(monster_type_id, unused_health))
+		{
+			int32_t orig_type;
+			int orig_power;
+			GetOriginalMonsterPowerArmor(monster_type_id, orig_type, orig_power);
+			return orig_power;
+		}
+	}
+
 	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
 	return config ? config->power_armor_power : 0;
 }
 
 int GetMonsterScaledPowerArmor(uint8_t monster_type_id, int wave_level, bool is_boss)
 {
+	if (!is_boss && g_horde_original_m_health && g_horde_original_m_health->integer) [[unlikely]]
+	{
+		int unused_health;
+		if (GetOriginalMonsterHealth(monster_type_id, unused_health))
+		{
+			int32_t orig_type;
+			int orig_power;
+			GetOriginalMonsterPowerArmor(monster_type_id, orig_type, orig_power);
+			return orig_power;
+		}
+	}
+
 	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
 	if (!config || config->power_armor_power == 0)
 		return 0;
@@ -1931,12 +2280,31 @@ int GetMonsterScaledPowerArmor(uint8_t monster_type_id, int wave_level, bool is_
 
 int32_t GetMonsterArmorType(uint8_t monster_type_id)
 {
+	if (g_horde_original_m_health && g_horde_original_m_health->integer) [[unlikely]]
+	{
+		int unused_health;
+		if (GetOriginalMonsterHealth(monster_type_id, unused_health))
+			return static_cast<int32_t>(IT_NULL); // vanilla monsters carried no body armor
+	}
+
 	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
 	return config ? config->armor_type : static_cast<int32_t>(IT_NULL);
 }
 
 int32_t GetMonsterPowerArmorType(uint8_t monster_type_id)
 {
+	if (g_horde_original_m_health && g_horde_original_m_health->integer) [[unlikely]]
+	{
+		int unused_health;
+		if (GetOriginalMonsterHealth(monster_type_id, unused_health))
+		{
+			int32_t orig_type;
+			int orig_power;
+			GetOriginalMonsterPowerArmor(monster_type_id, orig_type, orig_power);
+			return orig_type;
+		}
+	}
+
 	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
 	return config ? config->power_armor_type : static_cast<int32_t>(IT_NULL);
 }
@@ -1986,3 +2354,46 @@ void GetMonsterLevelScaledStats(const char* monster_name, int32_t pvm_level, int
 		out_armor = 0;
 	}
 }
+
+// ============================================================================
+// ORIGINAL (VANILLA/PSX) PLAYER WEAPON DAMAGE
+// ============================================================================
+// Backing data for g_horde_original_p_damage. Values are sourced from the unmodified Quake2
+// player weapon fire code (see Quake2psx reference tree, deathmatch branch since Horde always
+// runs as deathmatch), NOT from this mod's Lua tuning. Weapons this mod turned into a
+// random-roll range are almost all a single fixed hit originally, so their Min/Max helpers
+// resolve to the same sourced value; Phalanx is the one exception where the original really is
+// a random(70,80) roll. Horde-exclusive mechanics with no vanilla equivalent (napalm grenade
+// rounds, energy-ammo shotgun variants, the 20mm cannon, deployables, etc.) are left alone.
+static bool OriginalPlayerDamageActive()
+{
+	return g_horde_original_p_damage && g_horde_original_p_damage->integer;
+}
+
+int GetPlayerBlasterDamageMin(int current) { return OriginalPlayerDamageActive() ? 15 : current; }
+int GetPlayerBlasterDamageMax(int current) { return OriginalPlayerDamageActive() ? 15 : current; }
+int GetPlayerHyperblasterDamageMin(int current) { return OriginalPlayerDamageActive() ? 15 : current; }
+int GetPlayerHyperblasterDamageMax(int current) { return OriginalPlayerDamageActive() ? 15 : current; }
+int GetPlayerShotgunPelletDamageMin(int current) { return OriginalPlayerDamageActive() ? 4 : current; }
+int GetPlayerShotgunPelletDamageMax(int current) { return OriginalPlayerDamageActive() ? 4 : current; }
+int GetPlayerSuperShotgunPelletDamageMin(int current) { return OriginalPlayerDamageActive() ? 6 : current; }
+int GetPlayerSuperShotgunPelletDamageMax(int current) { return OriginalPlayerDamageActive() ? 6 : current; }
+int GetPlayerMachinegunDamageMin(int current) { return OriginalPlayerDamageActive() ? 8 : current; }
+int GetPlayerMachinegunDamageMax(int current) { return OriginalPlayerDamageActive() ? 8 : current; }
+int GetPlayerChaingunDamageMin(int current) { return OriginalPlayerDamageActive() ? 6 : current; }
+int GetPlayerChaingunDamageMax(int current) { return OriginalPlayerDamageActive() ? 6 : current; }
+int GetPlayerGrenadeDamage(int current) { return OriginalPlayerDamageActive() ? 125 : current; }
+int GetPlayerGrenadeLauncherDamage(int current) { return OriginalPlayerDamageActive() ? 120 : current; }
+int GetPlayerRocketDamageMin(int current) { return OriginalPlayerDamageActive() ? 100 : current; }
+int GetPlayerRocketDamageMax(int current) { return OriginalPlayerDamageActive() ? 120 : current; }
+int GetPlayerRocketRadiusDamage(int current) { return OriginalPlayerDamageActive() ? 120 : current; }
+int GetPlayerRailgunDamage(int current) { return OriginalPlayerDamageActive() ? 100 : current; }
+int GetPlayerBFGDamage(int current) { return OriginalPlayerDamageActive() ? 200 : current; }
+int GetPlayerIonripperDamage(int current) { return OriginalPlayerDamageActive() ? 30 : current; }
+int GetPlayerPhalanxDamageMin(int current) { return OriginalPlayerDamageActive() ? 70 : current; }
+int GetPlayerPhalanxDamageMax(int current) { return OriginalPlayerDamageActive() ? 80 : current; }
+int GetPlayerPhalanxRadiusDamage(int current) { return OriginalPlayerDamageActive() ? 30 : current; }
+int GetPlayerTrackerDamage(int current) { return OriginalPlayerDamageActive() ? 45 : current; }
+int GetPlayerETFRifleDamageMin(int current) { return OriginalPlayerDamageActive() ? 10 : current; }
+int GetPlayerETFRifleDamageMax(int current) { return OriginalPlayerDamageActive() ? 10 : current; }
+int GetPlayerPlasmaBeamDamage(int current) { return OriginalPlayerDamageActive() ? 15 : current; }

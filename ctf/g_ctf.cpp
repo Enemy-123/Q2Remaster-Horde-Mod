@@ -2465,27 +2465,25 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 	// Broadcast messages
 	const char* player_name = GetPlayerName(ent);
 
+	// One-shot chat alert only - each PRINT_CHAT call replaces the previous
+	// toast instantly, so stacking several of them only ever showed the last
+	// one. The persistent, live-updating details (Open Menu to Vote!, Yes/No/
+	// Needed, seconds left) live entirely in the HUD via UpdateVoteHUD() above,
+	// same configstring-driven approach the boss-spawn banner uses.
 	if (is_time_vote) {
 		if (ctfgame.automatic_vote) {
-			gi.LocBroadcast_Print(PRINT_CHAT, "AUTOMATED VOTE: Wish to add 20 minutes?\n");
+			gi.LocBroadcast_Print(PRINT_CHAT, "AUTOMATED VOTE: Wish to add 20 minutes? Open menu to vote!\n");
 		}
 		else {
-			gi.LocBroadcast_Print(PRINT_CHAT, "{} Has Started a Vote!\n", player_name);
-			gi.LocBroadcast_Print(PRINT_CHAT, "Add Time: +30 minutes\n");
+			gi.LocBroadcast_Print(PRINT_CHAT, "{} Has Started a Vote! Add Time: +30 minutes\n", player_name);
 		}
 	}
 	else if (ctfgame.election == ELECT_MAP) {
-		gi.LocBroadcast_Print(PRINT_CHAT, "{} Has Started a Vote!\n", player_name);
-		gi.LocBroadcast_Print(PRINT_CHAT, "Map: {}\n", ctfgame.elevel);
+		gi.LocBroadcast_Print(PRINT_CHAT, "{} Has Started a Vote! Map: {}\n", player_name, ctfgame.elevel);
 	}
 	else {
-		gi.LocBroadcast_Print(PRINT_CHAT, "{} Has Started a Vote!\n", player_name);
-		gi.LocBroadcast_Print(PRINT_CHAT, "{}\n", ctfgame.emsg);
+		gi.LocBroadcast_Print(PRINT_CHAT, "{} Has Started a Vote! {}\n", player_name, ctfgame.emsg);
 	}
-
-	gi.LocBroadcast_Print(PRINT_CHAT, "Open Menu to Vote!\n");
-	gi.LocBroadcast_Print(PRINT_CHAT, "Vote Ends in {}s\n", is_time_vote ? 30 : 30);
-	gi.LocBroadcast_Print(PRINT_CHAT, "Yes: {}  No: {}  Needed: {}\n", ctfgame.evotes, ctfgame.nvotes, ctfgame.needvotes);
 
 	// Auto-aprobación para un solo jugador (including coop/single player/horde with bots)
 	// Skip auto-approval for automatic time extension votes - those require explicit approval
@@ -2509,22 +2507,27 @@ void UpdateVoteHUD() noexcept {
 		// Format with prettier message and vote counts
 		std::string vote_info;
 
+		const int seconds_left = std::max(0, static_cast<int>((ctfgame.electtime - level.time).seconds()));
+
 		if (ctfgame.election == ELECT_TIME) {
-			vote_info = fmt::format("Add Time: +30 min | Yes: {}  No: {}  Need: {} | {}s left",
-				ctfgame.evotes, ctfgame.nvotes, ctfgame.needvotes,
-				static_cast<int>((ctfgame.electtime - level.time).seconds()));
+			vote_info = fmt::format("{}\nOpen Menu to Vote!\nYes: {}  No: {}  Need: {} | {}s left",
+				ctfgame.automatic_vote ? "AUTOMATED VOTE: Wish to add 20 minutes?" : "Add Time: +30 min",
+				ctfgame.evotes, ctfgame.nvotes, ctfgame.needvotes, seconds_left);
 		}
 		else if (ctfgame.election == ELECT_MAP) {
-			vote_info = fmt::format("Map: {} | Yes: {}  No: {}  Need: {} | {}s left",
-				ctfgame.elevel,
-				ctfgame.evotes, ctfgame.nvotes, ctfgame.needvotes,
-				static_cast<int>((ctfgame.electtime - level.time).seconds()));
+			// elevel may be "mode:map" (see CTFWinElection's ELECT_MAP case) for a
+			// combined mode+map vote - display just the map, the mode prefix is
+			// internal bookkeeping and not meaningful to players.
+			const char* colon = strchr(ctfgame.elevel, ':');
+			const char* map_display = colon ? colon + 1 : ctfgame.elevel;
+			vote_info = fmt::format("Map: {}\nOpen Menu to Vote!\nYes: {}  No: {}  Need: {} | {}s left",
+				map_display,
+				ctfgame.evotes, ctfgame.nvotes, ctfgame.needvotes, seconds_left);
 		}
 		else {
-			vote_info = fmt::format("{} | Yes: {}  No: {}  Need: {} | {}s left",
+			vote_info = fmt::format("{}\nOpen Menu to Vote!\nYes: {}  No: {}  Need: {} | {}s left",
 				ctfgame.emsg,
-				ctfgame.evotes, ctfgame.nvotes, ctfgame.needvotes,
-				static_cast<int>((ctfgame.electtime - level.time).seconds()));
+				ctfgame.evotes, ctfgame.nvotes, ctfgame.needvotes, seconds_left);
 		}
 
 		gi.configstring(CONFIG_VOTE_INFO, vote_info.c_str());
@@ -3440,6 +3443,21 @@ bool CTFCheckRules()
 			{
 				ent->client->resp.voted = false;
 			}
+		}
+
+		UpdateVoteHUD(); // clears the HUD configstring now that election is ELECT_NONE
+	}
+	else if (ctfgame.election != ELECT_NONE)
+	{
+		// Keep the HUD's "Xs left" and Yes/No counts live without spamming a
+		// configstring update every frame - only push when the displayed
+		// second actually changes.
+		static int last_displayed_seconds = -1;
+		const int seconds_left = std::max(0, static_cast<int>((ctfgame.electtime - level.time).seconds()));
+		if (seconds_left != last_displayed_seconds)
+		{
+			last_displayed_seconds = seconds_left;
+			UpdateVoteHUD();
 		}
 	}
 

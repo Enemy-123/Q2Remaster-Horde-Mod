@@ -14,9 +14,9 @@ void weapon_ionripper_fire(edict_t* ent)
 
 	if (G_IsDeathmatch())
 		// tone down for deathmatch
-		damage = g_config.ionripper.damage;
+		damage = GetPlayerIonripperDamage(g_config.ionripper.damage);
 	else
-		damage = g_config.ionripper.damage;
+		damage = GetPlayerIonripperDamage(g_config.ionripper.damage);
 
 	// Apply Ion Ripper damage upgrade
 	if (ent && ent->client)
@@ -85,8 +85,8 @@ void weapon_phalanx_fire(edict_t* ent)
     float  damage_radius;
     int    radius_damage;
 
-    damage = irandom(g_config.phalanx.damage_min, g_config.phalanx.damage_max);
-    radius_damage = g_config.phalanx.radius_damage;
+    damage = irandom(GetPlayerPhalanxDamageMin(g_config.phalanx.damage_min), GetPlayerPhalanxDamageMax(g_config.phalanx.damage_max));
+    radius_damage = GetPlayerPhalanxRadiusDamage(g_config.phalanx.radius_damage);
     damage_radius = g_config.phalanx.damage_radius;
     if (is_quad)
     {

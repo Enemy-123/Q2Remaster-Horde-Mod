@@ -1,6 +1,7 @@
 // Copyright (c) ZeniMax Media Inc.
 // Licensed under the GNU General Public License 2.0.
 #include "../g_local.h"
+#include "../horde/g_horde.h"
 #include "../shared.h"
 #include "../horde/g_horde_benefits.h"
 
@@ -1358,6 +1359,17 @@ TOUCH(blaster2_touch)(edict_t *self, edict_t *other, const trace_t &tr, bool oth
 	if (self->owner && self->owner->client)
 		PlayerNoise(self->owner, self->s.origin, PNOISE_IMPACT);
 
+	// Blaster2 bolts (player Machinegun/Chaingun tracer bonus, and several monster attacks --
+	// Tank, Infantry, Medic, Guncmdr, Hover, Stalker, Makron, etc.) unconditionally splash for
+	// double their direct damage on top of the direct hit. Vanilla/PSX blaster-family attacks
+	// (player or monster) never splash at all, so suppress it under the matching original-damage
+	// cvar. Bosses keep the splash, matching "except for bosses" elsewhere.
+	bool suppress_blaster2_splash = false;
+	if (self->owner && self->owner->client)
+		suppress_blaster2_splash = g_horde_original_p_damage && g_horde_original_p_damage->integer;
+	else if (self->owner && (self->owner->svflags & SVF_MONSTER) && !self->owner->monsterinfo.IS_BOSS)
+		suppress_blaster2_splash = g_horde_original_m_damage && g_horde_original_m_damage->integer;
+
 	if (other->takedamage)
 	{
 		// Determine real attacker (handles sentry guns, doppelgangers, etc.)
@@ -1370,7 +1382,7 @@ TOUCH(blaster2_touch)(edict_t *self, edict_t *other, const trace_t &tr, bool oth
 			mod = MOD_BLASTER2;
 
 		// Apply damage using the 'real_attacker' so the player gets the credit.
-		if (self->dmg >= 5)
+		if (self->dmg >= 5 && !suppress_blaster2_splash)
 		{
 			T_RadiusDamage(self, real_attacker, static_cast<float>(self->dmg * 2), other, self->dmg_radius, DAMAGE_ENERGY, MOD_UNKNOWN);
 		}
@@ -1381,7 +1393,7 @@ TOUCH(blaster2_touch)(edict_t *self, edict_t *other, const trace_t &tr, bool oth
 		// Determine real attacker for radius damage
 		edict_t* real_attacker = GetRealAttacker(self);
 
-		if (self->dmg >= 5)
+		if (self->dmg >= 5 && !suppress_blaster2_splash)
 		{
 			T_RadiusDamage(self, real_attacker, static_cast<float>(self->dmg * 2), nullptr, self->dmg_radius, DAMAGE_ENERGY, MOD_UNKNOWN);
 		}

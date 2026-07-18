@@ -911,6 +911,13 @@ void G_SetStats(edict_t* ent)
 	// budget, independent of the scoreboard's/menu's svc_layout), so a long list
 	// can never truncate player names, spectator names, or menu text. Shown
 	// while the scoreboard or the horde upgrade menu is open.
+	//
+	// Crossplay: other players render this layout with their own stock
+	// client/cgame, not this DLL's cg_screen.cpp, so only native layout tokens
+	// (stat_string, loc_stat_cstring2, ...) can be used here - a custom token
+	// would simply never render for them, permanently, no matter what build
+	// they're on. Native tokens can't draw a left-aligned multi-line string
+	// from one stat, so this stays one stat+configstring per displayed line.
 	for (size_t i = 0; i < MAX_BONUS_HUD_LINES; ++i)
 		ent->client->ps.stats[STAT_BONUS_LINE_0 + i] = 0;
 

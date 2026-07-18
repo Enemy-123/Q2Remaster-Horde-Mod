@@ -114,6 +114,18 @@ constexpr int MIN_MONSTERS_AVAILABLE = 12; // Always have at least 12 monster ty
 
 // --- Asset Family System Implementation ---
 std::array<AssetFamilyID, 128> g_monster_to_family; // 128 = MAX_TYPES from horde_ids.h
+// Number of monster types sharing each family (e.g. Gladiator/Gladb/Gladc = 3). Populated
+// once alongside g_monster_to_family. Used to scale the anti-repeat systems below so a
+// multi-skin family isn't penalized harder than a single-skin one just for having more
+// reskins pulling toward the same "family used" bucket.
+static std::array<int32_t, static_cast<size_t>(AssetFamilyID::MAX_FAMILIES)> g_family_member_count{};
+static int32_t GetFamilyMemberCount(AssetFamilyID family)
+{
+	const size_t idx = static_cast<size_t>(family);
+	if (family == AssetFamilyID::UNKNOWN_FAMILY || idx >= g_family_member_count.size())
+		return 1;
+	return std::max<int32_t>(1, g_family_member_count[idx]);
+}
 // True engine-side configstring totals, refreshed by RecountPrecachedConfigstrings()
 int32_t g_total_precached_models = 0;
 int32_t g_total_precached_sounds = 0;
@@ -151,12 +163,12 @@ static constexpr std::array<AssetFamilyID, 6> CORE_FAMILIES = { {
 	AssetFamilyID::TANK_FAMILY,         // Core heavy benchmark
 } };
 
-static constexpr std::array<AssetFamilyID, 19> ROTATING_FAMILIES = { {
+static constexpr std::array<AssetFamilyID, 18> ROTATING_FAMILIES = { {
 		// Shifting these from Core to Rotating splits them up across maps:
 		AssetFamilyID::BERSERK_FAMILY,
 		AssetFamilyID::BRAIN_FAMILY,
 		AssetFamilyID::CHICK_FAMILY,
-		AssetFamilyID::HOVER_FAMILY,
+		AssetFamilyID::HOVER_FAMILY,        // includes Daedalus/Daedalus Bomber (Hover reskins)
 		AssetFamilyID::STALKER_FAMILY,
 		AssetFamilyID::GLADIATOR_FAMILY,
 		AssetFamilyID::MUTANT_FAMILY,
@@ -164,7 +176,6 @@ static constexpr std::array<AssetFamilyID, 19> ROTATING_FAMILIES = { {
 		// Original rotating pool elements:
 		AssetFamilyID::MEDIC_FAMILY,
 		AssetFamilyID::FLOATER_FAMILY,
-		AssetFamilyID::DAEDALUS_FAMILY,
 		AssetFamilyID::ARACHNID_FAMILY,
 		AssetFamilyID::FIXBOT_FAMILY,
 		AssetFamilyID::INSANE_FAMILY,
@@ -1814,6 +1825,9 @@ cvar_t* g_horde_far_spawn_chance;  // 0..1 chance a normal-wave pick prefers the
 cvar_t* g_horde_precache_max_models;  // soft cap on registered CS_MODELS entries; 0 = no cap
 cvar_t* g_horde_precache_max_sounds;  // soft cap on registered CS_SOUNDS entries; 0 = no cap
 cvar_t* g_horde_precache_limits_enabled;  // 1 = enforce precache budget + family variety cap (default); 0 = uncapped
+cvar_t* g_horde_original_m_health;  // 1 = non-boss monsters use vanilla original health/armor instead of the Lua-tuned values
+cvar_t* g_horde_original_m_damage;  // 1 = non-boss monsters use vanilla original weapon damage instead of the Lua-tuned values
+cvar_t* g_horde_original_p_damage;  // 1 = player weapons deal vanilla/PSX original damage instead of the Lua-tuned values
 
 // NOTE: horde_state_t enum and HordeState struct moved to g_horde.h
 
@@ -3909,12 +3923,20 @@ static float ApplyMonsterWeightModifiers(
 {
 	float weight = base_weight;
 
-	// Apply spawn history penalty
+	// Apply spawn history penalty. The threshold scales with family size: a batch's
+	// "dominant family" tally sums across every reskin (gladiator + gladb + gladc all
+	// feed the same GLADIATOR_FAMILY bucket), so a multi-skin family reaches any fixed
+	// threshold faster than a single-skin one purely by having more members competing
+	// for the same slots, not because it's actually overrepresented per-skin. Scaling
+	// the threshold by member count keeps the "don't repeat too much" intent while
+	// giving bigger families (more precache value per family slot) proportionally more
+	// headroom instead of going quiet as a whole the moment any two of their skins spawn.
 	AssetFamilyID monster_family = GetMonsterAssetFamily(monster_info->typeId);
 	if (monster_family != AssetFamilyID::UNKNOWN_FAMILY)
 	{
 		int32_t recent_spawn_count = GetFamilySpawnCountInHistory(monster_family);
-		if (recent_spawn_count >= 2)
+		int32_t suppression_threshold = 1 + GetFamilyMemberCount(monster_family);
+		if (recent_spawn_count >= suppression_threshold)
 			weight *= 0.3f;
 	}
 
@@ -4599,6 +4621,11 @@ void Horde_PreInit()
 	g_horde_precache_limits_enabled = gi.cvar("g_horde_precache_limits_enabled", "1", CVAR_NOFLAGS);
 	g_horde_force_fog_wave = gi.cvar("g_horde_force_fog_wave", "0", CVAR_NOFLAGS);
 	g_horde_force_domination = gi.cvar("g_horde_force_domination", "0", CVAR_NOFLAGS);
+	// Non-boss monsters fall back to sourced vanilla Quake2 stats instead of the horde-tuned
+	// Lua config. Monster types with no vanilla equivalent (or no sourced data) are unaffected.
+	g_horde_original_m_health = gi.cvar("g_horde_original_m_health", "0", CVAR_NOFLAGS);
+	g_horde_original_m_damage = gi.cvar("g_horde_original_m_damage", "0", CVAR_NOFLAGS);
+	g_horde_original_p_damage = gi.cvar("g_horde_original_p_damage", "0", CVAR_NOFLAGS);
 	pvm = gi.cvar("pvm", "0", CVAR_LATCH);
 	// gi.Com_Print("After starting a normal server type: starthorde to start a game.\n");
 
@@ -5206,9 +5233,11 @@ static void InitializeMonsterFamilyMapping()
 	g_monster_to_family[static_cast<size_t>(MonsterTypeID::TURRET)] = AssetFamilyID::TURRET_FAMILY;
 	g_monster_to_family[static_cast<size_t>(MonsterTypeID::SENTRYGUN)] = AssetFamilyID::TURRET_FAMILY;
 
-	// Daedalus family
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::DAEDALUS)] = AssetFamilyID::DAEDALUS_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::DAEDALUS_BOMBER)] = AssetFamilyID::DAEDALUS_FAMILY;
+	// Daedalus is a Hover reskin, not a separate model: SP_monster_daedalus[_bomber] in
+	// m_hover.cpp always loads "models/monsters/hover/tris.md2" regardless of type, so it
+	// belongs in HOVER_FAMILY (see matching fix in GetMonsterModelPath).
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::DAEDALUS)] = AssetFamilyID::HOVER_FAMILY;
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::DAEDALUS_BOMBER)] = AssetFamilyID::HOVER_FAMILY;
 
 	// Parasite family
 	g_monster_to_family[static_cast<size_t>(MonsterTypeID::PARASITE)] = AssetFamilyID::PARASITE_FAMILY;
@@ -5251,9 +5280,16 @@ static void InitializeMonsterFamilyMapping()
 	g_monster_to_family[static_cast<size_t>(MonsterTypeID::EASTERCHICK)] = AssetFamilyID::CHICK_FAMILY;
 	g_monster_to_family[static_cast<size_t>(MonsterTypeID::EASTERCHICK2)] = AssetFamilyID::CHICK_FAMILY;
 	g_monster_to_family[static_cast<size_t>(MonsterTypeID::FLYER)] = AssetFamilyID::FLYER_FAMILY;
+	// Kamikaze is a Flyer reskin, not a separate model: SP_monster_kamikaze (m_flyer.cpp)
+	// just tags the type then calls SP_monster_flyer, so it loads flyer/tris.md2 too.
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::KAMIKAZE)] = AssetFamilyID::FLYER_FAMILY;
 	g_monster_to_family[static_cast<size_t>(MonsterTypeID::HOVER)] = AssetFamilyID::HOVER_FAMILY;
 	g_monster_to_family[static_cast<size_t>(MonsterTypeID::HOVER_VANILLA)] = AssetFamilyID::HOVER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::FLIPPER)] = AssetFamilyID::HOVER_FAMILY;
+	// Flipper is its own model ("models/monsters/flipper/tris.md2", see m_flipper.cpp) with
+	// no relation to the hover model - it doesn't belong in HOVER_FAMILY. It's a map-placed
+	// one-off (not in monsterTypes[], never horde-spawned), so MISC_FAMILY fits like the
+	// other one-offs below (BigViper, Kamikaze, etc).
+	g_monster_to_family[static_cast<size_t>(MonsterTypeID::FLIPPER)] = AssetFamilyID::MISC_FAMILY;
 	g_monster_to_family[static_cast<size_t>(MonsterTypeID::MEDIC)] = AssetFamilyID::MEDIC_FAMILY;
 	g_monster_to_family[static_cast<size_t>(MonsterTypeID::MEDIC_COMMANDER)] = AssetFamilyID::MEDIC_FAMILY;
 	g_monster_to_family[static_cast<size_t>(MonsterTypeID::MUTANT)] = AssetFamilyID::MUTANT_FAMILY;
@@ -5268,7 +5304,13 @@ static void InitializeMonsterFamilyMapping()
 	// Misc/unknown
 	g_monster_to_family[static_cast<size_t>(MonsterTypeID::COMMANDER_BODY)] = AssetFamilyID::MISC_FAMILY;
 	g_monster_to_family[static_cast<size_t>(MonsterTypeID::BIGVIPER)] = AssetFamilyID::MISC_FAMILY;
-	g_monster_to_family[static_cast<size_t>(MonsterTypeID::KAMIKAZE)] = AssetFamilyID::MISC_FAMILY;
+
+	// Tally how many monster types share each family so the anti-repeat systems can scale
+	// their thresholds by family size (see g_family_member_count declaration).
+	g_family_member_count.fill(0);
+	for (const AssetFamilyID family : g_monster_to_family)
+		if (family != AssetFamilyID::UNKNOWN_FAMILY)
+			g_family_member_count[static_cast<size_t>(family)]++;
 }
 
 void Horde_Init()
@@ -10200,9 +10242,12 @@ static const char* GetMonsterModelPath(horde::MonsterTypeID typeId)
 	case horde::MonsterTypeID::REDMUTANT:
 		return "models/monsters/mutant/";
 
-		// Hovers share models
+		// Hovers share models. Daedalus/Daedalus Bomber are Hover reskins, not a separate
+		// model - SP_monster_daedalus[_bomber] (m_hover.cpp) always loads hover/tris.md2.
 	case horde::MonsterTypeID::HOVER:
 	case horde::MonsterTypeID::HOVER_VANILLA:
+	case horde::MonsterTypeID::DAEDALUS:
+	case horde::MonsterTypeID::DAEDALUS_BOMBER:
 		return "models/monsters/hover/";
 
 		// Infantry share models
@@ -10281,11 +10326,6 @@ static const char* GetMonsterModelPath(horde::MonsterTypeID typeId)
 	case horde::MonsterTypeID::MEDIC_COMMANDER:
 		return "models/monsters/medic/";
 
-		// Daedalus variants share models
-	case horde::MonsterTypeID::DAEDALUS:
-	case horde::MonsterTypeID::DAEDALUS_BOMBER:
-		return "models/monsters/daedalus/";
-
 		// Turret/Sentrygun share models
 	case horde::MonsterTypeID::TURRET:
 	case horde::MonsterTypeID::SENTRYGUN:
@@ -10297,9 +10337,13 @@ static const char* GetMonsterModelPath(horde::MonsterTypeID typeId)
 	case horde::MonsterTypeID::PARASITE:
 	case horde::MonsterTypeID::PERRO_KL:
 		return "models/monsters/parasite/";
+	case horde::MonsterTypeID::FLIPPER:
+		return "models/monsters/flipper/";
 	case horde::MonsterTypeID::BRAIN:
 		return "models/monsters/brain/";
+		// Kamikaze is a Flyer reskin (SP_monster_kamikaze just calls SP_monster_flyer)
 	case horde::MonsterTypeID::FLYER:
+	case horde::MonsterTypeID::KAMIKAZE:
 		return "models/monsters/flyer/";
 	case horde::MonsterTypeID::BERSERK:
 	case horde::MonsterTypeID::BERSERKERKL:
@@ -10474,6 +10518,7 @@ static void InitializeMonsterRotation()
 	struct ExcludableFamilyInfo {
 		AssetFamilyID family;
 		int32_t prev_map_usage; // How much this family was used in previous maps
+		float drop_score;       // prev_map_usage scaled down for bigger families (see below)
 	};
 	boost::container::small_vector<ExcludableFamilyInfo, 19> excludable_families;
 	for (const auto& family : ROTATING_FAMILIES) {
@@ -10482,14 +10527,24 @@ static void InitializeMonsterRotation()
 		// No back-to-back drops: a family benched last map is guaranteed back this map.
 		if (g_last_map_dropped_families.find(family) != g_last_map_dropped_families.end())
 			continue;
-		excludable_families.push_back({ family, GetFamilyUsageInPreviousMaps(family) });
+		const int32_t usage = GetFamilyUsageInPreviousMaps(family);
+		// A multi-skin family (e.g. Gladiator/Gladb/Gladc) racks up usage faster than a
+		// single-skin family purely because every reskin's spawns add to the same family
+		// tally, not because the family is actually overplayed per-skin. Dividing by
+		// member_count^2 both normalizes for that (member_count) and then actively
+		// prioritizes keeping bigger families in rotation (the second factor): they pack
+		// more variety per precache slot, so they're the ones we want dropped least.
+		const int32_t member_count = GetFamilyMemberCount(family);
+		const float drop_score = static_cast<float>(usage) / static_cast<float>(member_count * member_count);
+		excludable_families.push_back({ family, usage, drop_score });
 	}
 
-	// Prefer dropping families that were heavily used in previous maps (avoid repetition)
+	// Prefer dropping families that were heavily used in previous maps (avoid repetition),
+	// weighted so bigger families are less likely to be picked (see drop_score above).
 	std::sort(excludable_families.begin(), excludable_families.end(),
 		[](const ExcludableFamilyInfo& a, const ExcludableFamilyInfo& b) {
-			if (a.prev_map_usage != b.prev_map_usage)
-				return a.prev_map_usage > b.prev_map_usage;
+			if (a.drop_score != b.drop_score)
+				return a.drop_score > b.drop_score;
 			return a.family < b.family; // deterministic tie-break
 		});
 
@@ -10502,10 +10557,28 @@ static void InitializeMonsterRotation()
 		for (int i = 0; i < biased_count && i < static_cast<int>(excludable_families.size()); ++i)
 			dropped_families.insert(excludable_families[i].family);
 
-		const size_t drop_offset = (static_cast<size_t>(g_map_rotation_seed) * 7) % excludable_families.size();
-		for (int i = biased_count; i < to_drop; ++i) {
-			const size_t index = (drop_offset + static_cast<size_t>(i) * 3) % excludable_families.size();
-			dropped_families.insert(excludable_families[index].family);
+		// The seed-rotated portion picks independently of drop_score, so without weighting
+		// it would cheerfully bench a big multi-skin family (Gladiator, Hover) just as often
+		// as a single-skin one - undoing the size-scaling above. Build a pool where each
+		// family's index is repeated inversely to its member count (single-skin families get
+		// 4 entries, a 4-member family gets 1), then seed-rotate through that pool instead.
+		// This isn't immunity - big families can still be picked here - just proportionally
+		// rarer, consistent with the same "bigger family = more precache value, drop it less"
+		// principle as drop_score.
+		boost::container::small_vector<size_t, 64> seed_pool;
+		for (size_t idx = 0; idx < excludable_families.size(); ++idx) {
+			const int32_t member_count = GetFamilyMemberCount(excludable_families[idx].family);
+			const int repeats = std::max(1, 4 / member_count);
+			for (int r = 0; r < repeats; ++r)
+				seed_pool.push_back(idx);
+		}
+
+		if (!seed_pool.empty()) {
+			const size_t drop_offset = (static_cast<size_t>(g_map_rotation_seed) * 7) % seed_pool.size();
+			for (int i = biased_count; i < to_drop; ++i) {
+				const size_t pool_index = (drop_offset + static_cast<size_t>(i) * 3) % seed_pool.size();
+				dropped_families.insert(excludable_families[seed_pool[pool_index]].family);
+			}
 		}
 	}
 

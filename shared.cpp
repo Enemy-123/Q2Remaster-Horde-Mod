@@ -879,6 +879,13 @@ void ApplyPvMLevelScaling(edict_t* monster)
 
 	// Get monster type and classname
 	uint8_t type_id = monster->monsterinfo.monster_type_id;
+
+	// g_horde_original_m_health already set monster->health/armor to the sourced original value
+	// inside the SP_ spawn function (via GetMonsterScaledHealth). Don't let this level-scaling
+	// pass recompute it from the raw Lua config and stomp that back to the horde-tuned number.
+	if (g_horde_original_m_health && g_horde_original_m_health->integer && HasOriginalMonsterHealth(type_id))
+		return;
+
 	const char* classname = horde::MonsterTypeRegistry::GetClassname(static_cast<horde::MonsterTypeID>(type_id));
 	
 	if (!classname || strncmp(classname, "monster_", 8) != 0)

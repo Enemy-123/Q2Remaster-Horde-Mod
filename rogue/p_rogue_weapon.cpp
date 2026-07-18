@@ -207,7 +207,7 @@ void weapon_tracker_fire(edict_t* self)
 	int		 damage;
 	vec3_t	 mins, maxs;
 
-	damage = g_config.tracker.damage;
+	damage = GetPlayerTrackerDamage(g_config.tracker.damage);
 
 	if (is_quad)
 		damage *= damage_multiplier; // pgm
@@ -288,8 +288,8 @@ void weapon_etf_rifle_fire(edict_t* ent)
 	int	   i;
 	vec3_t offset;
 
-	int damage_min = g_config.etfrifle.damage_min;
-	int damage_max = g_config.etfrifle.damage_max;
+	int damage_min = GetPlayerETFRifleDamageMin(g_config.etfrifle.damage_min);
+	int damage_max = GetPlayerETFRifleDamageMax(g_config.etfrifle.damage_max);
 	if (damage_min > damage_max)
 	{
 		int tmp = damage_min;
@@ -436,9 +436,9 @@ void Heatbeam_Fire(edict_t* ent)
 	// for comparison, the hyperblaster is 15/20
 	// jim requested more damage, so try 15/15 --- PGM 07/23/98
 	if (G_IsDeathmatch())
-		damage = g_config.plasmabeam.damage;
+		damage = GetPlayerPlasmaBeamDamage(g_config.plasmabeam.damage);
 	else
-		damage = g_config.plasmabeam.damage_singleplayer;
+		damage = GetPlayerPlasmaBeamDamage(g_config.plasmabeam.damage_singleplayer);
 
 	if (G_IsDeathmatch()) // really knock 'em around in deathmatch
 		kick = g_config.plasmabeam.kick;

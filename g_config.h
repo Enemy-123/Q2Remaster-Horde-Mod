@@ -645,6 +645,12 @@ int GetScaledArmor(int base_armor, float armor_scale, int wave_level, bool is_bo
 int GetScaledPowerArmor(int base_power_armor, float power_armor_scale, int wave_level, bool is_boss);
 bool ShouldApplyMonsterWaveScaling(uint8_t monster_type_id);
 
+// True if this monster type has sourced original (vanilla/PSX) stats -- directly or derived
+// from a parent tier -- regardless of whether g_horde_original_m_health is currently on. Used
+// by ApplyPvMLevelScaling (shared.cpp) to avoid re-stomping health/armor that GetMonsterBaseHealth/
+// GetMonsterScaledHealth already set to the sourced original value.
+bool HasOriginalMonsterHealth(uint8_t monster_type_id);
+
 // Monster health/armor helpers (for macros)
 int GetMonsterBaseHealth(uint8_t monster_type_id);
 int GetMonsterScaledHealth(uint8_t monster_type_id, int wave_level, bool is_boss);
@@ -654,6 +660,41 @@ int GetMonsterBasePowerArmor(uint8_t monster_type_id);
 int GetMonsterScaledPowerArmor(uint8_t monster_type_id, int wave_level, bool is_boss);
 int32_t GetMonsterArmorType(uint8_t monster_type_id);
 int32_t GetMonsterPowerArmorType(uint8_t monster_type_id);
+
+// Original (vanilla/PSX) player weapon damage helpers - gated by g_horde_original_p_damage.
+// Each returns the sourced original value when the cvar is on, otherwise passes through
+// "current" (the currently-configured Lua-tuned g_config value) unchanged. Callers keep reading
+// g_config for everything else (upgrade addons, radii, ammo, etc.); these only ever replace the
+// base damage figure. Min/Max pairs exist for weapons this mod turned into a random-roll range;
+// most of those are a fixed single hit in the original game, so Min and Max resolve to the same
+// sourced value (Phalanx is the one weapon where the original really is a random range).
+int GetPlayerBlasterDamageMin(int current);
+int GetPlayerBlasterDamageMax(int current);
+int GetPlayerHyperblasterDamageMin(int current);
+int GetPlayerHyperblasterDamageMax(int current);
+int GetPlayerShotgunPelletDamageMin(int current);
+int GetPlayerShotgunPelletDamageMax(int current);
+int GetPlayerSuperShotgunPelletDamageMin(int current);
+int GetPlayerSuperShotgunPelletDamageMax(int current);
+int GetPlayerMachinegunDamageMin(int current);
+int GetPlayerMachinegunDamageMax(int current);
+int GetPlayerChaingunDamageMin(int current);
+int GetPlayerChaingunDamageMax(int current);
+int GetPlayerGrenadeDamage(int current);
+int GetPlayerGrenadeLauncherDamage(int current);  // only applies to the normal (non-napalm) round
+int GetPlayerRocketDamageMin(int current);
+int GetPlayerRocketDamageMax(int current);
+int GetPlayerRocketRadiusDamage(int current);  // splash damage amount, separate from the direct-hit roll above
+int GetPlayerRailgunDamage(int current);
+int GetPlayerBFGDamage(int current);
+int GetPlayerIonripperDamage(int current);
+int GetPlayerPhalanxDamageMin(int current);
+int GetPlayerPhalanxDamageMax(int current);
+int GetPlayerPhalanxRadiusDamage(int current);
+int GetPlayerTrackerDamage(int current);
+int GetPlayerETFRifleDamageMin(int current);
+int GetPlayerETFRifleDamageMax(int current);
+int GetPlayerPlasmaBeamDamage(int current);
 
 // Map config helper functions
 int32_t GetMonsterCapForMap(horde::MapID mapId, const struct horde::MapSize& mapSize);

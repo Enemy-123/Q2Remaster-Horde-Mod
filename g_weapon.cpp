@@ -2,6 +2,7 @@
 // Licensed under the GNU General Public License 2.0.
 #include "g_local.h"
 #include "memory_safety.h"
+#include "horde/g_horde.h"
 #include "horde/g_horde_benefits.h"
 #include <boost/container/small_vector.hpp>
 
@@ -833,7 +834,12 @@ TOUCH(blaster_unified_touch) (edict_t* self, edict_t* other, const trace_t& tr, 
 		T_Damage(other, self, self->owner, self->velocity, self->s.origin,
 			tr.plane.normal, self->dmg, 1, DAMAGE_ENERGY, mod);
 
-		if (self->bounce_count > 0 && self->dmg_radius > 0)
+		// Splash on impact is a horde-mode buff (bounce_count starts > 0 for every bolt, not
+		// just ones that actually bounced, so this fires on the very first hit too). Vanilla/PSX
+		// blaster and hyperblaster are pure single-target hits with no splash at all, so skip it
+		// when the original player damage cvar is active.
+		if (self->bounce_count > 0 && self->dmg_radius > 0 &&
+			!(g_horde_original_p_damage && g_horde_original_p_damage->integer))
 		{
 			T_RadiusDamage(self, self->owner, (float)self->dmg, self,
 				self->dmg_radius, DAMAGE_ENERGY, MOD_HYPERBLASTER);
