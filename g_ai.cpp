@@ -1202,7 +1202,7 @@ bool FindMTarget(edict_t* self) {
 
 	// --- THE OPTIMIZATION ---
 	// Get potential targets from the grid instead of iterating all active monsters.
-	const auto potential_targets = HordePhys::g_monster_grid.QueryRadius(self_origin, query_range);
+	const auto potential_targets = HordePhys::g_entity_grid.QueryRadiusFiltered(self_origin, query_range, HordePhys::EntityGrid::TYPE_COMBAT);
 
 	// --- Iterate Through POTENTIAL Monsters to Find a Better Target ---
 	for (auto ent : potential_targets) { // <<<< KEY CHANGE HERE
@@ -1667,8 +1667,7 @@ bool FindEnhancedTarget(edict_t* self) {
     float best_dist_sq = MAX_RANGE_SQUARED;
 
     // --- THE OPTIMIZATION ---
-    // Use the correct grid name: g_monster_grid
-    const auto potential_targets = HordePhys::g_monster_grid.QueryRadius(self->s.origin, MAX_RANGE);
+    const auto potential_targets = HordePhys::g_entity_grid.QueryRadiusFiltered(self->s.origin, MAX_RANGE, HordePhys::EntityGrid::TYPE_COMBAT);
 
     // Loop through the much smaller list of potential targets
     for (auto ent : potential_targets)

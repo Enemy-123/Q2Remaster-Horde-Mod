@@ -101,7 +101,7 @@ contents_t G_GetClipMask(edict_t* ent)
         }
 
         // --- THE CORE OPTIMIZATION ---
-        const auto& potential_colliders = HordePhys::g_monster_grid.GetPotentialColliders(ent);
+        const auto& potential_colliders = HordePhys::g_entity_grid.GetPotentialCollidersFiltered(ent, HordePhys::EntityGrid::TYPE_COMBAT);
         bool potential_teammate_collision = false;
 
         for (auto* other : potential_colliders)

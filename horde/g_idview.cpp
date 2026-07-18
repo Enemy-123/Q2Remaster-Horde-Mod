@@ -331,7 +331,7 @@ static inline void CheckEntityForTargeting(edict_t* viewer, const vec3_t& viewer
 
     // 2. Monsters: Use spatial grid for O(1) radius query instead of O(N) linear scan
     //    Only checks monsters within MAX_DISTANCE, reducing wasted checks
-    const auto nearby_monsters = HordePhys::g_monster_grid.QueryRadius(viewer_pos, IDViewConfig::MAX_DISTANCE);
+    const auto nearby_monsters = HordePhys::g_entity_grid.QueryRadiusFiltered(viewer_pos, IDViewConfig::MAX_DISTANCE, HordePhys::EntityGrid::TYPE_COMBAT);
     for (edict_t* who : nearby_monsters) {
         CheckEntityForTargeting(ent, viewer_pos, forward, who, best);
     }

@@ -1293,7 +1293,6 @@ static void UpdateProximityGrids()
         world_mins -= vec3_t{512, 512, 512};
         world_maxs += vec3_t{512, 512, 512};
 
-        HordePhys::g_monster_grid.Build(world_mins, world_maxs);
         HordePhys::g_entity_grid.Build(world_mins, world_maxs);
         last_map_for_grid = level.mapname;
     }
@@ -1301,21 +1300,17 @@ static void UpdateProximityGrids()
     // The per-frame update is very fast. It clears the previous
     // frame's data and then uses the efficient iterators to add only the
     // relevant entities (monsters, players, projectiles) to the grid.
-    HordePhys::g_monster_grid.Reset();
     HordePhys::g_entity_grid.Reset();
 
     for (auto* monster : active_monsters()) {
-        HordePhys::g_monster_grid.Add(monster);
         HordePhys::g_entity_grid.AddEntity(monster);
     }
     for (auto *player : active_players_no_spect()) {
         if (player && player->inuse && player->health > 0 && !EntIsSpectating(player)) {
-            HordePhys::g_monster_grid.Add(player);
             HordePhys::g_entity_grid.AddEntity(player);
         }
     }
     for (auto* proj : active_projectiles()) {
-        HordePhys::g_monster_grid.Add(proj);
         HordePhys::g_entity_grid.AddEntity(proj);
     }
 
@@ -1342,7 +1337,7 @@ static void UpdateProximityGrids()
     }
 
     if (developer->integer >= 2) {
-       HordePhys::g_monster_grid.DebugDraw();
+       HordePhys::g_entity_grid.DebugDraw();
     }
 }
 

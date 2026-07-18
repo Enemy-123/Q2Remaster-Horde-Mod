@@ -193,7 +193,7 @@ static void BrainFindTarget(edict_t* self) {
     float best_dist = BRAIN_TONGUE_RANGE;
 
     // Use the monster grid to find nearby entities efficiently
-    const auto nearby_entities = HordePhys::g_monster_grid.QueryRadius(self->s.origin, BRAIN_TONGUE_RANGE);
+    const auto nearby_entities = HordePhys::g_entity_grid.QueryRadiusFiltered(self->s.origin, BRAIN_TONGUE_RANGE, HordePhys::EntityGrid::TYPE_COMBAT);
 
     for (auto* target : nearby_entities) {
         if (!target || target == self)

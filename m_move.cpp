@@ -188,8 +188,8 @@ static vec3_t CalculateMonsterRepulsion(edict_t* ent)
 
 	// Use ProximityGrid for massive performance improvement over findradius
 	// This reduces complexity from O(n) to O(1) using spatial partitioning
-	std::span<edict_t* const> nearby_entities = HordePhys::g_monster_grid.IsBuilt()
-		? HordePhys::g_monster_grid.QueryRadius(ent->s.origin, search_radius)
+	std::span<edict_t* const> nearby_entities = HordePhys::g_entity_grid.IsBuilt()
+		? HordePhys::g_entity_grid.QueryRadiusFiltered(ent->s.origin, search_radius, HordePhys::EntityGrid::TYPE_COMBAT)
 		: std::span<edict_t* const>{};
 
 	for (edict_t* other : nearby_entities)
@@ -1225,8 +1225,8 @@ static bool M_StepHitsOpposedMonster(edict_t* ent, const vec3_t& candidate_origi
 	// Radius generous enough that a neighbor whose box could intersect ours is returned.
 	const float ent_width = std::max(ent->maxs[0] - ent->mins[0], ent->maxs[1] - ent->mins[1]);
 	const float search_radius = std::max(ent_width, 64.f) + 64.f;
-	std::span<edict_t* const> nearby = HordePhys::g_monster_grid.IsBuilt()
-		? HordePhys::g_monster_grid.QueryRadius(candidate_origin, search_radius)
+	std::span<edict_t* const> nearby = HordePhys::g_entity_grid.IsBuilt()
+		? HordePhys::g_entity_grid.QueryRadiusFiltered(candidate_origin, search_radius, HordePhys::EntityGrid::TYPE_COMBAT)
 		: std::span<edict_t* const>{};
 
 	for (edict_t* other : nearby)

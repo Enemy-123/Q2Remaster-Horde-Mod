@@ -134,7 +134,7 @@ void barrel_burn_damage(edict_t* self)
     const float damage_this_frame = BURN_DAMAGE_PER_SEC * gi.frame_time_s;
 
     // Find nearby entities
-    const auto nearby_entities = HordePhys::g_monster_grid.QueryRadius(self->s.origin, BURN_DAMAGE_RADIUS);
+    const auto nearby_entities = HordePhys::g_entity_grid.QueryRadiusFiltered(self->s.origin, BURN_DAMAGE_RADIUS, HordePhys::EntityGrid::TYPE_COMBAT);
 
     int monsters_damaged = 0;
 
@@ -283,8 +283,10 @@ void barrel_chain_explosions(edict_t* self)
     if (!self || !self->inuse)
         return;
 
-    // Find nearby barrels for chain reaction
-    const auto nearby_entities = HordePhys::g_monster_grid.QueryRadius(self->s.origin, BARREL_CHAIN_EXPLOSION_RADIUS);
+    // Find nearby barrels for chain reaction. Barrels aren't monsters/players/projectiles,
+    // so they only live in g_entity_grid - query it unfiltered (TYPE_ALL) rather than the
+    // TYPE_COMBAT mask used elsewhere, otherwise no barrel would ever match.
+    const auto nearby_entities = HordePhys::g_entity_grid.QueryRadiusFiltered(self->s.origin, BARREL_CHAIN_EXPLOSION_RADIUS, HordePhys::EntityGrid::TYPE_ALL);
 
     for (auto* ent : nearby_entities)
     {

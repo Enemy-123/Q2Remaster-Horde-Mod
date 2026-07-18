@@ -333,7 +333,7 @@ void tesla_chain_lightning(edict_t *self, const tesla_target *tesla_victims, int
 			continue;
 
 		// Query around each victim so chain lightning can extend beyond tesla base radius.
-		const auto chain_targets = HordePhys::g_monster_grid.QueryRadius(victim->s.origin, CHAIN_LIGHTNING_RANGE);
+		const auto chain_targets = HordePhys::g_entity_grid.QueryRadiusFiltered(victim->s.origin, CHAIN_LIGHTNING_RANGE, HordePhys::EntityGrid::TYPE_COMBAT);
 		int chains_from_this_victim = 0;
 		const float max_chain_range_squared = CHAIN_LIGHTNING_RANGE * CHAIN_LIGHTNING_RANGE;
 
@@ -442,7 +442,7 @@ THINK(tesla_think_active)(edict_t* self)->void
 
 	// --- THE OPTIMIZATION: Use the Grid instead of a linear scan ---
 	// Get a pre-filtered list of nearby entities (monsters, players, projectiles) from the grid.
-	const auto nearby_entities = HordePhys::g_monster_grid.QueryRadius(self->s.origin, TESLA_SEARCH_RADIUS);
+	const auto nearby_entities = HordePhys::g_entity_grid.QueryRadiusFiltered(self->s.origin, TESLA_SEARCH_RADIUS, HordePhys::EntityGrid::TYPE_COMBAT);
 
 	for (auto* ent : nearby_entities)
 	{

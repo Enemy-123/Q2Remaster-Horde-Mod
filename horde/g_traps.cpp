@@ -427,7 +427,7 @@ void FindTrapTargets(edict_t* ent, trap_state_t* trap_state) {
     // Reset target count for this frame
     trap_state->num_targets = 0;
 
-    const auto nearby_entities = HordePhys::g_monster_grid.QueryRadius(ent->s.origin, TRAP_RADIUS());
+    const auto nearby_entities = HordePhys::g_entity_grid.QueryRadiusFiltered(ent->s.origin, TRAP_RADIUS(), HordePhys::EntityGrid::TYPE_COMBAT);
 
     for (auto* target : nearby_entities)
     {

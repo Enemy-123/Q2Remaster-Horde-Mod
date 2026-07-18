@@ -1377,7 +1377,7 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, fl
 	}
 
 	// Then check for monsters using the monster grid (more efficient)
-	auto monsters = HordePhys::g_monster_grid.QueryRadius(center, search_radius);
+	auto monsters = HordePhys::g_entity_grid.QueryRadiusFiltered(center, search_radius, HordePhys::EntityGrid::TYPE_COMBAT);
 	for (edict_t* monster : monsters) {
 		if (!monster || !monster->inuse ||
 			gi.traceline(center, monster->s.origin, nullptr, MASK_SOLID).fraction < 1.0f) {

@@ -13,6 +13,7 @@ BERSERK
 #include "shared.h"
 #include "monster_constants.h"
 #include "horde/g_horde.h"   // current_wave_type, HasWaveType, MonsterWaveType
+#include "horde/g_horde_phys.h" // HordePhys::g_entity_grid
 
 constexpr spawnflags_t SPAWNFLAG_BERSERK_NOJUMPING = 8_spawnflag;
 
@@ -669,8 +670,12 @@ void berserk_zap_enemies(edict_t* self)
 	const vec3_t chain_visual_origin = primary ? (primary->absmin + primary->absmax) * 0.5f : hand_origin;
 	int targets_hit = primary ? 1 : 0;
 
-	edict_t* target = nullptr;
-	while ((target = findradius(target, self->s.origin, BERSERK_ZAP_RADIUS)) != nullptr)
+	// Use the spatial grid instead of a linear findradius scan of every edict in
+	// the level - with many berserks zapping every ~0.1s in a large horde wave,
+	// an O(num_edicts) scan per zap adds up fast. Mirrors g_tesla.cpp's chain
+	// lightning target search.
+	const auto nearby_entities = HordePhys::g_entity_grid.QueryRadiusFiltered(self->s.origin, BERSERK_ZAP_RADIUS, HordePhys::EntityGrid::TYPE_COMBAT);
+	for (auto* target : nearby_entities)
 	{
 		if (targets_hit >= BERSERK_ZAP_MAX_TARGETS)
 			break;

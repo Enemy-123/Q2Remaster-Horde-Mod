@@ -5615,7 +5615,6 @@ void ResetGame()
 	// --- FIX: Clear memory leak sources ---
 	LaserPool_Clear();  // FIX: Clear BFG laser pool to prevent dangling entity pointers
 	Profiler_Reset();  // FIX: Clear profiling data to prevent unbounded memory growth
-	HordePhys::g_monster_grid.Reset();  // FIX: Clear monster proximity grid to prevent stale entity references
 	HordePhys::g_entity_grid.Reset();  // FIX: Clear general entity grid to prevent stale entity references
 	HordePhys::g_spawn_grid.Clear();  // FIX: Clear spawn position grid to free cached spawn nodes
 

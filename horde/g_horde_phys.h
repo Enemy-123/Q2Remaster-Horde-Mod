@@ -13,7 +13,7 @@ namespace HordePhys {
 
     // Per-entity grid tracking data (stored here instead of on edict_t to reduce entity footprint)
     struct EntityGridTracking {
-        int8_t cells[4] = {-1, -1, -1, -1};
+        int16_t cells[4] = {-1, -1, -1, -1};
         uint8_t cell_count = 0;
     };
 
@@ -86,8 +86,6 @@ namespace HordePhys {
         std::span<edict_t* const> QueryCellRange(int min_x, int max_x, int min_y, int max_y, FilterFunc&& filter);
     };;
 
-    extern ProximityGrid g_monster_grid;
-
     // General entity grid for all entity types (not just monsters)
     class EntityGrid : public ProximityGrid {
     public:
@@ -96,6 +94,9 @@ namespace HordePhys {
 
         // Query entities by type flags
         std::span<edict_t* const> QueryRadiusFiltered(const vec3_t& origin, const float radius, const uint32_t type_mask = 0xFFFFFFFF);
+
+        // Same as GetPotentialColliders, but restricted to entity types matching type_mask
+        std::span<edict_t* const> GetPotentialCollidersFiltered(edict_t* ent, const uint32_t type_mask);
 
         // Update entity position (for moving entities)
         void UpdateEntity(edict_t* ent);
@@ -107,7 +108,10 @@ namespace HordePhys {
             TYPE_ITEMS      = 1 << 2,
             TYPE_PROJECTILES = 1 << 3,
             TYPE_TRIGGERS   = 1 << 4,
-            TYPE_ALL        = 0xFFFFFFFF
+            TYPE_ALL        = 0xFFFFFFFF,
+            // Combatants only: what the old, now-removed g_monster_grid held
+            // (monsters + players + projectiles, but not barrels/breakables/items).
+            TYPE_COMBAT     = TYPE_PLAYERS | TYPE_MONSTERS | TYPE_PROJECTILES
         };
 
         // Get/set cached entity type (stored here instead of on edict_t)

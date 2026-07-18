@@ -43,7 +43,6 @@ namespace HordePhys
         #endif
     }
 
-    ProximityGrid g_monster_grid;
     EntityGrid g_entity_grid;
     SpawnGrid g_spawn_grid;
 
@@ -180,13 +179,13 @@ namespace HordePhys
         // Add to min cell and track it
         if (min_idx != -1) {
             m_cells[static_cast<size_t>(min_idx)].add(ent);
-            tracking.cells[tracking.cell_count++] = static_cast<int8_t>(min_idx);
+            tracking.cells[tracking.cell_count++] = static_cast<int16_t>(min_idx);
         }
 
         // Add to max cell if different and track it
         if (max_idx != -1 && max_idx != min_idx) {
             m_cells[static_cast<size_t>(max_idx)].add(ent);
-            tracking.cells[tracking.cell_count++] = static_cast<int8_t>(max_idx);
+            tracking.cells[tracking.cell_count++] = static_cast<int16_t>(max_idx);
         }
     }
 
@@ -200,7 +199,7 @@ namespace HordePhys
         auto& tracking = GetTracking(ent);
         for (uint8_t i = 0; i < tracking.cell_count; ++i)
         {
-            int8_t cell_idx = tracking.cells[i];
+            int16_t cell_idx = tracking.cells[i];
             if (cell_idx < 0 || cell_idx >= CELL_COUNT)
                 continue;
 
@@ -419,6 +418,29 @@ void ProximityGrid::Reset()
 
         // Use parent class Add method
         Add(ent);
+    }
+
+    std::span<edict_t* const> EntityGrid::GetPotentialCollidersFiltered(edict_t* ent, const uint32_t type_mask) {
+        if (!IsBuilt() || !ent) {
+            return {};
+        }
+
+        auto all_colliders = GetPotentialColliders(ent);
+
+        if (type_mask == TYPE_ALL) {
+            return all_colliders;
+        }
+
+        size_t filtered_count = 0;
+        for (edict_t* other : all_colliders) {
+            if (filtered_count >= m_filtered_buffer.size()) break;
+
+            if (m_cached_types[other->s.number] & type_mask) {
+                m_filtered_buffer[filtered_count++] = other;
+            }
+        }
+
+        return { m_filtered_buffer.data(), filtered_count };
     }
 
     void EntityGrid::UpdateEntity(edict_t* ent) {
