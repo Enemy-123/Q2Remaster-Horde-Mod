@@ -220,37 +220,67 @@ THINK(DoRespawn) (edict_t* ent) -> void
 		}
 		else
 		{
-			// Count the number of spawn points in the team chain, starting from the master.
+			// Count team members whose own wave-lock (if any) has already cleared. A team chain
+			// mixes weapons of every unlock tier on the same pad (e.g. machinegun/railgun/BFG all
+			// sharing one spawn group), so picking blindly from the whole chain can reveal a
+			// still-locked teammate the moment any other member of the group becomes available.
 			int count = 0;
 			for (edict_t* current = master; current; current = current->chain) {
-				count++;
+				if (!IsHordeWaveManagedItemLocked(current))
+					count++;
 			}
 
 			if (count > 0)
 			{
 				int choice = irandom(count); // irandom(N) returns 0 to N-1
 
-				// Find the chosen entity to respawn.
+				// Find the chosen entity to respawn among the unlocked members.
 				edict_t* chosen_ent = master;
-				for (int i = 0; i < choice; i++) {
-					// This check prevents a crash if the chain is broken unexpectedly.
-					if (!chosen_ent->chain) {
+				int seen = 0;
+				for (edict_t* current = master; current; current = current->chain) {
+					if (IsHordeWaveManagedItemLocked(current))
+						continue;
+					if (seen == choice) {
+						chosen_ent = current;
 						break;
 					}
-					chosen_ent = chosen_ent->chain;
+					seen++;
 				}
 				ent = chosen_ent; // This is the entity we will actually respawn.
 			}
 			else
 			{
-				// Fallback to the master if the chain was empty for some reason.
-				ent = master;
+				// Every member of the chain is still wave-locked: hide via the master and
+				// retry shortly so a later wave can reroll once something unlocks.
+				master->timestamp = 0_sec;
+				master->flags |= FL_RESPAWN;
+				master->svflags |= (SVF_NOCLIENT | SVF_RESPAWNING);
+				master->solid = SOLID_NOT;
+				gi.linkentity(master);
+				master->nextthink = level.time + 1_sec;
+				master->think = DoRespawn;
+				return;
 			}
 		}
 	}
 
 	// After the logic above, 'ent' MUST point to a valid entity to respawn.
 	if (!ent) {
+		return;
+	}
+
+	// Safety net: the team branch above already filters to unlocked members, except the CTF
+	// weapons-stay path which reassigns ent = master unconditionally. Re-check whatever 'ent'
+	// ended up as so that path (or any future one) can't reveal a still-locked item.
+	if (IsHordeWaveManagedItemLocked(ent))
+	{
+		ent->timestamp = 0_sec;
+		ent->flags |= FL_RESPAWN;
+		ent->svflags |= (SVF_NOCLIENT | SVF_RESPAWNING);
+		ent->solid = SOLID_NOT;
+		gi.linkentity(ent);
+		ent->nextthink = level.time + 1_sec;
+		ent->think = DoRespawn;
 		return;
 	}
 
