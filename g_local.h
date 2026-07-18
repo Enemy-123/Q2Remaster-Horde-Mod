@@ -3463,6 +3463,7 @@ struct client_persistant_t
 	bool	 id_state;
 	bool	 iddmg_state;
 	sentrytype_t sentry_gun_choice; // Player's preferred sentry type (default SENTRY_RANDOM)
+	char dogtag[MAX_INFO_VALUE] = { 0 }; // client-chosen "dogtag" userinfo value, captured even in teamplay/horde
 	int adrenaline_count = 0;
 
 	bool received_late_join_ammo = false; // Track if player received late-join ammo (only given once) // DOESNT WORK YET
@@ -3504,6 +3505,7 @@ struct client_respawn_t
 	client_persistant_t coop_respawn; // what to set client->pers to on a respawn
 	gtime_t				entertime;	  // level.time the client entered the game
 	int32_t				score;		  // frags, etc
+	int32_t				deaths;		  // times this client has died this game
 	vec3_t				cmd_angles;	  // angles sent over in the last command
 
 	int max_health; // Agrega este miembro si no está presente

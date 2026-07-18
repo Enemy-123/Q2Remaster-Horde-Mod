@@ -6825,6 +6825,25 @@ static std::string SanitizeLayoutText(std::string_view text) {
 	return out;
 }
 
+/**
+ * IsValidDogtagName
+ * The "picn" layout token is unquoted, so unlike string "..." tokens it can't
+ * be made safe by stripping a few characters -- any whitespace/newline in a
+ * player-supplied dogtag would split into extra unintended layout tokens.
+ * Only allow the plain [A-Za-z0-9_]{1,32} filenames used by real dogtag
+ * assets (see deploy/bots/characters.txt for examples like "etqw_strogg").
+ */
+static bool IsValidDogtagName(std::string_view text) {
+	if (text.empty() || text.size() > 32)
+		return false;
+	for (unsigned char c : text) {
+		const bool is_alnum = (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
+		if (!is_alnum && c != '_')
+			return false;
+	}
+	return true;
+}
+
 
 /**
  * PlayerScore
@@ -6833,6 +6852,7 @@ static std::string SanitizeLayoutText(std::string_view text) {
 struct PlayerScore {
 	unsigned int index;
 	int score;
+	int deaths;
 	int ping;
 	bool is_dead;
 
@@ -6872,6 +6892,7 @@ public:
 			PlayerScore player = {
 				i,
 				cl->resp.score,
+				cl->resp.deaths,
 				std::clamp(cl->ping, 0, 999),
 				(cl_ent->deadflag != 0)  // Using deadflag to determine if player is dead
 			};
@@ -6923,8 +6944,18 @@ public:
 
 		void addTeamScore()
 	{
-		const char *horde_dogtag_path = "/tags/etqw_strogg.png";
-		// Display Strogg team icon
+		// Default to the classic Strogg icon; if the host player (client slot 0,
+		// same convention as the "is_host" checks elsewhere in this file) has
+		// picked their own dogtag, show that instead.
+		std::string horde_dogtag_path = "/tags/etqw_strogg.png";
+		const edict_t *host_ent = g_edicts + 1;
+		if (host_ent->inuse && host_ent->client) {
+			const std::string_view host_dogtag = host_ent->client->pers.dogtag;
+			if (IsValidDogtagName(host_dogtag))
+				horde_dogtag_path = fmt::format("/tags/{}.png", host_dogtag);
+		}
+
+		// Display team icon
 		const std::string icon_line = fmt::format(
 			"xv -140 yv 3 picn {} \n", horde_dogtag_path);
 		if (!layout_builder.append_checked(icon_line, LAYOUT_SAFETY_MARGIN))
@@ -6946,7 +6977,7 @@ public:
 				if (g_vortex->integer)
 		{
 			const std::string header_line = fmt::format(
-				"yv {} xv -140 string2 \"Name\" xv 70 string2 \"Score\" xv 120 string2 \"Lv\" xv 160 string2 \"Ping\" \n",
+				"yv {} xv -140 string2 \"Name\" xv 70 string2 \"Score\" xv 120 string2 \"Lv\" xv 160 string2 \"Ping\" xv 205 string2 \"Deaths\" \n",
 				header_y);
 			if (!layout_builder.append_checked(header_line, LAYOUT_SAFETY_MARGIN))
 				return;
@@ -6954,7 +6985,7 @@ public:
 		else
 		{
 			const std::string header_line = fmt::format(
-				"yv {} xv -140 string2 \"Name\" xv 70 string2 \"Score\" xv 120 string2 \"Ping\" \n",
+				"yv {} xv -140 string2 \"Name\" xv 70 string2 \"Score\" xv 120 string2 \"Ping\" xv 160 string2 \"Deaths\" \n",
 				header_y);
 			if (!layout_builder.append_checked(header_line, LAYOUT_SAFETY_MARGIN))
 				return;
@@ -6990,6 +7021,13 @@ public:
 					truncated = true;
 					break;
 				}
+
+				// Deaths column lines up under the "Deaths" header, which sits
+				// further right in vortex mode to avoid the Lv/Ping labels.
+				const int deaths_x = g_vortex->integer ? 205 : 160;
+				const std::string deaths_line = fmt::format(
+					"xv {} yv {} string \"{}\" \n", deaths_x, y, player.deaths);
+				(void)layout_builder.append_checked(deaths_line, LAYOUT_SAFETY_MARGIN);
 		}
 		if (truncated) {
 			const int y = PLAYER_Y_START + static_cast<int>(std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY)) * PLAYER_Y_SPACING;

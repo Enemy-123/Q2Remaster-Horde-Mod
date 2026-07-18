@@ -682,6 +682,8 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 		self->client->ps.pmove.pm_type = PM_DEAD;
 		ClientObituary(self, inflictor, attacker, mod);
 
+		self->client->resp.deaths++;
+
 		CTFFragBonuses(self, inflictor, attacker);
 		// Kyper - Lithium Port
 		Hook_PlayerDie(attacker, self);
@@ -3480,16 +3482,19 @@ void ClientUserinfoChanged(edict_t* ent, const char* userinfo)
 
 	int const playernum = ent - g_edicts - 1;
 
+	// set dogtag (captured regardless of teamplay so horde/CTF can still know
+	// what the client picked, even though CTFAssignSkin below discards it from
+	// the CS_PLAYERSKINS configstring in that mode)
+	char dogtag[MAX_INFO_VALUE] = { 0 };
+	gi.Info_ValueForKey(userinfo, "dogtag", dogtag, sizeof(dogtag));
+	Q_strlcpy(ent->client->pers.dogtag, dogtag, sizeof(ent->client->pers.dogtag));
+
 	// combine name and skin into a configstring
 	// ZOID
 	if (G_TeamplayEnabled())
 		CTFAssignSkin(ent, val);
 	else
 	{
-		// set dogtag
-		char dogtag[MAX_INFO_VALUE] = { 0 };
-		gi.Info_ValueForKey(userinfo, "dogtag", dogtag, sizeof(dogtag));
-
 		// ZOID
 		gi.configstring(CS_PLAYERSKINS + playernum, G_Fmt("{}\\{}\\{}", ent->client->pers.netname, val, dogtag).data());
 	}
