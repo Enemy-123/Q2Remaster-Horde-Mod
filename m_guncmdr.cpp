@@ -1765,13 +1765,6 @@ void SP_monster_guncmdr_vanilla(edict_t* self)
 	if (self->style < 0 || self->style > 2)
 		self->style = GUNCMDR_STYLE_NORMAL;
 
-	// Sonido de búsqueda aleatorio en modo horde
-	if (g_horde->integer) {
-		float const randomsearch = frandom();
-		if (randomsearch < 0.23f)
-			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
-	}
-
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;
@@ -1859,6 +1852,15 @@ void SP_monster_guncmdr_vanilla(edict_t* self)
 	self->monsterinfo.sight = guncmdr_sight;
 	self->monsterinfo.search = guncmdr_search;
 	self->monsterinfo.setskin = guncmdr_setskin;
+
+	// Horde mode specific: spawn-time taunt bark. Non-boss cosmetic extra - skipped
+	// once the connecting-client precache budget is enforced (g_horde_precache_limits_enabled).
+	// Boss style (GUNCMDR_STYLE_BOSS/GUNCMDRKL, see IS_BOSS branch above) is left untouched.
+	if (g_horde->integer && !self->monsterinfo.IS_BOSS &&
+		(!g_horde_precache_limits_enabled || !g_horde_precache_limits_enabled->integer)) {
+		if (frandom() < 0.23f)
+			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
+	}
 
 	gi.linkentity(self);
 

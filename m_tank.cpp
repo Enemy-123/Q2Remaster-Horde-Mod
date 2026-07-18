@@ -3047,8 +3047,6 @@ void SP_monster_tank(edict_t* self)
 	// Set a default ID if one hasn't been set by a more specific spawner.
 	if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) {
 		self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::TANK);
-}	if (g_horde->integer && brandom()) {
-		gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_NORM, 0);
 	}
 
 	if (!M_AllowSpawn(self)) {
@@ -3175,6 +3173,16 @@ void SP_monster_tank(edict_t* self)
 	self->monsterinfo.idle = tank_idle;
 	self->monsterinfo.blocked = tank_blocked;
 	self->monsterinfo.setskin = tank_setskin;
+
+	// Horde mode specific: spawn-time taunt bark. Non-boss cosmetic extra - skipped
+	// once the connecting-client precache budget is enforced (g_horde_precache_limits_enabled).
+	// TANK_COMMANDER shares this function (SP_monster_tank_commander calls SP_monster_tank)
+	// and can be a mini-boss - its IS_BOSS branch is left unconditional/untouched.
+	if (g_horde->integer && brandom() &&
+		(self->monsterinfo.IS_BOSS ||
+			!g_horde_precache_limits_enabled || !g_horde_precache_limits_enabled->integer)) {
+		gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_NORM, 0);
+	}
 
 	gi.linkentity(self);
 	M_SetAnimation(self, &tank_move_stand);

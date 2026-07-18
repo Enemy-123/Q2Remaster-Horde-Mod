@@ -559,14 +559,7 @@ void SP_monster_gladiator(edict_t* self)
 
 	if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
 		self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GLADIATOR);
-	}	if (g_horde->integer && current_wave_level <= 18)
-	{
-		const float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
-
-		if (randomsearch < 0.23f)
-			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
 	}
-
 
 	// Sound assignments
 	sound_pain1.assign("gladiator/pain.wav");
@@ -680,8 +673,10 @@ void SP_monster_gladiator(edict_t* self)
 	self->monsterinfo.blocked = gladiator_blocked;
 	self->monsterinfo.setskin = gladiator_setskin;
 
-	// Horde mode specific
-	if (g_horde->integer && current_wave_level <= 18) {
+	// Horde mode specific: spawn-time taunt bark. Non-boss cosmetic extra - skipped
+	// once the connecting-client precache budget is enforced (g_horde_precache_limits_enabled).
+	if (g_horde->integer && current_wave_level <= 18 &&
+		(!g_horde_precache_limits_enabled || !g_horde_precache_limits_enabled->integer)) {
 		if (frandom() < 0.23f)
 			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
 	}

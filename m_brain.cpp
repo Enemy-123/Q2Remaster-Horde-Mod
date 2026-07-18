@@ -1207,13 +1207,6 @@ void SP_monster_brain(edict_t* self)
 
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BRAIN);
 
-	if (g_horde->integer) {
-		{
-			if (brandom())
-				gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
-		}
-	}
-
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;
@@ -1282,6 +1275,14 @@ void SP_monster_brain(edict_t* self)
 	self->monsterinfo.idle = brain_idle;
 	self->monsterinfo.setskin = brain_setskin;
 	self->monsterinfo.blocked = brain_blocked; // PGM
+
+	// Horde mode specific: spawn-time taunt bark. Non-boss cosmetic extra - skipped
+	// once the connecting-client precache budget is enforced (g_horde_precache_limits_enabled).
+	if (g_horde->integer &&
+		(!g_horde_precache_limits_enabled || !g_horde_precache_limits_enabled->integer)) {
+		if (brandom())
+			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
+	}
 
 	gi.linkentity(self);
 

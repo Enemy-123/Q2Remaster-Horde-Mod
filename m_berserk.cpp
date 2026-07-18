@@ -1172,18 +1172,6 @@ void SP_monster_berserk(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
-	if (g_horde->integer && current_wave_level <= 18) {
-		const float randomChance = frandom();
-
-		if (randomChance < 0.12f) {
-			gi.sound(self, CHAN_VOICE, sound_idle2, 1, ATTN_NORM, 0);
-		}
-		else if (randomChance < 0.24f) {
-			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
-		}
-		// No need for else clause if we're not doing anything
-	}
-
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;
@@ -1270,6 +1258,21 @@ void SP_monster_berserk(edict_t* self)
 	self->monsterinfo.drop_height = 256;
 	// HORDE MOD: Increased jump height from 40 to 52 (30% increase) for better obstacle navigation
 	self->monsterinfo.jump_height = 52;
+
+	// Horde mode specific: spawn-time taunt bark. Non-boss cosmetic extra - skipped
+	// once the connecting-client precache budget is enforced (g_horde_precache_limits_enabled).
+	if (g_horde->integer && current_wave_level <= 18 &&
+		(!g_horde_precache_limits_enabled || !g_horde_precache_limits_enabled->integer)) {
+		const float randomChance = frandom();
+
+		if (randomChance < 0.12f) {
+			gi.sound(self, CHAN_VOICE, sound_idle2, 1, ATTN_NORM, 0);
+		}
+		else if (randomChance < 0.24f) {
+			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
+		}
+		// No need for else clause if we're not doing anything
+	}
 
 	gi.linkentity(self);
 

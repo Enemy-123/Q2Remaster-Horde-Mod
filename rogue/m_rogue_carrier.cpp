@@ -1319,13 +1319,7 @@ void SP_monster_carrier(edict_t* self)
 
 		if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) {
 		self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::CARRIER);
-}	if (g_horde->integer) {
-		{
-			if (brandom())
-				gi.sound(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
-		}
-
-	}
+}
 
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
@@ -1413,6 +1407,19 @@ void SP_monster_carrier(edict_t* self)
 	self->monsterinfo.sight = carrier_sight;
 	self->monsterinfo.checkattack = Carrier_CheckAttack;
 	self->monsterinfo.setskin = carrier_setskin;
+
+	// Horde mode specific: spawn-time taunt bark. CARRIER itself is always boss-tier
+	// (minWave=999) so its bark stays unconditional/untouched; CARRIER_MINI shares this
+	// function (see SP_monster_carrier_mini) and is a genuine non-boss wave-spawnable type,
+	// so its copy is skipped once the connecting-client precache budget is enforced
+	// (g_horde_precache_limits_enabled).
+	if (g_horde->integer &&
+		(self->monsterinfo.IS_BOSS ||
+			!g_horde_precache_limits_enabled || !g_horde_precache_limits_enabled->integer)) {
+		if (brandom())
+			gi.sound(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
+	}
+
 	gi.linkentity(self);
 
 	M_SetAnimation(self, &carrier_move_stand);

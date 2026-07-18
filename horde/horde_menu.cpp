@@ -301,7 +301,7 @@ void HordeUpdateJoinMenu(edict_t *ent)
 		// Set appropriate join text based on mode
 		const char *join_text;
 		if (g_horde->integer && !pvm->integer)
-			join_text = "Join and Fight the HORDE!";
+			join_text = "Join and Fight the HORDE!!";
 		else if (pvm->integer)
 			join_text = "Join PvM (Player vs Monster)";
 		else if (G_IsCooperative() || coop->integer)
@@ -313,7 +313,7 @@ void HordeUpdateJoinMenu(edict_t *ent)
 		entries[JOINMENU_JOIN_HORDE_IDX].SelectFunc = HordeJoinTeam;
 
 		// Set Discord Text (ensure it's visible)
-		Q_strlcpy(entries[JOINMENU_DISCORD_IDX].text, "Discord: *Enemy0416", sizeof(entries[JOINMENU_DISCORD_IDX].text));
+		Q_strlcpy(entries[JOINMENU_DISCORD_IDX].text, "Discord: Enemy0416", sizeof(entries[JOINMENU_DISCORD_IDX].text));
 		entries[JOINMENU_DISCORD_IDX].SelectFunc = nullptr;
 
 		// Set Original Credit text

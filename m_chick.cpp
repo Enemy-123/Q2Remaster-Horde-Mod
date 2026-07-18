@@ -1432,13 +1432,7 @@ void SP_monster_chick(edict_t* self)
 
     if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
         self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::CHICK);
-    }	if (g_horde->integer)
-	{
-		const float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
-
-		if (randomsearch < 0.24f)
-			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
-	}
+    }
 
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
@@ -1514,6 +1508,15 @@ void SP_monster_chick(edict_t* self)
 	self->monsterinfo.melee = chick_melee;
 	self->monsterinfo.sight = chick_sight;
 	self->monsterinfo.setskin = chick_setpain;
+
+	// Horde mode specific: spawn-time taunt bark. Non-boss cosmetic extra - skipped
+	// once the connecting-client precache budget is enforced (g_horde_precache_limits_enabled).
+	if (g_horde->integer &&
+		(!g_horde_precache_limits_enabled || !g_horde_precache_limits_enabled->integer))
+	{
+		if (frandom() < 0.24f)
+			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
+	}
 
 	gi.linkentity(self);
 

@@ -691,13 +691,7 @@ void SP_monster_floater(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
-	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::FLOATER);	if (g_horde->integer && current_wave_level <= 18)
-	{
-		const float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
-
-		if (randomsearch < 0.12f)
-			gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_NORM, 0);
-	}
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::FLOATER);
 
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
@@ -761,6 +755,15 @@ void SP_monster_floater(edict_t* self)
 	self->monsterinfo.sight = floater_sight;
 	self->monsterinfo.idle = floater_idle;
 	self->monsterinfo.setskin = floater_setskin;
+
+	// Horde mode specific: spawn-time taunt bark. Non-boss cosmetic extra - skipped
+	// once the connecting-client precache budget is enforced (g_horde_precache_limits_enabled).
+	if (g_horde->integer && current_wave_level <= 18 &&
+		(!g_horde_precache_limits_enabled || !g_horde_precache_limits_enabled->integer))
+	{
+		if (frandom() < 0.12f)
+			gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_NORM, 0);
+	}
 
 	gi.linkentity(self);
 

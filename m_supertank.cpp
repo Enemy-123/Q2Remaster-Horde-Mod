@@ -765,28 +765,13 @@ void SP_monster_supertank(edict_t* self)
 		return;
 	}
 
-	if (g_horde->integer && current_wave_level <= 18) {
+	// Boss branch left exactly as-is (bosses precache/register unconditionally by design -
+	// see PrecacheBudgetExhausted's connecting-client rationale in horde/g_horde.cpp).
+	if (g_horde->integer && current_wave_level <= 18 && self->monsterinfo.IS_BOSS) {
 		const float randomChance = frandom();
-
-		if (self->monsterinfo.IS_BOSS) {
-			const int soundToPlay = (randomChance < 0.5f) ? sound_search2 : sound_search1;
-			gi.sound(self, CHAN_VOICE, soundToPlay, 1, ATTN_NONE, 0);
-			self->health = M_SUPERTANK_INITIAL_HEALTH * st.health_multiplier;
-		}
-		else {
-			constexpr float FIRST_SOUND_CHANCE = 0.2f;
-			constexpr float SECOND_SOUND_CHANCE = 0.4f;
-
-			const int soundToPlay = (randomChance < FIRST_SOUND_CHANCE)
-				? sound_search2
-				: (randomChance < SECOND_SOUND_CHANCE)
-				? sound_search1
-				: 0;
-
-			if (soundToPlay) {
-				gi.sound(self, CHAN_VOICE, soundToPlay, 1, ATTN_NORM, 0);
-			}
-		}
+		const int soundToPlay = (randomChance < 0.5f) ? sound_search2 : sound_search1;
+		gi.sound(self, CHAN_VOICE, soundToPlay, 1, ATTN_NONE, 0);
+		self->health = M_SUPERTANK_INITIAL_HEALTH * st.health_multiplier;
 	}
 
 	sound_pain1.assign("bosstank/btkpain1.wav");
@@ -795,6 +780,26 @@ void SP_monster_supertank(edict_t* self)
 	sound_death.assign("bosstank/btkdeth1.wav");
 	sound_search1.assign("bosstank/btkunqv1.wav");
 	sound_search2.assign("bosstank/btkunqv2.wav");
+
+	// Horde mode specific: spawn-time taunt bark for the non-boss (regular Supertank/
+	// Janitor) case. Cosmetic extra - skipped once the connecting-client precache budget
+	// is enforced (g_horde_precache_limits_enabled). Boss branch is handled separately above.
+	if (g_horde->integer && current_wave_level <= 18 && !self->monsterinfo.IS_BOSS &&
+		(!g_horde_precache_limits_enabled || !g_horde_precache_limits_enabled->integer)) {
+		constexpr float FIRST_SOUND_CHANCE = 0.2f;
+		constexpr float SECOND_SOUND_CHANCE = 0.4f;
+
+		const float randomChance = frandom();
+		const int soundToPlay = (randomChance < FIRST_SOUND_CHANCE)
+			? sound_search2
+			: (randomChance < SECOND_SOUND_CHANCE)
+			? sound_search1
+			: 0;
+
+		if (soundToPlay) {
+			gi.sound(self, CHAN_VOICE, soundToPlay, 1, ATTN_NORM, 0);
+		}
+	}
 
 	tread_sound.assign("bosstank/btkengn1.wav");
 

@@ -246,11 +246,11 @@ namespace PrecacheLimits {
 	// If system memory allows, slightly increase the limit to accommodate more concurrent active models
 	inline constexpr int32_t MAX_PRECACHED_MODEL_FAMILIES = 24;
 
-	// Shrink core slots from 14 down to 6
-	inline constexpr int32_t CORE_FAMILY_SLOTS = 6;
+	// Shrink core slots from 14 down to 7 (includes TURRET_FAMILY - see CORE_FAMILIES)
+	inline constexpr int32_t CORE_FAMILY_SLOTS = 7;
 
-	// Expand rotating slots to fill the remaining budget (24 max - 6 core = 18 rotating)
-	inline constexpr int32_t ROTATING_FAMILY_SLOTS = 18;
+	// Expand rotating slots to fill the remaining budget (24 max - 7 core = 17 rotating)
+	inline constexpr int32_t ROTATING_FAMILY_SLOTS = 17;
 }
 
 // Fog / limit-break waves (the single-asset-family Gekk & Berserk special waves at 15+).

@@ -700,13 +700,7 @@ model="models/monsters/mutant/tris.md2"
 void SP_monster_mutant(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
-    self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::MUTANT);	if (g_horde->integer) {
-		{
-			if (brandom())
-				gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
-		}
-
-	}
+    self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::MUTANT);
 
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
@@ -766,6 +760,14 @@ void SP_monster_mutant(edict_t* self)
 	self->monsterinfo.checkattack = mutant_checkattack;
 	self->monsterinfo.blocked = mutant_blocked; // PGM
 	self->monsterinfo.setskin = mutant_setskin;
+
+	// Horde mode specific: spawn-time taunt bark. Non-boss cosmetic extra - skipped
+	// once the connecting-client precache budget is enforced (g_horde_precache_limits_enabled).
+	if (g_horde->integer &&
+		(!g_horde_precache_limits_enabled || !g_horde_precache_limits_enabled->integer)) {
+		if (brandom())
+			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
+	}
 
 	gi.linkentity(self);
 

@@ -154,13 +154,17 @@ static boost::container::flat_set<AssetFamilyID> g_last_map_dropped_families;
 // Tracks which model families are precached this map to enforce the limit
 static boost::container::flat_set<AssetFamilyID> g_precached_families_this_map;
 
-static constexpr std::array<AssetFamilyID, 6> CORE_FAMILIES = { {
+static constexpr std::array<AssetFamilyID, 7> CORE_FAMILIES = { {
 	AssetFamilyID::SOLDIER_FAMILY,      // Absolute basic enemies
 	AssetFamilyID::INFANTRY_FAMILY,     // Absolute basic enemies
 	AssetFamilyID::GUNNER_FAMILY,       // Core mid-tier standard
 	AssetFamilyID::PARASITE_FAMILY,     // Small ground units
 	AssetFamilyID::FLYER_FAMILY,        // Basic flying lane
 	AssetFamilyID::TANK_FAMILY,         // Core heavy benchmark
+	AssetFamilyID::TURRET_FAMILY,       // Sentrygun/Turret: player-deployable via Use_SentryGun
+	                                     // (g_rogue_items.cpp) bypasses the precache budget check
+	                                     // entirely, so it must be precached upfront instead of
+	                                     // being force-loaded unbudgeted whenever first deployed.
 } };
 
 static constexpr std::array<AssetFamilyID, 18> ROTATING_FAMILIES = { {
@@ -5152,6 +5156,30 @@ static void PrecacheAllMonsters()
 	// for regardless of whether the monsters ever appeared. They are now loaded just-in-
 	// time by PrecacheCurrentWaveMonsters at the wave transition where they first become
 	// eligible (same temp-spawn mechanism, executed between waves).
+
+	// SENTRYGUN/TURRET use the minWave=999 "never wave-selected" sentinel (they're never
+	// picked by wave logic, only summoned directly: SENTRYGUN via the player-purchasable
+	// Use_SentryGun item, TURRET via the fixbot ability), so the minWave<=3 loop above always
+	// skips them regardless of family. Use_SentryGun (g_rogue_items.cpp) spawns unconditionally
+	// with no precache check at all, so without forcing this here, the first player to ever
+	// deploy a sentry gun - at any wave, long after map-load - force-registers a whole new
+	// model/sound set outside the connecting-client budget this whole system exists to
+	// enforce. Force it now, at map load, while the budget still has headroom.
+	{
+		edict_t* temp_sentry = G_Spawn();
+		if (temp_sentry)
+		{
+			temp_sentry->classname = "monster_sentrygun";
+			temp_sentry->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+			ED_CallSpawn(temp_sentry);
+			if (temp_sentry->inuse)
+				G_FreeEdict(temp_sentry);
+			MarkMonsterTypePrecached(horde::MonsterTypeID::SENTRYGUN);
+			MarkMonsterTypePrecached(horde::MonsterTypeID::TURRET);
+			if (developer->integer)
+				gi.Com_Print("  - Precached (forced, minWave=999): monster_sentrygun / monster_turret\n");
+		}
+	}
 
 	// Baseline totals after map-load precache (items + world + wave 1-3 monsters); the
 	// key tuning number for the g_horde_precache_max_* budget cvars

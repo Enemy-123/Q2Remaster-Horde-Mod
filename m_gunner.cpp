@@ -1013,12 +1013,7 @@ model="models/monsters/gunner/tris.md2"
 void SP_monster_gunner(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
-    self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GUNNER);	if (g_horde->integer) {
-		const float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
-
-		if (randomsearch < 0.23f)
-			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
-	}
+    self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GUNNER);
 
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
@@ -1095,6 +1090,14 @@ void SP_monster_gunner(edict_t* self)
 	self->monsterinfo.sight = gunner_sight;
 	self->monsterinfo.search = gunner_search;
 	self->monsterinfo.setskin = gunner_setskin;
+
+	// Horde mode specific: spawn-time taunt bark. Non-boss cosmetic extra - skipped
+	// once the connecting-client precache budget is enforced (g_horde_precache_limits_enabled).
+	if (g_horde->integer &&
+		(!g_horde_precache_limits_enabled || !g_horde_precache_limits_enabled->integer)) {
+		if (frandom() < 0.23f)
+			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
+	}
 
 	gi.linkentity(self);
 
