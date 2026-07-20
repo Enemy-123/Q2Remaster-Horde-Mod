@@ -10023,6 +10023,10 @@ void HandleResetEvent()
 			player->client->pers.ability_points = 0;
 			player->client->pers.weapon_points = 0;
 
+			// Reset adrenaline stack so max health starts at 100 on the new map
+			// (applies to bots too, since this loop walks every client slot)
+			player->client->pers.adrenaline_count = 0;
+
 			// Reset BFG mode to default
 			player->client->pers.bfg_mode = BFGMode::NORMAL;
 
