@@ -114,6 +114,7 @@ enum class BossTeleportReason {
     DROWNING,
     TRIGGER_HURT,
     TELEFRAG,
+    CRUSH,
 //    STUCK
 };
 bool M_AdjustBlindfireTarget(edict_t* self, const vec3_t& start, const vec3_t& target, const vec3_t& right, vec3_t& out_dir);
@@ -180,6 +181,18 @@ void ResetFogState() noexcept;
 
 bool CheckAndTeleportStuckMonster(edict_t* self, bool force_drowning = false);
 bool G_IsClearPath(const edict_t* ignore, contents_t mask, const vec3_t& spot1, const vec3_t& spot2);
+
+// [Horde] Gekk locomotion state (m_xatrix_gekk.cpp), bbox-preserving halves of
+// land_to_water/water_to_land. Used to rescue a submerged gekk that dropped FL_SWIM and to
+// shed a stale FL_SWIM after a teleport lands it on dry ground.
+void Gekk_EnterSwimState(edict_t* self);
+void Gekk_ExitSwimState(edict_t* self);
+// True for monster_gekk / monster_gekkkl regardless of current FL_SWIM state.
+inline bool IsGekkSpecies(const edict_t* ent)
+{
+    return ent && (ent->monsterinfo.monster_type_id == static_cast<uint8_t>(horde::MonsterTypeID::GEKK) ||
+                   ent->monsterinfo.monster_type_id == static_cast<uint8_t>(horde::MonsterTypeID::GEKKKL));
+}
 
 extern gtime_t horde_message_end_time;
 extern void CheckAndUpdateMenus();

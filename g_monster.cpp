@@ -396,7 +396,14 @@ void M_WorldEffects(edict_t* ent)
 						}
 					}
 					else if (ent->svflags & SVF_MONSTER) {
-						if (CheckAndTeleportStuckMonster(ent, true)) {
+						// A gekk belongs in the water: it only reaches this branch because
+						// gekk_attack strips FL_SWIM mid-fight while submerged. Restore its
+						// swim state instead of teleporting it out (see Gekk_EnterSwimState).
+						if (IsGekkSpecies(ent) && ent->waterlevel >= WATER_WAIST) {
+							Gekk_EnterSwimState(ent);
+							ent->air_finished = level.time + 6_sec;
+						}
+						else if (CheckAndTeleportStuckMonster(ent, true)) {
 							ent->air_finished = level.time + 6_sec;
 						}
 						else {

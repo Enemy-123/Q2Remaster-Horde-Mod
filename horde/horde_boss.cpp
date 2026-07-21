@@ -2329,7 +2329,7 @@ bool CheckAndTeleportBoss(edict_t *self, BossTeleportReason reason)
 	horde::MapID mapId = horde::MapOriginRegistry::GetMapID(current_map);
 
 	// Perform teleportation
-	bool force_teleport = (reason == BossTeleportReason::TRIGGER_HURT || reason == BossTeleportReason::DROWNING || reason == BossTeleportReason::TELEFRAG);
+	bool force_teleport = (reason == BossTeleportReason::TRIGGER_HURT || reason == BossTeleportReason::DROWNING || reason == BossTeleportReason::TELEFRAG || reason == BossTeleportReason::CRUSH);
 	vec3_t destination_angles = self->s.angles;
 	bool teleported = false;
 
@@ -2401,6 +2401,11 @@ bool CheckAndTeleportBoss(edict_t *self, BossTeleportReason reason)
 		gi.LocBroadcast_Print(PRINT_HIGH, "{} narrowly avoids being crushed!\n", boss_display_name);
 		break;
 
+	case BossTeleportReason::CRUSH:
+		self->teleport_time = current_time;  // Use teleport_time instead
+		gi.LocBroadcast_Print(PRINT_HIGH, "{} squeezes free before being flattened!\n", boss_display_name);
+		break;
+
 	default:
 		break;
 	}
@@ -2416,7 +2421,8 @@ bool CheckAndTeleportBoss(edict_t *self, BossTeleportReason reason)
 	if (developer->integer > 1)
 	{
 		const char *reason_str = reason == BossTeleportReason::DROWNING ? "drowning" :
-								 reason == BossTeleportReason::TELEFRAG ? "telefrag" : "trigger_hurt";
+								 reason == BossTeleportReason::TELEFRAG ? "telefrag" :
+								 reason == BossTeleportReason::CRUSH ? "crush" : "trigger_hurt";
 		gi.Com_PrintFmt("CTB: Boss {} successfully teleported due to {} to ({},{},{}).\n",
 						self->classname ? self->classname : "UNKNOWN",
 						reason_str,

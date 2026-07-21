@@ -7341,6 +7341,13 @@ static bool ExecuteStuckMonsterTeleport(edict_t* self, bool force_despite_visibi
 	return false;
 }
 
+// A monster that swims is not drowning. Matches on the flag (current state) OR the gekk
+// species, because gekk_attack (m_xatrix_gekk.cpp) temporarily clears FL_SWIM while submerged.
+static bool IsAquaticMonster(const edict_t* self)
+{
+	return self && ((self->flags & FL_SWIM) || IsGekkSpecies(self));
+}
+
 bool CheckAndTeleportStuckMonster(edict_t* self, bool force_drowning)
 {
 	if (developer->integer >= 3)
@@ -7448,8 +7455,13 @@ bool CheckAndTeleportStuckMonster(edict_t* self, bool force_drowning)
 		needs_teleport = true;
 		reason_str = "Stuck in Geometry";
 	}
-	// Critical: Drowning without visible enemy
-	else if (self->waterlevel > 0 && !(self->enemy && visible(self, self->enemy, false)))
+	// Critical: Drowning without visible enemy.
+	// Requires actual submersion - a monster wading ankle-deep isn't drowning, and the forced
+	// path from M_WorldEffects only fires once air_finished expired, which needs WATER_UNDER.
+	// Swimmers are exempt: water is where they belong, and yanking one out leaves it with a
+	// stale FL_SWIM on dry land (see Gekk_ExitSwimState in Horde_TeleportMonster).
+	else if (self->waterlevel >= WATER_UNDER && !IsAquaticMonster(self) &&
+		!(self->enemy && visible(self, self->enemy, false)))
 	{
 		needs_teleport = true;
 		reason_str = "Drowning";
@@ -9493,6 +9505,8 @@ void CalculateTopDamager(PlayerStats& topDamager, float& percentage)
 			static_cast<int32_t>(player->client->total_damage),
 			MAX_DAMAGE));
 
+		// Bots compete on equal footing: they contribute to the wave total and
+		// can win the top-damager reward like any other client.
 		if (player_damage > 0)
 		{
 			total_damage += player_damage;
@@ -9663,7 +9677,7 @@ static void SendCleanupMessage(WaveEndReason reason)
 		{
 			// Print combined message: damage stats + reward in one line
 			gi.LocBroadcast_Print(PRINT_HIGH, "{} dealt {} damage ({}% of total) and receives a {}!\n",
-				playerName, topDamager.total_damage, static_cast<int>(percentage), rewardItem);
+				playerName, topDamager.total_damage, static_cast<int>(std::round(percentage)), rewardItem);
 
 			// Reset player stats
 			for (auto* player : active_players())
@@ -10216,6 +10230,14 @@ bool Horde_TeleportMonster(edict_t* self, const vec3_t& destination_origin, cons
 			self->monsterinfo.last_sighting = self->enemy->s.origin;
 			self->monsterinfo.blind_fire_target = self->enemy->s.origin;
 		}
+
+		// Refresh water state for the new position BEFORE run/stand: those handlers branch on
+		// waterlevel/FL_SWIM, so a swimmer dropped on dry land with stale state re-enters its
+		// swim animation, can't move (every land direction is "bad" for FL_SWIM in m_move.cpp)
+		// and then drowns in open air.
+		M_CatagorizePosition(self, self->s.origin, self->waterlevel, self->watertype);
+		if ((self->flags & FL_SWIM) && self->waterlevel < WATER_WAIST && IsGekkSpecies(self))
+			Gekk_ExitSwimState(self);
 
 		if ((self->monsterinfo.aiflags & AI_STAND_GROUND) && self->monsterinfo.stand)
 			self->monsterinfo.stand(self);

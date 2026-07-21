@@ -843,9 +843,10 @@ static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_dama
 
     auto& client = *attacker->client;
 
-    // Wave top-damage stat: tracked for every human player regardless of the
-    // ID-DMG display toggle (bots stay out of the top-damager reward race).
-    if ((targ->svflags & SVF_MONSTER) && targ->health >= 1 && !(attacker->svflags & SVF_BOT)) {
+    // Wave top-damage stat: tracked for every client (bots included) regardless of
+    // the ID-DMG display toggle, so the wave total is the real total. Bots are
+    // filtered out later in CalculateTopDamager so they can't win the reward.
+    if ((targ->svflags & SVF_MONSTER) && targ->health >= 1) {
         client.total_damage += static_cast<uint64_t>(capped_damage);
     }
 
@@ -1102,6 +1103,16 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	//Teleport if drown
 	if (mod.id == MOD_WATER && (targ->svflags & SVF_MONSTER) && !targ->monsterinfo.IS_BOSS) {
 		CheckAndTeleportStuckMonster(targ);
+	}
+
+	// Teleport bosses out of a crush instead of letting a mover grind them down every cycle,
+	// same escape they already get from trigger_hurt/drowning/telefrag. Covers every MOD_CRUSH
+	// source (plats, doors, trains, rotating brushes); regular monsters use Horde_CrushUnstuck
+	// from the plat blocked callbacks, which also batch-relocates their pack-mates.
+	// The damage tick still applies - it's small, and GENERAL_TELEPORT_COOLDOWN inside
+	// CheckAndTeleportBoss keeps a cycling mover from spamming teleports.
+	if (mod.id == MOD_CRUSH && g_horde->integer && (targ->svflags & SVF_MONSTER) && targ->monsterinfo.IS_BOSS) {
+		CheckAndTeleportBoss(targ, BossTeleportReason::CRUSH);
 	}
 
 	//attacker null, inflictor will be attacker

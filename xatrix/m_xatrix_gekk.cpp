@@ -2611,12 +2611,33 @@ void SP_monster_gekkkl(edict_t* self)
 	ApplyMonsterBonusFlags(self);
 }
 
-void water_to_land(edict_t* self)
+// Locomotion-state half of the water/land transitions, without the bbox assignment.
+// Callers outside this file (drown rescue in M_WorldEffects, stale-swim cleanup after a
+// horde teleport) must not clobber mins/maxs: the horde squeeze system and scaled variants
+// like gekkkl own the current bounds.
+void Gekk_ExitSwimState(edict_t* self)
 {
 	self->monsterinfo.aiflags &= ~AI_ALTERNATE_FLY;
 	self->flags &= ~FL_SWIM;
 	self->yaw_speed = 20;
 	self->viewheight = 25;
+}
+
+// Sets the swim-start animation; callers that follow up with run()/stand() get overridden,
+// which is fine - the state flags are what matter.
+void Gekk_EnterSwimState(edict_t* self)
+{
+	self->monsterinfo.aiflags |= AI_ALTERNATE_FLY;
+	self->flags |= FL_SWIM;
+	self->yaw_speed = 10;
+	self->viewheight = 10;
+
+	M_SetAnimation(self, &gekk_move_swim_start);
+}
+
+void water_to_land(edict_t* self)
+{
+	Gekk_ExitSwimState(self);
 
 	M_SetAnimation(self, &gekk_move_leapatk2);
 
@@ -2626,12 +2647,7 @@ void water_to_land(edict_t* self)
 
 void land_to_water(edict_t* self)
 {
-	self->monsterinfo.aiflags |= AI_ALTERNATE_FLY;
-	self->flags |= FL_SWIM;
-	self->yaw_speed = 10;
-	self->viewheight = 10;
-
-	M_SetAnimation(self, &gekk_move_swim_start);
+	Gekk_EnterSwimState(self);
 
 	self->mins = { -18, -18, -24 };
 	self->maxs = { 18, 18, 16 };
