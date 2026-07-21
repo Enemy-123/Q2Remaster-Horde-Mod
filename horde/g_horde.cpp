@@ -80,7 +80,12 @@ void BuildSpawnPointMap();
 static const char* GetMonsterModelPath(horde::MonsterTypeID typeId);
 // SpawnPlanEntry is now defined in horde_spawning.h
 
+// Indexed by MonsterTypeID - NOT by monsterTypes[] row number (that table is sorted by
+// minWave, so row N and type-id N are different monsters).
 std::array<bool, static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES)> g_precached_monster_types_flags = {}; // Initializes all to false
+// g_horde.h declares this with a hardcoded 128; keep the two in step or it's an ODR violation.
+static_assert(static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES) == 128,
+	"g_precached_monster_types_flags extern in g_horde.h hardcodes 128");
 static bool g_full_precache_done = false;
 
 static bool monsters_precached = false;
@@ -1926,16 +1931,28 @@ static inline int32_t CalculateChaosInsanityBonus(int32_t lvl)
 	}
 }
 
-// Horde 2 wave rhythm: repeating 4-wave cycle. wave%4 == 1,2 -> build, 3 -> surge (short,
-// swarmy, fast spawns), 0 -> siege (long, tough; boss wave at >= 8 via IsBossWaveLevel).
+// Horde 2 wave rhythm: repeating 4-wave cycle -> build, siege, surge, boss.
+//   wave%4 == 1 -> build (baseline pacing, any theme pool)
+//   wave%4 == 2 -> siege (fewer but tougher, slow spawns; prefers the Tough theme pool)
+//   wave%4 == 3 -> surge (more but weaker, fast spawns; prefers the Swarm theme pool)
+//   wave%4 == 0 -> boss wave from wave 8 (IsBossWaveLevel), which keeps siege pacing
+//
+// Siege used to sit on the %4 == 0 slot, i.e. exactly the boss slot. Horde_InitLevel skips
+// InitializeWaveType entirely on boss waves, so from wave 8 onward a regular siege wave could
+// never happen - the cycle degenerated to build/build/surge/boss and the Tough theme pool
+// (Bombardment / Armor column / Elite guard / Hatchery) never got its preferential pass.
+// Siege now owns its own slot; boss waves still report Siege so their pacing is unchanged.
 enum class Horde2Phase : uint8_t { Build, Surge, Siege };
 
 static Horde2Phase GetHorde2Phase(int32_t lvl) noexcept
 {
+	if (IsBossWaveLevel(lvl))
+		return Horde2Phase::Siege; // boss waves keep the slow, fewer-but-tougher pacing
+
 	switch (lvl % 4)
 	{
+	case 2:  return Horde2Phase::Siege;
 	case 3:  return Horde2Phase::Surge;
-	case 0:  return Horde2Phase::Siege;
 	default: return Horde2Phase::Build;
 	}
 }
@@ -3677,6 +3694,63 @@ static void MarkMonsterTypePrecached(horde::MonsterTypeID typeId, const char* mo
 		g_precached_models_this_map.insert(model_path);
 }
 
+// Actually register a monster type's assets with the engine, then mark it precached.
+//
+// MarkMonsterTypePrecached alone is pure bookkeeping - it registers nothing. Marking a type
+// without spawning it produces a "phantom precache": the wave logic believes the type is
+// loaded and admits it to the wave, but its 20-40 sounds only register when the first real
+// one spawns - mid-wave, outside the budget, and after clients have already connected. That
+// is exactly the late-registration case the whole precache budget exists to prevent.
+//
+// The temp-spawn is the same mechanism the map-load and wave-transition passes use: spawn a
+// throwaway entity so its SP_monster_* function runs its modelindex/soundindex calls, then
+// free it. Returns false when the connecting-client cap has no headroom left, in which case
+// nothing is marked and the caller must leave the type locked.
+//
+// `force` bypasses the cap check, for types that WILL be spawned regardless of what we decide
+// here (the player-deployable sentry gun). Refusing those doesn't avoid the cost, it just moves
+// the registration to mid-game where it's strictly worse.
+static bool PrecacheMonsterTypeNow(horde::MonsterTypeID typeId, const char* model_path = nullptr,
+	bool force = false)
+{
+	const size_t idx = static_cast<size_t>(typeId);
+	if (idx >= g_precached_monster_types_flags.size())
+		return false;
+	if (g_precached_monster_types_flags[idx])
+		return true; // already loaded for real
+
+	const char* classname = horde::MonsterTypeRegistry::GetClassname(typeId);
+	if (!classname || !*classname)
+		return false;
+
+	if (!model_path)
+		model_path = GetMonsterModelPath(typeId);
+
+	const bool new_model_dir = !model_path || !*model_path ||
+		g_precached_models_this_map.find(model_path) == g_precached_models_this_map.end();
+
+	if (!force && ((new_model_dir && !CanAffordNewModelDir()) || !CanAffordNewSounds()))
+	{
+		if (developer->integer)
+			gi.Com_PrintFmt("Precache: SKIPPED '{}' - connecting-client cap headroom spent ({} models, {} sounds)\n",
+				classname, g_total_precached_models, g_total_precached_sounds);
+		return false;
+	}
+
+	edict_t* temp_monster = G_Spawn();
+	if (!temp_monster)
+		return false;
+
+	temp_monster->classname = classname;
+	temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+	ED_CallSpawnMonsterByID(temp_monster, typeId);
+	if (temp_monster->inuse)
+		G_FreeEdict(temp_monster);
+
+	MarkMonsterTypePrecached(typeId, model_path);
+	return true;
+}
+
 // ============================================================================
 // BuildMonsterCache Helper Structures and Functions
 // ============================================================================
@@ -3738,7 +3812,11 @@ static void CollectEliteCandidates(
 		if (!IsValidEliteCandidate(monster_info, i, ctx, min_wave_buffer))
 			continue;
 
-		float priority = g_monsterData.weights[i] / (1.0f + abs(monster_info.minWave - ctx.effectiveLevel));
+		// Use the row's own weight: g_monsterData is indexed by MonsterTypeID, not by the
+		// monsterTypes[] row number (the table is sorted by minWave), so g_monsterData.weights[i]
+		// here read a different monster's weight - often a zero-filled hole, which zeroed the
+		// candidate's priority and made it effectively unpickable.
+		float priority = monster_info.weight / (1.0f + abs(monster_info.minWave - ctx.effectiveLevel));
 		candidates.push_back({ monster_info.typeId, i, priority });
 
 		//if (developer->integer > 1)
@@ -3823,7 +3901,6 @@ static EliteCandidateResult FindEliteCandidate(const MonsterSelectionContext& ct
 // Respects family limit - returns nullptr if the monster's family isn't allowed
 static AssetFamilyID PrecacheEliteMonster(
 	horde::MonsterTypeID type_id,
-	size_t array_index,
 	const MonsterSelectionContext& ctx)
 {
 	const char* classname = horde::MonsterTypeRegistry::GetClassname(type_id);
@@ -3842,7 +3919,11 @@ static AssetFamilyID PrecacheEliteMonster(
 		return AssetFamilyID::UNKNOWN_FAMILY; // Family not allowed, don't precache
 	}
 
-	const bool already_precached = g_precached_monster_types_flags[array_index];
+	// Index the flags by MonsterTypeID, never by the monsterTypes[] row number: the table is
+	// sorted by minWave, so row N and type-id N are different monsters. Reading the wrong flag
+	// here either skipped the elite's real precache (leaving it to register its assets mid-wave
+	// on first spawn) or redundantly re-precached an already-loaded one.
+	const bool already_precached = g_precached_monster_types_flags[static_cast<size_t>(type_id)];
 
 	// A not-yet-loaded elite spends connecting-client cap headroom; skip when it's gone.
 	// The caller reverts to normal spawning when we return UNKNOWN_FAMILY.
@@ -3867,32 +3948,26 @@ static AssetFamilyID PrecacheEliteMonster(
 	// Precache if needed
 	if (!already_precached)
 	{
-		edict_t* temp_monster = G_Spawn();
-		if (temp_monster)
-		{
-			temp_monster->classname = classname;
-			temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-			ED_CallSpawnMonsterByID(temp_monster, type_id);
-			if (temp_monster->inuse)
-				G_FreeEdict(temp_monster);
+		if (!PrecacheMonsterTypeNow(type_id, model_path))
+			return AssetFamilyID::UNKNOWN_FAMILY;
 
-			MarkMonsterTypePrecached(type_id, model_path);
-
-			UnlockModelFamilyMembers(type_id, ctx.currentActualLevel);
-		}
+		UnlockModelFamilyMembers(type_id, ctx.currentActualLevel);
 	}
 
 	// Add elite family members to eligible list
 	for (size_t j = 0; j < MONSTER_DATA_COUNT; ++j)
 	{
 		const auto& family_monster = monsterTypes[j];
-		if (!g_precached_monster_types_flags[j]) continue;
+		// Flags are type-id indexed; j is a monsterTypes[] row number (see above).
+		if (!g_precached_monster_types_flags[static_cast<size_t>(family_monster.typeId)]) continue;
 
 		const AssetFamilyID family_monster_family = GetMonsterAssetFamily(family_monster.typeId);
 		if (family_monster_family != family) continue;
 
-		// Only add family members that are "elite" level (3+ waves higher)
-		if (family_monster.minWave < ctx.currentActualLevel + 3) continue;
+		// Only add family members that are "elite" level (3+ waves higher). Uses the adjusted
+		// unlock wave so the test matches the eligibility the rest of the wave pipeline applies
+		// (Horde 2 accelerates unlocks; classic returns the raw minWave unchanged).
+		if (GetAdjustedMinWave(family_monster.typeId, g_map_rotation_seed) < ctx.currentActualLevel + 3) continue;
 
 		// Check if already in eligible list
 		bool already_eligible = false;
@@ -4274,8 +4349,7 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 //						horde::MonsterTypeRegistry::GetClassname(candidate.selected_type));
 
 				const char* candidate_model_path = GetMonsterModelPath(candidate.selected_type);
-				elite_spawn_family = PrecacheEliteMonster(
-					candidate.selected_type, candidate.selected_array_index, mutable_ctx);
+				elite_spawn_family = PrecacheEliteMonster(candidate.selected_type, mutable_ctx);
 				if (elite_spawn_family != AssetFamilyID::UNKNOWN_FAMILY && candidate_model_path)
 					elite_spawn_model_path = candidate_model_path;
 
@@ -5063,26 +5137,11 @@ static void PrecacheAllMonsters()
 			for (int i = 0; i < pvm_monster_count; ++i)
 			{
 				const auto& monster_id = pvm_monsters[i];
-				const char* classname = horde::MonsterTypeRegistry::GetClassname(monster_id);
-				if (classname && *classname)
+				// PvM's roster is fixed for the whole map - these WILL spawn, so force past the
+				// cap rather than pushing their registration into the middle of a wave.
+				if (PrecacheMonsterTypeNow(monster_id, nullptr, /*force=*/true) && developer->integer)
 				{
-					edict_t* temp_monster = G_Spawn();
-					if (temp_monster)
-					{
-						temp_monster->classname = classname;
-						temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-						ED_CallSpawn(temp_monster);
-						if (temp_monster->inuse)
-						{
-							G_FreeEdict(temp_monster);
-						}
-						MarkMonsterTypePrecached(monster_id);
-
-						if (developer->integer)
-						{
-							gi.Com_PrintFmt("  - Precached: {}\n", classname);
-						}
-					}
+					gi.Com_PrintFmt("  - Precached: {}\n", horde::MonsterTypeRegistry::GetClassname(monster_id));
 				}
 			}
 			monsters_precached = true;
@@ -5121,26 +5180,16 @@ static void PrecacheAllMonsters()
 			continue;
 		}
 
-		const char* classname = horde::MonsterTypeRegistry::GetClassname(monster_info.typeId);
-		if (classname && *classname)
+		// Wave 1-3 monsters are the guaranteed baseline every client pays for anyway; force
+		// them past the cap so the opening waves can never fall back to mid-game registration.
+		if (PrecacheMonsterTypeNow(monster_info.typeId, nullptr, /*force=*/true))
 		{
-			edict_t* temp_monster = G_Spawn();
-			if (temp_monster)
-			{
-				temp_monster->classname = classname;
-				temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-				ED_CallSpawn(temp_monster);
-				if (temp_monster->inuse)
-				{
-					G_FreeEdict(temp_monster);
-				}
-				MarkMonsterTypePrecached(monster_info.typeId);
-				precached_count++;
+			precached_count++;
 
-				if (developer->integer)
-				{
-					gi.Com_PrintFmt("  - Precached (wave {}): {}\n", monster_info.minWave, classname);
-				}
+			if (developer->integer)
+			{
+				gi.Com_PrintFmt("  - Precached (wave {}): {}\n", monster_info.minWave,
+					horde::MonsterTypeRegistry::GetClassname(monster_info.typeId));
 			}
 		}
 	}
@@ -5165,20 +5214,21 @@ static void PrecacheAllMonsters()
 	// deploy a sentry gun - at any wave, long after map-load - force-registers a whole new
 	// model/sound set outside the connecting-client budget this whole system exists to
 	// enforce. Force it now, at map load, while the budget still has headroom.
+	//
+	// Both types are spawned for real: they share models/monsters/turret/ but NOT their sound
+	// sets (SP_monster_turret uses turret/moved.wav where SP_monster_sentrygun uses
+	// gunner/gunidle1.wav), so marking TURRET off the back of the sentry spawn left that sound
+	// to register the first time a fixbot ever built one, mid-game.
 	{
-		edict_t* temp_sentry = G_Spawn();
-		if (temp_sentry)
-		{
-			temp_sentry->classname = "monster_sentrygun";
-			temp_sentry->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-			ED_CallSpawn(temp_sentry);
-			if (temp_sentry->inuse)
-				G_FreeEdict(temp_sentry);
-			MarkMonsterTypePrecached(horde::MonsterTypeID::SENTRYGUN);
-			MarkMonsterTypePrecached(horde::MonsterTypeID::TURRET);
-			if (developer->integer)
-				gi.Com_Print("  - Precached (forced, minWave=999): monster_sentrygun / monster_turret\n");
-		}
+		PrecacheMonsterTypeNow(horde::MonsterTypeID::SENTRYGUN, nullptr, /*force=*/true);
+		PrecacheMonsterTypeNow(horde::MonsterTypeID::TURRET, nullptr, /*force=*/true);
+
+		// Neither spawn function precaches the base model, but both spawn it at runtime
+		// (m_sentrygun.cpp / m_rogue_turret.cpp, the turret_wall base placement).
+		gi.modelindex("models/monsters/turretbase/tris.md2");
+
+		if (developer->integer)
+			gi.Com_Print("  - Precached (forced, minWave=999): monster_sentrygun / monster_turret\n");
 	}
 
 	// Baseline totals after map-load precache (items + world + wave 1-3 monsters); the
@@ -10413,8 +10463,13 @@ static const char* GetMonsterModelPath(horde::MonsterTypeID typeId)
 	}
 }
 
-// Unlock all monsters that share the same model as the given boss
-// This allows "free" monsters since the model is already loaded in memory
+// Unlock all monsters that share the same model as the given boss.
+// Sharing the model dir makes the CS_MODELS cost free, but NOT the sounds: each reskin still
+// has its own 20-40 sound set. Unlocking used to only set the precached flag, so the wave
+// logic admitted these types while their sounds were still unregistered - they then registered
+// at first real spawn, mid-wave, after clients had connected (the late-registration case the
+// budget exists to prevent). They are now really precached via PrecacheMonsterTypeNow, and any
+// that the sound headroom can't afford simply stay locked.
 // Note: Only unlocks monsters whose families are in the allowed list for this map
 void UnlockModelFamilyMembers(horde::MonsterTypeID boss_typeId, int32_t current_wave)
 {
@@ -10466,15 +10521,29 @@ void UnlockModelFamilyMembers(horde::MonsterTypeID boss_typeId, int32_t current_
 			continue;
 		}
 
-		// Only unlock monsters that are eligible for current or near-future waves
-		// Reduced from +10 to +5 to prevent excessive unlocking at high waves
-		// Don't unlock wave 999 bosses (full bosses should only come from boss waves)
-		if (monster.minWave > current_wave + 5 || monster.minWave >= 999) {
+		// Only unlock monsters that are eligible for current or near-future waves.
+		// Reduced from +10 to +5 to prevent excessive unlocking at high waves.
+		// Don't unlock wave 999 bosses (full bosses should only come from boss waves).
+		// Uses the adjusted unlock wave so this matches the rest of the wave pipeline
+		// (Horde 2 accelerates unlocks; classic returns the raw minWave unchanged).
+		if (monster.minWave >= 999 ||
+			GetAdjustedMinWave(monster.typeId, g_map_rotation_seed) > current_wave + 5) {
 			continue;
 		}
 
-		// Unlock this monster - it shares the model so it's "free"
-		MarkMonsterTypePrecached(monster.typeId, monster_model_path);
+		// The model dir is free, but the sounds are not - really register them, and leave the
+		// type locked if the sound headroom is spent rather than faking the flag.
+		if (!PrecacheMonsterTypeNow(monster.typeId, monster_model_path)) {
+			if (developer->integer) {
+				gi.Com_PrintFmt("Model Family Unlock: '{}' left locked - no sound headroom for its asset set\n",
+					horde::MonsterTypeRegistry::GetClassname(monster.typeId));
+			}
+			continue;
+		}
+
+		// Keep the totals truthful as we spend headroom, so the cap check stays exact for the
+		// next family member instead of every one of them deciding on pre-loop numbers.
+		RecountPrecachedConfigstrings("family unlock member");
 
 		// Remove from exclusion list if it was excluded
 		auto it = g_excluded_monsters_this_map.find(monster.typeId);
@@ -10925,30 +10994,12 @@ static bool PrecacheMonsterForWave(const MonsterTypeInfo* monster_info, float& p
 
 	float precache_cost = CalculatePrecacheCost(monster_info->typeId);
 	const char* model_path = GetMonsterModelPath(monster_info->typeId);
-	const bool new_model_dir = !model_path ||
-		g_precached_models_this_map.find(model_path) == g_precached_models_this_map.end();
 
-	// Hard connecting-client cap: a new model dir spends CS_MODELS headroom, any new type
-	// spends CS_SOUNDS headroom. Refusing here only keeps the type out of the wave pool;
-	// monster counts and already-loaded variety are unaffected.
-	if ((new_model_dir && !CanAffordNewModelDir()) || !CanAffordNewSounds())
-	{
-		if (developer->integer)
-			gi.Com_PrintFmt("Precache: SKIPPED '{}' - connecting-client cap headroom spent ({} models, {} sounds)\n",
-				classname, g_total_precached_models, g_total_precached_sounds);
+	// Hard connecting-client cap (checked inside the helper): a new model dir spends CS_MODELS
+	// headroom, any new type spends CS_SOUNDS headroom. Refusing there only keeps the type out
+	// of the wave pool; monster counts and already-loaded variety are unaffected.
+	if (!PrecacheMonsterTypeNow(monster_info->typeId, model_path))
 		return false;
-	}
-
-	edict_t* temp_monster = G_Spawn();
-	if (!temp_monster)
-		return false;
-
-	temp_monster->classname = classname;
-	temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-	ED_CallSpawnMonsterByID(temp_monster, monster_info->typeId);
-	G_FreeEdict(temp_monster);
-
-	MarkMonsterTypePrecached(monster_info->typeId, model_path);
 
 	// Keep the totals truthful while spending headroom so the cap checks above stay exact
 	RecountPrecachedConfigstrings(classname);

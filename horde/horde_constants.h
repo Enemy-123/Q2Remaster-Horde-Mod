@@ -183,8 +183,9 @@ namespace HordeConstants
 	}
 
 	// --- Horde 2 (remix mode, horde cvar >= 2; see IsHorde2() in g_horde.h) ---
-	// Repeating 4-wave rhythm (wave % 4: 1,2 = build, 3 = surge, 0 = siege) with a
-	// continuous count curve instead of the bracketed BASE_COUNTS table.
+	// Repeating 4-wave rhythm (wave % 4: 1 = build, 2 = siege, 3 = surge, 0 = boss from
+	// wave 8, which keeps siege pacing) with a continuous count curve instead of the
+	// bracketed BASE_COUNTS table. See GetHorde2Phase() in g_horde.cpp.
 	namespace Horde2 {
 		// Continuous count curve: base = B0 + K * sqrt(wave). Index 0=small, 1=medium,
 		// 2=large, matching mapTypeIndex in UnifiedAdjustSpawnRate.

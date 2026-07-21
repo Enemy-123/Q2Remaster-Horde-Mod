@@ -50,7 +50,7 @@ inline bool IsHorde2() noexcept
 
 // Single source of truth for boss cadence.
 // Classic: wave >= 10, every 5 waves. Horde 2: wave >= 8, every 4 waves
-// (the 4-wave rhythm cycle's "siege" slot: build, build, surge, siege).
+// (the 4-wave rhythm cycle's closing slot: build, siege, surge, boss - see GetHorde2Phase).
 inline bool IsBossWaveLevel(int32_t lvl) noexcept
 {
 	return IsHorde2() ? (lvl >= 8 && lvl % 4 == 0)
