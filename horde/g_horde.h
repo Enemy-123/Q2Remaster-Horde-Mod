@@ -35,9 +35,16 @@ extern cvar_t* g_horde_far_spawn_chance;  // 0..1 chance a normal-wave pick pref
 extern cvar_t* g_horde_precache_max_models;  // soft cap on registered CS_MODELS entries; 0 = no cap (see PrecacheBudgetExhausted)
 extern cvar_t* g_horde_precache_max_sounds;  // soft cap on registered CS_SOUNDS entries; 0 = no cap
 extern cvar_t* g_horde_precache_limits_enabled;  // 1 = enforce the precache budget + family variety cap (default); 0 = uncapped variety, connecting-client crash risk on long games
+// The three "original" toggles restore vanilla stat lines, NOT vanilla gameplay. Only monster
+// types with a sourced entry in g_config.cpp's vanilla table are affected (bosses and
+// horde-exclusive tiers keep their tuning -- run developer 2 for the coverage report), and the
+// player-side progression systems (benefits, wave-based max health, skill upgrades) are
+// untouched by design. What they DO now also cover: the wave g_damage_scale ramp and the horde
+// fire-rate bonuses are suppressed, and champion armor/health multipliers no longer stack onto
+// a monster whose stats were pinned to vanilla.
 extern cvar_t* g_horde_original_m_health;  // 1 = non-boss monsters use vanilla original health/armor instead of the Lua-tuned values
 extern cvar_t* g_horde_original_m_damage;  // 1 = non-boss monsters use vanilla original weapon damage instead of the Lua-tuned values
-extern cvar_t* g_horde_original_p_damage;  // 1 = player weapons deal vanilla/PSX original damage instead of the Lua-tuned values
+extern cvar_t* g_horde_original_p_damage;  // 1 = player weapons deal vanilla/PSX original damage and fire rate instead of the Lua-tuned values
 extern cvar_t* pvm;  // PvM mode (Player vs Monster with character persistence)
 
 // Horde 2 is now the standard horde behavior: any active horde value gets the

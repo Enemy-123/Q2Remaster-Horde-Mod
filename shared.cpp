@@ -743,9 +743,17 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 	// This ensures monsters get level-scaled health/armor even if their spawn functions haven't been updated
 	ApplyPvMLevelScaling(monster);
 
+	// g_horde_original_m_health pinned this monster to its sourced vanilla stats. Vanilla
+	// monsters carried no body/power armor and were not health-multiplied, so the champion
+	// bonuses below must not put any of it back -- otherwise the toggle only holds until the
+	// monster rolls a champion tier. The visual tier, the drop and the timed powerups stay.
+	const bool original_stats_pinned =
+		g_horde_original_m_health && g_horde_original_m_health->integer &&
+		HasOriginalMonsterHealth(monster->monsterinfo.monster_type_id);
+
 	// Use base_health for power armor calculation to avoid double-scaling issues
 	// base_health is set before any bonus multipliers are applied
-	if (monster->monsterinfo.bonus_flags != BF_NONE && (!(monster->monsterinfo.bonus_flags & BF_FRIENDLY))) {
+	if (!original_stats_pinned && monster->monsterinfo.bonus_flags != BF_NONE && (!(monster->monsterinfo.bonus_flags & BF_FRIENDLY))) {
 		// ==================================================================
 		// CAMBIO: Añadir una comprobación para no sobreescribir la armadura existente.
 		// Solo añade armadura de bonus si el monstruo no tiene ya power armor.
@@ -812,10 +820,13 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 		monster->s.renderfx |= data.renderfx;
 		if (data.alpha > 0.0f) monster->s.alpha = data.alpha;
 		
-		monster->health = static_cast<int>(round(monster->health * data.health_mult));
-		monster->monsterinfo.power_armor_power = static_cast<int>(round(monster->monsterinfo.power_armor_power * data.power_armor_mult));
-		monster->monsterinfo.armor_power = static_cast<int>(round(monster->monsterinfo.armor_power * data.power_armor_mult));
-		
+		if (!original_stats_pinned)
+		{
+			monster->health = static_cast<int>(round(monster->health * data.health_mult));
+			monster->monsterinfo.power_armor_power = static_cast<int>(round(monster->monsterinfo.power_armor_power * data.power_armor_mult));
+			monster->monsterinfo.armor_power = static_cast<int>(round(monster->monsterinfo.armor_power * data.power_armor_mult));
+		}
+
 		if (data.double_time_add > 0_sec)
 			monster->monsterinfo.double_time = std::max(level.time, monster->monsterinfo.double_time) + data.double_time_add;
 		if (data.quad_time_add > 0_sec)
@@ -837,6 +848,8 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 	// so a stomped wave is genuinely tougher. Bosses never reach here (early return at the top of this
 	// function), and friendly summons are excluded. Applied last so it stacks atop any bonus-flag
 	// multiplier above; max_health is synced just below.
+	// Deliberately NOT gated by original_stats_pinned: this is a reactive anti-stomp response, not
+	// part of the monster's tuned stat line, and without it "original" mode is trivially farmable.
 	if (g_horde_local.domination_flag_active &&
 		(g_horde_local.domination_mode == 1 || g_horde_local.domination_mode == 3) &&
 		!monster->monsterinfo.isfriendlyspawn &&

@@ -514,21 +514,25 @@ inline gtime_t Weapon_AnimationTime(edict_t* ent)
 		//if (using_blaster) {
 		//	final_multiplier *= 1.4f;
 		//}
-		if (using_blaster || using_glauncher || using_etfrifle || using_proxlauncher || using_ripper) {
-			final_multiplier *= 1.4f;
-		}
-	
-		if (using_shotgun) {
-			final_multiplier *= 1.5f;
-		}
-		if (using_tesla) {
-			final_multiplier *= 4.0f; // Much faster Tesla deployment
-		}
+		// Horde fire-rate bonuses. Suppressed under g_horde_original_p_damage so that toggle
+		// restores vanilla DPS as a whole, not just the per-shot damage numbers.
+		if (!(g_horde_original_p_damage && g_horde_original_p_damage->integer))
+		{
+			if (using_blaster || using_glauncher || using_etfrifle || using_proxlauncher || using_ripper) {
+				final_multiplier *= 1.4f;
+			}
 
-		if (using_trap) {
-			final_multiplier *= 4.0f; // Much faster Trap deployment
-		}
+			if (using_shotgun) {
+				final_multiplier *= 1.5f;
+			}
+			if (using_tesla) {
+				final_multiplier *= 4.0f; // Much faster Tesla deployment
+			}
 
+			if (using_trap) {
+				final_multiplier *= 4.0f; // Much faster Trap deployment
+			}
+		}
 		//// Special handling for chaingun (improved)
 		//if (using_chaingun) {
 		//	// Limit chaingun to maximum 2x speed regardless of other multipliers
@@ -1561,15 +1565,15 @@ void Weapon_Blaster_Fire(edict_t* ent)
 
 	int const damage = irandom(damage_min, damage_max);
 
-	if (developer->integer > 1)
-	{
-		gi.Com_PrintFmt("BLASTER DEBUG: g_horde_original_p_damage={} lua_min={} lua_max={} wired_min={} wired_max={} bl_damage_skill={} rolled_damage={}\n",
-			g_horde_original_p_damage ? g_horde_original_p_damage->integer : -1,
-			g_config.blaster.damage_min, g_config.blaster.damage_max,
-			damage_min, damage_max,
-			ent && ent->client ? (int)ent->client->pers.skills.bl_damage : -1,
-			damage);
-	}
+	//if (developer->integer > 1)
+	//{
+	//	gi.Com_PrintFmt("BLASTER DEBUG: g_horde_original_p_damage={} lua_min={} lua_max={} wired_min={} wired_max={} bl_damage_skill={} rolled_damage={}\n",
+	//		g_horde_original_p_damage ? g_horde_original_p_damage->integer : -1,
+	//		g_config.blaster.damage_min, g_config.blaster.damage_max,
+	//		damage_min, damage_max,
+	//		ent && ent->client ? (int)ent->client->pers.skills.bl_damage : -1,
+	//		damage);
+	//}
 
 	// Determine effect based on trails setting
 	effects_t effect = EF_BLASTER;

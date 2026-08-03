@@ -3420,6 +3420,12 @@ struct client_persistant_t
 	bool connected, spawned; // a loadgame will leave valid entities that
 	// just don't have a connection yet
 
+	// [Horde] Durable copy of SVF_BOT. SpawnEntities() memsets every edict on level load, so
+	// ent->svflags (and with it SVF_BOT) is wiped on every map change, and ClientConnect --
+	// the only place SVF_BOT is ever set -- is not called again. gclient_t survives the level
+	// switch, so the flag lives here and ClientBegin re-asserts it onto the edict.
+	bool is_bot;
+
 // values saved and restored from edicts when changing levels
 	int32_t		health;
 	int32_t		max_health;

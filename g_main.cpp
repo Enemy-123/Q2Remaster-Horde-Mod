@@ -419,6 +419,11 @@ void InitGame()
 
 	sv_airaccelerate = gi.cvar("sv_airaccelerate", "0", CVAR_NOFLAGS);
 
+	// Both scale damage RECEIVED by the target, not dealt: g_combat.cpp picks ai_damage_scale
+	// when the target is a monster and g_damage_scale otherwise (i.e. players).
+	// In horde, g_damage_scale is server-owned -- Horde_PreInit resets it to 1 and
+	// ApplyLegacyDamageScaling re-sets it at wave breakpoints, so a manual `set` mid-session is
+	// silently overwritten at the next breakpoint wave.
 	g_damage_scale = gi.cvar("g_damage_scale", "1", CVAR_NOFLAGS);
 	g_disable_player_collision = gi.cvar("g_disable_player_collision", "0", CVAR_NOFLAGS);
 	ai_damage_scale = gi.cvar("ai_damage_scale", "1", CVAR_NOFLAGS);
@@ -1093,9 +1098,16 @@ void ExitLevel()
 			char userinfo[MAX_INFO_STRING];
 			memcpy(userinfo, game.clients[i].pers.userinfo, sizeof(userinfo));
 
+			// [Horde] is_bot identifies the client, not its loadout -- wiping it would leave
+			// bots indistinguishable from humans after the next map load.
+			const bool was_bot = game.clients[i].pers.is_bot;
+
 			game.clients[i].pers = client_persistant_t{};
 			game.clients[i].resp.coop_respawn = client_persistant_t{};
 			g_edicts[i + 1].health = 0; // this should trip the power armor, etc to reset as well
+
+			game.clients[i].pers.is_bot = was_bot;
+			game.clients[i].resp.coop_respawn.is_bot = was_bot;
 
 			memcpy(game.clients[i].pers.userinfo, userinfo, sizeof(userinfo));
 			memcpy(game.clients[i].resp.coop_respawn.userinfo, userinfo, sizeof(userinfo));

@@ -1382,33 +1382,32 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 	// Give non-bot players sentry gun and strogg summoner in vortex mode (if they have the skill)
 	if (g_vortex->integer && !(ent->svflags & SVF_BOT))
 	{
-		{
-			if (client->pers.skills.sentrygun > 0)
+		if (client->pers.skills.sentrygun > 0)
 			client->pers.inventory[IT_ITEM_SENTRYGUN] = 1;
 
-			if (client->pers.skills.monster_summon > 0)
-				client->pers.inventory[IT_ITEM_STROGGSUMM] = 1;
-		}
-
-		//
-		// BOT TECH INITIALIZATION
-		//
-		if ((ent->svflags & SVF_BOT) && ent->client->resp.ctf_team != CTF_NOTEAM)
-		{
-			bool bot_has_tech = false;
-			for (size_t i = 0; i < IT_TOTAL && !bot_has_tech; i++)
-			{
-				if ((itemlist[i].flags & IF_TECH) && client->pers.inventory[i] > 0)
-					bot_has_tech = true;
-			}
-
-			if (!bot_has_tech)
-				client->pers.inventory[IT_TECH_STRENGTH] = 1;
-		}
+		if (client->pers.skills.monster_summon > 0)
+			client->pers.inventory[IT_ITEM_STROGGSUMM] = 1;
 
 		// NOTE: Weapon and ammo loadouts are now handled via g_start_items,
 		// which is dynamically updated each wave by Horde_UpdateStartItemsForWave()
 		// and applied in InitClientPersistant via Player_GiveStartItems()
+	}
+
+	//
+	// BOT TECH INITIALIZATION
+	//
+	// Was nested inside the !(svflags & SVF_BOT) block above, so it could never run.
+	if (g_vortex->integer && (ent->svflags & SVF_BOT) && ent->client->resp.ctf_team != CTF_NOTEAM)
+	{
+		bool bot_has_tech = false;
+		for (size_t i = 0; i < IT_TOTAL && !bot_has_tech; i++)
+		{
+			if ((itemlist[i].flags & IF_TECH) && client->pers.inventory[i] > 0)
+				bot_has_tech = true;
+		}
+
+		if (!bot_has_tech)
+			client->pers.inventory[IT_TECH_STRENGTH] = 1;
 	}
 }
 // Modified InitClientPersistant
@@ -3338,6 +3337,37 @@ void ClientBegin(edict_t* ent)
 	// [Paril-KEX] we're always connected by this point...
 	ent->client->pers.connected = true;
 
+	// [Horde] Restore SVF_BOT. SpawnEntities() memsets every edict on level load, and
+	// ClientConnect -- the only place SVF_BOT is set -- is not called again across a map
+	// change, so without this every bot looks like a human from the second map onward.
+	// That has to happen before ClientBeginDeathmatch below, since G_InitEdict's preserve
+	// mask and CTFAssignTeam both read the flag off the edict.
+	if (ent->svflags & SVF_BOT)
+		ent->client->pers.is_bot = true;
+	else if (ent->client->pers.is_bot)
+		ent->svflags |= SVF_BOT;
+
+	// [Horde] Rescue bots parked in spectator by any path we haven't closed. A spectator bot
+	// still holds a client slot, so bot_minClients stays satisfied and the crew is permanently
+	// one short with nothing to rejoin it. A freshly connected bot also arrives on CTF_NOTEAM
+	// (ClientConnect) and is handled by CTFAssignTeam a few frames later, so only the ones that
+	// carry spectator state are a genuine failure worth logging.
+	if ((ent->svflags & SVF_BOT) && ent->client->resp.ctf_team == CTF_NOTEAM &&
+		G_TeamplayEnabled() && !level.intermissiontime)
+	{
+		const bool was_stuck_spectating = ent->client->resp.spectator ||
+			ent->client->pers.spectator || ent->client->menu_protected;
+
+		if (was_stuck_spectating && developer->integer)
+			gi.Com_PrintFmt("BOT RESCUE: bot {} was stuck spectating, forcing back to CTF_TEAM1\n",
+				ent - g_edicts - 1);
+
+		ent->client->resp.ctf_team = CTF_TEAM1;
+		ent->client->resp.spectator = false;
+		ent->client->pers.spectator = false;
+		ent->client->menu_protected = false;
+	}
+
 	// Clean up any invalid morph state from previous sessions
 	if (IsMorphed(ent)) {
 		RestoreMorphed(ent);
@@ -3787,6 +3817,9 @@ bool ClientConnect(edict_t* ent, char* userinfo, const char* social_id, bool isB
 	if (isBot) {
 		ent->svflags |= SVF_BOT;
 	}
+	// [Horde] Mirror the bot flag into pers so it survives the level-load edict memset;
+	// ClientBegin re-asserts SVF_BOT from here on every map. See client_persistant_t::is_bot.
+	ent->client->pers.is_bot = isBot;
 
 	Q_strlcpy(ent->client->pers.social_id, social_id, sizeof(ent->client->pers.social_id));
 
@@ -4083,6 +4116,13 @@ static void WarnInactivePlayer(edict_t* ent) {
 static void HandleInactivePlayer(edict_t* ent) {
 	// Check if already inactive or no client
 	if (!ent || !ent->client || ent->client->resp.inactive) {
+		return;
+	}
+
+	// [Horde] Never AFK-kick a bot to spectator. ClientInactivityTimer has its own bot branch
+	// that teleports stuck bots instead; this is the backstop if the SVF_BOT check there is
+	// ever reached with the flag missing.
+	if (ent->svflags & SVF_BOT) {
 		return;
 	}
 

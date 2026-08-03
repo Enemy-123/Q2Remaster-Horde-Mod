@@ -3371,6 +3371,11 @@ void CTFObserver(edict_t* ent)
 	if ((!G_TeamplayEnabled() && !G_IsCooperative() && !coop->integer) || g_teamplay_force_join->integer)
 		return;
 
+	// [Horde] Bots must never become observers: nothing ever rejoins them, and the slot they
+	// keep holding makes bot_minClients think the crew is full.
+	if (ent->svflags & SVF_BOT)
+		return;
+
 	// Clean up flyer morph state if morphed
 	if (IsMorphed(ent)) {
 		RestoreMorphed(ent);

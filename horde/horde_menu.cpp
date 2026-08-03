@@ -236,6 +236,13 @@ void HordeOpenJoinMenu(edict_t *ent)
 		return;
 	}
 
+	// [Horde] Bots can never answer a menu; opening one here parks them in observer state
+	// forever (and sets menu_protected on top of it).
+	if (ent->svflags & SVF_BOT)
+	{
+		return;
+	}
+
 	if (!deathmatch->integer && !coop->integer && !G_TeamplayEnabled())
 	{
 		OpenHordeMenu(ent);

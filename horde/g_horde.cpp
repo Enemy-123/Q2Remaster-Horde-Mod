@@ -8464,8 +8464,37 @@ int SelectChampionBonusType() {
 	return BF_POSSESSED;
 }
 
+// developer >= 2 diagnostic. g_horde_original_m_health / _m_damage only rewire monster types
+// that have a sourced vanilla entry (see the table in g_config.cpp); horde-exclusive tiers keep
+// their full Lua tuning and bosses are excluded by design, so a wave under those toggles can
+// mix 30-HP vanilla soldiers with fully-tuned horde-only monsters. Report each type that falls
+// through once per server session so the tuning gap is visible instead of silent.
+static void ReportOriginalStatsCoverageGap(const edict_t* monster)
+{
+	if (developer->integer < 2 || !monster || monster->monsterinfo.IS_BOSS)
+		return;
+
+	if (!((g_horde_original_m_health && g_horde_original_m_health->integer) ||
+		(g_horde_original_m_damage && g_horde_original_m_damage->integer)))
+		return;
+
+	const uint8_t type_id = monster->monsterinfo.monster_type_id;
+	if (HasOriginalMonsterHealth(type_id))
+		return;
+
+	static std::array<bool, static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES)> reported{};
+	if (type_id >= reported.size() || reported[type_id])
+		return;
+	reported[type_id] = true;
+
+	gi.Com_PrintFmt("ORIGINAL STATS: no vanilla entry for {} (type {}), keeping horde tuning\n",
+		monster->classname ? monster->classname : "?", type_id);
+}
+
 bool ApplyHordeBonuses(edict_t* monster, const int32_t currentLevel, const float champion_chance)
 {
+	ReportOriginalStatsCoverageGap(monster);
+
 	bool became_champion = false;
 	// Respect the restored per-wave elite/champion cap.
 	// Reduced cooldown for more dynamic gameplay
@@ -8507,7 +8536,14 @@ bool ApplyHordeBonuses(edict_t* monster, const int32_t currentLevel, const float
 		}
 	}
 
-	if (currentLevel >= ChampionBonusThresholds::ARMOR_MIN_LEVEL && monster->monsterinfo.power_armor_type == IT_NULL && monster->monsterinfo.armor_type == IT_NULL)
+	// The wave-6+ armor grant is what GetMonsterScaledArmor deliberately returned 0 for under
+	// g_horde_original_m_health -- handing it back here would undo the toggle from wave 6 on.
+	const bool original_stats_pinned =
+		g_horde_original_m_health && g_horde_original_m_health->integer &&
+		HasOriginalMonsterHealth(monster->monsterinfo.monster_type_id);
+
+	if (!original_stats_pinned &&
+		currentLevel >= ChampionBonusThresholds::ARMOR_MIN_LEVEL && monster->monsterinfo.power_armor_type == IT_NULL && monster->monsterinfo.armor_type == IT_NULL)
 	{
 		SetMonsterArmor(monster);
 		if (!monster->inuse) return false;
@@ -8824,7 +8860,9 @@ void SetNextMonsterSpawnTime(const horde::MapSize& mapSize)
 	// cadence (ramping to MAX_SLOWDOWN_MULT) so the wave outlasts the defenses rather than
 	// feeding the kill zone. defense_saturated also suppresses the controlled-rush boost below.
 	const int deployables = CountPlayerDeployables();
-	const int active_players = std::max<int>(1, GetNumActivePlayers());
+	// Humans only: bots don't place deployables, so counting them here just inflates the
+	// thresholds and stops the slowdown from ever triggering.
+	const int active_players = std::max<int>(1, GetNumHumanPlayers());
 	const int defense_start = DefensePacing::START_PER_PLAYER * active_players;
 	const int defense_full = DefensePacing::FULL_PER_PLAYER * active_players;
 	const bool defense_saturated = deployables >= defense_start;
@@ -8836,7 +8874,7 @@ void SetNextMonsterSpawnTime(const horde::MapSize& mapSize)
 			: 1.0f;
 		defenseMultiplier = 1.0f + t * (DefensePacing::MAX_SLOWDOWN_MULT - 1.0f);
 		if (developer->integer > 1)
-			gi.Com_PrintFmt("DEFENSE PACING: {} deployables ({} players, start {}, full {}), spawn interval x{:.2f}\n",
+			gi.Com_PrintFmt("DEFENSE PACING: {} deployables ({} human players, start {}, full {}), spawn interval x{:.2f}\n",
 				deployables, active_players, defense_start, defense_full, defenseMultiplier);
 	}
 
@@ -11160,9 +11198,29 @@ static void FinalizeWaveSetup(int32_t lvl, int32_t numHumanPlayers)
 		std::min(total_planned_for_wave, static_cast<int32_t>(std::numeric_limits<uint16_t>::max())));
 }
 
-// Apply legacy damage scaling for specific waves
+// Apply legacy damage scaling for specific waves.
+//
+// NOTE on direction: g_combat.cpp picks the scale off the *target* --
+// `targ->svflags & SVF_MONSTER ? ai_damage_scale : g_damage_scale` -- so g_damage_scale
+// multiplies damage dealt TO players, while ai_damage_scale (damage to monsters) stays pinned
+// at 1 by Horde_PreInit. Ramping it here is a late-wave lethality curve, not a player buff.
+//
+// The original-damage toggles rewire base weapon numbers only; leaving this ramp on top would
+// make "original" mode strictly harsher than vanilla (vanilla output, up to 3x incoming), so
+// the ramp is disabled -- and any earlier breakpoint undone -- whenever either is set.
 static void ApplyLegacyDamageScaling(int32_t lvl)
 {
+	const bool original_damage =
+		(g_horde_original_p_damage && g_horde_original_p_damage->integer) ||
+		(g_horde_original_m_damage && g_horde_original_m_damage->integer);
+
+	if (original_damage)
+	{
+		if (g_damage_scale && g_damage_scale->value != 1.0f)
+			gi.cvar_set("g_damage_scale", "1");
+		return;
+	}
+
 	// Horde 2: breakpoints arrive earlier and are smoothed out.
 	if (IsHorde2())
 	{
