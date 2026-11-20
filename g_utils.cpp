@@ -1131,15 +1131,32 @@ void SetProjectileAttackerInfo(edict_t* projectile, edict_t* attacker)
 
 	if (attacker->client)
 	{
+		projectile->projectile_from_player_side = true;
 		projectile->projectile_was_player_attacker = true;
 		projectile->projectile_attacker_type_id = 0;
 		projectile->projectile_attacker_level = 0;
+		projectile->projectile_has_attacker_info = true;
 	}
 	else if (attacker->svflags & SVF_MONSTER)
 	{
+		// monster_type_id is resolved lazily elsewhere; make sure the obituary gets a real one.
+		if (attacker->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN && attacker->classname)
+			attacker->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID(attacker->classname));
+
+		projectile->projectile_from_player_side = attacker->monsterinfo.isfriendlyspawn;
 		projectile->projectile_was_player_attacker = false;
 		projectile->projectile_attacker_type_id = attacker->monsterinfo.monster_type_id;
 		projectile->projectile_attacker_level = attacker->monsterinfo.pvm_level;
+		projectile->projectile_has_attacker_info = true;
+	}
+	else if (attacker->projectile_has_attacker_info)
+	{
+		// Chained effects (a fireball's flames, a burn applied by a projectile) inherit the shooter.
+		projectile->projectile_from_player_side = attacker->projectile_from_player_side;
+		projectile->projectile_was_player_attacker = attacker->projectile_was_player_attacker;
+		projectile->projectile_attacker_type_id = attacker->projectile_attacker_type_id;
+		projectile->projectile_attacker_level = attacker->projectile_attacker_level;
+		projectile->projectile_has_attacker_info = true;
 	}
 }
 

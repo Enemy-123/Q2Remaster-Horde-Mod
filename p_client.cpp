@@ -371,7 +371,7 @@ namespace ObituaryMessages {
 		// Strip "monster_" prefix if present (shouldn't be, but just in case)
 		if (name && strncmp(name, "monster_", 8) == 0)
 			return name + 8;
-		return name;
+		return (name && *name) ? name : "monster";
 	}
 }
 
@@ -498,9 +498,11 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 	// --- 3. Handle Projectiles from Dead Monsters ---
 	// NOTE: SVF_PROJECTILE can be temporarily cleared during projectile touch handling.
 	// We rely on stored projectile attacker metadata instead of that transient flag.
+	// (Used to test projectile_attacker_type_id for non-zero, but SOLDIER_LIGHT is type 0: a dead
+	// light soldier's bolt fell through to the world branch and printed "<player> died.")
 	if (inflictor &&
+		inflictor->projectile_has_attacker_info &&
 		!inflictor->projectile_was_player_attacker &&
-		inflictor->projectile_attacker_type_id &&
 		(!attacker || attacker == world || attacker == inflictor ||
 		 (attacker && !(attacker->svflags & SVF_MONSTER) && !attacker->client)))
 	{

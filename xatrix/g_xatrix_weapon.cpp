@@ -170,11 +170,8 @@ THINK(heat_think) (edict_t* self) -> void
 		// acquire new target
 		while ((target = findradius(target, self->s.origin, 1024)) != nullptr)
 		{
-			if (self->owner == target)
-				continue;
-			if (!target->client)
-				continue;
-			if (target->health <= 0)
+			// Side-aware: a summon's rocket hunts monsters, never players (see G_SeekerCanTarget).
+			if (!G_SeekerCanTarget(self, target, false))
 				continue;
 			if (!visible(self, target))
 				continue;

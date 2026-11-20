@@ -784,7 +784,8 @@ void Config_LoadMonsters(const char* basedir)
 				// Skip non-spawnable entities that don't need config
 				if (strncmp(classname, "misc_", 5) == 0 ||       // Easter eggs, decorative entities
 				    strcmp(classname, "monster_boss3_stand") == 0 || // Decorative boss stand
-				    strcmp(classname, "monster_commander_body") == 0) // Decorative body
+				    strcmp(classname, "monster_commander_body") == 0 || // Decorative body
+				    strcmp(classname, "monster_sentrygun") == 0)  // Player deployable, configured by g_config.sentrygun
 				{
 					continue;
 				}

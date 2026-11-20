@@ -718,17 +718,21 @@ Use this call with a distance of 0 to replace ai_face
 // only traces world geometry, this includes entities — so anyone standing in the way counts as
 // blocked. Used so a monster re-targets the closest visible enemy (often the blocker itself)
 // rather than staring and dry-firing through whoever is in front of it.
-static bool M_AttackLaneBlocked(edict_t* self, edict_t* target)
+enum class attack_lane_t { clear, blocked, blocked_by_ally };
+
+static attack_lane_t M_AttackLane(edict_t* self, edict_t* target)
 {
 	if (!self || !target || !target->inuse)
-		return false;
+		return attack_lane_t::clear;
 
 	vec3_t start = self->s.origin;
 	start.z += (self->viewheight != 0 ? self->viewheight : (self->maxs.z > 4 ? self->maxs.z - 4 : 0));
 
 	// Mirror M_CheckClearShot's clear-shot test at the enemy's head and feet; the lane only counts
 	// as blocked when BOTH aim points are obstructed by something that isn't our target. Hitting a
-	// client (player) counts as clear since players are valid enemies, not a wasted shot.
+	// hostile client counts as clear (a valid enemy, not a wasted shot); hitting one of our own
+	// side - a summon's owner, a packmate - never does, however close to the target it stands.
+	bool ally_in_lane = false;
 	for (const float z : { static_cast<float>(target->viewheight), 0.f })
 	{
 		vec3_t end = target->s.origin;
@@ -736,11 +740,22 @@ static bool M_AttackLaneBlocked(edict_t* self, edict_t* target)
 
 		const trace_t tr = gi.traceline(start, end, self, MASK_PROJECTILE & ~CONTENTS_DEADMONSTER);
 
+		if (M_ShotBlockedByAlly(self, tr))
+		{
+			ally_in_lane = true;
+			continue;
+		}
+
 		if (tr.ent == target || (tr.ent && tr.ent->client) || tr.fraction > 0.8f)
-			return false; // clear enough to at least one aim point
+			return attack_lane_t::clear; // clear enough to at least one aim point
 	}
 
-	return true;
+	return ally_in_lane ? attack_lane_t::blocked_by_ally : attack_lane_t::blocked;
+}
+
+static bool M_AttackLaneBlocked(edict_t* self, edict_t* target)
+{
+	return M_AttackLane(self, target) != attack_lane_t::clear;
 }
 
 // Switch to the closest visible enemy when the current one is lost or has drifted far away.
@@ -2671,9 +2686,12 @@ bool ai_checkattack(edict_t* self, float dist)
 		// closer enemy), don't stand there attacking through it. Re-target the closest visible enemy
 		// (often the blocker itself) so we engage who we can actually hit; otherwise keep this enemy
 		// and let ai_run reposition us for a clear shot.
-		if (enemy_vis && range_to(self, self->enemy) > RANGE_MELEE &&
-			!(self->monsterinfo.aiflags & (AI_MEDIC | AI_MANUAL_STEERING)) &&
-			M_AttackLaneBlocked(self, self->enemy))
+		const attack_lane_t lane =
+			(enemy_vis && range_to(self, self->enemy) > RANGE_MELEE &&
+			 !(self->monsterinfo.aiflags & (AI_MEDIC | AI_MANUAL_STEERING)))
+			? M_AttackLane(self, self->enemy) : attack_lane_t::clear;
+
+		if (lane != attack_lane_t::clear)
 		{
 			edict_t* const blocked_enemy = self->enemy;
 			const bool found_clear =
@@ -2689,6 +2707,13 @@ bool ai_checkattack(edict_t* self, float dist)
 
 			if (!self->enemy)
 				self->enemy = blocked_enemy; // finder cleared it; keep current and reposition
+
+			// Our own side is standing in the line of fire: hold fire this frame and let ai_run
+			// keep moving us (the lane usually clears within a step or two) instead of putting
+			// shots into the ally's back. A wall/hostile body in the way still lets checkattack
+			// decide, as before.
+			if (lane == attack_lane_t::blocked_by_ally)
+				return false;
 		}
 
 		if (self->monsterinfo.checkattack) // Ensure the function pointer is valid

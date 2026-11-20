@@ -1609,6 +1609,7 @@ void fire_fixbot_plasma(edict_t* self, const vec3_t& start, const vec3_t& dir, i
 	plasma->s.modelindex = gi.modelindex("sprites/s_photon.sp2");
 	plasma->s.scale = 0.75f;
 	plasma->owner = self;
+	SetProjectileAttackerInfo(plasma, self);
 
 	// Store attacker info in case owner dies before projectile hits
 	if (self) {

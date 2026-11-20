@@ -160,6 +160,11 @@ edict_t* ThrowGib(edict_t* self, const char* gibname, int damage, gib_type_t typ
 		}
 	}
 
+	// horde shared-gib redirect: the stand-in model has its own frames/skin, so drop the
+	// per-monster frame/skin picks rather than showing an out-of-range frame
+	const bool gib_redirected = G_RedirectGibModel(gibname) != gibname;
+	if (gib_redirected)
+		frame = 0;
 	gib->s.modelindex = gi.modelindex(gibname);
 	gib->s.modelindex2 = 0;
 	gib->s.scale = scale;
@@ -182,7 +187,7 @@ edict_t* ThrowGib(edict_t* self, const char* gibname, int damage, gib_type_t typ
 	gib->takedamage = true;
 	gib->die = gib_die;
 	gib->classname = "gib";
-	if (type & GIB_SKINNED)
+	if ((type & GIB_SKINNED) && !gib_redirected)
 		gib->s.skinnum = self->s.skinnum;
 	else
 		gib->s.skinnum = 0;
@@ -233,8 +238,14 @@ edict_t* ThrowGib(edict_t* self, const char* gibname, int damage, gib_type_t typ
 
 	gib->think = G_FreeEdict;
 
+	// Horde: a gibbed monster leaves ~8-11 gib entities; at 10-20s each, a few rocket/BFG chains
+	// through a full wave left hundreds of extra entities for every nearby client to receive
+	// (g_nolag, which turns gibs into temp entities, is forced off on horde reset). Heads stay
+	// longer since there's one per monster.
 	if (g_instagib->integer)
 		gib->nextthink = level.time + random_time(1_sec, 5_sec);
+	else if (g_horde->integer)
+		gib->nextthink = level.time + ((type & GIB_HEAD) ? random_time(5_sec, 8_sec) : random_time(2_sec, 4_sec));
 	else
 		gib->nextthink = level.time + random_time(10_sec, 20_sec);
 

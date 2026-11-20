@@ -15,6 +15,14 @@ constexpr int FIRE_IGNITE_FRAMES = 3;      // Frames 0-3 for ignition
 constexpr int FIRE_BURN_START = 4;         // Frame 4 starts burning loop
 constexpr int FIRE_BURN_END = 15;          // Frame 15 ends burning loop
 
+// Network budget. A fireball volley leaves `count` flames per explosion and the
+// berserk/shambler fire attacks stack them: 80 live fire entities were measured on a
+// wave-18 xdm5 run. Each one used to change s.frame every server frame (40 Hz) and
+// carry its own looping sound, so every viewer got a delta for all of them every frame.
+constexpr gtime_t FIRE_THINK_INTERVAL = 100_ms; // animate at the classic 10 Hz
+constexpr int     FIRE_MAX_LIVE = 32;           // oldest flame is recycled past this
+constexpr float   FIRE_SOUND_SHARE_RADIUS = 160.0f; // one burning loop per cluster
+
 // Fireball constants (loaded from g_config, but defaults here)
 constexpr int FIREBALL_DEFAULT_DAMAGE = 45;
 constexpr float FIREBALL_DEFAULT_RADIUS = 230.0f;
@@ -151,6 +159,7 @@ void apply_burning(edict_t* target, edict_t* attacker, int damage, gtime_t durat
     burn->classname = "burning";
     burn->enemy = target;
     burn->owner = attacker;
+    SetProjectileAttackerInfo(burn, attacker);
     burn->dmg = damage;
     burn->timestamp = level.time + duration;
     burn->think = burning_think;
@@ -251,7 +260,7 @@ THINK(bfire_think)(edict_t* self) -> void
         self->pain_debounce_time = level.time + 1_sec;
     }
 
-    self->nextthink = level.time + FRAME_TIME_MS;
+    self->nextthink = level.time + FIRE_THINK_INTERVAL;
 }
 
 TOUCH(bfire_touch)(edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
@@ -289,6 +298,32 @@ void ThrowFlame(edict_t* ent, const vec3_t& start, const vec3_t& forward,
     if (!ent || !ent->inuse)
         return;
 
+    // Enforce the live-flame cap (recycle the one closest to burning out) and find out
+    // whether a nearby flame already carries the looping burn sound.
+    int live_fires = 0;
+    edict_t* oldest = nullptr;
+    bool sound_nearby = false;
+    constexpr float share_sq = FIRE_SOUND_SHARE_RADIUS * FIRE_SOUND_SHARE_RADIUS;
+    for (uint32_t i = game.maxclients + 1; i < globals.num_edicts; i++)
+    {
+        edict_t* e = &g_edicts[i];
+        if (!e->inuse || e->think != bfire_think)
+            continue;
+        ++live_fires;
+        if (!oldest || e->timestamp < oldest->timestamp)
+            oldest = e;
+        if (e->s.sound && (e->s.origin - start).lengthSquared() <= share_sq)
+            sound_nearby = true;
+    }
+    if (live_fires >= FIRE_MAX_LIVE && oldest)
+    {
+        // hand the loop over so the cluster doesn't go silent
+        if (oldest->s.sound)
+            sound_nearby = false;
+        gi.unlinkentity(oldest);
+        G_FreeEdict(oldest);
+    }
+
     // Create the fire entity
     edict_t* fire = G_Spawn();
     fire->s.origin = start;
@@ -305,13 +340,14 @@ void ThrowFlame(edict_t* ent, const vec3_t& start, const vec3_t& forward,
     fire->movetype = MOVETYPE_TOSS;
     fire->s.effects |= EF_BLASTER;
     fire->owner = ent;
+    SetProjectileAttackerInfo(fire, ent);
     fire->dmg = damage;
     fire->classname = "fire";
-    fire->s.sound = gi.soundindex("weapons/bfg__l1a.wav");
+    fire->s.sound = sound_nearby ? 0 : gi.soundindex("weapons/bfg__l1a.wav");
     fire->timestamp = level.time + ttl;
     fire->think = bfire_think;
     fire->touch = bfire_touch;
-    fire->nextthink = level.time + FRAME_TIME_MS;
+    fire->nextthink = level.time + FIRE_THINK_INTERVAL;
     fire->solid = SOLID_TRIGGER;
     fire->clipmask = MASK_SHOT;
     fire->s.modelindex = gi.modelindex(FIRE_MODEL);
@@ -470,6 +506,7 @@ void fire_fireball(edict_t* self, const vec3_t& start, const vec3_t& aimdir,
     fireball->solid = SOLID_BBOX;
     fireball->s.modelindex = gi.modelindex(FIREBALL_MODEL);
     fireball->owner = self;
+    SetProjectileAttackerInfo(fireball, self); // obituary/side survive the shooter dying
     fireball->touch = fire_fireball_touch;
     fireball->think = fire_fireball_think;
     fireball->dmg_radius = damage_radius;

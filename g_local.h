@@ -2593,6 +2593,8 @@ bool M_CanSpawnMore(edict_t* spawner);
 void M_TakeGlobalSpawnSlot(edict_t* monster);    // horde: summon takes one level.global_spawned_count slot
 void M_ReleaseGlobalSpawnSlot(edict_t* monster); // idempotent release (death, gib, free)
 bool M_IsAlly(edict_t* self, edict_t* other);     // same side for AI reactions (players+summons vs horde monsters)
+bool M_ShotBlockedByAlly(edict_t* self, const trace_t& tr); // shot trace stopped on a living ally
+bool G_SeekerCanTarget(const edict_t* seeker, const edict_t* target, bool allow_props); // homing projectile retarget filter
 bool Summon_TeleportAway(edict_t* self);          // short hop to a clear spot (horde/g_strogg_summoner.cpp)
 
 // shared with monsters
@@ -2622,6 +2624,7 @@ void gib_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, c
 
 void skull_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
 edict_t* ThrowGib(edict_t* self, const char* gibname, int damage, gib_type_t type, float scale, int frame = 0);
+const char* G_RedirectGibModel(const char* name); // g_main.cpp: horde shared-gib redirect
 void BecomeExplosion1(edict_t* self);
 void BecomeExplosion2(edict_t* self);
 void BecomeTE(edict_t* self);
@@ -4138,6 +4141,8 @@ struct edict_t
 	// Store original attacker info for projectiles (when owner dies before projectile hits)
 	uint8_t projectile_attacker_type_id; // monster type id if attacker was monster
 	bool projectile_was_player_attacker; // true if attacker was a player
+	bool projectile_from_player_side;    // fired by a player or a player's summon/sentry (seekers keep their side after owner is freed)
+	bool projectile_has_attacker_info;   // the three fields above were stamped by SetProjectileAttackerInfo (type id 0 is a real monster)
 	int16_t projectile_attacker_level; // pvm_level of monster attacker (for obituary)
 
 	// Coop monster swap: the map's original classname when this monster was swapped
@@ -4364,10 +4369,26 @@ public:
 	// iterate all allocated entities that match the filter from the specified begin offset
 	// to the specified INCLUSIVE end offset (or the first entity that matches before it),
 	// including end itself but not ones that may appear after this iterator is done
-	inline entity_iterable_t<TFilter>(uint32_t start, uint32_t end) :
-		begin_index(find_matched_index(start, 1)),
-		end_index(find_matched_index(end, -1) + 1)
+	// The search never leaves [start, end]: with no match the range is empty (begin == end == start).
+	// The old unbounded scans left begin at num_edicts when e.g. no players were connected, and
+	// once the frame spawned new edicts that index became a real non-client entity - iterating
+	// players() then dereferenced a null client (crash on empty servers).
+	inline entity_iterable_t<TFilter>(uint32_t start, uint32_t end)
 	{
+		const uint32_t last = globals.num_edicts ? std::min(end, globals.num_edicts - 1) : 0;
+		uint32_t b = start;
+		while (b <= last && !filter(&g_edicts[b]))
+			++b;
+		if (!globals.num_edicts || b > last)
+		{
+			begin_index = end_index = start;
+			return;
+		}
+		uint32_t e = last;
+		while (e > b && !filter(&g_edicts[e]))
+			--e;
+		begin_index = b;
+		end_index = e + 1;
 	}
 
 	inline entity_iterator_t<TFilter> begin() const { return entity_iterator_t<TFilter>(begin_index, end_index); }

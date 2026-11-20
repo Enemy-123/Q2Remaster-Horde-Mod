@@ -521,6 +521,84 @@ void SVCmd_ResetPlayer_f()
 	}
 }
 
+#include "horde/g_horde.h"
+
+// "sv kill_ai": the host-only kill_ai client command for dedicated servers / rcon.
+// Kills every hostile monster, cleans bodies and skips to the next wave.
+static void SVCmd_KillAI_f()
+{
+	for (uint32_t i = 1; i < globals.num_edicts; ++i)
+	{
+		edict_t* e = &g_edicts[i];
+		if (!e->inuse || !(e->svflags & SVF_MONSTER) || e->deadflag)
+			continue;
+		if (e->monsterinfo.team == CTF_TEAM1 || e->monsterinfo.isfriendlyspawn)
+			continue;
+		T_Damage(e, world, world, { 0, 0, 1 }, e->s.origin, { 0, 0, 1 }, 99999, 99999, DAMAGE_NO_PROTECTION, MOD_BFG_BLAST);
+	}
+	Horde_CleanBodies();
+	fastNextWave();
+	gi.Com_PrintFmt("kill_ai: purged, advancing to next wave\n");
+}
+
+// "sv ent_census": in-use edicts and the most common classnames, to see what fills the edict list
+static void SVCmd_EntCensus_f()
+{
+	std::unordered_map<std::string, int32_t> counts;
+	int32_t inuse = 0, monsters = 0, visible = 0;
+	for (uint32_t i = 1; i < globals.num_edicts; ++i)
+	{
+		const edict_t* e = &g_edicts[i];
+		if (!e->inuse)
+			continue;
+		++inuse;
+		if ((e->svflags & SVF_MONSTER) && !e->deadflag)
+			++monsters;
+		if (e->s.modelindex || e->s.effects || e->s.sound)
+			++visible;
+		++counts[e->classname ? e->classname : "(null)"];
+	}
+	std::vector<std::pair<std::string, int32_t>> sorted(counts.begin(), counts.end());
+	std::sort(sorted.begin(), sorted.end(), [](const auto& a, const auto& b) { return a.second > b.second; });
+	gi.Com_PrintFmt("=== ent_census: num_edicts {}, in use {}, live monsters {}, visible {} ===\n",
+		globals.num_edicts, inuse, monsters, visible);
+	for (size_t i = 0; i < sorted.size() && i < 15; ++i)
+		gi.Com_PrintFmt("  {:5} {}\n", sorted[i].second, sorted[i].first);
+}
+
+// Test harness: "g_horde_autotest <seconds>" lets each wave play for that long, then logs the
+// precache + entity census, kills the hostile monsters and advances the wave. 0 = off (default).
+extern int16_t current_wave_level;
+void Horde_AutotestFrame()
+{
+	static cvar_t* autotest = nullptr;
+	if (!autotest)
+		autotest = gi.cvar("g_horde_autotest", "0", CVAR_NOFLAGS);
+	if (autotest->value <= 0 || level.intermissiontime)
+		return;
+
+	static int16_t tracked_wave = -1;
+	static gtime_t wave_start = 0_ms, last_time = 0_ms;
+	if (level.time < last_time) // new map
+		tracked_wave = -1;
+	last_time = level.time;
+
+	if (current_wave_level != tracked_wave)
+	{
+		tracked_wave = current_wave_level;
+		wave_start = level.time;
+		return;
+	}
+	if (level.time - wave_start < gtime_t::from_sec(autotest->value))
+		return;
+
+	gi.Com_PrintFmt("=== AUTOTEST map {} wave {} after {}s ===\n", level.mapname, tracked_wave, autotest->value);
+	Horde_PrintPrecacheStatus();
+	SVCmd_EntCensus_f();
+	SVCmd_KillAI_f();
+	wave_start = level.time;
+}
+
 void ServerCommand()
 {
 	const char *cmd;
@@ -548,6 +626,14 @@ void ServerCommand()
 		SVCmd_ResetPlayer_f();
 	else if (Q_strcasecmp(cmd, "tacticspawns") == 0)
 		SVCmd_TacticalSpawns_f();
+	else if (Q_strcasecmp(cmd, "kill_ai") == 0)
+		SVCmd_KillAI_f();
+	else if (Q_strcasecmp(cmd, "ent_census") == 0)
+		SVCmd_EntCensus_f();
+	else if (Q_strcasecmp(cmd, "precache_status") == 0)
+		Horde_PrintPrecacheStatus();
+	else if (Q_strcasecmp(cmd, "precache_list") == 0)
+		Horde_PrintPrecacheList(gi.argc() > 2 ? gi.argv(2) : "");
 	// REMOVED: Asset manager commands (assetstats, assetlist, assetcleanup)
 	else
 		gi.LocClient_Print(nullptr, PRINT_HIGH, "Unknown server command \"{}\"\n", cmd);

@@ -453,12 +453,9 @@ THINK(heat_chick_think) (edict_t* self) -> void
 		edict_t* target = nullptr;
 		while ((target = findradius(target, self->s.origin, 1024)) != nullptr)
 		{
-			// Look for enemies (not clients like turret does)
-			if (self->owner == target || !target->takedamage || !target->inuse || target->health <= 0 || !visible(self, target))
-				continue;
-
-			// Don't target other monsters if owner is a monster
-			if (self->owner && (self->owner->svflags & SVF_MONSTER) && (target->svflags & SVF_MONSTER))
+			// Side-aware: a summoned chick's plasma hunts monsters; a hostile one players and their
+			// deployables. Visibility last, it's the expensive test.
+			if (!G_SeekerCanTarget(self, target, true) || !visible(self, target))
 				continue;
 
 			float const dist_to_target = (self->s.origin - target->s.origin).length();

@@ -2456,10 +2456,7 @@ void fire_gekk_plasma(edict_t* self, const vec3_t& start, const vec3_t& dir, int
 	plasma->owner = self;
 
 	// Store attacker info
-	if (self->svflags & SVF_MONSTER) {
-		plasma->projectile_was_player_attacker = false;
-		plasma->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
-	}
+	SetProjectileAttackerInfo(plasma, self);
 
 	plasma->touch = plasma_touch;
 	plasma->nextthink = level.time + 8_sec;

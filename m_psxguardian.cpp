@@ -597,7 +597,7 @@ THINK(heat_guardianpsx_think) (edict_t* self) -> void
 		edict_t* target = nullptr;
 		while ((target = findradius(target, self->s.origin, 1024)) != nullptr)
 		{
-			if (self->owner == target || !target->client || !target->inuse || target->health <= 0)
+			if (!G_SeekerCanTarget(self, target, false))
 				continue;
 
 			float const dist_to_target = (self->s.origin - target->s.origin).length();

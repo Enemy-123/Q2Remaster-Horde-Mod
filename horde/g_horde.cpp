@@ -397,6 +397,52 @@ void Horde_PrintPrecacheStatus()
 	gi.Com_PrintFmt("Families allowed: {} / {}; monster types precached: {}; model dirs: {}\n",
 		GetPrecachedFamilyCount(), PrecacheLimits::MAX_PRECACHED_MODEL_FAMILIES,
 		g_precached_monsters_this_map.size(), g_precached_models_this_map.size());
+	// Byte size of the configstring block a connecting client must download. Each string goes
+	// out as svc_configstring (1 byte cmd + 2 byte index + text + NUL). A 16-bit size limit
+	// (65535) on the connect/gamestate path would be hit by total BYTES, not by model count -
+	// sounds and long paths count as much as models do.
+	{
+		size_t bytes_models = 0, bytes_sounds = 0, bytes_images = 0, bytes_items = 0;
+		size_t bytes_general = 0, bytes_statusbar = 0, bytes_other = 0;
+		int32_t strings_sent = 0;
+		for (int32_t i = 0; i < MAX_CONFIGSTRINGS; ++i)
+		{
+			const char* cs = gi.get_configstring(i);
+			if (!cs || !*cs)
+				continue;
+			const size_t len = strlen(cs);
+			const size_t wire = len + 4;
+			++strings_sent;
+
+			if (i >= CS_MODELS && i < CS_SOUNDS) bytes_models += wire;
+			else if (i >= CS_SOUNDS && i < CS_IMAGES) bytes_sounds += wire;
+			else if (i >= CS_IMAGES && i < CS_LIGHTS) bytes_images += wire;
+			else if (i >= CS_ITEMS && i < CS_PLAYERSKINS) bytes_items += wire;
+			else if (i >= CS_STATUSBAR && i < CS_AIRACCEL) bytes_statusbar += wire;
+			else if (i >= CS_GENERAL) bytes_general += wire;
+			else bytes_other += wire;
+
+			// statusbar and general strings may run past one slot; skip the slots they cover
+			if ((i >= CS_STATUSBAR && i < CS_AIRACCEL) || (i >= CS_GENERAL && i < CS_WHEEL_WEAPONS))
+				i += static_cast<int32_t>(len / CS_MAX_STRING_LENGTH);
+		}
+		const size_t total = bytes_models + bytes_sounds + bytes_images + bytes_items +
+			bytes_general + bytes_statusbar + bytes_other;
+		gi.Com_PrintFmt("Connect configstring bytes: {} total in {} strings ({:.0f}% of 65535)\n",
+			total, strings_sent, 100.0 * static_cast<double>(total) / 65535.0);
+		gi.Com_PrintFmt("  models {}, sounds {}, images {}, items {}, statusbar {}, general/wheel {}, other {}\n",
+			bytes_models, bytes_sounds, bytes_images, bytes_items, bytes_statusbar, bytes_general, bytes_other);
+
+		// Entities a new client receives in its first snapshot (rough: anything with a visible model/sound)
+		int32_t visible_ents = 0;
+		for (uint32_t e = 1; e < globals.num_edicts; ++e)
+		{
+			const edict_t* ent = &g_edicts[e];
+			if (ent->inuse && (ent->s.modelindex || ent->s.effects || ent->s.sound))
+				++visible_ents;
+		}
+		gi.Com_PrintFmt("Entities with visible state: {} (each ~10-40 bytes in a new client's first snapshot)\n", visible_ents);
+	}
 	gi.Com_PrintFmt("Budget exhausted: {}\n", PrecacheBudgetExhausted() ? "YES (speculative precache stopped)" : "no");
 	gi.Com_PrintFmt("Precache limits enabled (g_horde_precache_limits_enabled): {}\n",
 		(g_horde_precache_limits_enabled && g_horde_precache_limits_enabled->integer) ? "yes" : "NO (uncapped variety)");

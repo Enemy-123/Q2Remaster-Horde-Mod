@@ -33,15 +33,20 @@ constexpr float TESLA_ORB_OFFSET = 12.0f;		// Height of normal sphere
 constexpr float TESLA_ORB_OFFSET_CEIL = -18.0f; // Height of sphere when on ceiling
 constexpr float TESLA_POSITION_OFFSET = 16.0f;  // General positioning offset for tesla body
 
-// Network message limiting
-constexpr int MAX_TESLA_MESSAGES_PER_FRAME = 12; // Limit messages per frame to prevent overflow
+// Network message limiting. Budgets are per 100ms window, not per server frame: every
+// TE_LIGHTNING (~30 bytes) goes to every client in the PVS, and a per-frame budget scaled
+// with the tick rate (12 + 30 per frame at 40Hz was up to ~1700 bolts/s with a tesla field
+// down). Damage is applied regardless; only the visual bolt is skipped. The client keeps a
+// lightning beam up for a moment, so teslas re-zapping every 100ms still look continuous.
+constexpr gtime_t TESLA_EFFECT_WINDOW = 100_ms;
+constexpr int MAX_TESLA_MESSAGES_PER_FRAME = 12; // primary zaps per TESLA_EFFECT_WINDOW
 static int tesla_messages_this_frame = 0;
 static gtime_t tesla_message_frame_time = 0_sec;
 // Chain Lightning constants
 constexpr float CHAIN_LIGHTNING_RANGE = 200.0f;        // Range to find chain targets
 constexpr float CHAIN_LIGHTNING_DAMAGE_MULT = 0.5f;    // 50% of tesla damage for chain targets
 constexpr int MAX_CHAIN_TARGETS_PER_VICTIM = 3;        // Max chain targets per tesla victim (increased)
-constexpr int CHAIN_LIGHTNING_MAX_EFFECTS_PER_FRAME = 30; // Much higher limit for chain effects per frame
+constexpr int CHAIN_LIGHTNING_MAX_EFFECTS_PER_FRAME = 10; // chain bolts per TESLA_EFFECT_WINDOW (was 30 per frame)
 static int chain_lightning_effects_this_frame = 0;
 static gtime_t chain_lightning_effect_frame_time = 0_sec;
 
@@ -235,8 +240,8 @@ bool is_valid_chain_target(edict_t *self, edict_t *ent, const tesla_target *tesl
 // Helper for sending tesla effect
 bool try_send_tesla_effect(edict_t *self, edict_t *target, const vec3_t &ray_start, const vec3_t &ray_end)
 {
-	// Reset counter if we're in a new frame
-	if (tesla_message_frame_time != level.time)
+	// Reset counter when a new budget window starts (or the level clock restarted)
+	if (level.time >= tesla_message_frame_time + TESLA_EFFECT_WINDOW || level.time < tesla_message_frame_time)
 	{
 		tesla_messages_this_frame = 0;
 		tesla_message_frame_time = level.time;
@@ -289,7 +294,7 @@ bool try_send_tesla_effect(edict_t *self, edict_t *target, const vec3_t &ray_sta
 // Helper for sending chain lightning effects
 bool try_send_chain_lightning_effect(edict_t *tesla_source, edict_t *chain_target, const vec3_t &chain_start, const vec3_t &chain_end)
 {
-	if (chain_lightning_effect_frame_time != level.time)
+	if (level.time >= chain_lightning_effect_frame_time + TESLA_EFFECT_WINDOW || level.time < chain_lightning_effect_frame_time)
 	{
 		chain_lightning_effects_this_frame = 0;
 		chain_lightning_effect_frame_time = level.time;

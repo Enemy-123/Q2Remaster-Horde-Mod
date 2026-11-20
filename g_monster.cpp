@@ -72,6 +72,59 @@ bool M_IsAlly(edict_t* self, edict_t* other)
 	return mine == m_side_t::players || (g_horde && g_horde->integer);
 }
 
+// True when a shot trace from self stopped on a living body of its own side (a summon's owner
+// or fellow summon, a horde monster's packmate) rather than on its enemy. Projectiles collide
+// with allies (MASK_PROJECTILE) and friendly fire zeroes the damage, so such a shot is wasted -
+// and a rocket still splashes whoever stands next to the ally.
+// Can a homing projectile (fire_heat, chick heat plasma, PSX guardian heat) lock onto target?
+// The seekers used to only filter out their own owner, so a summoned strogg's rocket that lost
+// its monster would curve back into the players (owner included once G_FreeEdict nulled the
+// owner of a dead summon). The side comes from the live owner, or from the flag
+// SetProjectileAttackerInfo stamped at launch when the owner is gone.
+//  - player side (summons/sentries): only hostile monsters.
+//  - hostile side: players, as before; with allow_props also damageable non-monster things not
+//    owned by the monsters (lasers, teslas, barrels - chick plasma's previous behaviour).
+bool G_SeekerCanTarget(const edict_t* seeker, const edict_t* target, bool allow_props)
+{
+	if (!seeker || !target || target == seeker || !target->inuse)
+		return false;
+	if (!target->takedamage || target->health <= 0 || target->deadflag)
+		return false;
+
+	const edict_t* owner = (seeker->owner && seeker->owner->inuse) ? seeker->owner : nullptr;
+	if (target == owner)
+		return false;
+
+	const bool player_side = owner
+		? (owner->client || ((owner->svflags & SVF_MONSTER) && owner->monsterinfo.isfriendlyspawn))
+		: seeker->projectile_from_player_side;
+
+	if (target->client)
+		return !player_side;
+
+	if (target->svflags & SVF_MONSTER)
+		return player_side && !target->monsterinfo.isfriendlyspawn;
+
+	if (!allow_props || player_side)
+		return false;
+
+	// Hostile seeker vs a prop: skip things the monsters themselves own.
+	const edict_t* prop_owner = target->owner;
+	return !(prop_owner && prop_owner->inuse && (prop_owner->svflags & SVF_MONSTER) && !prop_owner->monsterinfo.isfriendlyspawn);
+}
+
+bool M_ShotBlockedByAlly(edict_t* self, const trace_t& tr)
+{
+	edict_t* const hit = tr.ent;
+	if (!hit || hit == world || hit == self || hit == self->enemy)
+		return false;
+	if (!hit->inuse || !hit->takedamage || hit->health <= 0 || hit->deadflag)
+		return false;
+	if (!(hit->svflags & SVF_MONSTER) && !hit->client)
+		return false;
+	return M_IsAlly(self, hit);
+}
+
 //================
 // M_CanSpawnMore
 // Check if a spawner monster can spawn more monsters
@@ -290,9 +343,12 @@ bool M_CheckClearShot(edict_t* self, const vec3_t& offset, vec3_t& start)
 
 		target = enemy->s.origin + vec3_t{ 0, 0, (float)enemy->viewheight };
 
+		// An ally in the line of fire - even one standing right next to the enemy, which the
+		// fraction > 0.8 slack used to wave through - means this aim point is not clear.
 		trace_t tr = gi.traceline(start, target, self, MASK_PROJECTILE & ~CONTENTS_DEADMONSTER);
 
-		if ((tr.ent && tr.ent == enemy) || (tr.ent && tr.ent->client) || (tr.fraction > 0.8f && !tr.startsolid))
+		if (!M_ShotBlockedByAlly(self, tr) &&
+			((tr.ent && tr.ent == enemy) || (tr.ent && tr.ent->client) || (tr.fraction > 0.8f && !tr.startsolid)))
 			return true;
 
 		// Try ground-level target
@@ -300,7 +356,8 @@ bool M_CheckClearShot(edict_t* self, const vec3_t& offset, vec3_t& start)
 
 		tr = gi.traceline(start, target, self, MASK_PROJECTILE & ~CONTENTS_DEADMONSTER);
 
-		if ((tr.ent && tr.ent == enemy) || (tr.ent && tr.ent->client) || (tr.fraction > 0.8f && !tr.startsolid))
+		if (!M_ShotBlockedByAlly(self, tr) &&
+			((tr.ent && tr.ent == enemy) || (tr.ent && tr.ent->client) || (tr.fraction > 0.8f && !tr.startsolid)))
 			return true;
 
 		return false;
@@ -308,7 +365,7 @@ bool M_CheckClearShot(edict_t* self, const vec3_t& offset, vec3_t& start)
 
 	trace_t tr = gi.traceline(start, target, self, MASK_PROJECTILE & ~CONTENTS_DEADMONSTER);
 
-	if ((tr.ent && tr.ent->client) || (tr.fraction > 0.8f && !tr.startsolid))
+	if (!M_ShotBlockedByAlly(self, tr) && ((tr.ent && tr.ent->client) || (tr.fraction > 0.8f && !tr.startsolid)))
 		return true;
 
 	return false;

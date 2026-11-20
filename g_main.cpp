@@ -575,11 +575,87 @@ static void G_ConfigstringIfChanged(int num, const char* string)
 	engine_configstring(num, string);
 }
 
+// Horde gib redirect. Every monster's SP_ function registers all of its per-monster gib
+// models at spawn/precache time (boss2 and carrier: 10 each), long before anything dies,
+// so gibs alone ate ~108 CS_MODELS slots with every strogg loaded and pushed long games
+// past the ~256 model ceiling the Kex client survives on connect. In horde, map the
+// per-monster body parts onto the shared models/objects/gibs set (always loaded anyway).
+// g_horde_gib_redirect: 0 = off, 1 = redirect body parts but keep per-monster heads
+// (default - GIB_HEAD turns the corpse itself into that model), 2 = redirect heads too.
+static int (*engine_modelindex)(const char* name);
+static cvar_t* g_horde_gib_redirect;
+
+static bool G_GibNameIs(const char* part, std::initializer_list<const char*> names)
+{
+	for (const char* n : names)
+		if (!Q_strcasecmp(part, n))
+			return true;
+	return false;
+}
+
+const char* G_RedirectGibModel(const char* name)
+{
+	if (!name || !g_horde || !g_horde->integer)
+		return name;
+	if (!g_horde_gib_redirect)
+		g_horde_gib_redirect = gi.cvar("g_horde_gib_redirect", "1", CVAR_NOFLAGS);
+	if (g_horde_gib_redirect->integer <= 0)
+		return name;
+
+	// Extract the part name: "models/monsters/X/gibs/<part>.md2",
+	// "models/objects/gekkgib/<part>/tris.md2", "models/monsters/guardian/gib<N>.md2".
+	char part[32];
+	if (const char* g = strstr(name, "/gibs/"); g && Q_strncasecmp(name, "models/objects/gibs/", 20))
+	{
+		g += 6;
+		const char* dot = strchr(g, '.');
+		const size_t len = dot ? static_cast<size_t>(dot - g) : strlen(g);
+		if (!len || len >= sizeof(part))
+			return name;
+		memcpy(part, g, len);
+		part[len] = '\0';
+	}
+	else if (!Q_strncasecmp(name, "models/objects/gekkgib/", 23))
+	{
+		const char* p = name + 23;
+		const char* slash = strchr(p, '/');
+		const size_t len = slash ? static_cast<size_t>(slash - p) : strlen(p);
+		if (!len || len >= sizeof(part))
+			return name;
+		memcpy(part, p, len);
+		part[len] = '\0';
+	}
+	else if (!Q_strncasecmp(name, "models/monsters/guardian/gib", 28))
+		return "models/objects/gibs/sm_metal/tris.md2";
+	else
+		return name;
+
+	if (!Q_strcasecmp(part, "head"))
+		return g_horde_gib_redirect->integer >= 2 ? "models/objects/gibs/head2/tris.md2" : name;
+	if (G_GibNameIs(part, { "arm", "larm", "rarm", "barm", "garm", "hand", "claw" }))
+		return "models/objects/gibs/arm/tris.md2";
+	if (G_GibNameIs(part, { "leg", "fleg", "bleg", "thigh", "foot", "boot", "pelvis" }))
+		return "models/objects/gibs/leg/tris.md2";
+	if (G_GibNameIs(part, { "chest", "torso", "bodya", "bodyb", "spine" }))
+		return "models/objects/gibs/chest/tris.md2";
+	if (G_GibNameIs(part, { "cpu", "engine", "core", "spawner", "ring" }))
+		return "models/objects/gibs/gear/tris.md2";
+	// guns, wings, treads, tubes, armor plates, jars...: mechanical scrap
+	return "models/objects/gibs/sm_metal/tris.md2";
+}
+
+static int G_ModelIndexRedirect(const char* name)
+{
+	return engine_modelindex(G_RedirectGibModel(name));
+}
+
 Q2GAME_API game_export_t* GetGameAPI(game_import_t* import)
 {
 	gi = *import;
 	engine_configstring = gi.configstring;
 	gi.configstring = G_ConfigstringIfChanged;
+	engine_modelindex = gi.modelindex;
+	gi.modelindex = G_ModelIndexRedirect;
 
 	FRAME_TIME_S = FRAME_TIME_MS = gtime_t::from_ms(gi.frame_time_ms);
 
@@ -1533,6 +1609,8 @@ inline void G_RunFrame_(bool main_loop)
     // Horde-specific per-frame logic
     if (g_horde->integer) {
         ProcessHordePerFrameLogic(monsters, players);
+        extern void Horde_AutotestFrame();
+        Horde_AutotestFrame();
     }
 
     // --- GENERAL FRAME LOGIC ---
