@@ -2305,7 +2305,7 @@ void medic_finish_spawn(edict_t *self)
 		if (g_horde && g_horde->integer)
 		{
 			// Increment global spawn counter
-			level.global_spawned_count++;
+			M_TakeGlobalSpawnSlot(ent);
 			if (brandom())
 			{
 				ent->item = G_HordePickItem();

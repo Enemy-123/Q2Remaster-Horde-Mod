@@ -1334,17 +1334,17 @@ MONSTERINFO_DODGE(M_MonsterDodge) (edict_t *self, edict_t *attacker, gtime_t eta
 	if ((!ducker) && (!dodger))
 		return;
 
-	if (!self->enemy)
+	if (!self->enemy && attacker && !M_IsAlly(self, attacker))
 	{
 		self->enemy = attacker;
 		FoundTarget(self);
 	}
 
-	if (g_horde->integer) {
-		if (self->enemy && (self->enemy->svflags & SVF_MONSTER)) {  //added to avoid monsters fighting even if they're on team, HORDE
-			self->enemy = nullptr;
-		}
-	}
+	// Horde: never keep a same-side enemy. (This used to clear ANY monster enemy, which made
+	// hostile monsters forget the summoned stroggs / sentry guns they were fighting every time
+	// they dodged.)
+	if (g_horde->integer && self->enemy && M_IsAlly(self, self->enemy))
+		self->enemy = nullptr;
 	// PMM - don't bother if it's going to hit anyway; fix for weird in-your-face etas (I was
 	// seeing numbers like 13 and 14)
 	if ((eta < FRAME_TIME_MS) || (eta > 2.5_sec))

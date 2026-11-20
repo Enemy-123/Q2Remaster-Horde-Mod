@@ -499,7 +499,7 @@ PAIN(guncmdr_pain) (edict_t* self, edict_t* other, float kick, int damage, const
 
 	if (level.time < self->pain_debounce_time)
 	{
-		if (frandom() < 0.3)
+		if (!M_IsAlly(self, other) && frandom() < 0.3)
 			self->monsterinfo.dodge(self, other, FRAME_TIME_S, nullptr, false);
 
 		return;
@@ -514,7 +514,7 @@ PAIN(guncmdr_pain) (edict_t* self, edict_t* other, float kick, int damage, const
 
 	if (!M_ShouldReactToPain(self, mod))
 	{
-		if (frandom() < 0.3)
+		if (!M_IsAlly(self, other) && frandom() < 0.3)
 			self->monsterinfo.dodge(self, other, FRAME_TIME_S, nullptr, false);
 
 		return; // no pain anims in nightmare

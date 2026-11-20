@@ -862,6 +862,23 @@ bool KillBox(edict_t* ent, bool from_spawning, mod_id_t mod, bool bsp_clipping, 
 			continue;
 		}
 
+		// Horde: a player/bot (re)spawning on top of its own side's monster - a summoned strogg,
+		// sentry gun, etc. - moves it out of the way instead of telefragging it. First a minimal
+		// nudge (keeps sentries where they were placed), then the same short hop a summon does
+		// when a non-owner player bumps it. Only if both fail is it telefragged as before, since
+		// leaving it overlapping would trap the player inside it. Lasers and other non-monster
+		// deployables are still destroyed.
+		if (g_horde->integer && ent->client && (hit->svflags & SVF_MONSTER) && hit->health > 0 && M_IsAlly(ent, hit))
+		{
+			if (G_FixStuckObject(hit, hit->s.origin) != stuck_result_t::NO_GOOD_POSITION)
+			{
+				gi.linkentity(hit);
+				continue;
+			}
+			if (Summon_TeleportAway(hit))
+				continue;
+		}
+
 		if (allow_safety && G_FixStuckObject(hit, hit->s.origin) != stuck_result_t::NO_GOOD_POSITION)
 			continue;
 
@@ -1002,6 +1019,10 @@ void OnEntityRemoved(edict_t* self){
 	// entity lived there. Every free goes through here, so drop it now. (The boss cleanup loops in
 	// horde_boss.cpp iterate a moved-out copy, so this erase cannot invalidate their iterators.)
 	auto_spawned_bosses.erase(self);
+
+	// Summons freed without dying (wave cleanup, stuck removal, BecomeTE) still hold a global
+	// spawner slot; give it back. No-op for anything that doesn't hold one.
+	M_ReleaseGlobalSpawnSlot(self);
 
 	// --- Free Savable Memory ---
 	self->moveinfo.curve_positions.release();

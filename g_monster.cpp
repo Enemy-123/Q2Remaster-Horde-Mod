@@ -10,6 +10,69 @@
 #include <algorithm>
 
 //================
+// Global spawner slots (horde)
+// level.global_spawned_count caps commander/spawner reinforcements map-wide. Each summoned
+// monster holds at most one slot, tracked by monsterinfo.counts_toward_global_spawns, so the
+// several death/gib/free paths can all release it safely without double counting.
+//================
+void M_TakeGlobalSpawnSlot(edict_t* monster)
+{
+	if (!monster || monster->monsterinfo.counts_toward_global_spawns)
+		return;
+	monster->monsterinfo.counts_toward_global_spawns = true;
+	level.global_spawned_count++;
+}
+
+void M_ReleaseGlobalSpawnSlot(edict_t* monster)
+{
+	if (!monster || !monster->monsterinfo.counts_toward_global_spawns)
+		return;
+	monster->monsterinfo.counts_toward_global_spawns = false;
+	level.global_spawned_count = std::max(0, level.global_spawned_count - 1);
+}
+
+//================
+// M_IsAlly
+// Same-side test for AI reactions (dodging, adopting an attacker as enemy). Two sides:
+//  - players, plus their summoned stroggs / sentries (monsterinfo.isfriendlyspawn)
+//  - hostile monsters (horde only - outside horde, vanilla monster infighting is kept)
+// OnSameTeam alone isn't enough: in horde/PvM players sit on CTF_NOTEAM.
+//================
+enum class m_side_t { none, players, monsters };
+
+static m_side_t M_Side(const edict_t* e)
+{
+	if (!e || !e->inuse)
+		return m_side_t::none;
+	if (e->client)
+		return m_side_t::players;
+	if (e->svflags & SVF_MONSTER)
+		return e->monsterinfo.isfriendlyspawn ? m_side_t::players : m_side_t::monsters;
+	return m_side_t::none;
+}
+
+bool M_IsAlly(edict_t* self, edict_t* other)
+{
+	if (!self || !other)
+		return false;
+	if (self == other || OnSameTeam(self, other))
+		return true;
+
+	// Projectile/effect owners that aren't a client or monster (e.g. a deployable) fight for
+	// whoever owns them.
+	const edict_t* who = other;
+	if (M_Side(who) == m_side_t::none && who->owner)
+		who = who->owner;
+
+	const m_side_t mine = M_Side(self);
+	const m_side_t theirs = M_Side(who);
+	if (mine == m_side_t::none || mine != theirs)
+		return false;
+
+	return mine == m_side_t::players || (g_horde && g_horde->integer);
+}
+
+//================
 // M_CanSpawnMore
 // Check if a spawner monster can spawn more monsters
 // Takes into account both local slots and global limit
@@ -1033,10 +1096,8 @@ void M_ProcessPain(edict_t* e)
 			edict_t*& commander = e->monsterinfo.commander;
 			if (commander && commander->inuse) {
 				commander->monsterinfo.monster_used = max(0, commander->monsterinfo.monster_used - e->monsterinfo.slots_from_commander);
-				// Decrement global spawn counter for horde mode
-				if (g_horde->integer) {
-					level.global_spawned_count = max(0, level.global_spawned_count - 1);
-				}
+				// Global spawn slot: released at most once per monster (monster_dead usually already did)
+				M_ReleaseGlobalSpawnSlot(e);
 			}
 			commander = nullptr;
 		}
@@ -1175,10 +1236,10 @@ void monster_dead(edict_t* self)
 	self->fly_sound_debounce_time = 0_ms;
 	self->monsterinfo.aiflags &= ~AI_STUNK;
 
-	// Decrement global spawner count if this was a spawned monster
-	if (g_horde->integer && (self->monsterinfo.aiflags & AI_SPAWNED_COMMANDER)) {
-		level.global_spawned_count = std::max(0, level.global_spawned_count - 1);
-	}
+	// Release this monster's global spawner slot. Idempotent: the commander-gib path and
+	// OnEntityRemoved call it too, and a medic-revived summon that dies again must not
+	// decrement a second time (that used to let commanders blow past global_spawner_limit).
+	M_ReleaseGlobalSpawnSlot(self);
 
 	// Remove from player's summon tracking array if this was a summoned monster
 	if (self->monsterinfo.issummoned && self->chain && self->chain->client) {
@@ -1241,6 +1302,14 @@ static void M_CheckDodge(edict_t* self)
 			continue;
 		}
 
+		// Never dodge a teammate's shot: a summoned strogg sidestepping/ducking its own player's
+		// rocket stepped into the line of fire, and the dodge handlers then adopted that player as
+		// their enemy (FoundTarget rejects it, but drops the summon into stand() if no monster is
+		// in sight). Same for hostile monsters vs each other's projectiles in horde.
+		if (M_IsAlly(self, ent->owner)) {
+			continue;
+		}
+
 		// 1. Is it moving?
 		if (ent->velocity.lengthSquared() < VECTOR_LENGTH_SQ_EPSILON) {
 			continue;
@@ -1283,7 +1352,7 @@ MONSTERINFO_DODGE(bonus_monster_dodge) (edict_t* self, edict_t* attacker, gtime_
 		return;
 
 	// Set enemy if we don't have one
-	if (!self->enemy && attacker)
+	if (!self->enemy && attacker && !M_IsAlly(self, attacker))
 	{
 		self->enemy = attacker;
 		FoundTarget(self);

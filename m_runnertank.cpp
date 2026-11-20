@@ -1560,7 +1560,7 @@ MONSTERINFO_DODGE(runnertank_dodge) (edict_t* self, edict_t* attacker, gtime_t e
 		return;
 
 	// Set enemy if we don't have one
-	if (!self->enemy && attacker)
+	if (!self->enemy && attacker && !M_IsAlly(self, attacker))
 	{
 		self->enemy = attacker;
 		FoundTarget(self);

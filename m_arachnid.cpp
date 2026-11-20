@@ -570,7 +570,7 @@ MONSTERINFO_DODGE(spider_dodge) (edict_t* self, edict_t* attacker, gtime_t eta, 
 	if (!self->groundentity || self->health <= 0)
 		return;
 
-	if (!self->enemy)
+	if (!self->enemy && attacker && !M_IsAlly(self, attacker))
 	{
 		self->enemy = attacker;
 		FoundTarget(self);
@@ -1889,7 +1889,7 @@ static void arachnid_psx_spawn(edict_t* self)
 
                 // Increment global spawn counter
                 if (g_horde->integer) {
-                    level.global_spawned_count++;
+                    M_TakeGlobalSpawnSlot(ent);
                 }
 
                 gi.sound(ent, CHAN_BODY, sound_spawn, 1, ATTN_NONE, 0);

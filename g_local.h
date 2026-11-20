@@ -1852,6 +1852,7 @@ struct monsterinfo_t
 	vec3_t	blind_fire_target;
 	// used by the spawners to not spawn too much and keep track of #s of monsters spawned
 	int32_t  slots_from_commander; // for spawned monsters, this is how many slots we took from our commander
+	bool     counts_toward_global_spawns; // horde: holds one level.global_spawned_count slot (see M_ReleaseGlobalSpawnSlot)
 	int32_t	 monster_slots; // for commanders, total slots we can occupy
 	int32_t	 monster_used; // for commanders, total slots currently used
 	edict_t* commander;
@@ -2589,6 +2590,10 @@ stuck_result_t G_FixStuckObject(edict_t* self, vec3_t check);
 // this is for the count of monsters
 int32_t M_SlotsLeft(edict_t* self);
 bool M_CanSpawnMore(edict_t* spawner);
+void M_TakeGlobalSpawnSlot(edict_t* monster);    // horde: summon takes one level.global_spawned_count slot
+void M_ReleaseGlobalSpawnSlot(edict_t* monster); // idempotent release (death, gib, free)
+bool M_IsAlly(edict_t* self, edict_t* other);     // same side for AI reactions (players+summons vs horde monsters)
+bool Summon_TeleportAway(edict_t* self);          // short hop to a clear spot (horde/g_strogg_summoner.cpp)
 
 // shared with monsters
 constexpr spawnflags_t SPAWNFLAG_MONSTER_AMBUSH = 1_spawnflag;

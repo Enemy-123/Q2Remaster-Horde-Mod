@@ -47,15 +47,16 @@ void RemoveSummonFromPlayerArray(edict_t* monster)
 	}
 }
 
-// Touch function for summoned Strogg - allows owner to push them
-TOUCH(strogg_summoned_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
+// Move a friendly monster (summoned strogg, sentry...) a short hop to the first clear spot
+// around it, with a quiet teleport effect. Used when a non-owner player bumps into a summon
+// and when a player/bot respawns on top of one (KillBox), instead of telefragging it.
+// Positions are validated against MASK_MONSTERSOLID with no passent, so the player standing
+// there blocks them too. Returns false if every direction was blocked.
+bool Summon_TeleportAway(edict_t* self)
 {
-	// Validate that the toucher is a client and summoner exists
-	if (!other->client || !self->chain || !self->chain->client)
-		return;
+	if (!self || !self->inuse)
+		return false;
 
-	// If toucher is NOT the owner -> teleport the strogg away
-	if (other != self->chain)
 	{
 		// Teleport the strogg a few feet away
 		constexpr float TELEPORT_DISTANCE = 96.0f; // ~3 feet
@@ -109,9 +110,24 @@ TOUCH(strogg_summoned_touch) (edict_t* self, edict_t* other, const trace_t& tr, 
 			gi.unlinkentity(self);
 			self->s.origin = spawn_pos;
 			gi.linkentity(self);
-			return;
+			return true;
 		}
-		// No valid position found - just ignore the collision
+		// No valid position found
+		return false;
+	}
+}
+
+// Touch function for summoned Strogg - allows owner to push them
+TOUCH(strogg_summoned_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
+{
+	// Validate that the toucher is a client and summoner exists
+	if (!other->client || !self->chain || !self->chain->client)
+		return;
+
+	// If toucher is NOT the owner -> teleport the strogg away (if no spot, ignore the collision)
+	if (other != self->chain)
+	{
+		Summon_TeleportAway(self);
 		return;
 	}
 

@@ -776,7 +776,7 @@ MONSTERINFO_DODGE(stalker_dodge) (edict_t* self, edict_t* attacker, gtime_t eta,
 	if (!self->groundentity || self->health <= 0)
 		return;
 
-	if (!self->enemy)
+	if (!self->enemy && attacker && !M_IsAlly(self, attacker))
 	{
 		self->enemy = attacker;
 		FoundTarget(self);

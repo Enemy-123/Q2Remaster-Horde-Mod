@@ -373,6 +373,12 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
     if (!(attacker->client) && !(attacker->svflags & SVF_MONSTER))
         return;
 
+    // Never get mad at our own side (friendly-fire splash, a summon's stray bullet hitting another
+    // summon, horde monsters catching each other's rockets). Without this, the deployable branch
+    // below made a summon TargetTesla() a fellow summon whose shot grazed it.
+    if (M_IsAlly(targ, attacker) || (inflictor && inflictor->owner && M_IsAlly(targ, inflictor->owner)))
+        return;
+
     //=======
     // ROGUE / HORDE MODIFICATION (REVISED AND CORRECTED)
     //

@@ -2663,7 +2663,7 @@ void Monster_MoveSpawn(edict_t* self) {
 
 			// Increment global spawn counter
 			if (g_horde->integer) {
-				level.global_spawned_count++;
+				M_TakeGlobalSpawnSlot(monster);
 			}
 
 			return true;
