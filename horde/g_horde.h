@@ -32,6 +32,9 @@ extern cvar_t* g_horde_force_domination;  // Test cvar: force the domination fla
 extern cvar_t* g_horde_nav_spawn_check;  // 1 = reject ground spawns the navmesh can't reach (anti unreachable-spawn)
 extern cvar_t* g_horde_spawn_dist_cap;  // 1 = cap how far from players a spawn point may be (anti far/closed-wing spawn)
 extern cvar_t* g_horde_far_spawn_chance;  // 0..1 chance a normal-wave pick prefers the farthest spawn point (fog waves floor at 0.9)
+extern cvar_t* g_horde_fog_max_alive_small;   // fog / limit-break wave live-monster ceilings per map size
+extern cvar_t* g_horde_fog_max_alive_medium;
+extern cvar_t* g_horde_fog_max_alive_big;
 extern cvar_t* g_horde_precache_max_models;  // soft cap on registered CS_MODELS entries; 0 = no cap (see PrecacheBudgetExhausted)
 extern cvar_t* g_horde_precache_max_sounds;  // soft cap on registered CS_SOUNDS entries; 0 = no cap
 extern cvar_t* g_horde_precache_limits_enabled;  // 1 = enforce the precache budget + family variety cap (default); 0 = uncapped variety, connecting-client crash risk on long games

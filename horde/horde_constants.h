@@ -264,10 +264,14 @@ namespace LimitBreakWave {
 	inline constexpr float   LIVE_CAP_PER_WAVE  = 2.0f; // ramp after WAVE_SCALE_START
 	inline constexpr float   QUEUE_PER_WAVE     = 1.5f;
 
-	// Per-map ceilings for simultaneously-alive monsters.
-	inline constexpr int32_t LIVE_CAP_MAX_SMALL  = 45;
-	inline constexpr int32_t LIVE_CAP_MAX_MEDIUM = 60;
-	inline constexpr int32_t LIVE_CAP_MAX_BIG    = 80;
+	// Default per-map ceilings for simultaneously-alive monsters. Runtime values come from the
+	// g_horde_fog_max_alive_{small,medium,big} cvars (these are their defaults). Every live monster
+	// is a delta in every nearby client's snapshot, and the old 45/60/80 ceilings were saturating
+	// 4-player servers (rate-starved clients, dropped connections). The queue below keeps fog waves
+	// just as long - it only bounds how many are alive at the same moment.
+	inline constexpr int32_t LIVE_CAP_MAX_SMALL  = 30;
+	inline constexpr int32_t LIVE_CAP_MAX_MEDIUM = 40;
+	inline constexpr int32_t LIVE_CAP_MAX_BIG    = 50;
 
 	// Per-map ceilings for the extra reinforcement queue that feeds in as monsters die.
 	inline constexpr int32_t QUEUE_MAX_SMALL  = 30;

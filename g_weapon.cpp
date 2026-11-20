@@ -1742,6 +1742,14 @@ constexpr int BFG_EXPLOSION_DAMAGE = 200;       // Explosion damage
 constexpr float BFG_EXPLOSION_RADIUS = 100.0f;  // Explosion radius
 constexpr float BFG_VELOCITY_EPSILON = 0.001f;  // Small threshold for velocity checks
 constexpr int MAX_POOLED_LASERS = 128;          // Maximum lasers to keep in pool
+constexpr size_t BFG_MAX_VISUAL_LASERS = 8;     // Max TE_BFG_LASER effects per BFG ball per visual tick
+constexpr gtime_t BFG_VISUAL_LASER_INTERVAL = 100_ms; // Visual tick (vanilla bfg_think cadence)
+
+struct bfg_visual_laser_t
+{
+	float dist_squared;
+	vec3_t end;
+};
 constexpr int MAX_FORCE = 100;                  // Maximum pull force
 
 // Laser object pool for efficient memory management
@@ -1751,13 +1759,23 @@ private:
 	static constexpr size_t MAX_POOL_SIZE = MAX_POOLED_LASERS;
 
 public:
+	static constexpr const char* POOLED_CLASSNAME = "bfg_laser_pooled";
+
 	// Get a laser from the pool or create a new one
 	static edict_t* get() {
-		if (pool.empty()) {
-			return G_Spawn();
+		while (!pool.empty()) {
+			edict_t* laser = pool.back();
+			pool.pop_back();
+			// Something else (a cleanup sweep, G_FreeEdict on a stale pointer) may have freed this
+			// edict while it sat in the pool, and G_Spawn may have handed the slot to a new entity.
+			// Only reuse it if it is still exactly the parked laser we left here.
+			if (laser && laser->inuse && laser->classname == POOLED_CLASSNAME) {
+				laser->classname = "bfg laser";
+				return laser;
+			}
 		}
-		edict_t* laser = pool.back();
-		pool.pop_back();
+		edict_t* laser = G_Spawn();
+		laser->classname = "bfg laser";
 		return laser;
 	}
 
@@ -1766,13 +1784,19 @@ public:
 		if (!laser) return;
 
 		if (pool.size() < MAX_POOL_SIZE) {
-			// Reset any necessary fields to default values
+			// Park it: unlinked and model-less, so the server stops sending it to clients.
+			// (A parked laser left linked with modelindex set was still transmitted every
+			// snapshot as an invisible beam - up to MAX_POOL_SIZE of them.)
+			gi.unlinkentity(laser);
+			laser->s.modelindex = 0;
+			laser->s.renderfx = RF_NONE;
 			laser->s.frame = 0;
 			laser->s.skinnum = 0;
 			laser->think = nullptr;
 			laser->nextthink = 0_ms;
 			laser->timestamp = 0_ms;
 			laser->owner = nullptr;
+			laser->classname = POOLED_CLASSNAME;
 			// Use safe push_back to prevent overflow
 			if (!safe_push_back(pool, laser, MAX_POOL_SIZE)) {
 				// If we can't add to pool, free it
@@ -1787,7 +1811,9 @@ public:
 	// Clear the pool (e.g., on level change)
 	static void clear() {
 		for (auto& laser : pool) {
-			G_FreeEdict(laser);
+			// Same guard as get(): never free a slot that now belongs to another entity.
+			if (laser && laser->inuse && laser->classname == POOLED_CLASSNAME)
+				G_FreeEdict(laser);
 		}
 		pool.clear();
 	}
@@ -2174,6 +2200,9 @@ THINK(bfg_think) (edict_t* self) -> void
 	std::array<edict_t*, 64> processed_entities;
 	size_t processed_count = 0;
 
+	std::array<bfg_visual_laser_t, 64> visual_lasers;
+	size_t num_visual_lasers = 0;
+
 	// Find all entities in range
 	edict_t* ent = nullptr;
 	while ((ent = findradius(ent, self_origin, bfgrange)) != nullptr)
@@ -2262,16 +2291,37 @@ THINK(bfg_think) (edict_t* self) -> void
 				pull_force, DAMAGE_ENERGY, MOD_BFG_LASER);
 		}
 
-		// Visual laser effect - only show for closer targets to reduce network traffic
-		// Show lasers for entities within 60% of max range to avoid network overflow
+		// Visual laser candidates - only closer targets (60% of range) are drawn at all;
+		// which of them actually get sent is decided after the loop.
 		constexpr float LASER_VISUAL_RANGE_FACTOR = 0.6f;
-		if (dist_squared <= (bfgrange_squared * LASER_VISUAL_RANGE_FACTOR * LASER_VISUAL_RANGE_FACTOR))
+		if (dist_squared <= (bfgrange_squared * LASER_VISUAL_RANGE_FACTOR * LASER_VISUAL_RANGE_FACTOR) &&
+			num_visual_lasers < visual_lasers.size())
+		{
+			visual_lasers[num_visual_lasers++] = { dist_squared, laser_end };
+		}
+	}
+
+	// Network budget for the laser visuals. Damage keeps the faster think cadence above, but the
+	// TE_BFG_LASER temp entities (one per target, ~26 bytes each, to every client in the PVS) are
+	// sent at vanilla's 10 Hz and only for the closest BFG_MAX_VISUAL_LASERS targets. Several BFG
+	// balls in a 40+ monster crowd otherwise flood clients' datagrams (rate drops / disconnects).
+	// pain_debounce_time is otherwise unused on a BFG ball (it is never a damage target).
+	if (num_visual_lasers > 0 && level.time >= self->pain_debounce_time)
+	{
+		self->pain_debounce_time = level.time + BFG_VISUAL_LASER_INTERVAL;
+
+		const size_t num_to_send = std::min(num_visual_lasers, BFG_MAX_VISUAL_LASERS);
+		std::partial_sort(visual_lasers.begin(), visual_lasers.begin() + num_to_send,
+			visual_lasers.begin() + num_visual_lasers,
+			[](const bfg_visual_laser_t& a, const bfg_visual_laser_t& b) { return a.dist_squared < b.dist_squared; });
+
+		for (size_t i = 0; i < num_to_send; ++i)
 		{
 			gi.WriteByte(svc_temp_entity);
 			gi.WriteByte(TE_BFG_LASER);
 			gi.WritePosition(self_origin);
-			gi.WritePosition(laser_end);
-			gi.multicast(self_origin, MULTICAST_PVS, false); // Use PVS instead of PHS for better network efficiency
+			gi.WritePosition(visual_lasers[i].end);
+			gi.multicast(self_origin, MULTICAST_PVS, false);
 		}
 	}
 

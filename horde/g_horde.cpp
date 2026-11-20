@@ -1831,6 +1831,9 @@ cvar_t* g_horde_grid_first;  // Test cvar: prioritize grid spawning
 cvar_t* g_horde_nav_spawn_check;  // 1 = reject ground spawns the navmesh can't reach (anti unreachable-spawn)
 cvar_t* g_horde_spawn_dist_cap;  // 1 = cap how far from players a spawn point may be (anti far/closed-wing spawn)
 cvar_t* g_horde_far_spawn_chance;  // 0..1 chance a normal-wave pick prefers the farthest spawn point (fog waves floor at 0.9)
+cvar_t* g_horde_fog_max_alive_small;   // fog / limit-break wave live-monster ceiling, small maps
+cvar_t* g_horde_fog_max_alive_medium;  // ... medium maps
+cvar_t* g_horde_fog_max_alive_big;     // ... big maps
 cvar_t* g_horde_precache_max_models;  // soft cap on registered CS_MODELS entries; 0 = no cap
 cvar_t* g_horde_precache_max_sounds;  // soft cap on registered CS_SOUNDS entries; 0 = no cap
 cvar_t* g_horde_precache_limits_enabled;  // 1 = enforce precache budget + family variety cap (default); 0 = uncapped
@@ -1970,24 +1973,30 @@ static LimitBreakWaveCaps GetLimitBreakWaveCaps(const horde::MapSize& mapSize, i
 {
 	using namespace LimitBreakWave;
 
-	const int32_t liveMax  = mapSize.isSmallMap ? LIVE_CAP_MAX_SMALL
-						   : mapSize.isBigMap   ? LIVE_CAP_MAX_BIG
-												: LIVE_CAP_MAX_MEDIUM;
+	cvar_t* const liveMaxCvar = mapSize.isSmallMap ? g_horde_fog_max_alive_small
+							  : mapSize.isBigMap   ? g_horde_fog_max_alive_big
+												   : g_horde_fog_max_alive_medium;
+	const int32_t liveMaxDefault = mapSize.isSmallMap ? LIVE_CAP_MAX_SMALL
+								 : mapSize.isBigMap   ? LIVE_CAP_MAX_BIG
+													  : LIVE_CAP_MAX_MEDIUM;
+	// Never below the normal-wave minimum (6); the floor below must not exceed it either.
+	const int32_t liveMax  = std::max(6, liveMaxCvar ? liveMaxCvar->integer : liveMaxDefault);
+	const int32_t liveFloor = std::min(LIVE_CAP_FLOOR, liveMax);
 	const int32_t queueMax = mapSize.isSmallMap ? QUEUE_MAX_SMALL
 						   : mapSize.isBigMap   ? QUEUE_MAX_BIG
 												: QUEUE_MAX_MEDIUM;
 
-	int32_t live  = LIVE_CAP_FLOOR;
+	int32_t live  = liveFloor;
 	int32_t queue = QUEUE_FLOOR;
 
 	if (waveLevel > WAVE_SCALE_START)
 	{
 		const float wavesPast = static_cast<float>(waveLevel - WAVE_SCALE_START);
-		live  = LIVE_CAP_FLOOR + static_cast<int32_t>(wavesPast * LIVE_CAP_PER_WAVE);
-		queue = QUEUE_FLOOR    + static_cast<int32_t>(wavesPast * QUEUE_PER_WAVE);
+		live  = liveFloor   + static_cast<int32_t>(wavesPast * LIVE_CAP_PER_WAVE);
+		queue = QUEUE_FLOOR + static_cast<int32_t>(wavesPast * QUEUE_PER_WAVE);
 	}
 
-	live  = std::clamp(live,  LIVE_CAP_FLOOR, liveMax);
+	live  = std::clamp(live,  liveFloor, liveMax);
 	queue = std::clamp(queue, QUEUE_FLOOR, queueMax);
 
 	return { live, queue };
@@ -4685,6 +4694,9 @@ void Horde_PreInit()
 	g_horde_nav_spawn_check = gi.cvar("g_horde_nav_spawn_check", "1", CVAR_NOFLAGS);
 	g_horde_spawn_dist_cap = gi.cvar("g_horde_spawn_dist_cap", "1", CVAR_NOFLAGS);
 	g_horde_far_spawn_chance = gi.cvar("g_horde_far_spawn_chance", "0.65", CVAR_NOFLAGS);
+	g_horde_fog_max_alive_small = gi.cvar("g_horde_fog_max_alive_small", G_Fmt("{}", LimitBreakWave::LIVE_CAP_MAX_SMALL).data(), CVAR_NOFLAGS);
+	g_horde_fog_max_alive_medium = gi.cvar("g_horde_fog_max_alive_medium", G_Fmt("{}", LimitBreakWave::LIVE_CAP_MAX_MEDIUM).data(), CVAR_NOFLAGS);
+	g_horde_fog_max_alive_big = gi.cvar("g_horde_fog_max_alive_big", G_Fmt("{}", LimitBreakWave::LIVE_CAP_MAX_BIG).data(), CVAR_NOFLAGS);
 	// Connecting-client hard caps: the Kex client bad_alloc's connecting to a server whose
 	// precache list grows too large. Empirical bracket so far: 240 and 257 models connect
 	// fine, ~304 crashes - exact ceiling (and whether sounds/images contribute) still being

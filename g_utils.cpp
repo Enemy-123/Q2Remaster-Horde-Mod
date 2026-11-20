@@ -988,11 +988,20 @@ void OnEntityDeath(edict_t* self) noexcept
 }
 
 #include "horde/g_laser.h"
+#include <boost/container/flat_set.hpp>
+extern boost::container::flat_set<edict_t*> auto_spawned_bosses;
 // This function is for the FINAL cleanup before an entity is removed from the game.
 // This is where you free all associated memory.
 void OnEntityRemoved(edict_t* self){
 	if (!self) {
 		return;}
+
+	// --- Forget it as a tracked boss ---
+	// auto_spawned_bosses used to keep a boss pointer after the boss was freed; once the slot was
+	// reused, the next boss wave's cleanup ran HandleForcedBossRemoval/G_FreeEdict on whatever new
+	// entity lived there. Every free goes through here, so drop it now. (The boss cleanup loops in
+	// horde_boss.cpp iterate a moved-out copy, so this erase cannot invalidate their iterators.)
+	auto_spawned_bosses.erase(self);
 
 	// --- Free Savable Memory ---
 	self->moveinfo.curve_positions.release();

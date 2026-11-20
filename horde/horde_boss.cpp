@@ -2035,10 +2035,12 @@ void SpawnBossAutomatically()
 	}
 	boss_spawned_for_wave = true;
 
-	// Cleanup existing bosses
-	for (auto it = auto_spawned_bosses.begin(); it != auto_spawned_bosses.end();)
+	// Cleanup existing bosses. Iterate a moved-out copy: freeing a boss erases it from
+	// auto_spawned_bosses (OnEntityRemoved), which would invalidate a live iterator. Freed bosses
+	// are already gone from the set, so every pointer here is still the boss it was inserted as.
+	const auto existing_bosses = std::exchange(auto_spawned_bosses, {});
+	for (edict_t *existing_boss : existing_bosses)
 	{
-		edict_t *existing_boss = *it;
 		if (existing_boss && existing_boss->inuse)
 		{
 			if (existing_boss->health > 0 && !existing_boss->deadflag) {
@@ -2049,7 +2051,6 @@ void SpawnBossAutomatically()
 			OnEntityRemoved(existing_boss);
 			G_FreeEdict(existing_boss);
 		}
-		it = auto_spawned_bosses.erase(it);
 	}
 
 	// Basic wave check (cadence lives in IsBossWaveLevel, g_horde.h)
@@ -2517,10 +2518,10 @@ bool IsBossWave() noexcept
 
 void ResetBosses()
 {
-	// Clear all boss entities
-	for (auto it = auto_spawned_bosses.begin(); it != auto_spawned_bosses.end();)
+	// Clear all boss entities (moved-out copy, see the boss-wave cleanup above)
+	const auto bosses = std::exchange(auto_spawned_bosses, {});
+	for (edict_t *boss : bosses)
 	{
-		edict_t *boss = *it;
 		if (boss && boss->inuse)
 		{
 			// Ensure boss death logic is finalized if needed
@@ -2531,7 +2532,6 @@ void ResetBosses()
 			OnEntityRemoved(boss);
 			G_FreeEdict(boss);
 		}
-		it = auto_spawned_bosses.erase(it);
 	}
 
 	// Tear down any active Hell Maidens encounter (the aggregator isn't tracked in auto_spawned_bosses).
