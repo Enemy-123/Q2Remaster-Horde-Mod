@@ -559,9 +559,27 @@ Returns a pointer to the structure with all entry points
 and global variables
 =================
 */
+// Every gi.configstring() call is a reliable svc_configstring broadcast to all
+// clients, even when the value is identical. Several HUD paths (vote info, wave
+// number/timer, coop respawn text, ID view, bonus lines) re-set their strings
+// per player per frame, so filter out no-op updates here, once, for all callers.
+static void (*engine_configstring)(int num, const char* string);
+
+static void G_ConfigstringIfChanged(int num, const char* string)
+{
+	if (!string)
+		string = "";
+	const char* current = gi.get_configstring(num);
+	if (current && !strcmp(current, string))
+		return;
+	engine_configstring(num, string);
+}
+
 Q2GAME_API game_export_t* GetGameAPI(game_import_t* import)
 {
 	gi = *import;
+	engine_configstring = gi.configstring;
+	gi.configstring = G_ConfigstringIfChanged;
 
 	FRAME_TIME_S = FRAME_TIME_MS = gtime_t::from_ms(gi.frame_time_ms);
 

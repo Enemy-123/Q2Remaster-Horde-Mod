@@ -258,8 +258,7 @@ void PMenu_Do_Update(edict_t* ent)
 		return;
 	}
 
-	gi.WriteByte(svc_layout);
-	gi.WriteString(menu_layout.c_str());
+	G_WriteLayout(ent, menu_layout);
 }
 
 void PMenu_Update(edict_t* ent)

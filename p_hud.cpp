@@ -185,7 +185,10 @@ void G_EndOfUnitMessage()
 	gi.multicast(vec3_origin, MULTICAST_ALL, true);
 
 	for (auto player : active_players())
+	{
 		player->client->showeou = true;
+		player->client->last_layout_hash = 0;
+	}
 }
 
 // data is binary now.
@@ -457,6 +460,30 @@ DeathmatchScoreboardMessage
 
 ==================
 */
+// Writes an svc_layout for ent, unless it's identical to the last one this
+// client received and still has on screen. Menus and the scoreboard get rebuilt
+// on a timer / dirty flag far more often than their text actually changes, and
+// each layout is up to ~1.4KB of reliable data. When skipped nothing is written,
+// so the caller's gi.unicast() sends nothing.
+bool G_WriteLayout(edict_t* ent, std::string_view layout)
+{
+	if (ent && ent->client)
+	{
+		uint64_t hash = 14695981039346656037ull; // FNV-1a
+		for (const char c : layout)
+			hash = (hash ^ static_cast<uint8_t>(c)) * 1099511628211ull;
+		if (!hash)
+			hash = 1;
+		if (hash == ent->client->last_layout_hash)
+			return false;
+		ent->client->last_layout_hash = hash;
+	}
+
+	gi.WriteByte(svc_layout);
+	gi.WriteString(std::string(layout).c_str());
+	return true;
+}
+
 void DeathmatchScoreboardMessage(edict_t* ent, edict_t* killer)
 {
 	std::string entry_buffer;
@@ -588,8 +615,7 @@ void DeathmatchScoreboardMessage(edict_t* ent, edict_t* killer)
 		return;
 	}
 
-	gi.WriteByte(svc_layout);
-	gi.WriteString(layout_string_buffer.c_str());
+	G_WriteLayout(ent, layout_string_buffer);
 }
 /*
 ==================
@@ -732,9 +758,8 @@ void HelpComputer(edict_t* ent)
 		return;
 	}
 
-	gi.WriteByte(svc_layout);
-	gi.WriteString(helpString.c_str());
-	gi.unicast(ent, true);
+	if (G_WriteLayout(ent, helpString))
+		gi.unicast(ent, true);
 }
 
 /*
@@ -1217,6 +1242,10 @@ void G_SetStats(edict_t* ent)
 			ent->client->ps.stats[STAT_LAYOUTS] |= LAYOUTS_HELP;
 	}
 
+	// layout closed: forget what was sent so reopening always sends a fresh copy
+	if (!(ent->client->ps.stats[STAT_LAYOUTS] & LAYOUTS_LAYOUT))
+		ent->client->last_layout_hash = 0;
+
 	if (level.intermissiontime || ent->client->awaiting_respawn)
 	{
 		if (ent->client->awaiting_respawn || (level.intermission_eou || level.is_n64 || (G_IsDeathmatch() && level.intermissiontime)))
@@ -1420,6 +1449,8 @@ void G_SetSpectatorStats(edict_t* ent)
 		cl->ps.stats[STAT_LAYOUTS] |= LAYOUTS_LAYOUT;
 	if (cl->showinventory && cl->pers.health > 0)
 		cl->ps.stats[STAT_LAYOUTS] |= LAYOUTS_INVENTORY;
+	if (!(cl->ps.stats[STAT_LAYOUTS] & LAYOUTS_LAYOUT))
+		cl->last_layout_hash = 0;
 
 	if (cl->chase_target && cl->chase_target->inuse)
 		// Q2Eaks fix bugged chasecam name showing name\model/skin\tag

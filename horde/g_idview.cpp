@@ -401,8 +401,8 @@ void SetIDView(edict_t* ent) {
 		char info_buffer[256];
 		const char* info = FormatEntityInfo_Fast(current_target, info_buffer, sizeof(info_buffer));
 		if (info && info[0] != '\0') {
-			// The game engine is smart enough not to send a network update
-			// if the configstring content hasn't changed.
+			// Identical content is dropped by G_ConfigstringIfChanged (g_main.cpp),
+			// so only real health/armor changes cost bandwidth.
 			gi.configstring(client_cs, info);
 			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = client_cs;
 		}

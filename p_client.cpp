@@ -3333,6 +3333,7 @@ void ClientBegin(edict_t* ent)
 	ent->client = game.clients + (ent - g_edicts - 1);
 	ent->client->awaiting_respawn = false;
 	ent->client->respawn_timeout = 0_ms;
+	ent->client->last_layout_hash = 0; // client dropped its layout on (re)connect / map change
 
 	// [Paril-KEX] we're always connected by this point...
 	ent->client->pers.connected = true;
@@ -5408,7 +5409,7 @@ inline RespawnTarget G_FindSquadRespawnTarget() {
 
 		if (update_combat_msg) {
 			const char* new_msg_ptr = player_in_combat
-				? G_Fmt("In Combat! Reviving in: {:.1f}s", min_combat_time_left.seconds<float>()).data()
+				? G_Fmt("In Combat! Reviving in: {}s", (int)ceilf(min_combat_time_left.seconds<float>())).data()
 				: "";
 			if (strcmp(new_msg_ptr, cached_combat_message) != 0) {
 				Q_strlcpy(cached_combat_message, new_msg_ptr, sizeof(cached_combat_message));
@@ -5418,7 +5419,7 @@ inline RespawnTarget G_FindSquadRespawnTarget() {
 
 		if (update_bad_area_msg) {
 			const char* new_msg_ptr = (player_in_bad_area && min_bad_area_time_left > ZERO_TIME)
-				? G_Fmt("Bad/Blocked Area! Forcing Respawn in: {:.1f}s", min_bad_area_time_left.seconds<float>()).data()
+				? G_Fmt("Bad/Blocked Area! Forcing Respawn in: {}s", (int)ceilf(min_bad_area_time_left.seconds<float>())).data()
 				: "";
 			if (strcmp(new_msg_ptr, cached_bad_area_message) != 0) {
 				Q_strlcpy(cached_bad_area_message, new_msg_ptr, sizeof(cached_bad_area_message));

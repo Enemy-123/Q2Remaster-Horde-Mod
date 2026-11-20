@@ -2819,6 +2819,7 @@ void G_SetSpectatorStats(edict_t* ent);
 void G_CheckChaseStats(edict_t* ent);
 void ValidateSelectedItem(edict_t* ent);
 void DeathmatchScoreboardMessage(edict_t* client, edict_t* killer);
+bool G_WriteLayout(edict_t* ent, std::string_view layout);
 void G_ReportMatchDetails(bool is_end);
 
 //
@@ -3741,6 +3742,7 @@ struct gclient_t
 	pmenuhnd_t* menu;	  // current menu
 	gtime_t		menutime; // time to update menu
 	bool		menudirty;
+	uint64_t	last_layout_hash; // hash of last svc_layout sent (see G_WriteLayout), 0 = none
 	edict_t* ctf_grapple;			// entity of grapple
 	int32_t		ctf_grapplestate;		// true if pulling
 	gtime_t		ctf_grapplereleasetime; // time of grapple release

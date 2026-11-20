@@ -7179,8 +7179,7 @@ void HordeScoreboardMessage(edict_t* ent, edict_t* killer) {
 	}
 
 	// Send to client
-	gi.WriteByte(svc_layout);
-	gi.WriteString(final_layout.c_str());
+	G_WriteLayout(ent, final_layout);
 }
 
 // --- END OF FILE horde_menu.cpp ---
