@@ -1432,7 +1432,21 @@ struct spawn_temp_t
 	const char* noise_start, * noise_middle, * noise_end; // [Paril-KEX]
 	int32_t loop_count; // [Paril-KEX]
 
-	boost::unordered::unordered_flat_set<const char*> keys_specified;
+	// Keyed by text (case-insensitive, like ED_ParseField's lookup), not by pointer:
+	// callers pass their own literals ("lip"), which only matched the field table's
+	// pointers when the linker happened to pool identical strings across files.
+	struct key_hash {
+		size_t operator()(const char* s) const noexcept {
+			size_t h = 14695981039346656037ull;
+			for (; *s; ++s)
+				h = (h ^ static_cast<uint8_t>(*s | 0x20)) * 1099511628211ull;
+			return h;
+		}
+	};
+	struct key_equal {
+		bool operator()(const char* a, const char* b) const noexcept { return !Q_strcasecmp(a, b); }
+	};
+	boost::unordered::unordered_flat_set<const char*, key_hash, key_equal> keys_specified;
 
 	const char* primary_objective_string;
 	const char* secondary_objective_string;

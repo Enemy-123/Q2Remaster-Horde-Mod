@@ -3,6 +3,7 @@
 
 #include "g_local.h"
 #include <string>
+#include <memory>
 #include <boost/container/flat_map.hpp>
 #include <boost/container/small_vector.hpp>
 #include "horde/horde_ids.h"
@@ -56,7 +57,9 @@ trap_state_t* GetTrapState(const edict_t* ent);
 trap_state_t* CreateTrapState(edict_t* ent);
 void RemoveTrapState(const edict_t* ent);
 
-extern boost::container::flat_map<int, trap_state_t> g_trap_states;
+// Values are heap-owned so the trap_state_t* handed out stays valid while other traps
+// are created/destroyed (flat_map shifts its elements on insert/erase).
+extern boost::container::flat_map<int, std::unique_ptr<trap_state_t>> g_trap_states;
 
 // LASERS
 struct EmitterState
@@ -90,7 +93,7 @@ struct EmitterState
 };
 
 // --- CHANGE #1 & #2: Same changes as above for safety and correctness.
-extern boost::container::flat_map<int, EmitterState> g_emitter_states;
+extern boost::container::flat_map<int, std::unique_ptr<EmitterState>> g_emitter_states; // see g_trap_states
 
 // --- CHANGE #3: Add helper functions for laser state management.
 EmitterState* GetEmitterState(const edict_t* ent);

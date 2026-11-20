@@ -35,8 +35,8 @@ constexpr int32_t MAX_EFFECTIVE_LEVEL_BOOST = 20;
 // Style 1 spawn points are dedicated to flying lanes; keep a long reuse cooldown.
 static constexpr gtime_t FLYING_ONLY_SPAWN_LONG_COOLDOWN = 12.0_sec;
 
-boost::container::flat_map<int, trap_state_t> g_trap_states;
-boost::container::flat_map<int, EmitterState> g_emitter_states;
+boost::container::flat_map<int, std::unique_ptr<trap_state_t>> g_trap_states;
+boost::container::flat_map<int, std::unique_ptr<EmitterState>> g_emitter_states;
 
 //aiming for special entities for idview.cpp
 // Using small_vector to avoid heap allocation for typical maps (most have < 32 special entities)

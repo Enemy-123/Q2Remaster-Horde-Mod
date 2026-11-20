@@ -40,15 +40,17 @@ constexpr float TRAP_BOUNCE_UPWARD = 180.0f;       // Extra upward velocity on g
 trap_state_t* GetTrapState(const edict_t* ent) {
     if (!ent) return nullptr;
     auto it = g_trap_states.find(ent->s.number);
-    return (it != g_trap_states.end()) ? &it->second : nullptr;
+    return (it != g_trap_states.end()) ? it->second.get() : nullptr;
 }
 
 trap_state_t* CreateTrapState(edict_t* ent) {
     if (!ent) return nullptr;
     // This creates a new entry if it doesn't exist and returns a reference to it.
     auto& state = g_trap_states[ent->s.number];
-    state.clear(); // Ensure it's in a clean, default state
-    return &state;
+    if (!state)
+        state = std::make_unique<trap_state_t>();
+    state->clear(); // Ensure it's in a clean, default state
+    return state.get();
 }
 
 void RemoveTrapState(const edict_t* ent) {
