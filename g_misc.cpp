@@ -98,8 +98,43 @@ TOUCH(gib_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_t
 	}
 }
 
+// Horde live-gib cap. Gibs only live 2-4s in horde, but mass kills (BFG chains, late waves)
+// still kept 75-150 of them flying at once in bot tests - the largest visible entity class,
+// each one a moving/spinning entity sent to every client that can see it. Past the cap,
+// extra body-part gibs are simply not spawned (heads always are: the corpse becomes it).
+// Counted once per server frame, then incremented as this frame's gibs spawn.
+static bool G_HordeGibBudgetAvailable()
+{
+	static cvar_t* cap = nullptr;
+	if (!cap)
+		cap = gi.cvar("g_horde_max_gibs", "48", CVAR_NOFLAGS);
+	if (cap->integer <= 0)
+		return true;
+
+	static gtime_t counted_at = gtime_t::from_ms(-1);
+	static int32_t live = 0;
+	if (level.time != counted_at)
+	{
+		counted_at = level.time;
+		live = 0;
+		for (uint32_t i = game.maxclients + 1; i < globals.num_edicts; i++)
+		{
+			const edict_t* e = &g_edicts[i];
+			if (e->inuse && e->die == gib_die && e->think == G_FreeEdict)
+				++live;
+		}
+	}
+	if (live >= cap->integer)
+		return false;
+	++live;
+	return true;
+}
+
 edict_t* ThrowGib(edict_t* self, const char* gibname, int damage, gib_type_t type, float scale, int frame)
 {
+	if (!(type & GIB_HEAD) && g_horde && g_horde->integer && !G_HordeGibBudgetAvailable())
+		return nullptr;
+
 	// Network optimization: Convert to temp entity instead of spawning gib
 	// Can be forced via g_nolag cvar or GIB_BECOME_TE flag
 	// FIX: Only create TE effect for the gib, DO NOT free the parent entity!

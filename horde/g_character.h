@@ -52,6 +52,13 @@ bool Character_Load(edict_t* player);
 // Save character to SQLite (called on disconnect, preference changes, etc.)
 bool Character_Save(edict_t* player);
 
+// Save every loaded human now (level change). Shutdown also closes the DB.
+void Character_SaveAll();
+void Character_Shutdown();
+// Queue every loaded human for a deferred save, drained one per frame by Character_RunFrame.
+void Character_QueueSaveAll();
+void Character_RunFrame();
+
 // Create default character row if it doesn't exist
 void Character_CreateDefault(edict_t* player);
 

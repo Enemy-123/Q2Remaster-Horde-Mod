@@ -1851,6 +1851,14 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 
 	SaveClientData();
 
+	// Level change (intermission exit or a direct "map"): persist every loaded character
+	// while the client edicts are still valid
+	if (g_horde && g_horde->integer)
+	{
+		extern void Character_SaveAll();
+		Character_SaveAll();
+	}
+
 	gi.FreeTags(TAG_LEVEL);
 
 	level = {};

@@ -9895,6 +9895,8 @@ void Horde_RunFrame()
 	// Keep classic Horde rewards in sync while players are alive.
 	// This decouples reward delivery from InitClientPersistant/respawn timing.
 	static gtime_t last_wave_reward_sync = 0_sec;
+	if (last_wave_reward_sync > currentTime) // previous map's stamp (level.time restarts)
+		last_wave_reward_sync = 0_sec;
 	if (!g_vortex->integer && currentLevel > 0 && currentTime >= last_wave_reward_sync + 1_sec)
 	{
 		last_wave_reward_sync = currentTime;
@@ -9913,6 +9915,8 @@ void Horde_RunFrame()
 
 	// Update lowest and highest player level periodically (every 2 seconds)
 	static gtime_t last_player_level_check = 0_sec;
+	if (last_player_level_check > currentTime) // previous map's stamp (level.time restarts)
+		last_player_level_check = 0_sec;
 	if (currentTime >= last_player_level_check + 2_sec)
 	{
 		last_player_level_check = currentTime;
@@ -11335,6 +11339,10 @@ static void Horde_InitLevel(const int32_t lvl)
 	// --- 2. Set up the new wave's parameters ---
 	g_horde_local.level = lvl;
 	current_wave_level = lvl;
+
+	// checkpoint every loaded character at each wave start (spread one per frame), so a
+	// crash or kill loses at most one wave of progress
+	Character_QueueSaveAll();
 
 	//// Auto-enable network optimization at wave 25+
 	//if (lvl >= 25 && !g_nolag->integer) {

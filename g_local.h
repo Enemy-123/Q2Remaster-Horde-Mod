@@ -3449,6 +3449,15 @@ struct client_persistant_t
 	// switch, so the flag lives here and ClientBegin re-asserts it onto the edict.
 	bool is_bot;
 
+	// [Horde] Set once this connection's characters.db row has been applied. From then on
+	// pers is authoritative and the DB is the backup (saved at wave start, level change,
+	// disconnect and shutdown). Before this, every deathmatch respawn reloaded the row and
+	// threw away unsaved XP/cubes/points - and refunded cubes spent since the last save.
+	// character_key pins the row to the name it was loaded under, so a mid-game rename
+	// can't load (or overwrite) someone else's character. Both reset in ClientConnect.
+	bool character_loaded;
+	char character_key[MAX_NETNAME];
+
 // values saved and restored from edicts when changing levels
 	int32_t		health;
 	int32_t		max_health;

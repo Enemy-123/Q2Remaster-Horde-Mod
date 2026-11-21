@@ -4,6 +4,7 @@
 #include "sqlite3.h"
 
 #include <algorithm>
+#include <bitset>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
@@ -64,6 +65,10 @@ static std::string GetCharacterKey(edict_t* player)
     if (!player || !player->client)
         return "unknown";
 
+    // Pinned at load time (see client_persistant_t::character_key)
+    if (player->client->pers.character_key[0])
+        return player->client->pers.character_key;
+
     return Character_SanitizeName(GetPlayerName(player));
 }
 
@@ -112,6 +117,14 @@ static bool EnsureCharacterDatabase()
         std::atexit(Character_CloseDatabase);
         s_shutdown_registered = true;
     }
+
+    // Saves run on the game thread. WAL + synchronous=NORMAL makes a commit an append
+    // without an fsync (durable at the next checkpoint), instead of the default
+    // rollback-journal path that syncs the disk several times per transaction and can
+    // stall a server frame. A short busy timeout covers an external tool holding the file.
+    ExecSql("PRAGMA journal_mode=WAL;");
+    ExecSql("PRAGMA synchronous=NORMAL;");
+    sqlite3_busy_timeout(s_character_db, 100);
 
     if (!ExecSql(
         "CREATE TABLE IF NOT EXISTS characters ("
@@ -401,6 +414,7 @@ bool Character_Load(edict_t* player)
         return false;
 
     const std::string name = GetCharacterKey(player);
+    Q_strlcpy(player->client->pers.character_key, name.c_str(), sizeof(player->client->pers.character_key));
     if (!CharacterRowExists(name))
     {
         Character_CreateDefault(player);
@@ -542,7 +556,9 @@ bool Character_Load(edict_t* player)
 
 bool Character_Save(edict_t* player)
 {
-    if (IsBotCharacter(player) || !EnsureCharacterDatabase())
+    // Never save a slot whose row was not loaded for this connection: its pers can still
+    // hold the previous occupant's data and would overwrite this player's row.
+    if (IsBotCharacter(player) || !player->client->pers.character_loaded || !EnsureCharacterDatabase())
         return false;
 
     const std::string name = GetCharacterKey(player);
@@ -729,4 +745,56 @@ const char* Character_GetRespawnWeapon(edict_t* player)
         return DEFAULT_RESPAWN_WEAPON;
 
     return player->client->pers.respawn_weapon_name;
+}
+
+// ---------------------------------------------------------------------------
+// Bulk saves. pers is authoritative once loaded, so these are the durability points.
+// ---------------------------------------------------------------------------
+static std::bitset<MAX_CLIENTS> s_pending_saves;
+
+static edict_t* SaveableClient(uint32_t i)
+{
+    if (!g_edicts || i >= game.maxclients)
+        return nullptr;
+    edict_t* ent = &g_edicts[1 + i];
+    if (!ent->inuse || !ent->client || !ent->client->pers.connected || !ent->client->pers.character_loaded)
+        return nullptr;
+    return ent;
+}
+
+void Character_SaveAll()
+{
+    s_pending_saves.reset();
+    for (uint32_t i = 0; i < game.maxclients; i++)
+        if (edict_t* ent = SaveableClient(i))
+            Character_Save(ent);
+}
+
+void Character_QueueSaveAll()
+{
+    for (uint32_t i = 0; i < game.maxclients && i < MAX_CLIENTS; i++)
+        if (SaveableClient(i))
+            s_pending_saves.set(i);
+}
+
+void Character_RunFrame()
+{
+    // one player per server frame, so a wave-start save never lands as one long frame
+    if (s_pending_saves.none())
+        return;
+    for (uint32_t i = 0; i < MAX_CLIENTS; i++)
+    {
+        if (!s_pending_saves.test(i))
+            continue;
+        s_pending_saves.reset(i);
+        if (edict_t* ent = SaveableClient(i))
+            Character_Save(ent);
+        return;
+    }
+}
+
+void Character_Shutdown()
+{
+    Character_SaveAll();
+    Character_CloseDatabase();
 }

@@ -1443,7 +1443,13 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	//
 	// Initialize skills structure to zero (only on first connect)
 	// Skills persist across respawns via client->pers
-	if (client->pers.pvm_level == 0)
+	// Horde: humans reset only on the connection's first init (Character_Load then applies
+	// their row); bots keep the old level-0 reset since they are never saved.
+	const bool is_bot_client = (ent->svflags & SVF_BOT) || client->pers.is_bot;
+	const bool reset_progress = is_horde
+		? (!client->pers.character_loaded || (is_bot_client && client->pers.pvm_level == 0))
+		: (client->pers.pvm_level == 0);
+	if (reset_progress)
 	{
 		client->pers.skills = player_skills_t(); // Zero-initialize all skills
 		client->pers.skill_points = 0;
@@ -1455,7 +1461,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	// POWER CUBES INITIALIZATION (Horde currency system)
 	//
 	// Initialize to 0 on first connect (persists across respawns)
-	if (client->pers.pvm_level == 0)
+	if (reset_progress)
 	{
 		client->pers.horde_power_cubes = 0;
 
@@ -1553,7 +1559,12 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 		{
 			// Load character data BEFORE initializing (needed for respawn weapon)
 			// Note: Character_Load now properly saves/restores admin bonus points
-			Character_Load(ent);
+			// Once per connection only: respawns keep the live pers (see character_loaded).
+			if (!client->pers.character_loaded)
+			{
+				Character_Load(ent);
+				client->pers.character_loaded = true;
+			}
 
 			Horde_InitClientPersistant(ent, client);
 		}
@@ -3812,6 +3823,10 @@ bool ClientConnect(edict_t* ent, char* userinfo, const char* social_id, bool isB
 		ent->client->pers.iddmg_state = false; // dmg numbers off unless the player enables them in the menu
 		// ZOID
 		InitClientResp(ent->client);
+		// new connection: pers may still hold the slot's previous occupant, so force this
+		// player's own character row to be loaded (and keyed) on their first init
+		ent->client->pers.character_loaded = false;
+		ent->client->pers.character_key[0] = '\0';
 		if (!game.autosaved || !ent->client->pers.weapon)
 			InitClientPersistant(ent, ent->client);
 	}
@@ -3852,6 +3867,12 @@ void ClientDisconnect(edict_t* ent)
 {
 	if (!ent || !ent->client) // Added null check for ent
 		return;
+
+	// pers is authoritative for the session; write it back before the slot is released
+	if (g_horde && g_horde->integer)
+		Character_Save(ent);
+	ent->client->pers.character_loaded = false;
+	ent->client->pers.character_key[0] = '\0';
 
 	if (g_horde && g_horde->integer)
 	VerifyAndAdjustBots();

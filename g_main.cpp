@@ -534,6 +534,13 @@ void ShutdownGame()
 {
 	gi.Com_Print("==== ShutdownGame ====\n");
 
+	// save connected characters and close characters.db before the edicts are freed
+	if (g_edicts && g_horde && g_horde->integer)
+	{
+		extern void Character_Shutdown();
+		Character_Shutdown();
+	}
+
 	gi.FreeTags(TAG_LEVEL);
 	gi.FreeTags(TAG_GAME);
 	
@@ -1186,6 +1193,14 @@ void ExitLevel()
 	{
 		level.intermission_clear = false;
 
+		// the wipe below drops character_loaded, so persist characters first (they reload
+		// from the DB on the next spawn)
+		if (g_horde && g_horde->integer)
+		{
+			extern void Character_SaveAll();
+			Character_SaveAll();
+		}
+
 		for (uint32_t i = 0; i < game.maxclients; i++)
 		{
 			// [Kex] Maintain user info to keep the player skin. 
@@ -1314,6 +1329,9 @@ void G_CheckBotOverlap(void)
 {
     // If the global cooldown is active, do nothing this frame.
     // This correctly enforces the 5-second pause between unsticking events.
+    // level.time restarts each map: a stamp from the previous map would block for its length.
+    if (g_bot_overlap_cooldown > level.time + 5_sec)
+        g_bot_overlap_cooldown = 0_ms;
     if (level.time < g_bot_overlap_cooldown)
     {
         return;
@@ -1477,6 +1495,10 @@ static void ProcessHordePerFrameLogic(const MonstersT& monsters, const PlayersT&
     static gtime_t last_player_count_check = 0_ms;
     const gtime_t PLAYER_COUNT_CHECK_INTERVAL = 500_ms;
 
+    // level.time restarts each map; a previous-map stamp would freeze the count (and with it
+    // coop_scale_players / monster health scaling) for that map's whole length.
+    if (last_player_count_check > level.time)
+        last_player_count_check = level.time - PLAYER_COUNT_CHECK_INTERVAL;
     if ((level.time - last_player_count_check) >= PLAYER_COUNT_CHECK_INTERVAL) {
         cached_human_player_count = GetNumHumanPlayers();
         last_player_count_check = level.time;
@@ -1611,6 +1633,8 @@ inline void G_RunFrame_(bool main_loop)
         ProcessHordePerFrameLogic(monsters, players);
         extern void Horde_AutotestFrame();
         Horde_AutotestFrame();
+        extern void Character_RunFrame();
+        Character_RunFrame();
     }
 
     // --- GENERAL FRAME LOGIC ---

@@ -81,6 +81,8 @@ static bool TryBotTeleport(const edict_t* ent)
 	if (ent->svflags & SVF_BOT)
 	{
 		// Verificar si ha pasado suficiente tiempo desde el último uso
+		if (last_bot_teleport_time > level.time) // previous map's stamp (level.time restarts)
+			last_bot_teleport_time = 0_sec;
 		if ((level.time - last_bot_teleport_time) < BOT_TELEPORT_COOLDOWN)
 		{
 			// No ha pasado suficiente tiempo - mostrar tiempo restante
@@ -142,6 +144,8 @@ static bool TryBotSentry(const edict_t* ent)
 	if (ent->svflags & SVF_BOT)
 	{
 		// Verificar si ha pasado suficiente tiempo desde el último uso
+		if (last_bot_sentry_time > level.time) // previous map's stamp (level.time restarts)
+			last_bot_sentry_time = 0_sec;
 		if ((level.time - last_bot_sentry_time) < BOT_SENTRY_COOLDOWN)
 		{
 			return false;
